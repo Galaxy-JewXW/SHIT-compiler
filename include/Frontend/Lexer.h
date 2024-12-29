@@ -2,6 +2,7 @@
 #define _LEXER_H_
 
 #include "../Compiler.h"
+#include "../Utils/Token.h"
 
 int lex();
 
