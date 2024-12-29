@@ -40,10 +40,10 @@ int main(int argc, char *argv[]) {
     file.close();
 
     Lexer lexer(sourceCode);
-    std::vector<Token> tokens = lexer.tokenize();
+    std::vector<Token::Token> tokens = lexer.tokenize();
 
     // 输出Token
-    for (const auto& token : tokens) {
+    for (const auto &token: tokens) {
         token.print();
     }
 

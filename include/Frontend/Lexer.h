@@ -16,7 +16,7 @@ class Lexer {
     // 当前行数
     int line;
     // 解析得到的Token列表
-    std::vector<Token> tokens;
+    std::vector<Token::Token> tokens;
 
     // 关键词集合
     std::unordered_set<std::string> keywords = {
@@ -25,17 +25,17 @@ class Lexer {
     };
 
     // 运算符和分隔符映射
-    std::unordered_map<std::string, TokenType> operators = {
-        {"+", TokenType::ADD}, {"-", TokenType::SUB}, {"!", TokenType::NOT},
-        {"*", TokenType::MUL}, {"/", TokenType::DIV}, {"%", TokenType::MOD},
-        {"<", TokenType::LT}, {">", TokenType::GT}, {"<=", TokenType::LE},
-        {">=", TokenType::GE}, {"==", TokenType::EQ}, {"!=", TokenType::NE},
-        {"&&", TokenType::AND}, {"||", TokenType::OR},
-        {";", TokenType::SEMICOLON}, {",", TokenType::COMMA},
-        {"=", TokenType::ASSIGN}, {"(", TokenType::LPAREN},
-        {")", TokenType::RPAREN}, {"{", TokenType::LBRACE},
-        {"}", TokenType::RBRACE}, {"[", TokenType::LBRACKET},
-        {"]", TokenType::RBRACKET}
+    std::unordered_map<std::string, Token::Type> operators = {
+        {"+", Token::Type::ADD}, {"-", Token::Type::SUB}, {"!", Token::Type::NOT},
+        {"*", Token::Type::MUL}, {"/", Token::Type::DIV}, {"%", Token::Type::MOD},
+        {"<", Token::Type::LT}, {">", Token::Type::GT}, {"<=", Token::Type::LE},
+        {">=", Token::Type::GE}, {"==", Token::Type::EQ}, {"!=", Token::Type::NE},
+        {"&&", Token::Type::AND}, {"||", Token::Type::OR},
+        {";", Token::Type::SEMICOLON}, {",", Token::Type::COMMA},
+        {"=", Token::Type::ASSIGN}, {"(", Token::Type::LPAREN},
+        {")", Token::Type::RPAREN}, {"{", Token::Type::LBRACE},
+        {"}", Token::Type::RBRACE}, {"[", Token::Type::LBRACKET},
+        {"]", Token::Type::RBRACKET}
     };
 
     // 查看当前位置的字符
@@ -89,7 +89,7 @@ class Lexer {
     }
 
     // 识别标识符或关键词
-    Token consume_ident_or_keyword() {
+    Token::Token consume_ident_or_keyword() {
         const int start_line = line;
         std::string lexeme;
         while (pos < input.length() && (isalnum(peek()) || peek() == '_')) {
@@ -97,29 +97,29 @@ class Lexer {
         }
 
         if (keywords.find(lexeme) != keywords.end()) {
-            return Token{lexeme, string_to_tokentype(lexeme), start_line};
+            return Token::Token{lexeme, string_to_tokentype(lexeme), start_line};
         }
-        return Token{lexeme, TokenType::IDENTIFIER, start_line};
+        return Token::Token{lexeme, Token::Type::IDENTIFIER, start_line};
     }
 
     // 将关键词字符串转换为TokenType
-    static TokenType string_to_tokentype(const std::string &str) {
-        if (str == "const") return TokenType::CONST;
-        if (str == "int") return TokenType::INT;
-        if (str == "float") return TokenType::FLOAT;
-        if (str == "void") return TokenType::VOID;
-        if (str == "if") return TokenType::IF;
-        if (str == "else") return TokenType::ELSE;
-        if (str == "while") return TokenType::WHILE;
-        if (str == "break") return TokenType::BREAK;
-        if (str == "continue") return TokenType::CONTINUE;
-        if (str == "return") return TokenType::RETURN;
-        if (str == "putf") return TokenType::PUTF;
-        return TokenType::IDENTIFIER;
+    static Token::Type string_to_tokentype(const std::string &str) {
+        if (str == "const") return Token::Type::CONST;
+        if (str == "int") return Token::Type::INT;
+        if (str == "float") return Token::Type::FLOAT;
+        if (str == "void") return Token::Type::VOID;
+        if (str == "if") return Token::Type::IF;
+        if (str == "else") return Token::Type::ELSE;
+        if (str == "while") return Token::Type::WHILE;
+        if (str == "break") return Token::Type::BREAK;
+        if (str == "continue") return Token::Type::CONTINUE;
+        if (str == "return") return Token::Type::RETURN;
+        if (str == "putf") return Token::Type::PUTF;
+        return Token::Type::IDENTIFIER;
     }
 
     // 识别数字（整数或浮点数）
-    Token consume_number() {
+    Token::Token consume_number() {
         const int start_line = line;
         std::string number;
         bool is_float = false;
@@ -153,9 +153,9 @@ class Lexer {
                 }
             }
             if (is_float) {
-                return Token{number, TokenType::FLOAT_CONST, start_line};
+                return Token::Token{number, Token::Type::FLOAT_CONST, start_line};
             }
-            return Token{number, TokenType::HEX_CONST, start_line};
+            return Token::Token{number, Token::Type::HEX_CONST, start_line};
         }
         // 八进制数
         if (peek() == '0' && std::isdigit(peek_next())) {
@@ -163,7 +163,7 @@ class Lexer {
             while (pos < input.length() && peek() >= '0' && peek() <= '7') {
                 number += advance();
             }
-            return Token{number, TokenType::OCT_CONST, start_line};
+            return Token::Token{number, Token::Type::OCT_CONST, start_line};
         }
         // 十进制数字
         while (pos < input.length() && std::isdigit(peek())) {
@@ -196,13 +196,13 @@ class Lexer {
             number += advance(); // 添加后缀
         }
         if (is_float) {
-            return Token{number, TokenType::FLOAT_CONST, start_line};
+            return Token::Token{number, Token::Type::FLOAT_CONST, start_line};
         }
-        return Token{number, TokenType::INT_CONST, start_line};
+        return Token::Token{number, Token::Type::INT_CONST, start_line};
     }
 
     // 识别字符串
-    Token consume_string() {
+    Token::Token consume_string() {
         const int start_line = line;
         std::string str;
         advance(); // 消费第一个双引号
@@ -221,11 +221,11 @@ class Lexer {
                 str += advance();
             }
         }
-        return Token{str, TokenType::STRING_CONST, start_line};
+        return Token::Token{str, Token::Type::STRING_CONST, start_line};
     }
 
     // 识别运算符或未知字符
-    Token consume_operator() {
+    Token::Token consume_operator() {
         const int start_line = line;
         std::string op;
         op += advance();
@@ -235,24 +235,24 @@ class Lexer {
             if (const std::string twoCharOp = op + std::string(1, peek());
                 operators.find(twoCharOp) != operators.end()) {
                 advance();
-                return Token{twoCharOp, operators[twoCharOp], start_line};
+                return Token::Token{twoCharOp, operators[twoCharOp], start_line};
             }
         }
 
         // 尝试匹配单字符运算符
         if (operators.find(op) != operators.end()) {
-            return Token{op, operators[op], start_line};
+            return Token::Token{op, operators[op], start_line};
         }
 
         // 未知字符
-        return Token{op, TokenType::UNKNOWN, start_line};
+        return Token::Token{op, Token::Type::UNKNOWN, start_line};
     }
 
 public:
     explicit Lexer(std::string src) : input(std::move(src)), pos(0), line(1) {}
 
     // 获取分割好的Token列表
-    std::vector<Token> tokenize();
+    std::vector<Token::Token> tokenize();
 };
 
 #endif

@@ -1,6 +1,6 @@
 #include "Frontend/Lexer.h"
 
-std::vector<Token> Lexer::tokenize() {
+std::vector<Token::Token> Lexer::tokenize() {
     while (pos < input.length()) {
         const char current = peek();
         // 跳过空白符和注释
@@ -29,6 +29,6 @@ std::vector<Token> Lexer::tokenize() {
             tokens.push_back(consume_operator());
         }
     }
-    tokens.emplace_back("\0", TokenType::END_OF_FILE, line);
+    tokens.emplace_back("\0", Token::Type::END_OF_FILE, line);
     return tokens;
 }
