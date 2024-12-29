@@ -1,5 +1,5 @@
-#ifndef _COMPILER_H_
-#define _COMPILER_H_
+#ifndef COMPILER_H_
+#define COMPILER_H_
 
 #include <string>
 #include <vector>
@@ -10,4 +10,4 @@ extern bool options[28];
 
 int main(int, char *[]);
 
-#endif // _COMPILER_H_
+#endif
