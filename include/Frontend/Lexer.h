@@ -232,10 +232,10 @@ class Lexer {
 
         // 尝试匹配两个字符的运算符
         if (pos < input.length()) {
-            if (const std::string twoCharOp = op + std::string(1, peek());
-                operators.find(twoCharOp) != operators.end()) {
+            if (const std::string two_char_op = op + std::string(1, peek());
+                operators.find(two_char_op) != operators.end()) {
                 advance();
-                return Token::Token{twoCharOp, operators[twoCharOp], start_line};
+                return Token::Token{two_char_op, operators[two_char_op], start_line};
             }
         }
 
