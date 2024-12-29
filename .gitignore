@@ -1,0 +1,7 @@
+/out/
+/jpcc.iml
+/.idea/
+*.sy
+.vscode
+build/
+bin/
