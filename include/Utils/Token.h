@@ -106,7 +106,7 @@ namespace Token {
         }
 
         void print() const {
-            std::cout << "(" << line << ", " << type_to_string(type) << ", " << content << ")\n";
+            std::cout << "{" << line << " " << type_to_string(type) << " \"" << content << "\"}\n";
         }
     };
 }

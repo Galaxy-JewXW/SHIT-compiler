@@ -36,10 +36,10 @@ int main(int argc, char *argv[]) {
     }
     std::stringstream buffer;
     buffer << file.rdbuf();
-    std::string sourceCode = buffer.str();
+    std::string src_code = buffer.str();
     file.close();
 
-    Lexer lexer(sourceCode);
+    Lexer lexer(src_code);
     std::vector<Token::Token> tokens = lexer.tokenize();
 
     // 输出Token
