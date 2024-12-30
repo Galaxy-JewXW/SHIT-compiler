@@ -1,5 +1,9 @@
 #include "Compiler.h"
 
+#include <fstream>
+#include <iostream>
+#include <sstream>
+
 bool options[28];
 
 void parseArgs(int argc, char *argv[]) {
@@ -23,6 +27,25 @@ void parseArgs(int argc, char *argv[]) {
 
 int main(int argc, char *argv[]) {
     parseArgs(argc, argv);
-    std::cout << lex() << std::endl;
+    // 先指定了源文件路径
+    const std::string filename = "../testfile.sy";
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Error: Cannot open file " << filename << "\n";
+        return 1;
+    }
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    std::string src_code = buffer.str();
+    file.close();
+
+    Lexer lexer(src_code);
+    std::vector<Token::Token> tokens = lexer.tokenize();
+
+    // 输出Token
+    for (const auto &token: tokens) {
+        token.print();
+    }
+
     return 0;
 }
