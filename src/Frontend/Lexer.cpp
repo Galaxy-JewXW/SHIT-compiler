@@ -38,6 +38,7 @@ Token::Token Lexer::consume_number() {
     const int start_line = line;
     std::string number;
     bool is_float = false;
+    std::size_t idx;
     // 检查是否为十六进制数（以 0x 或 0X 开头）
     if (peek() == '0' && (peek_next() == 'x' || peek_next() == 'X')) {
         number += advance();
@@ -68,9 +69,15 @@ Token::Token Lexer::consume_number() {
             }
         }
         if (is_float) {
-            return Token::Token{number, Token::Type::FLOAT_CONST, start_line};
+            return Token::Token{
+                std::to_string(std::stod(number, &idx)),
+                Token::Type::FLOAT_CONST, start_line
+            };
         }
-        return Token::Token{number, Token::Type::HEX_CONST, start_line};
+        return Token::Token{
+            std::to_string(std::stoi(number, &idx, 16)),
+            Token::Type::INT_CONST, start_line
+        };
     }
     // 八进制数
     if (peek() == '0' && std::isdigit(peek_next())) {
@@ -78,7 +85,10 @@ Token::Token Lexer::consume_number() {
         while (pos < input.length() && peek() >= '0' && peek() <= '7') {
             number += advance();
         }
-        return Token::Token{number, Token::Type::OCT_CONST, start_line};
+        return Token::Token{
+            std::to_string(std::stoi(number, &idx, 8)),
+            Token::Type::INT_CONST, start_line
+        };
     }
     // 十进制数字
     while (pos < input.length() && std::isdigit(peek())) {
@@ -108,12 +118,18 @@ Token::Token Lexer::consume_number() {
     // 检查是否有浮点数后缀 'f', 'F', 'l', 'L'
     if (peek() == 'f' || peek() == 'F' || peek() == 'l' || peek() == 'L') {
         is_float = true;
-        number += advance(); // 添加后缀
+        number += advance();
     }
     if (is_float) {
-        return Token::Token{number, Token::Type::FLOAT_CONST, start_line};
+        return Token::Token{
+            std::to_string(std::stod(number, &idx)),
+            Token::Type::FLOAT_CONST, start_line
+        };
     }
-    return Token::Token{number, Token::Type::INT_CONST, start_line};
+    return Token::Token{
+        std::to_string(std::stoi(number, &idx, 10)),
+        Token::Type::INT_CONST, start_line
+    };
 }
 
 Token::Token Lexer::consume_string() {
@@ -150,7 +166,7 @@ Token::Token Lexer::consume_operator() {
             operators.find(two_char_op) != operators.end()) {
             advance();
             return Token::Token{two_char_op, operators[two_char_op], start_line};
-            }
+        }
     }
 
     // 尝试匹配单字符运算符
