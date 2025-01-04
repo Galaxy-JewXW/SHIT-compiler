@@ -11,7 +11,7 @@ namespace Token {
         // 标识符
         IDENTIFIER,
         // 字面量
-        INT_CONST, OCT_CONST, HEX_CONST, FLOAT_CONST, STRING_CONST,
+        INT_CONST, FLOAT_CONST, STRING_CONST,
         // 运算符
         ADD, SUB, NOT, MUL, DIV, MOD,
         LT, GT, LE, GE, EQ, NE, AND, OR,
@@ -25,10 +25,6 @@ namespace Token {
     };
 
     class Token {
-        const std::string content;
-        const Type type;
-        const int line;
-
         static std::string type_to_string(const Type type) {
             switch (type) {
                 // 关键词
@@ -49,8 +45,6 @@ namespace Token {
 
                 // 字面量
                 case Type::INT_CONST: return "INT_CONST";
-                case Type::OCT_CONST: return "OCT_CONST";
-                case Type::HEX_CONST: return "HEX_CONST";
                 case Type::FLOAT_CONST: return "FLOAT_CONST";
                 case Type::STRING_CONST: return "STRING_CONST";
 
@@ -89,25 +83,17 @@ namespace Token {
             }
         }
 
-    public:
-        Token(std::string c, const Type t, const int l)
-            : content(std::move(c)), type(t), line(l) {}
+        public:
+            const std::string content;
+            const Type type;
+            const int line;
 
-        [[nodiscard]] std::string get_content() const {
-            return content;
-        }
+            Token(std::string c, const Type t, const int l)
+                : content(std::move(c)), type(t), line(l) {}
 
-        [[nodiscard]] Type get_type() const {
-            return type;
-        }
-
-        [[nodiscard]] int get_line() const {
-            return line;
-        }
-
-        void print() const {
-            std::cout << "{" << line << " " << type_to_string(type) << " \"" << content << "\"}\n";
-        }
+            void print() const {
+                std::cout << "{" << line << " " << type_to_string(type) << " \"" << content << "\"}\n";
+            }
     };
 }
 
