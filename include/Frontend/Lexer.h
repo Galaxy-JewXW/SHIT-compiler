@@ -1,5 +1,5 @@
-#ifndef LEXER_H_
-#define LEXER_H_
+#ifndef LEXER_H
+#define LEXER_H
 
 #include <unordered_map>
 #include <unordered_set>
@@ -20,21 +20,43 @@ class Lexer {
 
     // 关键词集合
     std::unordered_set<std::string> keywords = {
-        "const", "int", "float", "void", "if", "else", "while",
-        "break", "continue", "return", "putf"
+        "const",
+        "int",
+        "float",
+        "void",
+        "if",
+        "else",
+        "while",
+        "break",
+        "continue",
+        "return",
+        "putf"
     };
 
     // 运算符和分隔符映射
     std::unordered_map<std::string, Token::Type> operators = {
-        {"+", Token::Type::ADD}, {"-", Token::Type::SUB}, {"!", Token::Type::NOT},
-        {"*", Token::Type::MUL}, {"/", Token::Type::DIV}, {"%", Token::Type::MOD},
-        {"<", Token::Type::LT}, {">", Token::Type::GT}, {"<=", Token::Type::LE},
-        {">=", Token::Type::GE}, {"==", Token::Type::EQ}, {"!=", Token::Type::NE},
-        {"&&", Token::Type::AND}, {"||", Token::Type::OR},
-        {";", Token::Type::SEMICOLON}, {",", Token::Type::COMMA},
-        {"=", Token::Type::ASSIGN}, {"(", Token::Type::LPAREN},
-        {")", Token::Type::RPAREN}, {"{", Token::Type::LBRACE},
-        {"}", Token::Type::RBRACE}, {"[", Token::Type::LBRACKET},
+        {"+", Token::Type::ADD},
+        {"-", Token::Type::SUB},
+        {"!", Token::Type::NOT},
+        {"*", Token::Type::MUL},
+        {"/", Token::Type::DIV},
+        {"%", Token::Type::MOD},
+        {"<", Token::Type::LT},
+        {">", Token::Type::GT},
+        {"<=", Token::Type::LE},
+        {">=", Token::Type::GE},
+        {"==", Token::Type::EQ},
+        {"!=", Token::Type::NE},
+        {"&&", Token::Type::AND},
+        {"||", Token::Type::OR},
+        {";", Token::Type::SEMICOLON},
+        {",", Token::Type::COMMA},
+        {"=", Token::Type::ASSIGN},
+        {"(", Token::Type::LPAREN},
+        {")", Token::Type::RPAREN},
+        {"{", Token::Type::LBRACE},
+        {"}", Token::Type::RBRACE},
+        {"[", Token::Type::LBRACKET},
         {"]", Token::Type::RBRACKET}
     };
 
@@ -84,7 +106,7 @@ class Lexer {
     Token::Token consume_operator();
 
     // 将关键词字符串转换为TokenType
-    static Token::Type string_to_tokentype(const std::string &str) {
+    static Token::Type string_to_type(const std::string &str) {
         if (str == "const") return Token::Type::CONST;
         if (str == "int") return Token::Type::INT;
         if (str == "float") return Token::Type::FLOAT;

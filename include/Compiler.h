@@ -1,5 +1,5 @@
-#ifndef COMPILER_H_
-#define COMPILER_H_
+#ifndef COMPILER_H
+#define COMPILER_H
 
 #include <string>
 #include <vector>

@@ -29,7 +29,7 @@ Token::Token Lexer::consume_ident_or_keyword() {
     }
 
     if (keywords.find(lexeme) != keywords.end()) {
-        return Token::Token{lexeme, string_to_tokentype(lexeme), start_line};
+        return Token::Token{lexeme, string_to_type(lexeme), start_line};
     }
     return Token::Token{lexeme, Token::Type::IDENTIFIER, start_line};
 }
