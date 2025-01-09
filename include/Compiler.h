@@ -5,6 +5,7 @@
 #include <vector>
 #include <iostream>
 #include "Frontend/Lexer.h"
+#include "Frontend/Parser.h"
 
 extern bool options[28];
 

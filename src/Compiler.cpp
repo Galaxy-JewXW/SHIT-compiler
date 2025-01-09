@@ -47,5 +47,7 @@ int main(int argc, char *argv[]) {
         token.print();
     }
 
+    Parser parser(tokens);
+
     return 0;
 }

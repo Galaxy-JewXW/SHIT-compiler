@@ -1,0 +1,58 @@
+#ifndef PARSER_H
+#define PARSER_H
+
+#include "Utils/Token.h"
+#include "Utils/AST.h"
+
+class Parser {
+    // lexer得到的
+    const std::vector<Token::Token> tokens;
+    // 当前指针位置
+    size_t pos;
+    // 当前字符
+    [[nodiscard]] Token::Token peek() const {
+        return tokens.at(pos);
+    }
+
+    // 向前(后)读n个字符
+    [[nodiscard]] Token::Token next(const int offset) const {
+        return tokens.at(pos + offset);
+    }
+
+    // 如果该位置不是符合要求的Token，抛出异常；否则pos向前移动
+    template<typename... Types>
+    bool panic_on(Types... expected_types);
+
+    // 与match类似，如果不合要求将忽略
+    template<typename... Types>
+    bool match(Types... expected_types);
+
+    std::shared_ptr<AST::CompUnit> parseCompUnit();
+
+    std::shared_ptr<AST::Decl> parseDecl();
+
+    std::shared_ptr<AST::ConstDecl> parseConstDecl();
+
+    std::shared_ptr<AST::ConstDef> parseConstDef();
+
+    std::shared_ptr<AST::ConstInitVal> parseConstInitVal();
+
+    std::shared_ptr<AST::VarDecl> parseVarDecl();
+
+    std::shared_ptr<AST::VarDef> parseVarDef();
+
+    std::shared_ptr<AST::InitVal> parseInitVal();
+
+    std::shared_ptr<AST::FuncDef> parseFuncDef();
+
+    std::shared_ptr<AST::ConstExp> parseConstExp();
+
+public:
+    explicit Parser(const std::vector<Token::Token> &tokens) : tokens{tokens}, pos{0} {}
+
+    std::shared_ptr<AST::CompUnit> parse() { return parseCompUnit(); }
+
+    [[nodiscard]] bool eof() const { return pos >= tokens.size(); }
+};
+
+#endif //PARSER_H
