@@ -1,7 +1,6 @@
 #ifndef AST_H
 #define AST_H
 
-#include <iostream>
 #include <memory>
 #include <utility>
 #include <variant>
@@ -11,10 +10,10 @@
 namespace AST {
 // AST 结点基类
 class Node {
-    friend class Parser;
-
 public:
     virtual ~Node() = default;
+
+    [[nodiscard]] virtual std::string to_string() const = 0;
 };
 
 class Exp;
@@ -27,13 +26,17 @@ class IntNumber final : public Number {
 
 public:
     explicit IntNumber(const int &value) : value_{value} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 class FloatNumber final : public Number {
-    const float value_;
+    const double value_;
 
 public:
-    explicit FloatNumber(const float &value) : value_{value} {}
+    explicit FloatNumber(const double &value) : value_{value} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 // PrimaryExp -> '(' Exp ')' | LVal | Number
@@ -47,17 +50,31 @@ public:
 
     explicit PrimaryExp(const std::shared_ptr<Number> &number) : value_{number} {}
 
-    [[nodiscard]] bool isExp() const {
+    [[nodiscard]] bool is_exp() const {
         return std::holds_alternative<std::shared_ptr<Exp>>(value_);
     }
 
-    [[nodiscard]] bool isLVal() const {
+    [[nodiscard]] bool is_lVal() const {
         return std::holds_alternative<std::shared_ptr<LVal>>(value_);
     }
 
-    [[nodiscard]] bool isNumber() const {
+    [[nodiscard]] bool is_number() const {
         return std::holds_alternative<std::shared_ptr<Number>>(value_);
     }
+
+    [[nodiscard]] std::string to_string() const override;
+};
+
+// LVal -> Ident {'[' Exp ']'}
+class LVal final : public Node {
+    const std::string ident_;
+    const std::vector<std::shared_ptr<Exp>> exps_;
+
+public:
+    explicit LVal(std::string ident, const std::vector<std::shared_ptr<Exp>> &exps) :
+        ident_{std::move(ident)}, exps_{exps} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 // UnaryExp -> PrimaryExp | Ident '(' [Exp { ',' Exp }] ')'  | unaryOp UnaryExp
@@ -73,17 +90,19 @@ public:
 
     UnaryExp(const std::string &ident, const std::vector<std::shared_ptr<Exp>> &exp) : value_{call{ident, exp}} {}
 
-    [[nodiscard]] bool isPrimaryExp() const {
+    [[nodiscard]] bool is_primaryExp() const {
         return std::holds_alternative<std::shared_ptr<PrimaryExp>>(value_);
     }
 
-    [[nodiscard]] bool isCall() const {
+    [[nodiscard]] bool is_call() const {
         return std::holds_alternative<call>(value_);
     }
 
-    [[nodiscard]] bool isOpExp() const {
+    [[nodiscard]] bool is_opExp() const {
         return std::holds_alternative<opExp>(value_);
     }
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 // MulExp -> UnaryExp { (* | / | %) UnaryExp}
@@ -98,6 +117,8 @@ public:
             throw std::invalid_argument("MulExp: Unexpected number of operators");
         }
     }
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 // AddExp -> MulExp { (+ | -) MulExp }
@@ -112,6 +133,8 @@ public:
             throw std::invalid_argument("AddExp: Unexpected number of operators");
         }
     }
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 // RelExp -> AddExp { (> | < | >= | <=) AddExp }
@@ -126,6 +149,8 @@ public:
             throw std::invalid_argument("RelExp: Unexpected number of operators");
         }
     }
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 // EqExp -> RelExp { (== | !=) RelExp }
@@ -140,6 +165,8 @@ public:
             throw std::invalid_argument("EqExp: Unexpected number of operators");
         }
     }
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 // LAndExp -> EqExp { && EqExp }
@@ -148,6 +175,8 @@ class LAndExp final : public Node {
 
 public:
     explicit LAndExp(const std::vector<std::shared_ptr<EqExp>> &eqExps) : eqExps_{eqExps} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 // LOrExp -> LAndExp { || LAndExp }
@@ -156,6 +185,8 @@ class LOrExp final : public Node {
 
 public:
     explicit LOrExp(const std::vector<std::shared_ptr<LAndExp>> &lAndExps) : lAndExps_{lAndExps} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 // Exp -> AddExp
@@ -164,6 +195,8 @@ class Exp final : public Node {
 
 public:
     explicit Exp(const std::shared_ptr<AddExp> &addExp) : addExp_{addExp} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 // ConstExp -> AddExp
@@ -172,11 +205,18 @@ class ConstExp final : public Node {
 
 public:
     explicit ConstExp(const std::shared_ptr<AddExp> &addExp) : addExp_{addExp} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 // Cond -> LOrExp
 class Cond final : public Node {
     const std::shared_ptr<LOrExp> lOrExp_;
+
+public:
+    explicit Cond(const std::shared_ptr<LOrExp> &lOrExp) : lOrExp_{lOrExp} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 // Decl -> ConstDecl | VarDecl
@@ -196,9 +236,10 @@ class Block final : public Node {
     const std::vector<std::variant<std::shared_ptr<Decl>, std::shared_ptr<Stmt>>> items_;
 
 public:
-    explicit Block(const std::vector<std::variant<std::shared_ptr<Decl>, std::shared_ptr<Stmt>>> &items) : items_{
-        items
-    } {};
+    explicit Block(const std::vector<std::variant<std::shared_ptr<Decl>, std::shared_ptr<Stmt>>> &items) :
+        items_{items} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 class AssignStmt final : public Stmt {
@@ -207,6 +248,8 @@ class AssignStmt final : public Stmt {
 
 public:
     AssignStmt(const std::shared_ptr<LVal> &lval, const std::shared_ptr<Exp> &exp) : lval_{lval}, exp_{exp} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 class ExpStmt final : public Stmt {
@@ -214,13 +257,17 @@ class ExpStmt final : public Stmt {
 
 public:
     explicit ExpStmt(const std::shared_ptr<Exp> &exp) : exp_{exp} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 class BlockStmt final : public Stmt {
-    const std::shared_ptr<Block> block;
+    const std::shared_ptr<Block> block_;
 
 public:
-    explicit BlockStmt(const std::shared_ptr<Block> &block) : block{block} {};
+    explicit BlockStmt(const std::shared_ptr<Block> &block) : block_{block} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 class IfStmt final : public Stmt {
@@ -231,6 +278,8 @@ class IfStmt final : public Stmt {
 public:
     IfStmt(const std::shared_ptr<Cond> &cond, const std::shared_ptr<Stmt> &then,
            const std::shared_ptr<Stmt> &else_) : cond_{cond}, then_{then}, else_{else_} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 class WhileStmt final : public Stmt {
@@ -239,17 +288,27 @@ class WhileStmt final : public Stmt {
 
 public:
     WhileStmt(const std::shared_ptr<Cond> &cond, const std::shared_ptr<Stmt> &body) : cond_{cond}, body_{body} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
-class BreakStmt final : public Stmt {};
+class BreakStmt final : public Stmt {
+public:
+    [[nodiscard]] std::string to_string() const override;
+};
 
-class ContinueStmt final : public Stmt {};
+class ContinueStmt final : public Stmt {
+public:
+    [[nodiscard]] std::string to_string() const override;
+};
 
 class ReturnStmt final : public Stmt {
     const std::shared_ptr<Exp> exp_;
 
 public:
     explicit ReturnStmt(const std::shared_ptr<Exp> &exp) : exp_{exp} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 class PutfStmt final : public Stmt {
@@ -259,6 +318,8 @@ class PutfStmt final : public Stmt {
 public:
     PutfStmt(std::string string_const, const std::vector<std::shared_ptr<Exp>> &exps)
         : string_const_{std::move(string_const)}, exps_{exps} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 // ConstInitVal -> ConstExp | '{' [ ConstInitVal { ',' ConstInitVal } ] '}'
@@ -270,13 +331,15 @@ public:
 
     explicit ConstInitVal(const std::vector<std::shared_ptr<ConstInitVal>> &constInitVals) : value_{constInitVals} {}
 
-    [[nodiscard]] bool isConstExp() const {
+    [[nodiscard]] bool is_constExp() const {
         return std::holds_alternative<std::shared_ptr<ConstExp>>(value_);
     }
 
-    [[nodiscard]] bool isConstInitVals() const {
+    [[nodiscard]] bool is_constInitVals() const {
         return std::holds_alternative<std::vector<std::shared_ptr<ConstInitVal>>>(value_);
     }
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 // ConstDef -> Ident { '[' ConstExp ']' } '=' ConstInitVal
@@ -289,6 +352,8 @@ public:
     ConstDef(std::string ident, const std::vector<std::shared_ptr<ConstExp>> &constExps,
              const std::shared_ptr<ConstInitVal> &constInitVal) :
         ident_{std::move(ident)}, constExps_{constExps}, constInitVal_{constInitVal} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 // ConstDecl ->  'const' BType ConstDef { ',' ConstDef } ';'
@@ -299,6 +364,8 @@ class ConstDecl final : public Decl {
 public:
     ConstDecl(const Token::Type &bType, const std::vector<std::shared_ptr<ConstDef>> &constDefs) :
         bType_{bType}, constDefs_{constDefs} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 // InitVal : Exp | '{' [ InitVal { ',' InitVal } ] '}'
@@ -310,13 +377,15 @@ public:
 
     explicit InitVal(const std::vector<std::shared_ptr<InitVal>> &initVals) : value_{initVals} {}
 
-    [[nodiscard]] bool isExp() const {
+    [[nodiscard]] bool is_exp() const {
         return std::holds_alternative<std::shared_ptr<Exp>>(value_);
     }
 
-    [[nodiscard]] bool isInitVals() const {
+    [[nodiscard]] bool is_initVals() const {
         return std::holds_alternative<std::vector<std::shared_ptr<InitVal>>>(value_);
     }
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 // VarDef -> Ident { '[' ConstExp ']' } ('=' InitVal)
@@ -329,6 +398,8 @@ public:
     VarDef(std::string ident, const std::vector<std::shared_ptr<ConstExp>> &constExps,
            const std::shared_ptr<InitVal> &initVal) :
         ident_{std::move(ident)}, constExps_{constExps}, initVal_{initVal} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 // VarDecl -> BType VarDef { ',' VarDef } ';'
@@ -339,6 +410,8 @@ class VarDecl final : public Decl {
 public:
     VarDecl(const Token::Type &bType, const std::vector<std::shared_ptr<VarDef>> &varDefs) :
         bType_{bType}, varDefs_{varDefs} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 // FuncFParam -> BType Ident ['[' ']' { '[' Exp ']' }]
@@ -351,6 +424,8 @@ public:
     FuncFParam(const Token::Type &bType, std::string ident,
                const std::vector<std::shared_ptr<Exp>> &exps) :
         bType_{bType}, ident_{std::move(ident)}, exps_{exps} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 // FuncDef -> FuncType Ident '(' [FuncFParam { ',' FuncFParam }] ')' Block
@@ -365,6 +440,8 @@ public:
             const std::vector<std::shared_ptr<FuncFParam>> &funcParams,
             const std::shared_ptr<Block> &block) :
         funcType_{funcType}, ident_{std::move(ident)}, funcParams_{funcParams}, block_{block} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 // CompUnit -> {Decl | FuncDef}
@@ -374,7 +451,9 @@ class CompUnit final : public Node {
 public:
     explicit CompUnit(const std::vector<std::variant<std::shared_ptr<Decl>,
         std::shared_ptr<FuncDef>>> &compunits) :
-        compunits_{compunits} {};
+        compunits_{compunits} {}
+
+    [[nodiscard]] std::string to_string() const override;
 };
 }
 #endif

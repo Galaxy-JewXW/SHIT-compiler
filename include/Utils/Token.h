@@ -26,63 +26,7 @@ enum class Type {
     UNKNOWN
 };
 
-static std::string type_to_string(const Type type) {
-    switch (type) {
-        // 关键词
-        case Type::CONST: return "CONST";
-        case Type::INT: return "INT";
-        case Type::FLOAT: return "FLOAT";
-        case Type::VOID: return "VOID";
-        case Type::IF: return "IF";
-        case Type::ELSE: return "ELSE";
-        case Type::WHILE: return "WHILE";
-        case Type::BREAK: return "BREAK";
-        case Type::CONTINUE: return "CONTINUE";
-        case Type::RETURN: return "RETURN";
-        case Type::PUTF: return "PUTF";
-
-        // 标识符
-        case Type::IDENTIFIER: return "IDENTIFIER";
-
-        // 字面量
-        case Type::INT_CONST: return "INT_CONST";
-        case Type::FLOAT_CONST: return "FLOAT_CONST";
-        case Type::STRING_CONST: return "STRING_CONST";
-
-        // 运算符
-        case Type::ADD: return "ADD";
-        case Type::SUB: return "SUB";
-        case Type::NOT: return "NOT";
-        case Type::MUL: return "MUL";
-        case Type::DIV: return "DIV";
-        case Type::MOD: return "MOD";
-        case Type::LT: return "LT";
-        case Type::GT: return "GT";
-        case Type::LE: return "LE";
-        case Type::GE: return "GE";
-        case Type::EQ: return "EQ";
-        case Type::NE: return "NE";
-        case Type::AND: return "AND";
-        case Type::OR: return "OR";
-
-        // 分隔符
-        case Type::SEMICOLON: return "SEMICOLON";
-        case Type::COMMA: return "COMMA";
-        case Type::ASSIGN: return "ASSIGN";
-        case Type::LPAREN: return "LPAREN";
-        case Type::RPAREN: return "RPAREN";
-        case Type::LBRACE: return "LBRACE";
-        case Type::RBRACE: return "RBRACE";
-        case Type::LBRACKET: return "LBRACKET";
-        case Type::RBRACKET: return "RBRACKET";
-
-        // 结束符
-        case Type::END_OF_FILE: return "EOF";
-
-        // 未知
-        default: return "UNKNOWN";
-    }
-}
+std::string type_to_string(Type type);
 
 class Token {
 public:
@@ -93,15 +37,7 @@ public:
     Token(std::string c, const Type t, const int l)
         : content(std::move(c)), type(t), line(l) {}
 
-    [[nodiscard]] std::string to_string() const {
-        std::ostringstream oss;
-        oss << "{" << line << " " << type_to_string(type) << " \"" << content << "\"}";
-        return oss.str();
-    }
-
-    void print() const {
-        std::cout << to_string() << std::endl;
-    }
+    [[nodiscard]] std::string to_string() const;
 };
 }
 

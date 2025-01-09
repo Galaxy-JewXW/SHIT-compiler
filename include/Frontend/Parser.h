@@ -1,8 +1,8 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include "Utils/Token.h"
 #include "Utils/AST.h"
+#include "Utils/Token.h"
 
 class Parser {
     // lexer得到的
@@ -15,7 +15,7 @@ class Parser {
     }
 
     // 向前(后)读n个字符
-    [[nodiscard]] Token::Token next(const int offset) const {
+    [[nodiscard]] Token::Token next(const int offset = 1) const {
         return tokens.at(pos + offset);
     }
 
@@ -45,14 +45,32 @@ class Parser {
 
     std::shared_ptr<AST::FuncDef> parseFuncDef();
 
+    std::shared_ptr<AST::Exp> parseExp();
+
+    std::shared_ptr<AST::LVal> parseLVal();
+
+    std::shared_ptr<AST::PrimaryExp> parsePrimaryExp();
+
+    [[nodiscard]] std::shared_ptr<AST::Number> parseNumber() const;
+
+    std::shared_ptr<AST::UnaryExp> parseUnaryExp();
+
+    std::shared_ptr<AST::MulExp> parseMulExp();
+
+    std::shared_ptr<AST::AddExp> parseAddExp();
+
     std::shared_ptr<AST::ConstExp> parseConstExp();
 
 public:
     explicit Parser(const std::vector<Token::Token> &tokens) : tokens{tokens}, pos{0} {}
 
-    std::shared_ptr<AST::CompUnit> parse() { return parseCompUnit(); }
+    std::shared_ptr<AST::CompUnit> parse() {
+        return parseCompUnit();
+    }
 
-    [[nodiscard]] bool eof() const { return pos >= tokens.size(); }
+    [[nodiscard]] bool eof() const {
+        return tokens[pos].type == Token::Type::END_OF_FILE;
+    }
 };
 
 #endif //PARSER_H
