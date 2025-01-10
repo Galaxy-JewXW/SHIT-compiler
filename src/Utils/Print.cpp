@@ -188,7 +188,7 @@ namespace AST {
         oss << ")\n";
     }
     oss << block_->to_string() << "\n";
-    oss << "<FuncDef>\n";
+    oss << "<FuncDef>";
     return oss.str();
 }
 
@@ -199,10 +199,12 @@ namespace AST {
     if (!exps_.empty()) {
         oss << "[\n]\n";
         for (const auto &exp: exps_) {
-            oss << "[\n" << exp->to_string() << "\n]\n";
+            if (exp != nullptr) {
+                oss << "[\n" << exp->to_string() << "\n]\n";
+            }
         }
     }
-    oss << "<FuncFParam>\n";
+    oss << "<FuncFParam>";
     return oss.str();
 }
 
@@ -213,7 +215,7 @@ namespace AST {
             oss << item->to_string() << "\n";
         }, unit);
     }
-    oss << "<Block>\n";
+    oss << "<Block>";
     return oss.str();
 }
 
@@ -360,10 +362,10 @@ namespace AST {
 [[nodiscard]] std::string MulExp::to_string() const {
     std::ostringstream oss;
     for (auto i = 0u; i < unaryExps_.size(); ++i) {
-        oss << unaryExps_[i]->to_string() << "\n";
         if (i > 0) {
             oss << "<" << type_to_string(operators_[i - 1]) << ">\n";
         }
+        oss << unaryExps_[i]->to_string() << "\n";
     }
     oss << "<MulExp>";
     return oss.str();
@@ -372,10 +374,10 @@ namespace AST {
 [[nodiscard]] std::string AddExp::to_string() const {
     std::ostringstream oss;
     for (auto i = 0u; i < mulExps_.size(); ++i) {
-        oss << mulExps_[i]->to_string() << "\n";
         if (i > 0) {
             oss << "<" << type_to_string(operators_[i - 1]) << ">\n";
         }
+        oss << mulExps_[i]->to_string() << "\n";
     }
     oss << "<AddExp>";
     return oss.str();
@@ -384,10 +386,10 @@ namespace AST {
 [[nodiscard]] std::string RelExp::to_string() const {
     std::ostringstream oss;
     for (auto i = 0u; i < addExps_.size(); ++i) {
-        oss << addExps_[i]->to_string() << "\n";
         if (i > 0) {
             oss << "<" << type_to_string(operators_[i - 1]) << ">\n";
         }
+        oss << addExps_[i]->to_string() << "\n";
     }
     oss << "<RelExp>";
     return oss.str();
@@ -396,10 +398,10 @@ namespace AST {
 [[nodiscard]] std::string EqExp::to_string() const {
     std::ostringstream oss;
     for (auto i = 0u; i < relExps_.size(); ++i) {
-        oss << relExps_[i]->to_string() << "\n";
         if (i > 0) {
             oss << "<" << type_to_string(operators_[i - 1]) << ">\n";
         }
+        oss << relExps_[i]->to_string() << "\n";
     }
     oss << "<EqExp>";
     return oss.str();
@@ -408,10 +410,10 @@ namespace AST {
 [[nodiscard]] std::string LAndExp::to_string() const {
     std::ostringstream oss;
     for (auto i = 0u; i < eqExps_.size(); ++i) {
-        oss << eqExps_[i]->to_string() << "\n";
         if (i > 0) {
             oss << "<&&>\n";
         }
+        oss << eqExps_[i]->to_string() << "\n";
     }
     oss << "<LAndExp>";
     return oss.str();
@@ -420,10 +422,10 @@ namespace AST {
 [[nodiscard]] std::string LOrExp::to_string() const {
     std::ostringstream oss;
     for (auto i = 0u; i < lAndExps_.size(); ++i) {
-        oss << lAndExps_[i]->to_string() << "\n";
         if (i > 0) {
             oss << "<||>\n";
         }
+        oss << lAndExps_[i]->to_string() << "\n";
     }
     oss << "<LOrExp>";
     return oss.str();

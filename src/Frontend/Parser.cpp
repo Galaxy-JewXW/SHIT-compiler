@@ -138,8 +138,55 @@ std::shared_ptr<AST::InitVal> Parser::parseInitVal() {
 }
 
 std::shared_ptr<AST::FuncDef> Parser::parseFuncDef() {
-    // TODO: 函数体解析
-    return nullptr;
+    panic_on(Token::Type::INT, Token::Type::FLOAT, Token::Type::VOID);
+    const Token::Type func_type = next(-1).type;
+    panic_on(Token::Type::IDENTIFIER);
+    const std::string ident = next(-1).content;
+    panic_on(Token::Type::LPAREN);
+    std::vector<std::shared_ptr<AST::FuncFParam>> funcParams;
+    if (peek().type != Token::Type::RPAREN) {
+        do {
+            funcParams.emplace_back(parseFuncFParam());
+        } while (match(Token::Type::COMMA));
+    }
+    panic_on(Token::Type::RPAREN);
+    const auto block = parseBlock();
+    return std::make_shared<AST::FuncDef>(func_type, ident, funcParams, block);
+}
+
+std::shared_ptr<AST::FuncFParam> Parser::parseFuncFParam() {
+    panic_on(Token::Type::INT, Token::Type::FLOAT);
+    const Token::Type bType = next(-1).type;
+    panic_on(Token::Type::IDENTIFIER);
+    const std::string ident = next(-1).content;
+    std::vector<std::shared_ptr<AST::Exp>> exps;
+    if (peek().type == Token::Type::LBRACKET && next().type == Token::Type::RBRACKET) {
+        // 第一维默认为空，向exps插入一个nullptr
+        panic_on(Token::Type::LBRACKET);
+        panic_on(Token::Type::RBRACKET);
+        exps.emplace_back(nullptr);
+    }
+    while (!(peek().type == Token::Type::RPAREN || peek().type == Token::Type::COMMA)) {
+        panic_on(Token::Type::LBRACKET);
+        exps.emplace_back(parseExp());
+        panic_on(Token::Type::RBRACKET);
+    }
+    return std::make_shared<AST::FuncFParam>(bType, ident, exps);
+}
+
+std::shared_ptr<AST::Block> Parser::parseBlock() {
+    panic_on(Token::Type::LBRACE);
+    std::vector<std::variant<std::shared_ptr<AST::Decl>, std::shared_ptr<AST::Stmt>>> items;
+    while (!match(Token::Type::RBRACE)) {
+        if (peek().type == Token::Type::CONST
+            || peek().type == Token::Type::INT
+            || peek().type == Token::Type::FLOAT) {
+            items.emplace_back(parseDecl());
+        } else {
+            throw std::runtime_error("Unexpected token");
+        }
+    }
+    return std::make_shared<AST::Block>(items);
 }
 
 std::shared_ptr<AST::Exp> Parser::parseExp() {

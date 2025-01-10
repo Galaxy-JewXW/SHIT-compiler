@@ -45,6 +45,10 @@ class Parser {
 
     std::shared_ptr<AST::FuncDef> parseFuncDef();
 
+    std::shared_ptr<AST::FuncFParam> parseFuncFParam();
+
+    std::shared_ptr<AST::Block> parseBlock();
+
     std::shared_ptr<AST::Exp> parseExp();
 
     std::shared_ptr<AST::LVal> parseLVal();
