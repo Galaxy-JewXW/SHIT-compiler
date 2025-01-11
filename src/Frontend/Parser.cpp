@@ -183,15 +183,111 @@ std::shared_ptr<AST::Block> Parser::parseBlock() {
             || peek().type == Token::Type::FLOAT) {
             items.emplace_back(parseDecl());
         } else {
-            throw std::runtime_error("Unexpected token");
+            items.emplace_back(parseStmt());
         }
     }
     return std::make_shared<AST::Block>(items);
 }
 
+std::shared_ptr<AST::Stmt> Parser::parseStmt() {
+    if (match(Token::Type::BREAK)) {
+        panic_on(Token::Type::SEMICOLON);
+        return std::make_shared<AST::BreakStmt>();
+    }
+    if (match(Token::Type::CONTINUE)) {
+        panic_on(Token::Type::SEMICOLON);
+        return std::make_shared<AST::ContinueStmt>();
+    }
+    if (match(Token::Type::RETURN)) {
+        return parseReturnStmt();
+    }
+    if (match(Token::Type::IF)) {
+        return parseIfStmt();
+    }
+    if (match(Token::Type::WHILE)) {
+        return parseWhileStmt();
+    }
+    if (match(Token::Type::PUTF)) {
+        return parsePutfStmt();
+    }
+    if (peek().type == Token::Type::LBRACE) {
+        const auto block = parseBlock();
+        return std::make_shared<AST::BlockStmt>(block);
+    }
+    if (peek().type == Token::Type::IDENTIFIER) {
+        const auto temp = pos;
+        const auto lVal = parseLVal();
+        if (match(Token::Type::ASSIGN)) {
+            const auto exp = parseExp();
+            panic_on(Token::Type::SEMICOLON);
+            return std::make_shared<AST::AssignStmt>(lVal, exp);
+        }
+        pos = temp;
+    }
+    std::shared_ptr<AST::Exp> exp = nullptr;
+    if (!match(Token::Type::SEMICOLON)) {
+        exp = parseExp();
+        panic_on(Token::Type::SEMICOLON);
+    }
+    return std::make_shared<AST::ExpStmt>(exp);
+}
+
+std::shared_ptr<AST::ReturnStmt> Parser::parseReturnStmt() {
+    std::shared_ptr<AST::Exp> exp = nullptr;
+    if (!match(Token::Type::SEMICOLON)) {
+        exp = parseExp();
+        panic_on(Token::Type::SEMICOLON);
+    }
+    return std::make_shared<AST::ReturnStmt>(exp);
+}
+
+std::shared_ptr<AST::IfStmt> Parser::parseIfStmt() {
+    panic_on(Token::Type::LPAREN);
+    if (match(Token::Type::RPAREN)) {
+        throw std::runtime_error("Parser panic");
+    }
+    const auto cond = parseCond();
+    panic_on(Token::Type::RPAREN);
+    const auto then_stmt = parseStmt();
+    std::shared_ptr<AST::Stmt> else_stmt = nullptr;
+    if (match(Token::Type::ELSE)) {
+        else_stmt = parseStmt();
+    }
+    return std::make_shared<AST::IfStmt>(cond, then_stmt, else_stmt);
+}
+
+std::shared_ptr<AST::WhileStmt> Parser::parseWhileStmt() {
+    panic_on(Token::Type::LPAREN);
+    if (match(Token::Type::RPAREN)) {
+        throw std::runtime_error("Parser panic");
+    }
+    const auto cond = parseCond();
+    panic_on(Token::Type::RPAREN);
+    const auto body = parseStmt();
+    return std::make_shared<AST::WhileStmt>(cond, body);
+}
+
+std::shared_ptr<AST::PutfStmt> Parser::parsePutfStmt() {
+    panic_on(Token::Type::LPAREN);
+    panic_on(Token::Type::STRING_CONST);
+    const std::string string_const = next(-1).content;
+    std::vector<std::shared_ptr<AST::Exp>> exps;
+    while (match(Token::Type::COMMA)) {
+        exps.emplace_back(parseExp());
+    }
+    panic_on(Token::Type::RPAREN);
+    panic_on(Token::Type::SEMICOLON);
+    return std::make_shared<AST::PutfStmt>(string_const, exps);
+}
+
 std::shared_ptr<AST::Exp> Parser::parseExp() {
     std::shared_ptr<AST::AddExp> addExp = parseAddExp();
     return std::make_shared<AST::Exp>(addExp);
+}
+
+std::shared_ptr<AST::Cond> Parser::parseCond() {
+    const auto lOrExp = parseLOrExp();
+    return std::make_shared<AST::Cond>(lOrExp);
 }
 
 std::shared_ptr<AST::LVal> Parser::parseLVal() {
@@ -274,6 +370,44 @@ std::shared_ptr<AST::AddExp> Parser::parseAddExp() {
         mulExps.emplace_back(parseMulExp());
     }
     return std::make_shared<AST::AddExp>(mulExps, operators);
+}
+
+std::shared_ptr<AST::RelExp> Parser::parseRelExp() {
+    std::vector<std::shared_ptr<AST::AddExp>> addExps;
+    std::vector<Token::Type> operators;
+    addExps.emplace_back(parseAddExp());
+    while (match(Token::Type::LE, Token::Type::GE, Token::Type::LT, Token::Type::GT)) {
+        operators.emplace_back(next(-1).type);
+        addExps.emplace_back(parseAddExp());
+    }
+    return std::make_shared<AST::RelExp>(addExps, operators);
+}
+
+std::shared_ptr<AST::EqExp> Parser::parseEqExp() {
+    std::vector<std::shared_ptr<AST::RelExp>> relExps;
+    std::vector<Token::Type> operators;
+    relExps.emplace_back(parseRelExp());
+    while (match(Token::Type::EQ, Token::Type::NE)) {
+        operators.emplace_back(next(-1).type);
+        relExps.emplace_back(parseRelExp());
+    }
+    return std::make_shared<AST::EqExp>(relExps, operators);
+}
+
+std::shared_ptr<AST::LAndExp> Parser::parseLAndExp() {
+    std::vector<std::shared_ptr<AST::EqExp>> eqExps;
+    do {
+        eqExps.emplace_back(parseEqExp());
+    } while (match(Token::Type::AND));
+    return std::make_shared<AST::LAndExp>(eqExps);
+}
+
+std::shared_ptr<AST::LOrExp> Parser::parseLOrExp() {
+    std::vector<std::shared_ptr<AST::LAndExp>> lAndExps;
+    do {
+        lAndExps.emplace_back(parseLAndExp());
+    } while (match(Token::Type::OR));
+    return std::make_shared<AST::LOrExp>(lAndExps);
 }
 
 std::shared_ptr<AST::ConstExp> Parser::parseConstExp() {

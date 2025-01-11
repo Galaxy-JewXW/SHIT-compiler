@@ -49,7 +49,19 @@ class Parser {
 
     std::shared_ptr<AST::Block> parseBlock();
 
+    std::shared_ptr<AST::Stmt> parseStmt();
+
+    std::shared_ptr<AST::ReturnStmt> parseReturnStmt();
+
+    std::shared_ptr<AST::IfStmt> parseIfStmt();
+
+    std::shared_ptr<AST::WhileStmt> parseWhileStmt();
+
+    std::shared_ptr<AST::PutfStmt> parsePutfStmt();
+
     std::shared_ptr<AST::Exp> parseExp();
+
+    std::shared_ptr<AST::Cond> parseCond();
 
     std::shared_ptr<AST::LVal> parseLVal();
 
@@ -62,6 +74,14 @@ class Parser {
     std::shared_ptr<AST::MulExp> parseMulExp();
 
     std::shared_ptr<AST::AddExp> parseAddExp();
+
+    std::shared_ptr<AST::RelExp> parseRelExp();
+
+    std::shared_ptr<AST::EqExp> parseEqExp();
+
+    std::shared_ptr<AST::LAndExp> parseLAndExp();
+
+    std::shared_ptr<AST::LOrExp> parseLOrExp();
 
     std::shared_ptr<AST::ConstExp> parseConstExp();
 

@@ -280,6 +280,17 @@ namespace AST {
     return oss.str();
 }
 
+[[nodiscard]] std::string PutfStmt::to_string() const {
+    std::ostringstream oss;
+    oss << "<Putf putf>\n";
+    oss << "<StringConst \"" << string_const_ << "\">\n";
+    for (const auto &exp: exps_) {
+        oss << ",\n" << exp->to_string() << "\n";
+    }
+    oss << "<PutfStmt>";
+    return oss.str();
+}
+
 [[nodiscard]] std::string Exp::to_string() const {
     std::ostringstream oss;
     oss << addExp_->to_string() << "\n<Exp>";

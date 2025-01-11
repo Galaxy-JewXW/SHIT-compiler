@@ -155,11 +155,11 @@ public:
 
 // EqExp -> RelExp { (== | !=) RelExp }
 class EqExp final : public Node {
-    const std::vector<std::shared_ptr<MulExp>> relExps_;
+    const std::vector<std::shared_ptr<RelExp>> relExps_;
     const std::vector<Token::Type> operators_;
 
 public:
-    EqExp(const std::vector<std::shared_ptr<MulExp>> &relExps,
+    EqExp(const std::vector<std::shared_ptr<RelExp>> &relExps,
           const std::vector<Token::Type> &operators) : relExps_{relExps}, operators_{operators} {
         if (operators_.size() != relExps_.size() - 1) {
             throw std::invalid_argument("EqExp: Unexpected number of operators");
@@ -220,7 +220,10 @@ public:
 };
 
 // Decl -> ConstDecl | VarDecl
-class Decl : public Node {};
+class Decl : public Node {
+protected:
+    Decl() {}
+};
 
 // Stmt -> LVal '=' Exp ';' | [Exp] ';'  | Block
 // | 'if' '( Cond ')' Stmt [ 'else' Stmt ]
@@ -229,7 +232,10 @@ class Decl : public Node {};
 // | 'continue' ';'
 // | 'return' [Exp] ';'
 // | 'putf' '(' StringConst {',' Exp} ')' ';'
-class Stmt : public Node {};
+class Stmt : public Node {
+protected:
+    Stmt() {}
+};
 
 // Block -> '{' { (Decl | Stmt) } '}'
 class Block final : public Node {
