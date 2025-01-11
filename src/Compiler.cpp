@@ -42,10 +42,10 @@ int main(int argc, char *argv[]) {
     Lexer lexer(src_code);
     std::vector<Token::Token> tokens = lexer.tokenize();
 
-    // 输出Token
-    for (const auto &token: tokens) {
-        token.print();
-    }
+    Parser parser(tokens);
+    std::shared_ptr<AST::CompUnit> ast = parser.parse();
+
+    std::cout << ast->to_string() << std::endl;
 
     return 0;
 }

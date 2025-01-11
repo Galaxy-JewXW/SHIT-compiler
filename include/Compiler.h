@@ -1,10 +1,11 @@
-#ifndef COMPILER_H_
-#define COMPILER_H_
+#ifndef COMPILER_H
+#define COMPILER_H
 
 #include <string>
 #include <vector>
 #include <iostream>
 #include "Frontend/Lexer.h"
+#include "Frontend/Parser.h"
 
 extern bool options[28];
 
