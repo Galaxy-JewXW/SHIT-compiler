@@ -83,7 +83,7 @@ namespace AST {
     for (const auto &constDef: constDefs_) {
         oss << constDef->to_string() << "\n";
     }
-    oss << "<ConstDef>";
+    oss << "<ConstDecl>";
     return oss.str();
 }
 
