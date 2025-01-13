@@ -117,7 +117,6 @@ class Lexer {
         if (str == "break") return Token::Type::BREAK;
         if (str == "continue") return Token::Type::CONTINUE;
         if (str == "return") return Token::Type::RETURN;
-        if (str == "putf") return Token::Type::PUTF;
         return Token::Type::IDENTIFIER;
     }
 
