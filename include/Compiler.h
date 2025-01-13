@@ -6,6 +6,7 @@
 #include <iostream>
 #include "Frontend/Lexer.h"
 #include "Frontend/Parser.h"
+#include "Mir/Value.h"
 
 extern bool options[28];
 

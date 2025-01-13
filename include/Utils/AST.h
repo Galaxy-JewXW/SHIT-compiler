@@ -39,9 +39,9 @@ public:
     [[nodiscard]] std::string to_string() const override;
 };
 
-// PrimaryExp -> '(' Exp ')' | LVal | Number
+// PrimaryExp -> '(' Exp ')' | LVal | Number | ConstString
 class PrimaryExp final : public Node {
-    const std::variant<std::shared_ptr<Exp>, std::shared_ptr<LVal>, std::shared_ptr<Number>> value_;
+    const std::variant<std::shared_ptr<Exp>, std::shared_ptr<LVal>, std::shared_ptr<Number>, std::string> value_;
 
 public:
     explicit PrimaryExp(const std::shared_ptr<Exp> &exp) : value_{exp} {}
@@ -49,6 +49,8 @@ public:
     explicit PrimaryExp(const std::shared_ptr<LVal> &lVal) : value_{lVal} {}
 
     explicit PrimaryExp(const std::shared_ptr<Number> &number) : value_{number} {}
+
+    explicit PrimaryExp(const std::string& const_string) : value_{const_string} {}
 
     [[nodiscard]] bool is_exp() const {
         return std::holds_alternative<std::shared_ptr<Exp>>(value_);
@@ -60,6 +62,10 @@ public:
 
     [[nodiscard]] bool is_number() const {
         return std::holds_alternative<std::shared_ptr<Number>>(value_);
+    }
+
+    [[nodiscard]] bool is_const_string() const {
+        return std::holds_alternative<std::string>(value_);
     }
 
     [[nodiscard]] std::string to_string() const override;
@@ -231,7 +237,6 @@ protected:
 // | 'break' ';'
 // | 'continue' ';'
 // | 'return' [Exp] ';'
-// | 'putf' '(' StringConst {',' Exp} ')' ';'
 class Stmt : public Node {
 protected:
     Stmt() {}
@@ -313,17 +318,6 @@ class ReturnStmt final : public Stmt {
 
 public:
     explicit ReturnStmt(const std::shared_ptr<Exp> &exp) : exp_{exp} {}
-
-    [[nodiscard]] std::string to_string() const override;
-};
-
-class PutfStmt final : public Stmt {
-    const std::string string_const_;
-    const std::vector<std::shared_ptr<Exp>> exps_;
-
-public:
-    PutfStmt(std::string string_const, const std::vector<std::shared_ptr<Exp>> &exps)
-        : string_const_{std::move(string_const)}, exps_{exps} {}
 
     [[nodiscard]] std::string to_string() const override;
 };

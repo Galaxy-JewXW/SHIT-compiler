@@ -57,8 +57,6 @@ class Parser {
 
     std::shared_ptr<AST::WhileStmt> parseWhileStmt();
 
-    std::shared_ptr<AST::PutfStmt> parsePutfStmt();
-
     std::shared_ptr<AST::Exp> parseExp();
 
     std::shared_ptr<AST::Cond> parseCond();
