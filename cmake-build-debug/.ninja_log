@@ -1,0 +1,6 @@
+# ninja log v6
+2	1327	7582990526522204	src/CMakeFiles/compiler.dir/Compiler.cpp.obj	384a79397313b42a
+340	1719	7582990529909063	src/CMakeFiles/compiler.dir/Frontend/Lexer.cpp.obj	ffb8b38b117c20e3
+67	1761	7582990527174333	src/CMakeFiles/compiler.dir/Utils/Print.cpp.obj	bb78ff95b2ab93ad
+471	3643	7582990531215055	src/CMakeFiles/compiler.dir/Frontend/Parser.cpp.obj	dd201922ad93b4e3
+3643	6911	7582990562933658	C:/Users/asus/Desktop/SHIT/SHIT-compiler/bin/compiler.exe	aa092093ab9a878e

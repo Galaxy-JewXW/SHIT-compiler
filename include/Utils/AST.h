@@ -226,7 +226,7 @@ protected:
 };
 
 // Stmt -> LVal '=' Exp ';' | [Exp] ';'  | Block
-// | 'if' '( Cond ')' Stmt [ 'else' Stmt ]
+// | 'if' '(' Cond ')' Stmt [ 'else' Stmt ]
 // | 'while' '(' Cond ')' Stmt
 // | 'break' ';'
 // | 'continue' ';'
