@@ -14,7 +14,6 @@ std::string Token::type_to_string(const Type type) {
         case Type::BREAK: return "BREAK";
         case Type::CONTINUE: return "CONTINUE";
         case Type::RETURN: return "RETURN";
-        case Type::PUTF: return "PUTF";
 
         // 标识符
         case Type::IDENTIFIER: return "IDENTIFIER";
@@ -280,17 +279,6 @@ namespace AST {
     return oss.str();
 }
 
-[[nodiscard]] std::string PutfStmt::to_string() const {
-    std::ostringstream oss;
-    oss << "<Putf putf>\n";
-    oss << "<StringConst \"" << string_const_ << "\">\n";
-    for (const auto &exp: exps_) {
-        oss << ",\n" << exp->to_string() << "\n";
-    }
-    oss << "<PutfStmt>";
-    return oss.str();
-}
-
 [[nodiscard]] std::string Exp::to_string() const {
     std::ostringstream oss;
     oss << addExp_->to_string() << "\n<Exp>";
@@ -326,6 +314,9 @@ namespace AST {
     } else if (is_number()) {
         const auto &number = std::get<std::shared_ptr<Number>>(value_);
         oss << number->to_string() << "\n";
+    } else if (is_const_string()) {
+        const auto &const_string = std::get<std::string>(value_);
+        oss << "<ConstString \"" << const_string << "\">\n";
     } else {
         throw std::runtime_error("Invalid PrimaryExp");
     }

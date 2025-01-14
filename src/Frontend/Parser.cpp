@@ -207,9 +207,6 @@ std::shared_ptr<AST::Stmt> Parser::parseStmt() {
     if (match(Token::Type::WHILE)) {
         return parseWhileStmt();
     }
-    if (match(Token::Type::PUTF)) {
-        return parsePutfStmt();
-    }
     if (peek().type == Token::Type::LBRACE) {
         const auto block = parseBlock();
         return std::make_shared<AST::BlockStmt>(block);
@@ -267,19 +264,6 @@ std::shared_ptr<AST::WhileStmt> Parser::parseWhileStmt() {
     return std::make_shared<AST::WhileStmt>(cond, body);
 }
 
-std::shared_ptr<AST::PutfStmt> Parser::parsePutfStmt() {
-    panic_on(Token::Type::LPAREN);
-    panic_on(Token::Type::STRING_CONST);
-    const std::string string_const = next(-1).content;
-    std::vector<std::shared_ptr<AST::Exp>> exps;
-    while (match(Token::Type::COMMA)) {
-        exps.emplace_back(parseExp());
-    }
-    panic_on(Token::Type::RPAREN);
-    panic_on(Token::Type::SEMICOLON);
-    return std::make_shared<AST::PutfStmt>(string_const, exps);
-}
-
 std::shared_ptr<AST::Exp> Parser::parseExp() {
     std::shared_ptr<AST::AddExp> addExp = parseAddExp();
     return std::make_shared<AST::Exp>(addExp);
@@ -307,6 +291,10 @@ std::shared_ptr<AST::PrimaryExp> Parser::parsePrimaryExp() {
     if (match(Token::Type::INT_CONST, Token::Type::FLOAT_CONST)) {
         std::shared_ptr<AST::Number> number = parseNumber();
         return std::make_shared<AST::PrimaryExp>(number);
+    }
+    if (match(Token::Type::STRING_CONST)) {
+        const std::string &string_const = next(-1).content;
+        return std::make_shared<AST::PrimaryExp>(string_const);
     }
     if (match(Token::Type::LPAREN)) {
         std::shared_ptr<AST::Exp> exp = parseExp();

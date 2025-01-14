@@ -9,7 +9,7 @@
 namespace Token {
 enum class Type {
     // 关键词
-    CONST, INT, FLOAT, VOID, IF, ELSE, WHILE, BREAK, CONTINUE, RETURN, PUTF,
+    CONST, INT, FLOAT, VOID, IF, ELSE, WHILE, BREAK, CONTINUE, RETURN,
     // 标识符
     IDENTIFIER,
     // 字面量
