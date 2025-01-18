@@ -1,5 +1,6 @@
 #include "Frontend/Parser.h"
 #include "Utils/AST.h"
+#include "Utils/Log.h"
 
 #include <algorithm>
 
@@ -9,12 +10,14 @@ bool Parser::panic_on(Types... expected_types) {
     const Token::Type current_type = peek().type;
     if (const auto it
             = std::find(types.begin(), types.end(), current_type); it == types.end()) {
-        std::cerr << "[Parser] Expected one of {";
+        std::ostringstream oss;
+        oss << "Expected one of { ";
         for (const auto &type: types) {
-            std::cerr << type_to_string(type) << " ";
+            oss << type_to_string(type) << " ";
         }
-        std::cerr << "}, got Token " << type_to_string(current_type) << std::endl;
-        throw std::runtime_error("Parser panic");
+        oss << "}, got Token " << type_to_string(current_type) << " at line " << peek().line;
+        log_fatal(oss.str().c_str());
+        throw std::runtime_error("Parser fatal");
     }
     pos++;
     return true;
@@ -240,9 +243,6 @@ std::shared_ptr<AST::ReturnStmt> Parser::parseReturnStmt() {
 
 std::shared_ptr<AST::IfStmt> Parser::parseIfStmt() {
     panic_on(Token::Type::LPAREN);
-    if (match(Token::Type::RPAREN)) {
-        throw std::runtime_error("Parser panic");
-    }
     const auto cond = parseCond();
     panic_on(Token::Type::RPAREN);
     const auto then_stmt = parseStmt();
@@ -255,9 +255,6 @@ std::shared_ptr<AST::IfStmt> Parser::parseIfStmt() {
 
 std::shared_ptr<AST::WhileStmt> Parser::parseWhileStmt() {
     panic_on(Token::Type::LPAREN);
-    if (match(Token::Type::RPAREN)) {
-        throw std::runtime_error("Parser panic");
-    }
     const auto cond = parseCond();
     panic_on(Token::Type::RPAREN);
     const auto body = parseStmt();
