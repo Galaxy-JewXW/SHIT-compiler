@@ -229,6 +229,8 @@ public:
 class Decl : public Node {
 protected:
     Decl() {}
+public:
+    virtual ~Decl() {}
 };
 
 // Stmt -> LVal '=' Exp ';' | [Exp] ';'  | Block
@@ -354,6 +356,9 @@ public:
         ident_{std::move(ident)}, constExps_{constExps}, constInitVal_{constInitVal} {}
 
     [[nodiscard]] std::string to_string() const override;
+    [[nodiscard]] std::string ident() const { return ident_; }
+    [[nodiscard]] std::shared_ptr<ConstInitVal> constInitVal() const { return constInitVal_; }
+    [[nodiscard]] bool is_exp() const { return constInitVal_ -> is_constExp(); }
 };
 
 // ConstDecl ->  'const' BType ConstDef { ',' ConstDef } ';'
@@ -366,6 +371,10 @@ public:
         bType_{bType}, constDefs_{constDefs} {}
 
     [[nodiscard]] std::string to_string() const override;
+
+    [[nodiscard]] Token::Type bType() const { return bType_; }
+
+    [[nodiscard]] std::vector<std::shared_ptr<ConstDef>> constDefs() const { return constDefs_; }
 };
 
 // InitVal : Exp | '{' [ InitVal { ',' InitVal } ] '}'
@@ -400,6 +409,8 @@ public:
         ident_{std::move(ident)}, constExps_{constExps}, initVal_{initVal} {}
 
     [[nodiscard]] std::string to_string() const override;
+    [[nodiscard]] std::string ident() const { return ident_; }
+    [[nodiscard]] bool is_exp() const { return initVal_ -> is_exp(); }
 };
 
 // VarDecl -> BType VarDef { ',' VarDef } ';'
@@ -412,6 +423,10 @@ public:
         bType_{bType}, varDefs_{varDefs} {}
 
     [[nodiscard]] std::string to_string() const override;
+
+    Token::Type bType() const { return bType_; }
+
+    std::vector<std::shared_ptr<VarDef>> varDefs() const { return varDefs_; }
 };
 
 // FuncFParam -> BType Ident ['[' ']' { '[' Exp ']' }]
@@ -442,6 +457,8 @@ public:
         funcType_{funcType}, ident_{std::move(ident)}, funcParams_{funcParams}, block_{block} {}
 
     [[nodiscard]] std::string to_string() const override;
+    [[nodiscard]] std::string ident() const { return ident_; }
+    [[nodiscard]] Token::Type funcType() const { return funcType_; }
 };
 
 // CompUnit -> {Decl | FuncDef}
@@ -454,6 +471,10 @@ public:
         compunits_{compunits} {}
 
     [[nodiscard]] std::string to_string() const override;
+
+    [[nodiscard]] std::vector<std::variant<std::shared_ptr<Decl>, std::shared_ptr<FuncDef>>> compunits() const {
+        return compunits_;
+    }
 };
 }
 #endif
