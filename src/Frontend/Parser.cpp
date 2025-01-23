@@ -3,13 +3,12 @@
 #include "Utils/Log.h"
 
 #include <algorithm>
+#include <unordered_set>
 
 template<typename... Types>
 bool Parser::panic_on(Types... expected_types) {
-    std::vector<Token::Type> types = {expected_types...};
-    const Token::Type current_type = peek().type;
-    if (const auto it
-            = std::find(types.begin(), types.end(), current_type); it == types.end()) {
+    std::unordered_set<Token::Type> types = {expected_types...};
+    if (const Token::Type current_type = peek().type; types.find(current_type) == types.end()) {
         std::ostringstream oss;
         oss << "Expected one of { ";
         for (const auto &type: types) {
@@ -17,7 +16,6 @@ bool Parser::panic_on(Types... expected_types) {
         }
         oss << "}, got Token " << type_to_string(current_type) << " at line " << peek().line;
         log_fatal(oss.str().c_str());
-        throw std::runtime_error("Parser fatal");
     }
     pos++;
     return true;
@@ -25,11 +23,8 @@ bool Parser::panic_on(Types... expected_types) {
 
 template<typename... Types>
 bool Parser::match(Types... expected_types) {
-    std::vector<Token::Type> types = {expected_types...};
-    const Token::Type current_type = peek().type;
-    if (const auto it
-            = std::find(types.begin(), types.end(), current_type); it == types.end())
-        return false;
+    std::unordered_set<Token::Type> types = {expected_types...};
+    if (const Token::Type current_type = peek().type; types.find(current_type) == types.end()) return false;
     pos++;
     return true;
 }

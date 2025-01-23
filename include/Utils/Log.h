@@ -31,8 +31,8 @@ enum {
 #define log_debug(...) log_log(LOG_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
 #define log_info(...)  log_log(LOG_INFO,  __FILE__, __LINE__, __VA_ARGS__)
 #define log_warn(...)  log_log(LOG_WARN,  __FILE__, __LINE__, __VA_ARGS__)
-#define log_error(...) log_log(LOG_ERROR, __FILE__, __LINE__, __VA_ARGS__)
-#define log_fatal(...) log_log(LOG_FATAL, __FILE__, __LINE__, __VA_ARGS__)
+#define log_error(...) do {log_log(LOG_ERROR, __FILE__, __LINE__, __VA_ARGS__); exit(1);} while (0)
+#define log_fatal(...) do {log_log(LOG_FATAL, __FILE__, __LINE__, __VA_ARGS__); exit(1);} while (0)
 
 const char *log_level_string(int level);
 
