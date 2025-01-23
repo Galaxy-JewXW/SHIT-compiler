@@ -28,26 +28,15 @@ void Builder::visit_decl(const std::shared_ptr<AST::Decl> &decl) {
     }
 }
 
-void Builder::visit_constDecl(const std::shared_ptr<AST::ConstDecl> &constDecl) {
-    const std::string type = constDecl->bType() == Token::Type::INT
-                                 ? "int"
-                                 : constDecl->bType() == Token::Type::FLOAT
-                                       ? "float"
-                                       : "error";
+void Builder::visit_constDecl(const std::shared_ptr<AST::ConstDecl> &constDecl) const {
     for (const auto &constDef: constDecl->constDefs()) {
-        visit_constDef(type, constDef);
+        visit_constDef(constDecl->bType(), constDef);
     }
 }
 
-void Builder::visit_constDef(const std::string &type, const std::shared_ptr<AST::ConstDef> &constDef) {
-    std::shared_ptr<Type::Type> ir_type;
-    if (type == "int") {
-        ir_type = Type::Integer::i32;
-    } else if (type == "float") {
-        ir_type = Type::Float::f32;
-    } else {
-        log_fatal("unknown type");
-    }
+void Builder::visit_constDef(const Token::Type type, const std::shared_ptr<AST::ConstDef> &constDef) const {
+    std::shared_ptr<Type::Type> ir_type = Type::get_type(type);
+    if (ir_type->is_void()) { log_error("Cannot define a void variable"); }
     std::vector<int> dimensions;
     for (const auto &constExp: constDef->constExps()) {
         const auto res = eval_exp(constExp->addExp(), table);
@@ -70,20 +59,16 @@ void Builder::visit_constDef(const std::string &type, const std::shared_ptr<AST:
     std::shared_ptr<Init::Init> init_value;
     const auto &constInitVal = constDef->constInitVal();
     if (ir_type->is_int32() || ir_type->is_float()) {
-        if (constInitVal->is_constInitVals()) {
-            log_fatal("Variable cannot be initialized as an array");
-        }
+        if (constInitVal->is_constInitVals()) { log_fatal("Variable cannot be initialized as an array"); }
         const auto constExp = std::get<std::shared_ptr<AST::ConstExp>>(constInitVal->get_value());
         init_value = Init::Constant::create_constant_init_value(ir_type, constExp->addExp(), table);
     } else if (ir_type->is_array()) {
-        if (constInitVal->is_constExp()) {
-            log_fatal("Array cannot be initialized as a scalar");
-        }
-        const auto constInitVals = std::get<std::vector<std::shared_ptr<AST::ConstInitVal>>>(constInitVal->get_value());
-        init_value = nullptr;
+        if (constInitVal->is_constExp()) { log_fatal("Array cannot be initialized as a scalar"); }
+        init_value = Init::Array::create_array_init_value<AST::ConstInitVal>(ir_type, constInitVal, table, true);
     } else {
         log_fatal("Unknown type %s", ir_type->to_string().c_str());
     }
+    log_trace("visit_constDef: %s", init_value->to_string().c_str());
 }
 
 void Builder::visit_varDecl(const std::shared_ptr<AST::VarDecl> &varDecl) {}

@@ -8,12 +8,74 @@
 #include "Type.h"
 #include "Utils/AST.h"
 
+template<typename TVal>
+struct InitValTrait {};
+
+// 针对 ConstInitVal 的偏特化
+template<>
+struct InitValTrait<AST::ConstInitVal> {
+    using ExpType = AST::ConstExp;
+
+    static bool is_array_vals(const std::shared_ptr<AST::ConstInitVal> &node) {
+        return node->is_constInitVals();
+    }
+
+    static std::vector<std::shared_ptr<AST::ConstInitVal>>
+    get_array_vals(const std::shared_ptr<AST::ConstInitVal> &node) {
+        return std::get<std::vector<std::shared_ptr<AST::ConstInitVal>>>(node->get_value());
+    }
+
+    static bool is_exp(const std::shared_ptr<AST::ConstInitVal> &node) {
+        return node->is_constExp();
+    }
+
+    static std::shared_ptr<AST::AddExp> get_addExp(const std::shared_ptr<AST::ConstInitVal> &node) {
+        return std::get<std::shared_ptr<AST::ConstExp>>(node->get_value())->addExp();
+    }
+};
+
+// 针对 InitVal 的偏特化
+template<>
+struct InitValTrait<AST::InitVal> {
+    using ExpType = AST::Exp;
+
+    static bool is_array_vals(const std::shared_ptr<AST::InitVal> &node) {
+        return node->is_initVals();
+    }
+
+    static std::vector<std::shared_ptr<AST::InitVal>> get_array_vals(const std::shared_ptr<AST::InitVal> &node) {
+        return std::get<std::vector<std::shared_ptr<AST::InitVal>>>(node->get_value());
+    }
+
+    static bool is_exp(const std::shared_ptr<AST::InitVal> &node) {
+        return node->is_exp();
+    }
+
+    static std::shared_ptr<AST::AddExp> get_addExp(const std::shared_ptr<AST::InitVal> &node) {
+        return std::get<std::shared_ptr<AST::Exp>>(node->get_value())->addExp();
+    }
+};
+
 namespace Mir {
 namespace Symbol {
     class Table;
 }
 
 namespace Init {
+    class Init;
+    class Array;
+
+    template<typename TVal>
+    std::vector<std::shared_ptr<Init>>
+    flatten_array(const std::shared_ptr<Type::Type> &type,
+                  const std::shared_ptr<TVal> &initVal,
+                  const std::shared_ptr<Symbol::Table> &table,
+                  bool is_constant);
+
+    std::shared_ptr<Array>
+    fold_array(const std::shared_ptr<Type::Type> &type,
+               const std::vector<std::shared_ptr<Init>> &flattened_init_values);
+
     class Init {
     protected:
         std::shared_ptr<Type::Type> type;
@@ -24,15 +86,12 @@ namespace Init {
         virtual ~Init() = default;
 
         [[nodiscard]] virtual bool is_constant_init() const { return false; }
-
         [[nodiscard]] virtual bool is_exp_init() const { return false; }
-
         [[nodiscard]] virtual bool is_array_init() const { return false; }
 
         [[nodiscard]] virtual std::string to_string() const = 0;
     };
 
-    // 常数初始值
     class Constant final : public Init {
         std::shared_ptr<Const> const_value;
 
@@ -41,19 +100,19 @@ namespace Init {
             : Init{type}, const_value{const_value} {}
 
         [[nodiscard]] bool is_constant_init() const override { return true; }
-
         [[nodiscard]] std::shared_ptr<Const> get_const_value() const { return const_value; }
 
         [[nodiscard]] std::string to_string() const override;
 
         static std::shared_ptr<Constant>
-        create_constant_init_value(const std::shared_ptr<Type::Type> &type, const std::shared_ptr<AST::AddExp> &addExp,
+        create_constant_init_value(const std::shared_ptr<Type::Type> &type,
+                                   const std::shared_ptr<AST::AddExp> &addExp,
                                    const std::shared_ptr<Symbol::Table> &table);
 
-        static std::shared_ptr<Constant> create_zero_constant_init_value(const std::shared_ptr<Type::Type> &type);
+        static std::shared_ptr<Constant>
+        create_zero_constant_init_value(const std::shared_ptr<Type::Type> &type);
     };
 
-    // 一般情况的表达式赋初始值
     class Exp final : public Init {
         std::shared_ptr<Value> exp_value;
 
@@ -65,34 +124,127 @@ namespace Init {
 
         [[nodiscard]] std::shared_ptr<Value> get_exp_value() const { return exp_value; }
 
-        [[nodiscard]] std::string to_string() const override { log_error("ExpInit cannot be output as a string"); }
+        [[nodiscard]] std::string to_string() const override {
+            log_error("ExpInit cannot be output as a string");
+        }
     };
 
-    // 多维初始值
     class Array final : public Init {
         std::vector<std::shared_ptr<Init>> init_values;
         std::vector<std::shared_ptr<Init>> flattened_init_values;
 
     public:
         explicit Array(const std::shared_ptr<Type::Type> &type,
-                           const std::vector<std::shared_ptr<Init>> &flattened_init_values)
+                       const std::vector<std::shared_ptr<Init>> &flattened_init_values)
             : Init{type}, flattened_init_values{flattened_init_values} {}
 
         [[nodiscard]] bool is_array_init() const override { return true; }
-
         [[nodiscard]] size_t get_size() const { return flattened_init_values.size(); }
-
         [[nodiscard]] std::shared_ptr<Init> get_init_value(const int idx) const { return init_values[idx]; }
+        void add_init_value(const std::shared_ptr<Init> &init_value) { init_values.emplace_back(init_value); }
 
-        [[nodiscard]] std::string to_string() const override;
-
+        template<typename TVal>
         static std::shared_ptr<Array>
         create_array_init_value(const std::shared_ptr<Type::Type> &type,
-                                const std::shared_ptr<AST::ConstInitVal> &constInitVal,
-                                const std::shared_ptr<Symbol::Table> &table);
+                                const std::shared_ptr<TVal> &initVal,
+                                const std::shared_ptr<Symbol::Table> &table,
+                                const bool is_constant) {
+            if (!type->is_array()) {
+                log_error("%s is not an array type", type->to_string().c_str());
+            }
+            // 直接调用事先声明的 flatten_array / fold_array
+            const auto &flattened = flatten_array<TVal>(type, initVal, table, is_constant);
+            const auto &folded = fold_array(type, flattened);
+            return folded;
+        }
 
-        static std::shared_ptr<Array> create_zero_array_init_value(const std::shared_ptr<Type::Type> &type);
+        [[nodiscard]] std::string to_string() const override;
     };
+
+    template<typename TVal>
+    std::vector<std::shared_ptr<Init>>
+    flatten_array(const std::shared_ptr<Type::Type> &type,
+                  const std::shared_ptr<TVal> &initVal,
+                  const std::shared_ptr<Symbol::Table> &table,
+                  bool is_constant) {
+        using Trait = InitValTrait<TVal>;
+        if (!type->is_array()) {
+            log_error("%s is not an array type", type->to_string().c_str());
+        }
+        if (!Trait::is_array_vals(initVal)) {
+            log_error("Not an array");
+        }
+        const auto &array_type = std::dynamic_pointer_cast<Type::Array>(type);
+        const auto cur_dim_size = array_type->get_size();
+        const auto &element_type = array_type->get_element_type();
+        const auto element_cnt = element_type->is_array()
+                                     ? std::dynamic_pointer_cast<Type::Array>(element_type)->get_flattened_size()
+                                     : 1;
+        const auto &atomic_type = array_type->get_atomic_type();
+
+        std::vector<std::shared_ptr<Init>> flattened;
+        flattened.reserve(cur_dim_size * element_cnt);
+
+        for (const auto &val: Trait::get_array_vals(initVal)) {
+            if (Trait::is_exp(val)) {
+                if (is_constant) {
+                    flattened.emplace_back(
+                        Constant::create_constant_init_value(atomic_type, Trait::get_addExp(val), table));
+                } else {
+                    log_error("TODO: non-constant array element not implemented");
+                }
+            } else if (Trait::is_array_vals(val)) {
+                // 补零对齐
+                const auto pos = flattened.size();
+                for (auto i = 0lu; i < (element_cnt - pos % element_cnt) % element_cnt; ++i) {
+                    flattened.emplace_back(Constant::create_zero_constant_init_value(atomic_type));
+                }
+                auto sub = flatten_array<TVal>(element_type, val, table, is_constant);
+                flattened.insert(flattened.end(), sub.begin(), sub.end());
+            }
+        }
+        // 补足零
+        for (auto i = flattened.size(); i < cur_dim_size * element_cnt; ++i) {
+            flattened.emplace_back(Constant::create_zero_constant_init_value(atomic_type));
+        }
+        return flattened;
+    }
+
+    inline std::shared_ptr<Array>
+    fold_array(const std::shared_ptr<Type::Type> &type,
+               const std::vector<std::shared_ptr<Init>> &flattened_init_values) {
+        if (!type->is_array()) {
+            log_error("%s is not an array type", type->to_string().c_str());
+        }
+        const auto array = std::make_shared<Array>(type, flattened_init_values);
+        const auto &array_type = std::dynamic_pointer_cast<Type::Array>(type);
+        const auto cur_dim_size = array_type->get_size();
+
+        // 计算每个子分块大小
+        if (const auto length = flattened_init_values.size() / cur_dim_size; length == 1) {
+            // 只有一层
+            for (const auto &val: flattened_init_values) {
+                array->add_init_value(val);
+            }
+        } else {
+            // 仍然是多维，需要再 fold
+            const auto element_type = array_type->get_element_type();
+            for (size_t i = 0; i < cur_dim_size; ++i) {
+                const long start = static_cast<long>(i * length);
+                const long end = static_cast<long>((i + 1) * length);
+                array->add_init_value(
+                    fold_array(
+                        element_type,
+                        std::vector(
+                            flattened_init_values.begin() + start,
+                            flattened_init_values.begin() + end
+                        )
+                    )
+                );
+            }
+        }
+        return array;
+    }
 }
 }
 

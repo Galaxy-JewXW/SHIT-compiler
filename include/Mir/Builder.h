@@ -22,11 +22,9 @@ public:
 
     void visit_decl(const std::shared_ptr<AST::Decl> &decl);
 
-    void visit_constDecl(const std::shared_ptr<AST::ConstDecl> &constDecl);
+    void visit_constDecl(const std::shared_ptr<AST::ConstDecl> &constDecl) const;
 
-    void visit_constDef(const std::string &type, const std::shared_ptr<AST::ConstDef> &constDef);
-
-    void visit_constInitVal(const std::shared_ptr<AST::ConstInitVal> &constInitVal);
+    void visit_constDef(Token::Type type, const std::shared_ptr<AST::ConstDef> &constDef) const;
 
     void visit_varDecl(const std::shared_ptr<AST::VarDecl> &varDecl);
 

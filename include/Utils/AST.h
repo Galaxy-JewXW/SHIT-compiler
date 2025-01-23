@@ -417,6 +417,10 @@ public:
 
     explicit InitVal(const std::vector<std::shared_ptr<InitVal>> &initVals) : value_{initVals} {}
 
+    [[nodiscard]] std::variant<std::shared_ptr<Exp>, std::vector<std::shared_ptr<InitVal>>> get_value() const {
+        return value_;
+    }
+
     [[nodiscard]] bool is_exp() const {
         return std::holds_alternative<std::shared_ptr<Exp>>(value_);
     }

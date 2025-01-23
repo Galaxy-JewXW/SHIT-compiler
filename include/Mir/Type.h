@@ -2,6 +2,7 @@
 #define TYPE_H
 #include <memory>
 #include <string>
+#include "Utils/Token.h"
 
 
 namespace Mir::Type {
@@ -104,7 +105,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override { return "label"; }
 };
+
+[[nodiscard]] std::shared_ptr<Type> get_type(const Token::Type &token_type);
 }
-
-
 #endif

@@ -85,6 +85,7 @@ std::shared_ptr<AST::ConstInitVal> Parser::parseConstInitVal() {
         do {
             constInitVals.emplace_back(parseConstInitVal());
         } while (match(Token::Type::COMMA));
+        panic_on(Token::Type::RBRACE);
         return std::make_shared<AST::ConstInitVal>(constInitVals);
     }
     std::shared_ptr<AST::ConstExp> constExp = parseConstExp();
