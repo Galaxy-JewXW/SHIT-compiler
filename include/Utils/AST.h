@@ -230,7 +230,7 @@ class Decl : public Node {
 protected:
     Decl() {}
 public:
-    virtual ~Decl() {}
+    ~Decl() override = default;
 };
 
 // Stmt -> LVal '=' Exp ';' | [Exp] ';'  | Block
@@ -424,9 +424,9 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    Token::Type bType() const { return bType_; }
+    [[nodiscard]] Token::Type bType() const { return bType_; }
 
-    std::vector<std::shared_ptr<VarDef>> varDefs() const { return varDefs_; }
+    [[nodiscard]] std::vector<std::shared_ptr<VarDef>> varDefs() const { return varDefs_; }
 };
 
 // FuncFParam -> BType Ident ['[' ']' { '[' Exp ']' }]

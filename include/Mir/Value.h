@@ -2,56 +2,60 @@
 #define VALUE_H
 
 #include <memory>
-#include <vector>
+#include <string>
+#include <utility>
 
+#include "Type.h"
 
-class Use;
+namespace Mir {
 class User;
 
-class Value {
-    std::vector<std::weak_ptr<Use>> uses_;
+class Value : public std::enable_shared_from_this<Value> {
+protected:
+    std::string name_;
+    std::shared_ptr<Type::Type> type_;
+    std::vector<std::weak_ptr<User>> users_{};
 
 public:
+    Value(std::string name, const std::shared_ptr<Type::Type> &type)
+        : name_{std::move(name)}, type_(type) {}
+
     virtual ~Value() = default;
 
-    [[nodiscard]] std::vector<std::shared_ptr<Use>> get_uses() const;
+    [[nodiscard]] const std::string &get_name() const { return name_; }
 
-    void add_use(const std::shared_ptr<Use> &use);
+    void set_name(const std::string &name) { this->name_ = name; }
 
-    void remove_use(const std::shared_ptr<Use> &use);
-};
+    [[nodiscard]] const std::shared_ptr<Type::Type> &get_type() { return type_; }
 
-class Use {
-    std::weak_ptr<Value> value_;
-    std::weak_ptr<User> user_;
+    // Value对应的User被销毁后，在users_中可能依然存有对该user的指针
+    // 因此需要在增删user时清理users_，防止出现访存异常
+    void cleanup_users();
 
-    Use(const std::shared_ptr<Value> &value, const std::shared_ptr<User> &user)
-        : value_(value), user_(user) {}
+    void add_user(const std::shared_ptr<User> &user);
 
-public:
-    ~Use();
+    void delete_user(const std::shared_ptr<User> &user);
 
-    static std::shared_ptr<Use> create(const std::shared_ptr<Value> &value, const std::shared_ptr<User> &user);
+    void replace_by_new_value(const std::shared_ptr<Value> &new_value);
 
-    std::shared_ptr<Value> get_value() const;
-
-    std::shared_ptr<User> get_user() const;
-
-    void set_value(const std::shared_ptr<Value> &new_value);
+    [[nodiscard]] virtual std::string to_string() const = 0;
 };
 
 class User : public Value {
-    std::vector<std::shared_ptr<Use>> operands_;
+    std::vector<std::shared_ptr<Value>> operands_;
 
 public:
-    User() = default;
+    User(const std::string &name, const std::shared_ptr<Type::Type> &type)
+        : Value{name, type} {}
 
-    [[nodiscard]] std::vector<std::shared_ptr<Use>> get_operands() const;
+    [[nodiscard]] const std::vector<std::shared_ptr<Value>> &get_operands() const { return operands_; }
 
-    void add_operand(const std::shared_ptr<Value> &value_ptr);
+    void add_operand(const std::shared_ptr<Value> &value);
 
-    void remove_operand(const std::shared_ptr<Use> &use_ptr);
+    void clear_operands();
+
+    void modify_operand(const std::shared_ptr<Value> &old_value, const std::shared_ptr<Value> &new_value);
 };
-
+}
 
 #endif
