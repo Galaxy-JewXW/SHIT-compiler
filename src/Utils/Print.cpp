@@ -1,5 +1,17 @@
+#include "Mir/Structure.h"
 #include "Utils/AST.h"
 #include "Utils/Token.h"
+
+template<typename T>
+void join_and_append(std::ostringstream &oss, const std::vector<std::shared_ptr<T>> &items,
+                     const std::string &separator) {
+    for (size_t i = 0; i < items.size(); ++i) {
+        oss << items[i]->to_string();
+        if (i != items.size() - 1) {
+            oss << separator;
+        }
+    }
+}
 
 std::string Token::type_to_string(const Type type) {
     switch (type) {
@@ -94,7 +106,7 @@ namespace AST {
             oss << "[\n" << constExp->to_string() << "\n]\n";
         }
     }
-    oss << constInitVal_->to_string() << "\n";
+    oss << "=\n" << constInitVal_->to_string() << "\n";
     oss << "<ConstDef>";
     return oss.str();
 }
@@ -142,7 +154,7 @@ namespace AST {
         }
     }
     if (initVal_ != nullptr) {
-        oss << initVal_->to_string() << "\n";
+        oss << "=\n" << initVal_->to_string() << "\n";
     }
     oss << "<VarDef>";
     return oss.str();
@@ -436,6 +448,69 @@ namespace AST {
 [[nodiscard]] std::string ConstExp::to_string() const {
     std::ostringstream oss;
     oss << addExp_->to_string() << "\n<ConstExp>";
+    return oss.str();
+}
+}
+
+namespace Mir {
+[[nodiscard]] std::string Module::to_string() const {
+    std::ostringstream oss;
+    for (const auto &s: const_strings) {
+        oss << s << "\n";
+    }
+    oss << "\n";
+
+    // 拼接全局变量
+    join_and_append(oss, global_variables, "\n");
+    oss << "\n\n";
+
+    // 拼接函数
+    join_and_append(oss, functions, "\n\n");
+    oss << "\n";
+
+    return oss.str();
+}
+
+
+[[nodiscard]] std::string GlobalVariable::to_string() const {
+    std::ostringstream oss;
+    oss << "@" << name_ << " = dso_local " << (is_constant ? "constant " : "global ")
+            << init_value->to_string() << "\n";
+    return oss.str();
+}
+
+[[nodiscard]] std::string Function::to_string() const {
+    std::ostringstream param_info;
+    for (size_t i = 0; i < arguments.size(); ++i) {
+        param_info << arguments[i]->to_string();
+        if (i != arguments.size() - 1) {
+            param_info << ", ";
+        }
+    }
+    std::ostringstream block_info;
+    for (size_t i = 0; i < blocks.size(); ++i) {
+        block_info << blocks[i]->to_string();
+        if (i != blocks.size() - 1) {
+            block_info << "\n";
+        }
+    }
+    std::ostringstream function_info;
+    function_info << "define dso_local " << return_type->to_string() << " " << name_
+            << "(" << param_info.str() << ") {\n"
+            << block_info.str()
+            << "\n}";
+    return function_info.str();
+}
+
+[[nodiscard]] std::string Block::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << ":\n\t";
+    for (size_t i = 0; i < instructions.size(); ++i) {
+        oss << instructions[i]->to_string();
+        if (i != instructions.size() - 1) {
+            oss << "\n\t";
+        }
+    }
     return oss.str();
 }
 }

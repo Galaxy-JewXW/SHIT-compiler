@@ -40,7 +40,6 @@ int main(int argc, char *argv[]) {
     std::ifstream file(filename);
     if (!file.is_open()) {
         log_fatal("Could not open file: %s", filename.c_str());
-        return 1;
     }
     std::stringstream buffer;
     buffer << file.rdbuf();
