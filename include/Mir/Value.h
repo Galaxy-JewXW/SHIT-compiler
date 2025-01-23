@@ -4,7 +4,7 @@
 #include <memory>
 #include <vector>
 
-namespace Mir {
+
 class Use;
 class User;
 
@@ -21,7 +21,7 @@ public:
     void remove_use(const std::shared_ptr<Use> &use);
 };
 
-class Use : public std::enable_shared_from_this<Use> {
+class Use {
     std::weak_ptr<Value> value_;
     std::weak_ptr<User> user_;
 
@@ -40,7 +40,7 @@ public:
     void set_value(const std::shared_ptr<Value> &new_value);
 };
 
-class User : public Value, public std::enable_shared_from_this<User> {
+class User : public Value {
     std::vector<std::shared_ptr<Use>> operands_;
 
 public:
@@ -52,6 +52,6 @@ public:
 
     void remove_operand(const std::shared_ptr<Use> &use_ptr);
 };
-}
+
 
 #endif

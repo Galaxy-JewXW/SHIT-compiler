@@ -4,7 +4,7 @@
 
 #include "Mir/Value.h"
 
-namespace Mir {
+
 [[nodiscard]] std::vector<std::shared_ptr<Use>> Value::get_uses() const {
     std::vector<std::shared_ptr<Use>> result;
     for (const auto &weak_use: uses_) {
@@ -78,4 +78,4 @@ void User::remove_operand(const std::shared_ptr<Use> &use_ptr) {
     operands_.erase(std::remove(operands_.begin(), operands_.end(), use_ptr),
                     operands_.end());
 }
-}
+
