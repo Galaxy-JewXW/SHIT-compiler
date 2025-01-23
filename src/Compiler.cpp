@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include "Mir/Builder.h"
 
 bool options[28];
 
@@ -52,5 +53,9 @@ int main(int argc, char *argv[]) {
     Parser parser(tokens);
     std::shared_ptr<AST::CompUnit> ast = parser.parse();
     log_debug("AST info as follows: \n%s", ast->to_string().c_str());
+    log_info("Building LLVM IR.");
+    Mir::Builder builder;
+    std::shared_ptr<Mir::Module> module = builder.visit(ast);
+    log_debug("Module info as follows: \n%s", module->to_string().c_str());
     return 0;
 }

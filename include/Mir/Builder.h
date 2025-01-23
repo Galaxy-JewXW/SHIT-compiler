@@ -2,6 +2,7 @@
 #define BUILDER_H
 #include <memory>
 
+#include "Const.h"
 #include "Structure.h"
 #include "Symbol.h"
 #include "Utils/AST.h"
@@ -17,19 +18,19 @@ class Builder {
 public:
     explicit Builder() { table->push_scope(); }
 
-    std::shared_ptr<Module> visit(const std::shared_ptr<AST::CompUnit> &ast);
+    [[nodiscard]] std::shared_ptr<Module> &visit(const std::shared_ptr<AST::CompUnit> &ast);
 
     void visit_decl(const std::shared_ptr<AST::Decl> &decl);
 
     void visit_constDecl(const std::shared_ptr<AST::ConstDecl> &constDecl);
 
-    void visit_constDef(const std::shared_ptr<AST::ConstDef> &constDef);
+    void visit_constDef(const std::string &type, const std::shared_ptr<AST::ConstDef> &constDef);
 
     void visit_constInitVal(const std::shared_ptr<AST::ConstInitVal> &constInitVal);
 
     void visit_varDecl(const std::shared_ptr<AST::VarDecl> &varDecl);
 
-    void visit_varDef(const std::shared_ptr<AST::VarDef> &varDef);
+    void visit_varDef(const std::string &type, const std::shared_ptr<AST::VarDef> &varDef);
 
     void visit_initVal(const std::shared_ptr<AST::InitVal> &initVal);
 
@@ -82,5 +83,10 @@ public:
     void visit_constExp(const std::shared_ptr<AST::ConstExp> &constExp);
 };
 }
+
+// 用于在编译期内计算常数
+using EvalResult = std::variant<int, float>;
+
+EvalResult eval_exp(const std::shared_ptr<AST::AddExp> &exp, const std::shared_ptr<Mir::Symbol::Table> &table);
 
 #endif

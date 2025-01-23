@@ -321,7 +321,7 @@ std::shared_ptr<AST::UnaryExp> Parser::parseUnaryExp() {
         panic_on(Token::Type::RPAREN);
         return std::make_shared<AST::UnaryExp>(ident, rParams);
     }
-    if (match(Token::Type::AND, Token::Type::SUB, Token::Type::NOT)) {
+    if (match(Token::Type::ADD, Token::Type::SUB, Token::Type::NOT)) {
         Token::Type type = next(-1).type;
         std::shared_ptr<AST::UnaryExp> unaryExp = parseUnaryExp();
         return std::make_shared<AST::UnaryExp>(type, unaryExp);

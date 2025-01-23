@@ -1,3 +1,90 @@
 #include "Mir/Builder.h"
-#include "Mir/Structure.h"
+
 #include "Mir/Instruction.h"
+#include "Mir/Structure.h"
+#include "Utils/Log.h"
+
+namespace Mir {
+[[nodiscard]] std::shared_ptr<Module> &Builder::visit(const std::shared_ptr<AST::CompUnit> &ast) {
+    for (const auto &unit: ast->compunits()) {
+        if (std::holds_alternative<std::shared_ptr<AST::Decl>>(unit)) {
+            is_global = true;
+            visit_decl(std::get<std::shared_ptr<AST::Decl>>(unit));
+            is_global = false;
+        } else if (std::holds_alternative<std::shared_ptr<AST::FuncDef>>(unit)) {
+            // visit_funcDef(std::get<std::shared_ptr<AST::FuncDef>>(unit));
+        }
+    }
+    return module;
+}
+
+void Builder::visit_decl(const std::shared_ptr<AST::Decl> &decl) {
+    if (std::dynamic_pointer_cast<AST::ConstDecl>(decl)) {
+        visit_constDecl(std::dynamic_pointer_cast<AST::ConstDecl>(decl));
+    } else if (std::dynamic_pointer_cast<AST::VarDecl>(decl)) {
+        visit_varDecl(std::dynamic_pointer_cast<AST::VarDecl>(decl));
+    } else {
+        log_fatal("unknown decl type");
+    }
+}
+
+void Builder::visit_constDecl(const std::shared_ptr<AST::ConstDecl> &constDecl) {
+    const std::string type = constDecl->bType() == Token::Type::INT
+                                 ? "int"
+                                 : constDecl->bType() == Token::Type::FLOAT
+                                       ? "float"
+                                       : "error";
+    for (const auto &constDef: constDecl->constDefs()) {
+        visit_constDef(type, constDef);
+    }
+}
+
+void Builder::visit_constDef(const std::string &type, const std::shared_ptr<AST::ConstDef> &constDef) {
+    std::shared_ptr<Type::Type> ir_type;
+    if (type == "int") {
+        ir_type = Type::Integer::i32;
+    } else if (type == "float") {
+        ir_type = Type::Float::f32;
+    } else {
+        log_fatal("unknown type");
+    }
+    std::vector<int> dimensions;
+    for (const auto &constExp: constDef->constExps()) {
+        const auto res = eval_exp(constExp->addExp(), table);
+        int dim;
+        if (std::holds_alternative<int>(res)) {
+            dim = std::get<int>(res);
+        } else if (std::holds_alternative<float>(res)) {
+            dim = static_cast<int>(std::get<float>(res));
+        } else {
+            log_error("Unexpected error on calculating dim");
+        }
+        if (dim <= 0) { log_error("Non-Positive dimension: %d", dim); }
+        dimensions.push_back(dim);
+    }
+    for (auto it = dimensions.rbegin(); it != dimensions.rend(); ++it) {
+        const auto dim = *it;
+        ir_type = std::make_shared<Type::Array>(dim, ir_type);
+    }
+    // ConstDef必然含有ConstInitVal
+    std::shared_ptr<Init::Init> init_value;
+    const auto &constInitVal = constDef->constInitVal();
+    if (ir_type->is_int32() || ir_type->is_float()) {
+        if (constInitVal->is_constInitVals()) {
+            log_fatal("Variable cannot be initialized as an array");
+        }
+        const auto constExp = std::get<std::shared_ptr<AST::ConstExp>>(constInitVal->get_value());
+        init_value = Init::Constant::create_constant_init_value(ir_type, constExp->addExp(), table);
+    } else if (ir_type->is_array()) {
+        if (constInitVal->is_constExp()) {
+            log_fatal("Array cannot be initialized as a scalar");
+        }
+        const auto constInitVals = std::get<std::vector<std::shared_ptr<AST::ConstInitVal>>>(constInitVal->get_value());
+        init_value = nullptr;
+    } else {
+        log_fatal("Unknown type %s", ir_type->to_string().c_str());
+    }
+}
+
+void Builder::visit_varDecl(const std::shared_ptr<AST::VarDecl> &varDecl) {}
+}

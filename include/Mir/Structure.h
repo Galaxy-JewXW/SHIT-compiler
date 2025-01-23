@@ -4,7 +4,7 @@
 #include <utility>
 #include <vector>
 
-#include "InitValue.h"
+#include "Init.h"
 #include "Instruction.h"
 #include "Value.h"
 
@@ -36,11 +36,11 @@ public:
 
 class GlobalVariable final : public Value {
     const bool is_constant;
-    const std::shared_ptr<InitValue> init_value;
+    const std::shared_ptr<Init::Init> init_value;
 
 public:
     GlobalVariable(const std::string &name, const std::shared_ptr<Type::Type> &type, const bool is_constant,
-                   const std::shared_ptr<InitValue> &init_value)
+                   const std::shared_ptr<Init::Init> &init_value)
         : Value{name, type}, is_constant{is_constant}, init_value{init_value} {}
 
     [[nodiscard]] std::string to_string() const override;

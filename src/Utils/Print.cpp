@@ -513,4 +513,23 @@ namespace Mir {
     }
     return oss.str();
 }
+
+namespace Init {
+    [[nodiscard]] std::string Constant::to_string() const {
+        return type->to_string() + " " + const_value->to_string();
+    }
+
+    [[nodiscard]] std::string Array::to_string() const {
+        std::ostringstream oss;
+        oss << type->to_string() << " [";
+        for (size_t i = 0; i < init_values.size(); ++i) {
+            oss << init_values[i]->to_string();
+            if (i != init_values.size() - 1) {
+                oss << ", ";
+            }
+        }
+        oss << "]";
+        return oss.str();
+    }
+}
 }
