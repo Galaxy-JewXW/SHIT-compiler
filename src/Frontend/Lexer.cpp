@@ -1,4 +1,5 @@
 #include "Frontend/Lexer.h"
+#include "Utils/Log.h"
 
 void Lexer::consume_line_comment() {
     advance(); // '/'
@@ -175,7 +176,8 @@ Token::Token Lexer::consume_operator() {
     }
 
     // 未知字符
-    return Token::Token{op, Token::Type::UNKNOWN, start_line};
+    log_fatal("Unrecognized operator %s at line %d", op.c_str(), start_line);
+    throw std::runtime_error("Lexer fatal");
 }
 
 std::vector<Token::Token> Lexer::tokenize() {
