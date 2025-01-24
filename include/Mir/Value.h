@@ -43,6 +43,7 @@ public:
 };
 
 class User : public Value {
+protected:
     std::vector<std::shared_ptr<Value>> operands_;
 
 public:

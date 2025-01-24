@@ -53,7 +53,9 @@ public:
 
     void pop_scope();
 
-    void insert_symbol(const std::string &name, const std::shared_ptr<Symbol> &symbol);
+    void insert_symbol(const std::string &name, const std::shared_ptr<Type::Type> &type, bool is_constant,
+                       const std::shared_ptr<Init::Init> &
+                       init_value, const std::shared_ptr<Value> &address);
 
     [[nodiscard]] std::shared_ptr<Symbol> lookup_in_top_scope(const std::string &name) const;
 

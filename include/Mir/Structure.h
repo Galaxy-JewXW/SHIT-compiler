@@ -1,16 +1,15 @@
 #ifndef STRUCTURE_H
 #define STRUCTURE_H
 
-#include <utility>
 #include <vector>
 
 #include "Init.h"
-#include "Instruction.h"
 #include "Value.h"
 
 namespace Mir {
 class GlobalVariable;
 class Function;
+class Instruction;
 
 class Module {
     std::vector<std::shared_ptr<GlobalVariable>> global_variables;
@@ -77,8 +76,8 @@ public:
 };
 
 class Block final : public User {
-    const std::shared_ptr<Function> parent;
-    const std::vector<std::shared_ptr<Instruction>> instructions;
+    const std::weak_ptr<Function> parent;
+    std::vector<std::shared_ptr<Instruction>> instructions;
 
 public:
     Block(const std::string &name, const std::shared_ptr<Function> &parent,
@@ -87,6 +86,10 @@ public:
         const auto self = std::shared_ptr<Block>(this);
         parent->add_block(self);
     }
+
+    [[nodiscard]] std::shared_ptr<Function> get_function() const { return parent.lock(); }
+
+    void add_instruction(const std::shared_ptr<Instruction> &instruction) { instructions.emplace_back(instruction); }
 
     [[nodiscard]] std::string to_string() const override;
 };

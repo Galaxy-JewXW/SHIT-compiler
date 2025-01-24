@@ -68,7 +68,15 @@ void Builder::visit_constDef(const Token::Type type, const std::shared_ptr<AST::
     } else {
         log_fatal("Unknown type %s", ir_type->to_string().c_str());
     }
-    log_trace("visit_constDef: %s", init_value->to_string().c_str());
+    std::shared_ptr<Value> address = nullptr;
+    if (is_global) {
+        const auto &gv = std::make_shared<GlobalVariable>(constDef->ident(), ir_type, true, init_value);
+        module->add_global_variable(gv);
+        address = gv;
+    } else {
+
+    }
+    table->insert_symbol(constDef->ident(), ir_type, true, init_value, address);
 }
 
 void Builder::visit_varDecl(const std::shared_ptr<AST::VarDecl> &varDecl) {}

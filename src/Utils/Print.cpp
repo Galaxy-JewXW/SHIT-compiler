@@ -1,3 +1,4 @@
+#include "Mir/Instruction.h"
 #include "Mir/Structure.h"
 #include "Utils/AST.h"
 #include "Utils/Token.h"
@@ -459,15 +460,12 @@ namespace Mir {
         oss << s << "\n";
     }
     oss << "\n";
-
     // 拼接全局变量
     join_and_append(oss, global_variables, "\n");
     oss << "\n\n";
-
     // 拼接函数
     join_and_append(oss, functions, "\n\n");
     oss << "\n";
-
     return oss.str();
 }
 
@@ -475,7 +473,7 @@ namespace Mir {
 [[nodiscard]] std::string GlobalVariable::to_string() const {
     std::ostringstream oss;
     oss << "@" << name_ << " = dso_local " << (is_constant ? "constant " : "global ")
-            << init_value->to_string() << "\n";
+            << init_value->to_string();
     return oss.str();
 }
 
@@ -511,6 +509,45 @@ namespace Mir {
             oss << "\n\t";
         }
     }
+    return oss.str();
+}
+
+[[nodiscard]] std::string Alloc::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = ";
+    const auto &type = std::dynamic_pointer_cast<Type::Pointer>(type_);
+    oss << "alloca " << type->get_contain_type()->to_string();
+    return oss.str();
+}
+
+[[nodiscard]] std::string Load::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = ";
+    oss << "load " << type_->to_string() << ", ";
+    const auto &addr = get_addr();
+    oss << addr->get_type()->to_string() << " " << addr->get_name();
+    return oss.str();
+}
+
+[[nodiscard]] std::string Store::to_string() const {
+    std::ostringstream oss;
+    oss << "store ";
+    const auto &addr = get_addr(), &value = get_value();
+    oss << value->get_type()->to_string() << " " << value->get_name() << ", ";
+    oss << addr->get_type()->to_string() << " " << addr->get_name();
+    return oss.str();
+}
+
+[[nodiscard]] std::string GetElementPtr::to_string() const {
+    const auto addr = get_addr();
+    const auto ptr_type = std::dynamic_pointer_cast<Type::Pointer>(addr->get_type());
+    const auto target_type = ptr_type->get_contain_type();
+    std::stringstream oss;
+    oss << name_ << " = getelementptr inbounds " << target_type->to_string()
+            << ", " << ptr_type->to_string() << " " << addr->get_name();
+    if (target_type->is_array()) oss << ", i32 0, i32 ";
+    else oss << ", i32 ";
+    oss << get_index()->get_name();
     return oss.str();
 }
 
