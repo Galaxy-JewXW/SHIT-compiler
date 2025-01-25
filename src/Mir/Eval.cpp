@@ -50,7 +50,7 @@ EvalResult eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_p
     if (!init_value->is_constant_init()) { log_error("Non-constant expression"); }
     const auto &constant_value = std::dynamic_pointer_cast<Init::Constant>(init_value);
     const auto &value = constant_value->get_const_value();
-    if (const auto &de = *value; typeid(de) != typeid(Const)) { log_error("Non-constant expression"); }
+    if (!value->is_constant()) { log_error("Non-constant expression"); }
     const auto &const_ = std::dynamic_pointer_cast<Const>(value);
     const auto res = const_->get_constant_value();
     if (res.type() == typeid(int)) { return std::any_cast<int>(res); }

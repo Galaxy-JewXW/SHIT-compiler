@@ -9,6 +9,7 @@
 
 namespace Mir {
 class Builder {
+    static size_t variable_count, block_count;
     bool is_global{false};
     std::shared_ptr<Module> module = std::make_shared<Module>();
     std::shared_ptr<Symbol::Table> table = std::make_shared<Symbol::Table>();
@@ -17,6 +18,15 @@ class Builder {
 
 public:
     explicit Builder() { table->push_scope(); }
+
+    static std::string gen_variable_name() { return "%" + std::to_string(variable_count++); }
+
+    static std::string gen_block_name() { return "block_" + std::to_string(block_count++); }
+
+    static void reset_count() {
+        variable_count = 0;
+        block_count = 0;
+    }
 
     [[nodiscard]] std::shared_ptr<Module> &visit(const std::shared_ptr<AST::CompUnit> &ast);
 
@@ -28,13 +38,12 @@ public:
 
     void visit_varDecl(const std::shared_ptr<AST::VarDecl> &varDecl);
 
-    void visit_varDef(const std::string &type, const std::shared_ptr<AST::VarDef> &varDef);
-
-    void visit_initVal(const std::shared_ptr<AST::InitVal> &initVal);
+    void visit_varDef(Token::Type type, const std::shared_ptr<AST::VarDef> &varDef);
 
     void visit_funcDef(const std::shared_ptr<AST::FuncDef> &funcDef);
 
-    void visit_funcFParam(const std::shared_ptr<AST::FuncFParam> &funcFParam);
+    [[nodiscard]] std::pair<std::string, std::shared_ptr<Type::Type>>
+    visit_funcFParam(const std::shared_ptr<AST::FuncFParam> &funcFParam) const;
 
     void visit_block(const std::shared_ptr<AST::Block> &block);
 
@@ -80,6 +89,10 @@ public:
 
     void visit_constExp(const std::shared_ptr<AST::ConstExp> &constExp);
 };
+
+// 用于自动类型转换
+std::shared_ptr<Value> cast(const std::shared_ptr<Value> &v, const std::shared_ptr<Type::Type> &target_type,
+                            const std::shared_ptr<Block> &block);
 }
 
 // 用于在编译期内计算常数

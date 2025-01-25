@@ -22,7 +22,7 @@ void Table::insert_symbol(const std::string &name, const std::shared_ptr<Type::T
     symbols.back()[name] = symbol;
 }
 
-std::shared_ptr<Symbol> Table::lookup_in_top_scope(const std::string &name) const {
+std::shared_ptr<Symbol> Table::lookup_in_current_scope(const std::string &name) const {
     if (symbols.back().find(name) != symbols.back().end()) {
         return symbols.back().at(name);
     }

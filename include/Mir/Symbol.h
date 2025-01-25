@@ -57,7 +57,7 @@ public:
                        const std::shared_ptr<Init::Init> &
                        init_value, const std::shared_ptr<Value> &address);
 
-    [[nodiscard]] std::shared_ptr<Symbol> lookup_in_top_scope(const std::string &name) const;
+    [[nodiscard]] std::shared_ptr<Symbol> lookup_in_current_scope(const std::string &name) const;
 
     [[nodiscard]] std::shared_ptr<Symbol> lookup_in_all_scopes(const std::string &name) const;
 };

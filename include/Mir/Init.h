@@ -9,8 +9,10 @@
 #include "Utils/AST.h"
 
 namespace Mir {
+class Block;
 class Alloc;
 class Store;
+class GetElementPtr;
 }
 
 template<typename TVal>
@@ -93,8 +95,6 @@ public:
     [[nodiscard]] virtual bool is_exp_init() const { return false; }
     [[nodiscard]] virtual bool is_array_init() const { return false; }
 
-    [[nodiscard]] virtual std::shared_ptr<Store> gen_store_inst(const std::shared_ptr<Alloc> &addr) = 0;
-
     [[nodiscard]] virtual std::string to_string() const = 0;
 };
 
@@ -108,7 +108,7 @@ public:
     [[nodiscard]] bool is_constant_init() const override { return true; }
     [[nodiscard]] std::shared_ptr<Const> get_const_value() const { return const_value; }
 
-    [[nodiscard]] std::shared_ptr<Store> gen_store_inst(const std::shared_ptr<Alloc> &addr) override;
+    void gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
 
@@ -130,7 +130,7 @@ public:
 
     [[nodiscard]] std::shared_ptr<Value> get_exp_value() const { return exp_value; }
 
-    [[nodiscard]] std::shared_ptr<Store> gen_store_inst(const std::shared_ptr<Alloc> &addr) override;
+    void gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override {
         log_error("ExpInit cannot be output as a string");
@@ -147,6 +147,7 @@ public:
         : Init{type}, flattened_init_values{flattened_init_values} {}
 
     [[nodiscard]] bool is_array_init() const override { return true; }
+    [[nodiscard]] std::vector<std::shared_ptr<Init>> get_flattened_init_values() const { return flattened_init_values; }
     [[nodiscard]] size_t get_size() const { return flattened_init_values.size(); }
     [[nodiscard]] std::shared_ptr<Init> get_init_value(const int idx) const { return init_values[idx]; }
     void add_init_value(const std::shared_ptr<Init> &init_value) { init_values.emplace_back(init_value); }
@@ -164,7 +165,8 @@ public:
         return folded;
     }
 
-    [[nodiscard]] std::shared_ptr<Store> gen_store_inst(const std::shared_ptr<Alloc> &addr) override;
+    void gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared_ptr<Block> &block,
+                        const std::vector<int> &dimensions);
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -251,23 +253,6 @@ inline std::shared_ptr<Array> fold_array(const std::shared_ptr<Type::Type> &type
     }
     return array;
 }
-
-template<typename T>
-struct BasicInitTrait {};
-
-template<>
-struct BasicInitTrait<Constant> {
-    static std::shared_ptr<Value> get_init_value(const std::shared_ptr<Constant> &constant) {
-        return constant->get_const_value();
-    }
-};
-
-template<>
-struct BasicInitTrait<Exp> {
-    static std::shared_ptr<Value> get_init_value(const std::shared_ptr<Exp> &exp) {
-        return exp->get_exp_value();
-    }
-};
 }
 
 #endif

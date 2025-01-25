@@ -542,7 +542,7 @@ namespace Mir {
     const auto addr = get_addr();
     const auto ptr_type = std::dynamic_pointer_cast<Type::Pointer>(addr->get_type());
     const auto target_type = ptr_type->get_contain_type();
-    std::stringstream oss;
+    std::ostringstream oss;
     oss << name_ << " = getelementptr inbounds " << target_type->to_string()
             << ", " << ptr_type->to_string() << " " << addr->get_name();
     if (target_type->is_array()) oss << ", i32 0, i32 ";
@@ -550,6 +550,95 @@ namespace Mir {
     oss << get_index()->get_name();
     return oss.str();
 }
+
+[[nodiscard]] std::string Fptosi::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = fptosi ";
+    const auto &origin_value = get_value();
+    oss << origin_value->get_type()->to_string() << " " << origin_value->get_name();
+    oss << " to " << type_->to_string();
+    return oss.str();
+}
+
+[[nodiscard]] std::string Sitofp::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = sitofp ";
+    const auto &origin_value = get_value();
+    oss << origin_value->get_type()->to_string() << " " << origin_value->get_name();
+    oss << " to " << type_->to_string();
+    return oss.str();
+}
+
+[[nodiscard]] std::string Fcmp::to_string() const {
+    const auto op_str = [&] {
+        const std::string id = "fcmp";
+        switch (op) {
+            case Op::EQ: return id + " oeq";
+            case Op::NE: return id + " one";
+            case Op::LT: return id + " olt";
+            case Op::LE: return id + " ole";
+            case Op::GT: return id + " ogt";
+            case Op::GE: return id + " oge";
+            default: log_error("Unknown op");
+        }
+    }();
+    std::ostringstream oss;
+    oss << name_ << " = " << op_str << " float ";
+    oss << get_lhs()->get_name() << ", " << get_rhs()->get_name();
+    return oss.str();
+}
+
+[[nodiscard]] std::string Icmp::to_string() const {
+    const auto op_str = [&] {
+        const std::string id = "icmp";
+        switch (op) {
+            case Op::EQ: return id + " eq";
+            case Op::NE: return id + " ne";
+            case Op::LT: return id + " slt";
+            case Op::LE: return id + " sle";
+            case Op::GT: return id + " sgt";
+            case Op::GE: return id + " sge";
+            default: log_error("Unknown op");
+        }
+    }();
+    std::ostringstream oss;
+    oss << name_ << " = " << op_str << " i32 ";
+    oss << get_lhs()->get_name() << ", " << get_rhs()->get_name();
+    return oss.str();
+}
+
+[[nodiscard]] std::string Zext::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = zext ";
+    const auto &origin_value = get_value();
+    oss << origin_value->get_type()->to_string() << " " << origin_value->get_name();
+    oss << " to " << type_->to_string();
+    return oss.str();
+}
+
+[[nodiscard]] std::string Branch::to_string() const {
+    std::ostringstream oss;
+    oss << "br ";
+    const auto &cond = get_cond();
+    oss << cond->get_type()->to_string() << " " << cond->get_name() << ", ";
+    oss << "label %" << get_true_block()->get_name() << ", label %" << get_false_block()->get_name();
+    return oss.str();
+}
+
+[[nodiscard]] std::string Jump::to_string() const {
+    std::ostringstream oss;
+    oss << "br label %" << get_target_block()->get_name();
+    return oss.str();
+}
+
+[[nodiscard]] std::string Ret::to_string() const {
+    std::ostringstream oss;
+    oss << "ret ";
+    if (type_->is_void()) oss << "void";
+    else oss << get_value()->get_type()->to_string() << " " << get_value()->get_name();
+    return oss.str();
+}
+
 
 namespace Init {
     [[nodiscard]] std::string Constant::to_string() const {

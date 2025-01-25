@@ -278,6 +278,10 @@ public:
     explicit Block(const std::vector<std::variant<std::shared_ptr<Decl>, std::shared_ptr<Stmt>>> &items) :
         items_{items} {}
 
+    [[nodiscard]] std::vector<std::variant<std::shared_ptr<Decl>, std::shared_ptr<Stmt>>> items() const {
+        return items_;
+    }
+
     [[nodiscard]] std::string to_string() const override;
 };
 
@@ -477,6 +481,10 @@ public:
                const std::vector<std::shared_ptr<Exp>> &exps) :
         bType_{bType}, ident_{std::move(ident)}, exps_{exps} {}
 
+    [[nodiscard]] Token::Type bType() const { return bType_; }
+    [[nodiscard]] std::string ident() const { return ident_; }
+    [[nodiscard]] std::vector<std::shared_ptr<Exp>> exps() const { return exps_; }
+
     [[nodiscard]] std::string to_string() const override;
 };
 
@@ -497,6 +505,8 @@ public:
 
     [[nodiscard]] std::string ident() const { return ident_; }
     [[nodiscard]] Token::Type funcType() const { return funcType_; }
+    [[nodiscard]] std::vector<std::shared_ptr<FuncFParam>> funcParams() const { return funcParams_; }
+    [[nodiscard]] std::shared_ptr<Block> block() const { return block_; }
 };
 
 // CompUnit -> {Decl | FuncDef}

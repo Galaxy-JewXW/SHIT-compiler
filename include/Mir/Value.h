@@ -39,6 +39,8 @@ public:
 
     void replace_by_new_value(const std::shared_ptr<Value> &new_value);
 
+    [[nodiscard]] virtual bool is_constant() { return false; }
+
     [[nodiscard]] virtual std::string to_string() const = 0;
 };
 

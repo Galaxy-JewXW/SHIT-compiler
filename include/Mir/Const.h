@@ -21,6 +21,8 @@ public:
 
     [[nodiscard]] virtual std::any get_constant_value() const = 0;
 
+    [[nodiscard]] bool is_constant() override { return true; }
+
     [[nodiscard]] std::string to_string() const override { return name_; }
 };
 
