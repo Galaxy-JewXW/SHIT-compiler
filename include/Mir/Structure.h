@@ -1,16 +1,15 @@
 #ifndef STRUCTURE_H
 #define STRUCTURE_H
 
-#include <utility>
 #include <vector>
 
-#include "InitValue.h"
-#include "Instruction.h"
+#include "Init.h"
 #include "Value.h"
 
 namespace Mir {
 class GlobalVariable;
 class Function;
+class Instruction;
 
 class Module {
     std::vector<std::shared_ptr<GlobalVariable>> global_variables;
@@ -36,11 +35,11 @@ public:
 
 class GlobalVariable final : public Value {
     const bool is_constant;
-    const std::shared_ptr<InitValue> init_value;
+    const std::shared_ptr<Init::Init> init_value;
 
 public:
     GlobalVariable(const std::string &name, const std::shared_ptr<Type::Type> &type, const bool is_constant,
-                   const std::shared_ptr<InitValue> &init_value)
+                   const std::shared_ptr<Init::Init> &init_value)
         : Value{name, type}, is_constant{is_constant}, init_value{init_value} {}
 
     [[nodiscard]] std::string to_string() const override;
@@ -69,6 +68,8 @@ public:
 
     [[nodiscard]] const std::shared_ptr<Type::Type> &get_return_type() const { return return_type; }
 
+    [[nodiscard]] std::vector<std::shared_ptr<Argument>> get_arguments() const { return arguments; }
+
     void add_argument(const std::shared_ptr<Argument> &argument) { arguments.emplace_back(argument); }
 
     void add_block(const std::shared_ptr<Block> &block) { blocks.emplace_back(block); }
@@ -77,16 +78,26 @@ public:
 };
 
 class Block final : public User {
-    const std::shared_ptr<Function> parent;
-    const std::vector<std::shared_ptr<Instruction>> instructions;
+    std::weak_ptr<Function> parent;
+    std::vector<std::shared_ptr<Instruction>> instructions;
 
 public:
-    Block(const std::string &name, const std::shared_ptr<Function> &parent,
-          const std::vector<std::shared_ptr<Instruction>> &instructions)
-        : User(name, Type::Label::label), parent{parent}, instructions{instructions} {
-        const auto self = std::shared_ptr<Block>(this);
-        parent->add_block(self);
+    explicit Block(const std::string &name): User(name, Type::Label::label) {}
+
+    static std::shared_ptr<Block> create(const std::string &name, const std::shared_ptr<Function> &function) {
+        const auto block = std::make_shared<Block>(name);
+        block->set_function(function);
+        return block;
     }
+
+    void set_function(const std::shared_ptr<Function> &function) {
+        parent = function;
+        function->add_block(std::dynamic_pointer_cast<Block>(shared_from_this()));
+    }
+
+    [[nodiscard]] std::shared_ptr<Function> get_function() const { return parent.lock(); }
+
+    void add_instruction(const std::shared_ptr<Instruction> &instruction) { instructions.emplace_back(instruction); }
 
     [[nodiscard]] std::string to_string() const override;
 };

@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-#include "InitValue.h"
+#include "Init.h"
 #include "Type.h"
 #include "Value.h"
 
@@ -16,13 +16,13 @@ class Symbol {
     const std::shared_ptr<Type::Type> type;
     const bool is_constant;
     // 变量对应的初始值
-    const std::shared_ptr<InitValue> init_value;
+    const std::shared_ptr<Init::Init> init_value;
     // 为变量分配的栈空间，表现为一个llvm alloca语句
     const std::shared_ptr<Value> address;
 
 public:
     Symbol(std::string name, const std::shared_ptr<Type::Type> &type, const bool is_constant,
-           const std::shared_ptr<InitValue> &init_value, const std::shared_ptr<Value> &address) :
+           const std::shared_ptr<Init::Init> &init_value, const std::shared_ptr<Value> &address) :
         name{std::move(name)}, type{type}, is_constant{is_constant}, init_value{init_value}, address{address} {}
 
     [[nodiscard]] const std::string &get_name() const { return name; }
@@ -31,7 +31,7 @@ public:
 
     [[nodiscard]] bool is_constant_symbol() const { return is_constant; }
 
-    [[nodiscard]] const std::shared_ptr<InitValue> &get_init_value() const { return init_value; }
+    [[nodiscard]] const std::shared_ptr<Init::Init> &get_init_value() const { return init_value; }
 
     [[nodiscard]] const std::shared_ptr<Value> &get_address() const { return address; }
 
@@ -53,9 +53,11 @@ public:
 
     void pop_scope();
 
-    void insert_symbol(const std::string &name, const std::shared_ptr<Symbol> &symbol);
+    void insert_symbol(const std::string &name, const std::shared_ptr<Type::Type> &type, bool is_constant,
+                       const std::shared_ptr<Init::Init> &
+                       init_value, const std::shared_ptr<Value> &address);
 
-    [[nodiscard]] std::shared_ptr<Symbol> lookup_in_top_scope(const std::string &name) const;
+    [[nodiscard]] std::shared_ptr<Symbol> lookup_in_current_scope(const std::string &name) const;
 
     [[nodiscard]] std::shared_ptr<Symbol> lookup_in_all_scopes(const std::string &name) const;
 };
