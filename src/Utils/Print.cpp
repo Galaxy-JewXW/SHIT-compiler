@@ -234,7 +234,7 @@ namespace AST {
 
 [[nodiscard]] std::string AssignStmt::to_string() const {
     std::ostringstream oss;
-    oss << lval_->to_string() << "\n=\n" << exp_->to_string() << "\n<AssignStmt>";
+    oss << lVal_->to_string() << "\n=\n" << exp_->to_string() << "\n<AssignStmt>";
     return oss.str();
 }
 
@@ -455,11 +455,21 @@ namespace AST {
 }
 }
 
+std::string str_to_llvm_ir(const std::string str) {
+    auto s = str;
+    auto l = s.size() + 1;
+    size_t pos = 0;
+    while ((pos = s.find("\\n", pos)) != std::string::npos) {
+        s.replace(pos, 2, "\\0A");
+    }
+    return std::to_string(l) + " x i8] c\"" + s + "\\00\", align 1";
+}
+
 namespace Mir {
 [[nodiscard]] std::string Module::to_string() const {
     std::ostringstream oss;
-    for (const auto &s: const_strings) {
-        oss << s << "\n";
+    for (size_t i = 0; i < const_strings.size(); ++i) {
+        oss << "@.str_" << i + 1 << " = private unnamed_addr constant [" << str_to_llvm_ir(const_strings[i]) << "\n";
     }
     oss << "\n";
     join_and_append(oss, used_runtime_functions, "\n");
@@ -671,9 +681,9 @@ namespace Mir {
     if (const_string_index != -1) {
         if (get_function()->get_name() != "putf") { log_error("Unknown const string index"); }
         if (get_params().empty()) {
-            oss << "call void @putf(i8* @.str_ " << const_string_index << ")";
+            oss << "call void @putf(i8* @.str_" << const_string_index << ")";
         } else {
-            oss << "call void @putf(i8* @.str_ " << const_string_index << ", " << params_to_string() << ")";
+            oss << "call void @putf(i8* @.str_" << const_string_index << ", " << params_to_string() << ")";
         }
     } else {
         if (get_function()->get_type()->is_void()) {

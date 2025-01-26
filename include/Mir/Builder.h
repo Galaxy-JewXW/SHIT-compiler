@@ -15,6 +15,7 @@ class Builder {
     std::shared_ptr<Symbol::Table> table = std::make_shared<Symbol::Table>();
     std::shared_ptr<Function> cur_function;
     std::shared_ptr<Block> cur_block;
+    std::vector<std::tuple<std::shared_ptr<Block>, std::shared_ptr<Block>, std::shared_ptr<Block>>> loop_stats;
 
 public:
     explicit Builder() { table->push_scope(); }
@@ -45,13 +46,13 @@ public:
     [[nodiscard]] std::pair<std::string, std::shared_ptr<Type::Type>>
     visit_funcFParam(const std::shared_ptr<AST::FuncFParam> &funcFParam) const;
 
-    void visit_block(const std::shared_ptr<AST::Block> &block) const;
+    void visit_block(const std::shared_ptr<AST::Block> &block);
 
     void visit_stmt(const std::shared_ptr<AST::Stmt> &stmt);
 
-    void visit_assignStmt(const std::shared_ptr<AST::AssignStmt> &assignStmt);
+    void visit_assignStmt(const std::shared_ptr<AST::AssignStmt> &assignStmt) const;
 
-    void visit_expStmt(const std::shared_ptr<AST::ExpStmt> &expStmt);
+    void visit_expStmt(const std::shared_ptr<AST::ExpStmt> &expStmt) const;
 
     void visit_blockStmt(const std::shared_ptr<AST::BlockStmt> &blockStmt);
 
@@ -59,15 +60,16 @@ public:
 
     void visit_whileStmt(const std::shared_ptr<AST::WhileStmt> &whileStmt);
 
-    void visit_breakStmt(const std::shared_ptr<AST::BreakStmt> &breakStmt);
+    void visit_breakStmt();
 
-    void visit_continueStmt(const std::shared_ptr<AST::ContinueStmt> &continueStmt);
+    void visit_continueStmt();
 
-    void visit_returnStmt(const std::shared_ptr<AST::ReturnStmt> &returnStmt);
+    void visit_returnStmt(const std::shared_ptr<AST::ReturnStmt> &returnStmt) const;
 
-    [[nodiscard]] std::shared_ptr<Value> visit_exp(const std::shared_ptr<AST::Exp> &exp) const;
+    std::shared_ptr<Value> visit_exp(const std::shared_ptr<AST::Exp> &exp) const;
 
-    std::shared_ptr<Value> visit_cond(const std::shared_ptr<AST::Cond> &cond);
+    void visit_cond(const std::shared_ptr<AST::Cond> &cond, const std::shared_ptr<Block> &_then,
+                    const std::shared_ptr<Block> &_else);
 
     [[nodiscard]] std::shared_ptr<Value> visit_lVal(const std::shared_ptr<AST::LVal> &lVal,
                                                     bool get_address = false) const;
@@ -84,15 +86,15 @@ public:
 
     [[nodiscard]] std::shared_ptr<Value> visit_addExp(const std::shared_ptr<AST::AddExp> &addExp) const;
 
-    std::shared_ptr<Value> visit_relExp(const std::shared_ptr<AST::RelExp> &relExp);
+    [[nodiscard]] std::shared_ptr<Value> visit_relExp(const std::shared_ptr<AST::RelExp> &relExp) const;
 
-    std::shared_ptr<Value> visit_eqExp(const std::shared_ptr<AST::EqExp> &eqExp);
+    [[nodiscard]] std::shared_ptr<Value> visit_eqExp(const std::shared_ptr<AST::EqExp> &eqExp) const;
 
-    std::shared_ptr<Value> visit_lAndExp(const std::shared_ptr<AST::LAndExp> &lAndExp);
+    void visit_lAndExp(const std::shared_ptr<AST::LAndExp> &lAndExp, const std::shared_ptr<Block> &_then,
+                       const std::shared_ptr<Block> &_else);
 
-    std::shared_ptr<Value> visit_lOrExp(const std::shared_ptr<AST::LOrExp> &lOrExp);
-
-    std::shared_ptr<Value> visit_constExp(const std::shared_ptr<AST::ConstExp> &constExp);
+    void visit_lOrExp(const std::shared_ptr<AST::LOrExp> &lOrExp, const std::shared_ptr<Block> &_then,
+                      const std::shared_ptr<Block> &_else);
 };
 
 // 用于自动类型转换

@@ -121,7 +121,7 @@ void Builder::visit_varDef(const Token::Type type, const std::shared_ptr<AST::Va
     if (const auto &initVal = varDef->initVal()) {
         if (ir_type->is_int32() || ir_type->is_float()) {
             if (initVal->is_initVals()) { log_fatal("Variable cannot be initialized as an array"); }
-            const auto &exp = std::get<std::shared_ptr<AST::Exp>>(initVal->get_value());
+            const auto exp = std::get<std::shared_ptr<AST::Exp>>(initVal->get_value());
             if (is_global) {
                 init_value = Init::Constant::create_constant_init_value(ir_type, exp->addExp(), table);
             } else {
@@ -235,12 +235,12 @@ Builder::visit_funcFParam(const std::shared_ptr<AST::FuncFParam> &funcFParam) co
     return {ident, std::make_shared<Type::Pointer>(ir_type)};
 }
 
-void Builder::visit_block(const std::shared_ptr<AST::Block> &block) const {
+void Builder::visit_block(const std::shared_ptr<AST::Block> &block) {
     for (const auto &item: block->items()) {
         if (std::holds_alternative<std::shared_ptr<AST::Decl>>(item)) {
             visit_decl(std::get<std::shared_ptr<AST::Decl>>(item));
         } else if (std::holds_alternative<std::shared_ptr<AST::Stmt>>(item)) {
-            // visit_stmt(std::get<std::shared_ptr<AST::Stmt>>(item));
+            visit_stmt(std::get<std::shared_ptr<AST::Stmt>>(item));
         } else {
             log_fatal("Unknown item type");
         }
@@ -363,7 +363,7 @@ std::shared_ptr<Value> Builder::visit_unaryExp(const std::shared_ptr<AST::UnaryE
         return visit_functionCall(std::get<AST::UnaryExp::call>(unaryExp->get_value()));
     }
     if (unaryExp->is_opExp()) {
-        const auto &[type, sub_exp] = std::get<AST::UnaryExp::opExp>(unaryExp->get_value());
+        const auto [type, sub_exp] = std::get<AST::UnaryExp::opExp>(unaryExp->get_value());
         const auto &sub_exp_value = visit_unaryExp(sub_exp);
         if (type == Token::Type::ADD) {
             return type_cast(sub_exp_value, Type::Integer::i32, cur_block);
@@ -426,7 +426,7 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
         log_fatal("Invalid address type %s of %s", address->get_type()->to_string().c_str(), ident.c_str());
     }
     const auto &ir_type = std::dynamic_pointer_cast<Type::Pointer>(address->get_type())->get_contain_type();
-    if ((ir_type->is_integer() || ir_type->is_float()) && lVal->exps().empty()) {
+    if ((ir_type->is_integer() || ir_type->is_float()) && lVal->exps().empty() && !get_address) {
         return Load::create(gen_variable_name(), address, cur_block);
     }
     std::shared_ptr<Value> pointer = address;
@@ -455,5 +455,237 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
         return GetElementPtr::create(gen_variable_name(), pointer, std::make_shared<ConstInt>(0), cur_block);
     }
     log_fatal("Invalid lVal");
+}
+
+void Builder::visit_cond(const std::shared_ptr<AST::Cond> &cond, const std::shared_ptr<Block> &_then,
+                         const std::shared_ptr<Block> &_else) {
+    visit_lOrExp(cond->lOrExp(), _then, _else);
+}
+
+void Builder::visit_lOrExp(const std::shared_ptr<AST::LOrExp> &lOrExp, const std::shared_ptr<Block> &_then,
+                           const std::shared_ptr<Block> &_else) {
+    const auto &lAndExps = lOrExp->lAndExps();
+    for (size_t i = 0; i < lAndExps.size(); ++i) {
+        const auto lAndExp = lAndExps[i];
+        if (i == lAndExps.size() - 1) {
+            visit_lAndExp(lAndExp, _then, _else);
+        } else {
+            const auto next = Block::create(gen_block_name(), cur_function);
+            visit_lAndExp(lAndExp, _then, next);
+            cur_block = next;
+        }
+    }
+}
+
+void Builder::visit_lAndExp(const std::shared_ptr<AST::LAndExp> &lAndExp, const std::shared_ptr<Block> &_then,
+                            const std::shared_ptr<Block> &_else) {
+    const auto &eqExps = lAndExp->eqExps();
+    for (size_t i = 0; i < eqExps.size(); ++i) {
+        const auto eqExp = eqExps[i];
+        if (i == eqExps.size() - 1) {
+            const auto eq = type_cast(visit_eqExp(eqExp), Type::Integer::i1, cur_block);
+            Branch::create(eq, _then, _else, cur_block);
+        } else {
+            const auto next = Block::create(gen_block_name(), cur_function);
+            const auto eq = type_cast(visit_eqExp(eqExp), Type::Integer::i1, cur_block);
+            Branch::create(eq, next, _else, cur_block);
+            cur_block = next;
+        }
+    }
+}
+
+std::shared_ptr<Value> Builder::visit_eqExp(const std::shared_ptr<AST::EqExp> &eqExp) const {
+    const auto &relExps = eqExp->relExps();
+    auto lhs = visit_relExp(relExps[0]);
+    for (size_t i = 1; i < relExps.size(); ++i) {
+        if (auto rhs = visit_relExp(relExps[i]); lhs->get_type()->is_float() || rhs->get_type()->is_float()) {
+            if (const auto op = eqExp->operators()[i - 1]; op == Token::Type::EQ) {
+                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::EQ,
+                                   type_cast(lhs, Type::Float::f32, cur_block),
+                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
+            } else if (op == Token::Type::NE) {
+                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::NE,
+                                   type_cast(lhs, Type::Float::f32, cur_block),
+                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
+            } else {
+                log_error("Invalid relExp operator %s", Token::type_to_string(op).c_str());
+            }
+        } else {
+            if (const auto op = eqExp->operators()[i - 1]; op == Token::Type::EQ) {
+                lhs = Icmp::create(gen_variable_name(), Icmp::Op::EQ,
+                                   type_cast(lhs, Type::Integer::i32, cur_block),
+                                   type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+            } else if (op == Token::Type::NE) {
+                lhs = Icmp::create(gen_variable_name(), Icmp::Op::NE,
+                                   type_cast(lhs, Type::Integer::i32, cur_block),
+                                   type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+            } else {
+                log_error("Invalid relExp operator %s", Token::type_to_string(op).c_str());
+            }
+        }
+    }
+    if (!lhs->get_type()->is_integer() && !lhs->get_type()->is_float()) {
+        log_error("Invalid relExp ", lhs->to_string().c_str());
+    }
+    return lhs;
+}
+
+std::shared_ptr<Value> Builder::visit_relExp(const std::shared_ptr<AST::RelExp> &relExp) const {
+    const auto &addExps = relExp->addExps();
+    auto lhs = visit_addExp(addExps[0]);
+    for (size_t i = 1; i < addExps.size(); ++i) {
+        if (auto rhs = visit_addExp(addExps[i]);
+            lhs->get_type()->is_float() || rhs->get_type()->is_float()) {
+            if (const auto op = relExp->operators()[i - 1]; op == Token::Type::LT) {
+                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::LT,
+                                   type_cast(lhs, Type::Float::f32, cur_block),
+                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
+            } else if (op == Token::Type::GT) {
+                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::GT,
+                                   type_cast(lhs, Type::Float::f32, cur_block),
+                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
+            } else if (op == Token::Type::LE) {
+                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::LE,
+                                   type_cast(lhs, Type::Float::f32, cur_block),
+                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
+            } else if (op == Token::Type::GE) {
+                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::GE,
+                                   type_cast(lhs, Type::Float::f32, cur_block),
+                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
+            }
+        } else {
+            if (const auto op = relExp->operators()[i - 1]; op == Token::Type::LT) {
+                lhs = Icmp::create(gen_variable_name(), Icmp::Op::LT,
+                                   type_cast(lhs, Type::Integer::i32, cur_block),
+                                   type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+            } else if (op == Token::Type::GT) {
+                lhs = Icmp::create(gen_variable_name(), Icmp::Op::GT,
+                                   type_cast(lhs, Type::Integer::i32, cur_block),
+                                   type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+            } else if (op == Token::Type::LE) {
+                lhs = Icmp::create(gen_variable_name(), Icmp::Op::LE,
+                                   type_cast(lhs, Type::Integer::i32, cur_block),
+                                   type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+            } else if (op == Token::Type::GE) {
+                lhs = Icmp::create(gen_variable_name(), Icmp::Op::GE,
+                                   type_cast(lhs, Type::Integer::i32, cur_block),
+                                   type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+            }
+        }
+    }
+    if (!lhs->get_type()->is_integer() && !lhs->get_type()->is_float()) {
+        log_error("Invalid relExp ", lhs->to_string().c_str());
+    }
+    return lhs;
+}
+
+void Builder::visit_stmt(const std::shared_ptr<AST::Stmt> &stmt) {
+    if (std::dynamic_pointer_cast<AST::BlockStmt>(stmt)) {
+        visit_blockStmt(std::dynamic_pointer_cast<AST::BlockStmt>(stmt));
+    } else if (std::dynamic_pointer_cast<AST::AssignStmt>(stmt)) {
+        visit_assignStmt(std::dynamic_pointer_cast<AST::AssignStmt>(stmt));
+    } else if (std::dynamic_pointer_cast<AST::ExpStmt>(stmt)) {
+        visit_expStmt(std::dynamic_pointer_cast<AST::ExpStmt>(stmt));
+    } else if (std::dynamic_pointer_cast<AST::ReturnStmt>(stmt)) {
+        visit_returnStmt(std::dynamic_pointer_cast<AST::ReturnStmt>(stmt));
+    } else if (std::dynamic_pointer_cast<AST::IfStmt>(stmt)) {
+        visit_ifStmt(std::dynamic_pointer_cast<AST::IfStmt>(stmt));
+    } else if (std::dynamic_pointer_cast<AST::WhileStmt>(stmt)) {
+        visit_whileStmt(std::dynamic_pointer_cast<AST::WhileStmt>(stmt));
+    } else if (std::dynamic_pointer_cast<AST::BreakStmt>(stmt)) {
+        visit_breakStmt();
+    } else if (std::dynamic_pointer_cast<AST::ContinueStmt>(stmt)) {
+        visit_continueStmt();
+    } else {
+        log_fatal("Invalid stmt type");
+    }
+}
+
+void Builder::visit_blockStmt(const std::shared_ptr<AST::BlockStmt> &blockStmt) {
+    table->push_scope();
+    visit_block(blockStmt->block());
+    table->pop_scope();
+}
+
+
+void Builder::visit_assignStmt(const std::shared_ptr<AST::AssignStmt> &assignStmt) const {
+    const auto symbol = table->lookup_in_all_scopes(assignStmt->lVal()->ident());
+    if (!symbol) { log_error("Undefined variable: %s", assignStmt->lVal()->ident().c_str()); }
+    if (symbol->is_constant_symbol()) {
+        log_error("Cannot assign to constant variable: %s", assignStmt->lVal()->ident().c_str());
+    }
+    const auto address = visit_lVal(assignStmt->lVal(), true);
+    if (!address->get_type()->is_pointer()) {
+        log_error("Invalid address type %s", address->get_type()->to_string().c_str());
+    }
+    const auto ir_type = std::dynamic_pointer_cast<Type::Pointer>(address->get_type())->get_contain_type();
+    if (!ir_type->is_int32() && !ir_type->is_float()) {
+        log_error("Invalid element type %s", ir_type->to_string().c_str());
+    }
+    const auto exp_value = visit_exp(assignStmt->exp());
+    Store::create(address, type_cast(exp_value, ir_type, cur_block), cur_block);
+}
+
+void Builder::visit_expStmt(const std::shared_ptr<AST::ExpStmt> &expStmt) const {
+    if (const auto exp = expStmt->exp()) {
+        // ReSharper disable once CppExpressionWithoutSideEffects
+        visit_exp(exp);
+    }
+}
+
+void Builder::visit_returnStmt(const std::shared_ptr<AST::ReturnStmt> &returnStmt) const {
+    if (const auto exp = returnStmt->exp()) {
+        const auto exp_value = visit_exp(exp);
+        Ret::create(type_cast(exp_value, cur_function->get_return_type(), cur_block), cur_block);
+    } else {
+        Ret::create(cur_block);
+    }
+}
+
+void Builder::visit_ifStmt(const std::shared_ptr<AST::IfStmt> &ifStmt) {
+    const auto then_block = Block::create(gen_block_name(), cur_function);
+    if (const auto else_stmt = ifStmt->_else()) {
+        const auto else_block = Block::create(gen_block_name(), cur_function);
+        const auto follow_block = Block::create(gen_block_name(), cur_function);
+        visit_cond(ifStmt->cond(), then_block, else_block);
+        cur_block = then_block;
+        visit_stmt(ifStmt->then());
+        Jump::create(follow_block, cur_block);
+        cur_block = else_block;
+        visit_stmt(else_stmt);
+        Jump::create(follow_block, cur_block);
+        cur_block = follow_block;
+    } else {
+        const auto follow_block = Block::create(gen_block_name(), cur_function);
+        visit_cond(ifStmt->cond(), then_block, follow_block);
+        cur_block = then_block;
+        visit_stmt(ifStmt->then());
+        Jump::create(follow_block, cur_block);
+        cur_block = follow_block;
+    }
+}
+
+void Builder::visit_whileStmt(const std::shared_ptr<AST::WhileStmt> &whileStmt) {
+    auto cond_block = Block::create(gen_block_name(), cur_function),
+         body_block = Block::create(gen_block_name(), cur_function),
+         follow_block = Block::create(gen_block_name(), cur_function);
+    loop_stats.emplace_back(cond_block, body_block, follow_block);
+    Jump::create(cond_block, cur_block);
+    cur_block = cond_block;
+    visit_cond(whileStmt->cond(), body_block, follow_block);
+    cur_block = body_block;
+    visit_stmt(whileStmt->body());
+    visit_cond(whileStmt->cond(), body_block, follow_block);
+    cur_block = follow_block;
+}
+
+void Builder::visit_breakStmt() {
+    auto [cond_block, body_block, follow_block] = loop_stats.back();
+    Jump::create(follow_block, cur_block);
+}
+
+void Builder::visit_continueStmt() {
+    auto [cond_block, body_block, follow_block] = loop_stats.back();
+    Jump::create(body_block, cur_block);
 }
 }
