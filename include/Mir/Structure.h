@@ -1,6 +1,8 @@
 #ifndef STRUCTURE_H
 #define STRUCTURE_H
 
+#include <algorithm>
+#include <unordered_map>
 #include <vector>
 
 #include "Value.h"
@@ -15,6 +17,7 @@ class Function;
 class Instruction;
 
 class Module {
+    std::vector<std::shared_ptr<Function>> used_runtime_functions;
     std::vector<std::shared_ptr<GlobalVariable>> global_variables;
     std::vector<std::string> const_strings;
     std::vector<std::shared_ptr<Function>> functions;
@@ -29,7 +32,22 @@ public:
 
     void add_const_string(const std::string &const_string) { const_strings.emplace_back(const_string); }
 
+    [[nodiscard]] size_t get_const_string_size() const { return const_strings.size(); }
+
+    void add_used_runtime_functions(const std::shared_ptr<Function> &function) {
+        used_runtime_functions.emplace_back(function);
+    }
+
     void add_function(const std::shared_ptr<Function> &function) { functions.emplace_back(function); }
+
+    [[nodiscard]] std::shared_ptr<Function> get_function(const std::string &name) {
+        const auto it = std::find_if(functions.begin(), functions.end(),
+                                     [&name](const auto &function) {
+                                         return function->get_name() == name;
+                                     });
+        if (it != functions.end()) { return *it; }
+        return nullptr;
+    }
 
     void set_main_function(const std::shared_ptr<Function> &main_function) { this->main_function = main_function; }
 
@@ -64,10 +82,28 @@ class Function final : public User {
     const std::shared_ptr<Type::Type> return_type;
     std::vector<std::shared_ptr<Argument>> arguments;
     std::vector<std::shared_ptr<Block>> blocks;
+    const bool is_runtime_function;
 
 public:
-    Function(const std::string &name, const std::shared_ptr<Type::Type> &return_type)
-        : User(name, return_type), return_type{return_type} {}
+    Function(const std::string &name, const std::shared_ptr<Type::Type> &return_type,
+             const bool is_runtime_function = false)
+        : User(name, return_type), return_type{return_type}, is_runtime_function{is_runtime_function} {}
+
+    template<typename... Types>
+    static std::shared_ptr<Function> create(const std::string &name,
+                                            const std::shared_ptr<Type::Type> &return_type,
+                                            Types... argument_types) {
+        const auto &func = std::make_shared<Function>(name, return_type, true);
+        std::vector<std::shared_ptr<Type::Type>> arguments_types{argument_types...};
+        for (size_t i = 0; i < arguments_types.size(); ++i) {
+            const auto &arg = std::make_shared<Argument>("%" + std::to_string(i), arguments_types[i], i);
+            func->add_argument(arg);
+        }
+        return func;
+    }
+
+    // SysY 定义的运行时库函数
+    const static std::unordered_map<std::string, std::shared_ptr<Function>> runtime_functions;
 
     [[nodiscard]] const std::shared_ptr<Type::Type> &get_return_type() const { return return_type; }
 
@@ -79,6 +115,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 };
+
 
 class Block final : public User {
     std::weak_ptr<Function> parent;

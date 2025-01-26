@@ -462,11 +462,13 @@ namespace Mir {
         oss << s << "\n";
     }
     oss << "\n";
+    join_and_append(oss, used_runtime_functions, "\n");
+    oss << "\n";
     // 拼接全局变量
     join_and_append(oss, global_variables, "\n");
-    oss << "\n\n";
+    oss << "\n";
     // 拼接函数
-    join_and_append(oss, functions, "\n\n");
+    join_and_append(oss, functions, "\n");
     oss << "\n";
     return oss.str();
 }
@@ -480,6 +482,20 @@ namespace Mir {
 }
 
 [[nodiscard]] std::string Function::to_string() const {
+    if (is_runtime_function) {
+        if (name_ == "putf")
+            return "declare void @putf(i8*, ...)\n";
+        std::ostringstream oss;
+        oss << "declare " << return_type->to_string() << " @" << name_ << "(";
+        for (size_t i = 0; i < arguments.size(); ++i) {
+            oss << arguments[i]->get_type()->to_string();
+            if (i != arguments.size() - 1) {
+                oss << ", ";
+            }
+        }
+        oss << ")";
+        return oss.str();
+    }
     std::ostringstream param_info;
     for (size_t i = 0; i < arguments.size(); ++i) {
         param_info << arguments[i]->to_string();
@@ -495,7 +511,7 @@ namespace Mir {
         }
     }
     std::ostringstream function_info;
-    function_info << "define dso_local " << return_type->to_string() << " " << name_
+    function_info << "define dso_local " << return_type->to_string() << " @" << name_
             << "(" << param_info.str() << ") {\n"
             << block_info.str()
             << "\n}";
@@ -640,6 +656,38 @@ namespace Mir {
     else oss << get_value()->get_type()->to_string() << " " << get_value()->get_name();
     return oss.str();
 }
+
+[[nodiscard]] std::string Call::to_string() const {
+    auto params_to_string = [&] {
+        std::ostringstream oss;
+        for (size_t i = 0; i < get_params().size(); ++i) {
+            const auto param = get_params()[i];
+            oss << param->get_type()->to_string() << " " << param->get_name();
+            if (i != get_params().size() - 1) oss << ", ";
+        }
+        return oss.str();
+    };
+    std::ostringstream oss;
+    if (const_string_index != -1) {
+        if (get_function()->get_name() != "putf") { log_error("Unknown const string index"); }
+        if (get_params().empty()) {
+            oss << "call void @putf(i8* @.str_ " << const_string_index << ")";
+        } else {
+            oss << "call void @putf(i8* @.str_ " << const_string_index << ", " << params_to_string() << ")";
+        }
+    } else {
+        if (get_function()->get_type()->is_void()) {
+            oss << "call " << get_function()->get_type()->to_string() << " @" << get_function()->get_name() << "(";
+            oss << params_to_string() << ")";
+        } else {
+            oss << name_ << " = call " << get_function()->get_type()->to_string()
+                    << " @" << get_function()->get_name() << "(";
+            oss << params_to_string() << ")";
+        }
+    }
+    return oss.str();
+}
+
 
 [[nodiscard]] std::string Add::to_string() const {
     std::ostringstream oss;

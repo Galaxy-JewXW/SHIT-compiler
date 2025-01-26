@@ -76,6 +76,8 @@ public:
 
     [[nodiscard]] std::shared_ptr<Value> visit_primaryExp(const std::shared_ptr<AST::PrimaryExp> &primaryExp) const;
 
+    [[nodiscard]] std::shared_ptr<Value> visit_functionCall(const AST::UnaryExp::call &call) const;
+
     [[nodiscard]] std::shared_ptr<Value> visit_unaryExp(const std::shared_ptr<AST::UnaryExp> &unaryExp) const;
 
     [[nodiscard]] std::shared_ptr<Value> visit_mulExp(const std::shared_ptr<AST::MulExp> &mulExp) const;

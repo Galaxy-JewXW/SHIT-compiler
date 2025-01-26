@@ -24,7 +24,7 @@ namespace Mir {
 std::shared_ptr<Value> cast_constant_value(const std::shared_ptr<Const> &v,
                                            const std::shared_ptr<Type::Type> &target_type) {
     const auto &src_type = v->get_type();
-    if (src_type.get() == target_type.get()) return v;
+    if (*src_type == *target_type) return v;
     if (src_type->is_int1()) {
         const auto val = std::any_cast<int>(v->get_constant_value());
         if (target_type->is_int32()) return std::make_shared<ConstInt>(cast_constant<bool, int>(val));
@@ -49,7 +49,7 @@ std::shared_ptr<Value> type_cast(const std::shared_ptr<Value> &v, const std::sha
     };
     if (!check_type(src_type) || !check_type(target_type)) { log_error("Invalid cast"); }
     if (const auto c = std::dynamic_pointer_cast<Const>(v)) { return cast_constant_value(c, target_type); }
-    if (src_type.get() == target_type.get()) return v;
+    if (*src_type == *target_type) return v;
 
     if (src_type->is_int1()) {
         if (target_type->is_int32())

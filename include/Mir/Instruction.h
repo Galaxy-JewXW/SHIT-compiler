@@ -20,6 +20,7 @@ enum class Operator {
     BRANCH,
     JUMP,
     RET,
+    CALL,
     INTBINARY,
     FLOATBINARY,
 };
@@ -89,7 +90,7 @@ public:
         : Instruction{"", Type::Void::void_, Operator::STORE} {
         if (!addr->get_type()->is_pointer()) { log_error("Address must be a pointer"); }
         if (const auto contain_type = std::dynamic_pointer_cast<Type::Pointer>(addr->get_type())
-                                    ->get_contain_type().get(); contain_type != value->get_type().get()) {
+              ->get_contain_type(); *contain_type != *value->get_type()) {
             log_error("Address type: %s, value type: %s",
                       contain_type->to_string().c_str(),
                       value->get_type().get()->to_string().c_str());
@@ -338,6 +339,70 @@ public:
     }
 
     [[nodiscard]] std::shared_ptr<Value> get_value() const { return operands_[0]; }
+
+    [[nodiscard]] std::string to_string() const override;
+};
+
+class Call final : public Instruction {
+    int const_string_index{-1};
+
+public:
+    explicit Call(const std::string &name, const std::shared_ptr<Function> &function,
+                  const std::vector<std::shared_ptr<Value>> &params)
+        : Instruction(name, function->get_type(), Operator::CALL) {
+        if (function->get_type()->is_void() && !name.empty()) {
+            log_error("Void function must not have a return value");
+        }
+    }
+
+    explicit Call(const std::shared_ptr<Function> &function, const std::vector<std::shared_ptr<Value>> &params,
+                  const int const_string_index = -1)
+        : Instruction("", function->get_type(), Operator::CALL), const_string_index{const_string_index} {
+        if (!function->get_type()->is_void()) {
+            log_error("Non-Void function must have a return value");
+        }
+    }
+
+    // 用于有返回值的函数
+    static std::shared_ptr<Call> create(const std::string &name,
+                                        const std::shared_ptr<Function> &function,
+                                        const std::vector<std::shared_ptr<Value>> &params,
+                                        const std::shared_ptr<Block> &block) {
+        const auto instruction = std::make_shared<Call>(name, function, params);
+        instruction->set_block(block);
+        instruction->add_operand(function);
+        for (const auto &param: params) {
+            instruction->add_operand(param);
+        }
+        return instruction;
+    }
+
+    // 用于无返回值的函数
+    // const_string_index用于存储常量字符串的索引
+    static std::shared_ptr<Call> create(const std::shared_ptr<Function> &function,
+                                        const std::vector<std::shared_ptr<Value>> &params,
+                                        const std::shared_ptr<Block> &block,
+                                        const int const_string_index = -1) {
+        const auto instruction = std::make_shared<Call>(function, params, const_string_index);
+        instruction->set_block(block);
+        instruction->add_operand(function);
+        for (const auto &param: params) {
+            instruction->add_operand(param);
+        }
+        return instruction;
+    }
+
+    [[nodiscard]] std::shared_ptr<Value> get_function() const { return operands_[0]; }
+
+    [[nodiscard]] std::vector<std::shared_ptr<Value>> get_params() const {
+        if (operands_.size() <= 1) { return {}; }
+        std::vector<std::shared_ptr<Value>> params;
+        params.reserve(operands_.size() - 1);
+        for (size_t i = 1; i < operands_.size(); ++i) { params.push_back(operands_[i]); }
+        return params;
+    }
+
+    [[nodiscard]] int get_const_string_index() const { return const_string_index; }
 
     [[nodiscard]] std::string to_string() const override;
 };

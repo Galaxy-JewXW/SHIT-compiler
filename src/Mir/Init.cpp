@@ -32,7 +32,7 @@ std::shared_ptr<Constant> Constant::create_zero_constant_init_value(const std::s
 }
 
 std::shared_ptr<Init> Exp::create_exp_init_value(const std::shared_ptr<Type::Type> &type,
-                                                const std::shared_ptr<Value> &exp_value) {
+                                                 const std::shared_ptr<Value> &exp_value) {
     if (const auto &const_ = std::dynamic_pointer_cast<Const>(exp_value)) {
         return std::make_shared<Constant>(type, const_);
     }
@@ -44,14 +44,16 @@ void Constant::gen_store_inst(const std::shared_ptr<Value> &addr, const std::sha
     if (!addr->get_type()->is_pointer()) { log_error("Illegal type: %s", addr->get_type()->to_string().c_str()); }
     const auto &self = std::static_pointer_cast<Constant>(shared_from_this());
     const auto &value = self->get_const_value();
-    Store::create(addr, value, block);
+    const auto &content_type = std::dynamic_pointer_cast<Type::Pointer>(addr->get_type())->get_contain_type();
+    Store::create(addr, type_cast(value, content_type, block), block);
 }
 
 void Exp::gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared_ptr<Block> &block) {
     if (!addr->get_type()->is_pointer()) { log_error("Illegal type: %s", addr->get_type()->to_string().c_str()); }
     const auto &self = std::static_pointer_cast<Exp>(shared_from_this());
     const auto &value = self->get_exp_value();
-    Store::create(addr, value, block);
+    const auto &content_type = std::dynamic_pointer_cast<Type::Pointer>(addr->get_type())->get_contain_type();
+    Store::create(addr, type_cast(value, content_type, block), block);
 }
 
 std::shared_ptr<Array> Array::create_zero_array_init_value(const std::shared_ptr<Type::Type> &type) {
@@ -91,7 +93,7 @@ void Array::gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared
         std::shared_ptr<Value> address = addr;
         for (const auto &idx: indexes) {
             address = GetElementPtr::create(Builder::gen_variable_name(), address,
-                                  std::make_shared<ConstInt>(idx), block);
+                                            std::make_shared<ConstInt>(idx), block);
         }
         if (const auto &init_value = flattened_init_values[i]; init_value->is_exp_init()) {
             std::dynamic_pointer_cast<Exp>(init_value)->gen_store_inst(address, block);

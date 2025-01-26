@@ -100,7 +100,7 @@ public:
 
     UnaryExp(const Token::Type &type, const std::shared_ptr<UnaryExp> &exp) : value_{opExp{type, exp}} {}
 
-    UnaryExp(const Token::Token& ident, const std::vector<std::shared_ptr<Exp>> &exp) : value_{call{ident, exp}} {}
+    UnaryExp(const Token::Token &ident, const std::vector<std::shared_ptr<Exp>> &exp) : value_{call{ident, exp}} {}
 
     [[nodiscard]] std::variant<call, opExp, std::shared_ptr<PrimaryExp>> get_value() const { return value_; }
 
@@ -219,6 +219,10 @@ public:
     explicit Exp(const std::shared_ptr<AddExp> &addExp) : addExp_{addExp} {}
 
     explicit Exp(const std::string &const_string) : addExp_{const_string} {}
+
+    [[nodiscard]] bool is_const_string() const { return std::holds_alternative<std::string>(addExp_); }
+
+    [[nodiscard]] std::string get_const_string() const { return std::get<std::string>(addExp_); }
 
     [[nodiscard]] std::shared_ptr<AddExp> addExp() const {
         if (std::holds_alternative<std::shared_ptr<AddExp>>(addExp_)) {

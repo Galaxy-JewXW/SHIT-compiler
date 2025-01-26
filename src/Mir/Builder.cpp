@@ -191,12 +191,12 @@ void Builder::visit_funcDef(const std::shared_ptr<AST::FuncDef> &funcDef) {
     // 创建第一个block
     const auto entry_block = Block::create(gen_block_name(), func);
     cur_block = entry_block;
-    for (auto i = 0u; i < arguments.size(); ++i) {
+    for (size_t i = 0; i < arguments.size(); ++i) {
         auto &[ident, ir_type] = arguments[i];
         const auto argument = std::make_shared<Argument>(gen_variable_name(), ir_type, i);
         func->add_argument(argument);
     }
-    for (auto i = 0u; i < arguments.size(); ++i) {
+    for (size_t i = 0; i < arguments.size(); ++i) {
         auto &[ident, ir_type] = arguments[i];
         const auto addr = Alloc::create(gen_variable_name(), ir_type, cur_block);
         Store::create(addr, func->get_arguments()[i], cur_block);
@@ -311,9 +311,48 @@ std::shared_ptr<Value> Builder::visit_mulExp(const std::shared_ptr<AST::MulExp> 
     return lhs;
 }
 
-std::shared_ptr<Value> visit_functionCall(const AST::UnaryExp::call &call) {
-    // TODO
-    log_error("Unimplemented function call");
+std::shared_ptr<Value> Builder::visit_functionCall(const AST::UnaryExp::call &call) const {
+    const auto &[ident, args] = call;
+    auto func = module->get_function(ident.content);
+    if (!func) {
+        if (const auto it = Function::runtime_functions.find(ident.content);
+            it != Function::runtime_functions.end()) {
+            func = it->second;
+            module->add_used_runtime_functions(func);
+        } else {
+            log_error("Unknown function: %s", ident.content.c_str());
+        }
+    }
+    // 实参列表
+    std::vector<std::shared_ptr<Value>> r_params;
+    if (ident.content == "starttime" || ident.content == "stoptime") {
+        r_params.emplace_back(std::make_shared<ConstInt>(ident.line));
+        return Call::create(func, r_params, cur_block);
+    }
+    if (ident.content == "putf") {
+        if (!args[0]->is_const_string()) { log_fatal("First parameter of putf must be a const string"); }
+        const auto &const_string = args[0]->get_const_string();
+        for (size_t i = 1; i < args.size(); ++i) {
+            if (args[i]->is_const_string()) { log_fatal("Parameter should not be a const string"); }
+            r_params.emplace_back(visit_exp(args[i]));
+        }
+        module->add_const_string(const_string);
+        return Call::create(func, r_params, cur_block, static_cast<int>(module->get_const_string_size()));
+    }
+    const auto &arguments = func->get_arguments();
+    for (size_t i = 0; i < args.size(); ++i) {
+        if (args[i]->is_const_string()) { log_fatal("Parameter should not be a const string"); }
+        if (const auto f_type = arguments[i]->get_type(); f_type->is_int32() || f_type->is_float()) {
+            r_params.emplace_back(type_cast(visit_exp(args[i]), f_type, cur_block));
+        } else {
+            const auto p = visit_exp(args[i]);
+            r_params.emplace_back(p);
+        }
+    }
+    if (func->get_return_type()->is_void()) {
+        return Call::create(func, r_params, cur_block);
+    }
+    return Call::create(gen_variable_name(), func, r_params, cur_block);
 }
 
 std::shared_ptr<Value> Builder::visit_unaryExp(const std::shared_ptr<AST::UnaryExp> &unaryExp) const {
@@ -396,6 +435,7 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
     for (const auto &exp: lVal->exps()) {
         const auto &idx_value = type_cast(visit_exp(exp), Type::Integer::i32, cur_block);
         if (content_type->is_pointer()) {
+            pointer = Load::create(gen_variable_name(), pointer, cur_block);
             content_type = std::dynamic_pointer_cast<Type::Pointer>(content_type)->get_contain_type();
         } else if (content_type->is_array()) {
             content_type = std::dynamic_pointer_cast<Type::Array>(content_type)->get_element_type();

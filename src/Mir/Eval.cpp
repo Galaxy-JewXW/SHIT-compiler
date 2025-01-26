@@ -43,7 +43,7 @@ EvalResult eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_p
             log_error("Error while indexing variable %s at dimension %d.", ident.c_str(), i + 1);
         }
         const auto &array = std::dynamic_pointer_cast<Init::Array>(init_value);
-        const auto &idx = indexes[i];
+        const auto idx = indexes[i];
         if (static_cast<size_t>(idx) >= array->get_size()) { log_error("Index out of bounds: %d", idx); }
         init_value = array->get_init_value(idx);
     }
