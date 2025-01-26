@@ -31,19 +31,44 @@ std::shared_ptr<Constant> Constant::create_zero_constant_init_value(const std::s
     log_error("Illegal type: %s", type->to_string().c_str());
 }
 
+std::shared_ptr<Init> Exp::create_exp_init_value(const std::shared_ptr<Type::Type> &type,
+                                                const std::shared_ptr<Value> &exp_value) {
+    if (const auto &const_ = std::dynamic_pointer_cast<Const>(exp_value)) {
+        return std::make_shared<Constant>(type, const_);
+    }
+    return std::make_shared<Exp>(type, exp_value);
+}
+
+
 void Constant::gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared_ptr<Block> &block) {
     if (!addr->get_type()->is_pointer()) { log_error("Illegal type: %s", addr->get_type()->to_string().c_str()); }
     const auto &self = std::static_pointer_cast<Constant>(shared_from_this());
     const auto &value = self->get_const_value();
-    const auto &inst = Store::create(addr, value, block);
+    Store::create(addr, value, block);
 }
 
 void Exp::gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared_ptr<Block> &block) {
     if (!addr->get_type()->is_pointer()) { log_error("Illegal type: %s", addr->get_type()->to_string().c_str()); }
     const auto &self = std::static_pointer_cast<Exp>(shared_from_this());
     const auto &value = self->get_exp_value();
-    const auto &inst = Store::create(addr, value, block);
+    Store::create(addr, value, block);
 }
+
+std::shared_ptr<Array> Array::create_zero_array_init_value(const std::shared_ptr<Type::Type> &type) {
+    if (!type->is_array()) {
+        log_error("%s is not an array type", type->to_string().c_str());
+    }
+    const auto array_type = std::dynamic_pointer_cast<Type::Array>(type);
+    const size_t total_elements = array_type->get_flattened_size();
+    const auto atomic_type = array_type->get_atomic_type();
+    std::vector<std::shared_ptr<Init>> flattened;
+    flattened.reserve(total_elements);
+    for (size_t i = 0; i < total_elements; ++i) {
+        flattened.emplace_back(Constant::create_zero_constant_init_value(atomic_type));
+    }
+    return fold_array(type, flattened);
+}
+
 
 void Array::gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared_ptr<Block> &block,
                            const std::vector<int> &dimensions) {
@@ -63,9 +88,9 @@ void Array::gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared
             indexes.push_back(static_cast<int>(remaining) / strides[j]);
             remaining %= strides[j];
         }
-        const std::shared_ptr<Value> &address = addr;
+        std::shared_ptr<Value> address = addr;
         for (const auto &idx: indexes) {
-            GetElementPtr::create(Builder::gen_variable_name(), address,
+            address = GetElementPtr::create(Builder::gen_variable_name(), address,
                                   std::make_shared<ConstInt>(idx), block);
         }
         if (const auto &init_value = flattened_init_values[i]; init_value->is_exp_init()) {

@@ -5,6 +5,8 @@
 #include <utility>
 #include <variant>
 #include <vector>
+
+#include "Log.h"
 #include "Utils/Token.h"
 
 namespace AST {
@@ -43,9 +45,9 @@ public:
     [[nodiscard]] std::string to_string() const override;
 };
 
-// PrimaryExp -> '(' Exp ')' | LVal | Number | ConstString
+// PrimaryExp -> '(' Exp ')' | LVal | Number
 class PrimaryExp final : public Node {
-    const std::variant<std::shared_ptr<Exp>, std::shared_ptr<LVal>, std::shared_ptr<Number>, std::string> value_;
+    const std::variant<std::shared_ptr<Exp>, std::shared_ptr<LVal>, std::shared_ptr<Number>> value_;
 
 public:
     explicit PrimaryExp(const std::shared_ptr<Exp> &exp) : value_{exp} {}
@@ -54,10 +56,8 @@ public:
 
     explicit PrimaryExp(const std::shared_ptr<Number> &number) : value_{number} {}
 
-    explicit PrimaryExp(const std::string &const_string) : value_{const_string} {}
-
     [[nodiscard]] std::variant<std::shared_ptr<Exp>, std::shared_ptr<LVal>,
-        std::shared_ptr<Number>, std::string> get_value() const { return value_; }
+        std::shared_ptr<Number>> get_value() const { return value_; }
 
     [[nodiscard]] bool is_exp() const {
         return std::holds_alternative<std::shared_ptr<Exp>>(value_);
@@ -69,10 +69,6 @@ public:
 
     [[nodiscard]] bool is_number() const {
         return std::holds_alternative<std::shared_ptr<Number>>(value_);
-    }
-
-    [[nodiscard]] bool is_const_string() const {
-        return std::holds_alternative<std::string>(value_);
     }
 
     [[nodiscard]] std::string to_string() const override;
@@ -96,16 +92,15 @@ public:
 
 // UnaryExp -> PrimaryExp | Ident '(' [Exp { ',' Exp }] ')'  | unaryOp UnaryExp
 class UnaryExp final : public Node {
-    using call = std::pair<std::string, std::vector<std::shared_ptr<Exp>>>;
+public:
+    using call = std::pair<Token::Token, std::vector<std::shared_ptr<Exp>>>;
     using opExp = std::pair<Token::Type, std::shared_ptr<UnaryExp>>;
     const std::variant<call, opExp, std::shared_ptr<PrimaryExp>> value_;
-
-public:
     explicit UnaryExp(const std::shared_ptr<PrimaryExp> &exp) : value_{exp} {}
 
     UnaryExp(const Token::Type &type, const std::shared_ptr<UnaryExp> &exp) : value_{opExp{type, exp}} {}
 
-    UnaryExp(const std::string &ident, const std::vector<std::shared_ptr<Exp>> &exp) : value_{call{ident, exp}} {}
+    UnaryExp(const Token::Token& ident, const std::vector<std::shared_ptr<Exp>> &exp) : value_{call{ident, exp}} {}
 
     [[nodiscard]] std::variant<call, opExp, std::shared_ptr<PrimaryExp>> get_value() const { return value_; }
 
@@ -216,14 +211,21 @@ public:
     [[nodiscard]] std::string to_string() const override;
 };
 
-// Exp -> AddExp
+// Exp -> AddExp | ConstString
 class Exp final : public Node {
-    const std::shared_ptr<AddExp> addExp_;
+    const std::variant<std::shared_ptr<AddExp>, std::string> addExp_;
 
 public:
     explicit Exp(const std::shared_ptr<AddExp> &addExp) : addExp_{addExp} {}
 
-    [[nodiscard]] std::shared_ptr<AddExp> addExp() const { return addExp_; }
+    explicit Exp(const std::string &const_string) : addExp_{const_string} {}
+
+    [[nodiscard]] std::shared_ptr<AddExp> addExp() const {
+        if (std::holds_alternative<std::shared_ptr<AddExp>>(addExp_)) {
+            return std::get<std::shared_ptr<AddExp>>(addExp_);
+        }
+        log_fatal("Cannot change an string to exp");
+    }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -447,9 +449,13 @@ public:
            const std::shared_ptr<InitVal> &initVal) :
         ident_{std::move(ident)}, constExps_{constExps}, initVal_{initVal} {}
 
-    [[nodiscard]] std::string to_string() const override;
-
     [[nodiscard]] std::string ident() const { return ident_; }
+
+    [[nodiscard]] std::vector<std::shared_ptr<ConstExp>> constExps() const { return constExps_; }
+
+    [[nodiscard]] std::shared_ptr<InitVal> initVal() const { return initVal_; }
+
+    [[nodiscard]] std::string to_string() const override;
 
     [[nodiscard]] bool is_exp() const { return initVal_->is_exp(); }
 };

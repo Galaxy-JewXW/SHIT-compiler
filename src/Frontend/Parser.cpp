@@ -2,7 +2,6 @@
 #include "Utils/AST.h"
 #include "Utils/Log.h"
 
-#include <algorithm>
 #include <unordered_set>
 
 template<typename... Types>
@@ -258,6 +257,10 @@ std::shared_ptr<AST::WhileStmt> Parser::parseWhileStmt() {
 }
 
 std::shared_ptr<AST::Exp> Parser::parseExp() {
+    if (match(Token::Type::STRING_CONST)) {
+        const auto &string_const = next(-1).content;
+        return std::make_shared<AST::Exp>(string_const);
+    }
     std::shared_ptr<AST::AddExp> addExp = parseAddExp();
     return std::make_shared<AST::Exp>(addExp);
 }
@@ -285,10 +288,6 @@ std::shared_ptr<AST::PrimaryExp> Parser::parsePrimaryExp() {
         std::shared_ptr<AST::Number> number = parseNumber();
         return std::make_shared<AST::PrimaryExp>(number);
     }
-    if (match(Token::Type::STRING_CONST)) {
-        const std::string &string_const = next(-1).content;
-        return std::make_shared<AST::PrimaryExp>(string_const);
-    }
     if (match(Token::Type::LPAREN)) {
         std::shared_ptr<AST::Exp> exp = parseExp();
         panic_on(Token::Type::RPAREN);
@@ -307,7 +306,7 @@ std::shared_ptr<AST::Number> Parser::parseNumber() const {
 
 std::shared_ptr<AST::UnaryExp> Parser::parseUnaryExp() {
     if (peek().type == Token::Type::IDENTIFIER && next().type == Token::Type::LPAREN) {
-        const std::string ident = peek().content;
+        const auto ident = peek();
         panic_on(Token::Type::IDENTIFIER);
         panic_on(Token::Type::LPAREN);
         // 解析实参列表

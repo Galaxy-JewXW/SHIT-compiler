@@ -3,8 +3,11 @@
 
 #include <vector>
 
-#include "Init.h"
 #include "Value.h"
+
+namespace Mir::Init {
+class Init;
+}
 
 namespace Mir {
 class GlobalVariable;
