@@ -42,13 +42,13 @@ void Value::replace_by_new_value(const std::shared_ptr<Value> &new_value) {
 void User::add_operand(const std::shared_ptr<Value> &value) {
     operands_.push_back(value);
     if (value) {
-        value->add_user(std::dynamic_pointer_cast<User>(shared_from_this()));
+        value->add_user(std::static_pointer_cast<User>(shared_from_this()));
     }
 }
 
 void User::clear_operands() {
     for (const auto &operand: operands_) {
-        operand->delete_user(std::dynamic_pointer_cast<User>(shared_from_this()));
+        operand->delete_user(std::static_pointer_cast<User>(shared_from_this()));
     }
     operands_.clear();
 }
@@ -57,9 +57,9 @@ void User::modify_operand(const std::shared_ptr<Value> &old_value,
                           const std::shared_ptr<Value> &new_value) {
     for (auto &operand: operands_) {
         if (operand == old_value) {
-            operand->delete_user(std::dynamic_pointer_cast<User>(shared_from_this()));
+            operand->delete_user(std::static_pointer_cast<User>(shared_from_this()));
             operand = new_value;
-            operand->add_user(std::dynamic_pointer_cast<User>(shared_from_this()));
+            operand->add_user(std::static_pointer_cast<User>(shared_from_this()));
         }
     }
 }

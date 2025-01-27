@@ -21,6 +21,10 @@ size_t Builder::block_count{0}, Builder::variable_count{0};
             visit_funcDef(std::get<std::shared_ptr<AST::FuncDef>>(unit));
         }
     }
+    // 释放不必要的引用计数
+    cur_block = nullptr;
+    cur_function = nullptr;
+    loop_stats.clear();
     return module;
 }
 
@@ -204,6 +208,7 @@ void Builder::visit_funcDef(const std::shared_ptr<AST::FuncDef> &funcDef) {
     }
     visit_block(funcDef->block());
     table->pop_scope();
+    if (ident == "main") { module->set_main_function(func); }
 }
 
 std::pair<std::string, std::shared_ptr<Type::Type>>
@@ -312,7 +317,7 @@ std::shared_ptr<Value> Builder::visit_mulExp(const std::shared_ptr<AST::MulExp> 
 }
 
 std::shared_ptr<Value> Builder::visit_functionCall(const AST::UnaryExp::call &call) const {
-    const auto &[ident, args] = call;
+    const auto &[ident, params] = call;
     auto func = module->get_function(ident.content);
     if (!func) {
         if (const auto it = Function::runtime_functions.find(ident.content);
@@ -330,22 +335,26 @@ std::shared_ptr<Value> Builder::visit_functionCall(const AST::UnaryExp::call &ca
         return Call::create(func, r_params, cur_block);
     }
     if (ident.content == "putf") {
-        if (!args[0]->is_const_string()) { log_fatal("First parameter of putf must be a const string"); }
-        const auto &const_string = args[0]->get_const_string();
-        for (size_t i = 1; i < args.size(); ++i) {
-            if (args[i]->is_const_string()) { log_fatal("Parameter should not be a const string"); }
-            r_params.emplace_back(visit_exp(args[i]));
+        if (!params[0]->is_const_string()) { log_fatal("First parameter of putf must be a const string"); }
+        const auto &const_string = params[0]->get_const_string();
+        for (size_t i = 1; i < params.size(); ++i) {
+            if (params[i]->is_const_string()) { log_fatal("Parameter should not be a const string"); }
+            r_params.emplace_back(visit_exp(params[i]));
         }
         module->add_const_string(const_string);
         return Call::create(func, r_params, cur_block, static_cast<int>(module->get_const_string_size()));
     }
     const auto &arguments = func->get_arguments();
-    for (size_t i = 0; i < args.size(); ++i) {
-        if (args[i]->is_const_string()) { log_fatal("Parameter should not be a const string"); }
+    if (params.size() != arguments.size()) {
+        log_error("Function %s has %zu arguments, but %zu parameters are provided", ident.content.c_str(),
+                  arguments.size(), params.size());
+    }
+    for (size_t i = 0; i < params.size(); ++i) {
+        if (params[i]->is_const_string()) { log_fatal("Parameter should not be a const string"); }
         if (const auto f_type = arguments[i]->get_type(); f_type->is_int32() || f_type->is_float()) {
-            r_params.emplace_back(type_cast(visit_exp(args[i]), f_type, cur_block));
+            r_params.emplace_back(type_cast(visit_exp(params[i]), f_type, cur_block));
         } else {
-            const auto p = visit_exp(args[i]);
+            const auto p = visit_exp(params[i]);
             r_params.emplace_back(p);
         }
     }
@@ -580,21 +589,21 @@ std::shared_ptr<Value> Builder::visit_relExp(const std::shared_ptr<AST::RelExp> 
 }
 
 void Builder::visit_stmt(const std::shared_ptr<AST::Stmt> &stmt) {
-    if (std::dynamic_pointer_cast<AST::BlockStmt>(stmt)) {
-        visit_blockStmt(std::dynamic_pointer_cast<AST::BlockStmt>(stmt));
-    } else if (std::dynamic_pointer_cast<AST::AssignStmt>(stmt)) {
-        visit_assignStmt(std::dynamic_pointer_cast<AST::AssignStmt>(stmt));
-    } else if (std::dynamic_pointer_cast<AST::ExpStmt>(stmt)) {
-        visit_expStmt(std::dynamic_pointer_cast<AST::ExpStmt>(stmt));
-    } else if (std::dynamic_pointer_cast<AST::ReturnStmt>(stmt)) {
-        visit_returnStmt(std::dynamic_pointer_cast<AST::ReturnStmt>(stmt));
-    } else if (std::dynamic_pointer_cast<AST::IfStmt>(stmt)) {
-        visit_ifStmt(std::dynamic_pointer_cast<AST::IfStmt>(stmt));
-    } else if (std::dynamic_pointer_cast<AST::WhileStmt>(stmt)) {
-        visit_whileStmt(std::dynamic_pointer_cast<AST::WhileStmt>(stmt));
-    } else if (std::dynamic_pointer_cast<AST::BreakStmt>(stmt)) {
+    if (const auto blockStmt = std::dynamic_pointer_cast<AST::BlockStmt>(stmt)) {
+        visit_blockStmt(blockStmt);
+    } else if (const auto assignStmt = std::dynamic_pointer_cast<AST::AssignStmt>(stmt)) {
+        visit_assignStmt(assignStmt);
+    } else if (const auto expStmt = std::dynamic_pointer_cast<AST::ExpStmt>(stmt)) {
+        visit_expStmt(expStmt);
+    } else if (const auto returnStmt = std::dynamic_pointer_cast<AST::ReturnStmt>(stmt)) {
+        visit_returnStmt(returnStmt);
+    } else if (const auto ifStmt = std::dynamic_pointer_cast<AST::IfStmt>(stmt)) {
+        visit_ifStmt(ifStmt);
+    } else if (const auto whileStmt = std::dynamic_pointer_cast<AST::WhileStmt>(stmt)) {
+        visit_whileStmt(whileStmt);
+    } else if (auto breakStmt = std::dynamic_pointer_cast<AST::BreakStmt>(stmt)) {
         visit_breakStmt();
-    } else if (std::dynamic_pointer_cast<AST::ContinueStmt>(stmt)) {
+    } else if (auto continueStmt = std::dynamic_pointer_cast<AST::ContinueStmt>(stmt)) {
         visit_continueStmt();
     } else {
         log_fatal("Invalid stmt type");

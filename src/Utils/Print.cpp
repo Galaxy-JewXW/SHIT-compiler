@@ -455,9 +455,9 @@ namespace AST {
 }
 }
 
-std::string str_to_llvm_ir(const std::string str) {
+std::string str_to_llvm_ir(const std::string& str) {
     auto s = str;
-    auto l = s.size() + 1;
+    const auto l = s.size() + 1;
     size_t pos = 0;
     while ((pos = s.find("\\n", pos)) != std::string::npos) {
         s.replace(pos, 2, "\\0A");
@@ -486,7 +486,7 @@ namespace Mir {
 
 [[nodiscard]] std::string GlobalVariable::to_string() const {
     std::ostringstream oss;
-    oss << "@" << name_ << " = dso_local " << (is_constant ? "constant " : "global ")
+    oss << name_ << " = dso_local " << (is_constant ? "constant " : "global ")
             << init_value->to_string();
     return oss.str();
 }
@@ -494,7 +494,7 @@ namespace Mir {
 [[nodiscard]] std::string Function::to_string() const {
     if (is_runtime_function) {
         if (name_ == "putf")
-            return "declare void @putf(i8*, ...)\n";
+            return "declare void @putf(i8*, ...)";
         std::ostringstream oss;
         oss << "declare " << return_type->to_string() << " @" << name_ << "(";
         for (size_t i = 0; i < arguments.size(); ++i) {

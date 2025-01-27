@@ -43,7 +43,7 @@ public:
     explicit ConstFloat(const float value) : Const(gen_name(value), Type::Float::f32), value{value} {}
 
     [[nodiscard]] bool is_zero() const override {
-        const float tolerance = 1e-6f;
+        constexpr float tolerance = 1e-6f;
         return std::fabs(value) < tolerance;
     }
 
@@ -65,7 +65,7 @@ class ConstBool final : public Const {
     const int value;
 
 public:
-    explicit ConstBool(const int value) : Const(value ? "true" : "false", Type::Integer::i1), value{value} {}
+    explicit ConstBool(const int value) : Const(std::to_string(value ? 1 : 0), Type::Integer::i1), value{value} {}
 
     [[nodiscard]] bool is_zero() const override { return value == 0; }
 
