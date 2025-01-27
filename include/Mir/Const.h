@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include <cmath>
 
 #include "Value.h"
 
@@ -41,7 +42,10 @@ class ConstFloat final : public Const {
 public:
     explicit ConstFloat(const float value) : Const(gen_name(value), Type::Float::f32), value{value} {}
 
-    [[nodiscard]] bool is_zero() const override { return value == 0.0f; }
+    [[nodiscard]] bool is_zero() const override {
+        const float tolerance = 1e-6f;
+        return std::fabs(value) < tolerance;
+    }
 
     [[nodiscard]] std::any get_constant_value() const override { return value; }
 };
