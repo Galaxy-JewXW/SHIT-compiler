@@ -41,7 +41,7 @@ std::shared_ptr<Value> cast_constant_value(const std::shared_ptr<Const> &v,
     log_error("Invalid constant cast");
 }
 
-std::shared_ptr<Value> cast(const std::shared_ptr<Value> &v, const std::shared_ptr<Type::Type> &target_type,
+std::shared_ptr<Value> type_cast(const std::shared_ptr<Value> &v, const std::shared_ptr<Type::Type> &target_type,
                             const std::shared_ptr<Block> &block) {
     const auto &src_type = v->get_type();
     auto check_type = [](const std::shared_ptr<Type::Type> &type) {

@@ -6,9 +6,12 @@
 #include <utility>
 #include <vector>
 
-#include "Init.h"
 #include "Type.h"
 #include "Value.h"
+
+namespace Mir::Init {
+class Init;
+}
 
 namespace Mir::Symbol {
 class Symbol {

@@ -5,6 +5,8 @@
 #include <utility>
 #include <variant>
 #include <vector>
+
+#include "Log.h"
 #include "Utils/Token.h"
 
 namespace AST {
@@ -43,9 +45,9 @@ public:
     [[nodiscard]] std::string to_string() const override;
 };
 
-// PrimaryExp -> '(' Exp ')' | LVal | Number | ConstString
+// PrimaryExp -> '(' Exp ')' | LVal | Number
 class PrimaryExp final : public Node {
-    const std::variant<std::shared_ptr<Exp>, std::shared_ptr<LVal>, std::shared_ptr<Number>, std::string> value_;
+    const std::variant<std::shared_ptr<Exp>, std::shared_ptr<LVal>, std::shared_ptr<Number>> value_;
 
 public:
     explicit PrimaryExp(const std::shared_ptr<Exp> &exp) : value_{exp} {}
@@ -54,10 +56,8 @@ public:
 
     explicit PrimaryExp(const std::shared_ptr<Number> &number) : value_{number} {}
 
-    explicit PrimaryExp(const std::string &const_string) : value_{const_string} {}
-
     [[nodiscard]] std::variant<std::shared_ptr<Exp>, std::shared_ptr<LVal>,
-        std::shared_ptr<Number>, std::string> get_value() const { return value_; }
+        std::shared_ptr<Number>> get_value() const { return value_; }
 
     [[nodiscard]] bool is_exp() const {
         return std::holds_alternative<std::shared_ptr<Exp>>(value_);
@@ -69,10 +69,6 @@ public:
 
     [[nodiscard]] bool is_number() const {
         return std::holds_alternative<std::shared_ptr<Number>>(value_);
-    }
-
-    [[nodiscard]] bool is_const_string() const {
-        return std::holds_alternative<std::string>(value_);
     }
 
     [[nodiscard]] std::string to_string() const override;
@@ -96,16 +92,15 @@ public:
 
 // UnaryExp -> PrimaryExp | Ident '(' [Exp { ',' Exp }] ')'  | unaryOp UnaryExp
 class UnaryExp final : public Node {
-    using call = std::pair<std::string, std::vector<std::shared_ptr<Exp>>>;
+public:
+    using call = std::pair<Token::Token, std::vector<std::shared_ptr<Exp>>>;
     using opExp = std::pair<Token::Type, std::shared_ptr<UnaryExp>>;
     const std::variant<call, opExp, std::shared_ptr<PrimaryExp>> value_;
-
-public:
     explicit UnaryExp(const std::shared_ptr<PrimaryExp> &exp) : value_{exp} {}
 
     UnaryExp(const Token::Type &type, const std::shared_ptr<UnaryExp> &exp) : value_{opExp{type, exp}} {}
 
-    UnaryExp(const std::string &ident, const std::vector<std::shared_ptr<Exp>> &exp) : value_{call{ident, exp}} {}
+    UnaryExp(const Token::Token &ident, const std::vector<std::shared_ptr<Exp>> &exp) : value_{call{ident, exp}} {}
 
     [[nodiscard]] std::variant<call, opExp, std::shared_ptr<PrimaryExp>> get_value() const { return value_; }
 
@@ -177,6 +172,10 @@ public:
         }
     }
 
+    [[nodiscard]] std::vector<std::shared_ptr<AddExp>> addExps() const { return addExps_; }
+
+    [[nodiscard]] std::vector<Token::Type> operators() const { return operators_; }
+
     [[nodiscard]] std::string to_string() const override;
 };
 
@@ -193,6 +192,10 @@ public:
         }
     }
 
+    [[nodiscard]] std::vector<std::shared_ptr<RelExp>> relExps() const { return relExps_; }
+
+    [[nodiscard]] std::vector<Token::Type> operators() const { return operators_; }
+
     [[nodiscard]] std::string to_string() const override;
 };
 
@@ -202,6 +205,8 @@ class LAndExp final : public Node {
 
 public:
     explicit LAndExp(const std::vector<std::shared_ptr<EqExp>> &eqExps) : eqExps_{eqExps} {}
+
+    [[nodiscard]] std::vector<std::shared_ptr<EqExp>> eqExps() const { return eqExps_; }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -213,17 +218,30 @@ class LOrExp final : public Node {
 public:
     explicit LOrExp(const std::vector<std::shared_ptr<LAndExp>> &lAndExps) : lAndExps_{lAndExps} {}
 
+    [[nodiscard]] std::vector<std::shared_ptr<LAndExp>> lAndExps() const { return lAndExps_; }
+
     [[nodiscard]] std::string to_string() const override;
 };
 
-// Exp -> AddExp
+// Exp -> AddExp | ConstString
 class Exp final : public Node {
-    const std::shared_ptr<AddExp> addExp_;
+    const std::variant<std::shared_ptr<AddExp>, std::string> addExp_;
 
 public:
     explicit Exp(const std::shared_ptr<AddExp> &addExp) : addExp_{addExp} {}
 
-    [[nodiscard]] std::shared_ptr<AddExp> addExp() const { return addExp_; }
+    explicit Exp(const std::string &const_string) : addExp_{const_string} {}
+
+    [[nodiscard]] bool is_const_string() const { return std::holds_alternative<std::string>(addExp_); }
+
+    [[nodiscard]] std::string get_const_string() const { return std::get<std::string>(addExp_); }
+
+    [[nodiscard]] std::shared_ptr<AddExp> addExp() const {
+        if (std::holds_alternative<std::shared_ptr<AddExp>>(addExp_)) {
+            return std::get<std::shared_ptr<AddExp>>(addExp_);
+        }
+        log_fatal("Cannot change an string to exp");
+    }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -246,6 +264,8 @@ class Cond final : public Node {
 
 public:
     explicit Cond(const std::shared_ptr<LOrExp> &lOrExp) : lOrExp_{lOrExp} {}
+
+    [[nodiscard]] std::shared_ptr<LOrExp> lOrExp() const { return lOrExp_; }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -286,11 +306,15 @@ public:
 };
 
 class AssignStmt final : public Stmt {
-    const std::shared_ptr<LVal> lval_;
+    const std::shared_ptr<LVal> lVal_;
     const std::shared_ptr<Exp> exp_;
 
 public:
-    AssignStmt(const std::shared_ptr<LVal> &lval, const std::shared_ptr<Exp> &exp) : lval_{lval}, exp_{exp} {}
+    AssignStmt(const std::shared_ptr<LVal> &lVal, const std::shared_ptr<Exp> &exp) : lVal_{lVal}, exp_{exp} {}
+
+    [[nodiscard]] std::shared_ptr<LVal> lVal() const { return lVal_; }
+
+    [[nodiscard]] std::shared_ptr<Exp> exp() const { return exp_; }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -301,6 +325,8 @@ class ExpStmt final : public Stmt {
 public:
     explicit ExpStmt(const std::shared_ptr<Exp> &exp) : exp_{exp} {}
 
+    [[nodiscard]] std::shared_ptr<Exp> exp() const { return exp_; }
+
     [[nodiscard]] std::string to_string() const override;
 };
 
@@ -309,6 +335,8 @@ class BlockStmt final : public Stmt {
 
 public:
     explicit BlockStmt(const std::shared_ptr<Block> &block) : block_{block} {}
+
+    [[nodiscard]] std::shared_ptr<Block> block() const { return block_; }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -322,6 +350,12 @@ public:
     IfStmt(const std::shared_ptr<Cond> &cond, const std::shared_ptr<Stmt> &then,
            const std::shared_ptr<Stmt> &else_) : cond_{cond}, then_{then}, else_{else_} {}
 
+    [[nodiscard]] std::shared_ptr<Cond> cond() const { return cond_; }
+
+    [[nodiscard]] std::shared_ptr<Stmt> then() const { return then_; }
+
+    [[nodiscard]] std::shared_ptr<Stmt> _else() const { return else_; }
+
     [[nodiscard]] std::string to_string() const override;
 };
 
@@ -331,6 +365,10 @@ class WhileStmt final : public Stmt {
 
 public:
     WhileStmt(const std::shared_ptr<Cond> &cond, const std::shared_ptr<Stmt> &body) : cond_{cond}, body_{body} {}
+
+    [[nodiscard]] std::shared_ptr<Cond> cond() const { return cond_; }
+
+    [[nodiscard]] std::shared_ptr<Stmt> body() const { return body_; }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -350,6 +388,8 @@ class ReturnStmt final : public Stmt {
 
 public:
     explicit ReturnStmt(const std::shared_ptr<Exp> &exp) : exp_{exp} {}
+
+    [[nodiscard]] std::shared_ptr<Exp> exp() const { return exp_; }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -447,9 +487,13 @@ public:
            const std::shared_ptr<InitVal> &initVal) :
         ident_{std::move(ident)}, constExps_{constExps}, initVal_{initVal} {}
 
-    [[nodiscard]] std::string to_string() const override;
-
     [[nodiscard]] std::string ident() const { return ident_; }
+
+    [[nodiscard]] std::vector<std::shared_ptr<ConstExp>> constExps() const { return constExps_; }
+
+    [[nodiscard]] std::shared_ptr<InitVal> initVal() const { return initVal_; }
+
+    [[nodiscard]] std::string to_string() const override;
 
     [[nodiscard]] bool is_exp() const { return initVal_->is_exp(); }
 };

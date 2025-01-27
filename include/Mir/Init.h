@@ -2,11 +2,17 @@
 #define INIT_H
 
 #include <string>
-#include <Utils/Log.h>
 
 #include "Const.h"
 #include "Type.h"
 #include "Utils/AST.h"
+#include "Utils/Log.h"
+
+namespace Mir {
+class Builder;
+}
+
+#include "Builder.h"
 
 namespace Mir {
 class Block;
@@ -76,8 +82,9 @@ class Array;
 template<typename TVal>
 std::vector<std::shared_ptr<Init>> flatten_array(const std::shared_ptr<Type::Type> &type,
                                                  const std::shared_ptr<TVal> &initVal,
-                                                 const std::shared_ptr<Symbol::Table> &table,
-                                                 bool is_constant);
+                                                 const std::shared_ptr<Symbol::Table> &table, bool is_constant,
+                                                 const Builder *builder = nullptr
+);
 
 std::shared_ptr<Array> fold_array(const std::shared_ptr<Type::Type> &type,
                                   const std::vector<std::shared_ptr<Init>> &flattened_init_values);
@@ -135,6 +142,9 @@ public:
     [[nodiscard]] std::string to_string() const override {
         log_error("ExpInit cannot be output as a string");
     }
+
+    static std::shared_ptr<Init> create_exp_init_value(const std::shared_ptr<Type::Type> &type,
+                                                       const std::shared_ptr<Value> &exp_value);
 };
 
 class Array final : public Init {
@@ -156,14 +166,17 @@ public:
     static std::shared_ptr<Array> create_array_init_value(const std::shared_ptr<Type::Type> &type,
                                                           const std::shared_ptr<TVal> &initVal,
                                                           const std::shared_ptr<Symbol::Table> &table,
-                                                          const bool is_constant) {
+                                                          const bool is_constant,
+                                                          const Builder *builder = nullptr) {
         if (!type->is_array()) {
             log_error("%s is not an array type", type->to_string().c_str());
         }
-        const auto &flattened = flatten_array<TVal>(type, initVal, table, is_constant);
+        const auto &flattened = flatten_array<TVal>(type, initVal, table, is_constant, builder);
         const auto &folded = fold_array(type, flattened);
         return folded;
     }
+
+    static std::shared_ptr<Array> create_zero_array_init_value(const std::shared_ptr<Type::Type> &type);
 
     void gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared_ptr<Block> &block,
                         const std::vector<int> &dimensions);
@@ -175,7 +188,8 @@ template<typename TVal>
 std::vector<std::shared_ptr<Init>> flatten_array(const std::shared_ptr<Type::Type> &type,
                                                  const std::shared_ptr<TVal> &initVal,
                                                  const std::shared_ptr<Symbol::Table> &table,
-                                                 bool is_constant) {
+                                                 bool is_constant,
+                                                 const Builder *const builder) {
     using Trait = InitValTrait<TVal>;
     if (!type->is_array()) {
         log_error("%s is not an array type", type->to_string().c_str());
@@ -200,7 +214,9 @@ std::vector<std::shared_ptr<Init>> flatten_array(const std::shared_ptr<Type::Typ
                 flattened.emplace_back(
                     Constant::create_constant_init_value(atomic_type, Trait::get_addExp(val), table));
             } else {
-                log_error("TODO: non-constant array element not implemented");
+                const auto &exp_value = builder->visit_addExp(Trait::get_addExp(val));
+                flattened.emplace_back(
+                    Exp::create_exp_init_value(atomic_type, exp_value));
             }
         } else if (Trait::is_array_vals(val)) {
             // 补零对齐

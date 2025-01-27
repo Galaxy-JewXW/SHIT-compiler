@@ -1,4 +1,5 @@
 #include "Mir/Type.h"
+#include "Mir/Structure.h"
 
 #include <unordered_map>
 
@@ -37,4 +38,30 @@ size_t Array::get_flattened_size() const {
     if (it == type_map.end()) { return nullptr; }
     return it->second;
 }
+}
+
+
+namespace Mir {
+class Call;
+const std::unordered_map<std::string, std::shared_ptr<Function>> Function::runtime_functions = {
+    {"getint", create("getint", Type::Integer::i32)},
+    {"getch", create("getch", Type::Integer::i32)},
+    {"getfloat", create("getfloat", Type::Float::f32)},
+    {"getarray", create("getarray", Type::Integer::i32, std::make_shared<Type::Pointer>(Type::Integer::i32))},
+    {"getfarray", create("getfarray", Type::Float::f32, std::make_shared<Type::Pointer>(Type::Float::f32))},
+    {"putint", create("putint", Type::Void::void_, Type::Integer::i32)},
+    {"putch", create("putch", Type::Void::void_, Type::Integer::i32)},
+    {"putfloat", create("putfloat", Type::Void::void_, Type::Float::f32)},
+    {
+        "putarray", create("putarray", Type::Void::void_,
+                           Type::Integer::i32, std::make_shared<Type::Pointer>(Type::Integer::i32))
+    },
+    {
+        "putfarray", create("putfarray", Type::Void::void_,
+                            Type::Integer::i32, std::make_shared<Type::Pointer>(Type::Float::f32))
+    },
+    {"putf", create("putf", Type::Void::void_)},
+    {"starttime", create("_sysy_starttime", Type::Void::void_, Type::Integer::i32)},
+    {"stoptime", create("_sysy_stoptime", Type::Void::void_, Type::Integer::i32)},
+};
 }

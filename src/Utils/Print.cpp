@@ -1,5 +1,6 @@
 #include "Mir/Instruction.h"
 #include "Mir/Structure.h"
+#include "Mir/Init.h"
 #include "Utils/AST.h"
 #include "Utils/Token.h"
 
@@ -233,7 +234,7 @@ namespace AST {
 
 [[nodiscard]] std::string AssignStmt::to_string() const {
     std::ostringstream oss;
-    oss << lval_->to_string() << "\n=\n" << exp_->to_string() << "\n<AssignStmt>";
+    oss << lVal_->to_string() << "\n=\n" << exp_->to_string() << "\n<AssignStmt>";
     return oss.str();
 }
 
@@ -294,7 +295,11 @@ namespace AST {
 
 [[nodiscard]] std::string Exp::to_string() const {
     std::ostringstream oss;
-    oss << addExp_->to_string() << "\n<Exp>";
+    if (std::holds_alternative<std::shared_ptr<AddExp>>(addExp_)) {
+        oss << std::get<std::shared_ptr<AddExp>>(addExp_)->to_string() << "\n<Exp>";
+    } else {
+        oss << std::get<std::string>(addExp_) << "\n<ConstString>";
+    }
     return oss.str();
 }
 
@@ -327,9 +332,6 @@ namespace AST {
     } else if (is_number()) {
         const auto &number = std::get<std::shared_ptr<Number>>(value_);
         oss << number->to_string() << "\n";
-    } else if (is_const_string()) {
-        const auto &const_string = std::get<std::string>(value_);
-        oss << "<ConstString \"" << const_string << "\">\n";
     } else {
         throw std::runtime_error("Invalid PrimaryExp");
     }
@@ -352,7 +354,7 @@ namespace AST {
         oss << primaryExp->to_string() << "\n";
     } else if (is_call()) {
         const auto &[ident, params] = std::get<call>(value_);
-        oss << "<Ident " << ident << ">\n";
+        oss << "<Ident " << ident.content << ">\n";
         if (!params.empty()) {
             oss << "(\n";
             for (auto i = 0u; i < params.size(); ++i) {
@@ -453,18 +455,30 @@ namespace AST {
 }
 }
 
+std::string str_to_llvm_ir(const std::string str) {
+    auto s = str;
+    auto l = s.size() + 1;
+    size_t pos = 0;
+    while ((pos = s.find("\\n", pos)) != std::string::npos) {
+        s.replace(pos, 2, "\\0A");
+    }
+    return std::to_string(l) + " x i8] c\"" + s + "\\00\", align 1";
+}
+
 namespace Mir {
 [[nodiscard]] std::string Module::to_string() const {
     std::ostringstream oss;
-    for (const auto &s: const_strings) {
-        oss << s << "\n";
+    for (size_t i = 0; i < const_strings.size(); ++i) {
+        oss << "@.str_" << i + 1 << " = private unnamed_addr constant [" << str_to_llvm_ir(const_strings[i]) << "\n";
     }
+    oss << "\n";
+    join_and_append(oss, used_runtime_functions, "\n");
     oss << "\n";
     // 拼接全局变量
     join_and_append(oss, global_variables, "\n");
-    oss << "\n\n";
+    oss << "\n";
     // 拼接函数
-    join_and_append(oss, functions, "\n\n");
+    join_and_append(oss, functions, "\n");
     oss << "\n";
     return oss.str();
 }
@@ -478,6 +492,20 @@ namespace Mir {
 }
 
 [[nodiscard]] std::string Function::to_string() const {
+    if (is_runtime_function) {
+        if (name_ == "putf")
+            return "declare void @putf(i8*, ...)\n";
+        std::ostringstream oss;
+        oss << "declare " << return_type->to_string() << " @" << name_ << "(";
+        for (size_t i = 0; i < arguments.size(); ++i) {
+            oss << arguments[i]->get_type()->to_string();
+            if (i != arguments.size() - 1) {
+                oss << ", ";
+            }
+        }
+        oss << ")";
+        return oss.str();
+    }
     std::ostringstream param_info;
     for (size_t i = 0; i < arguments.size(); ++i) {
         param_info << arguments[i]->to_string();
@@ -493,7 +521,7 @@ namespace Mir {
         }
     }
     std::ostringstream function_info;
-    function_info << "define dso_local " << return_type->to_string() << " " << name_
+    function_info << "define dso_local " << return_type->to_string() << " @" << name_
             << "(" << param_info.str() << ") {\n"
             << block_info.str()
             << "\n}";
@@ -639,6 +667,117 @@ namespace Mir {
     return oss.str();
 }
 
+[[nodiscard]] std::string Call::to_string() const {
+    auto params_to_string = [&] {
+        std::ostringstream oss;
+        for (size_t i = 0; i < get_params().size(); ++i) {
+            const auto param = get_params()[i];
+            oss << param->get_type()->to_string() << " " << param->get_name();
+            if (i != get_params().size() - 1) oss << ", ";
+        }
+        return oss.str();
+    };
+    std::ostringstream oss;
+    if (const_string_index != -1) {
+        if (get_function()->get_name() != "putf") { log_error("Unknown const string index"); }
+        if (get_params().empty()) {
+            oss << "call void @putf(i8* @.str_" << const_string_index << ")";
+        } else {
+            oss << "call void @putf(i8* @.str_" << const_string_index << ", " << params_to_string() << ")";
+        }
+    } else {
+        if (get_function()->get_type()->is_void()) {
+            oss << "call " << get_function()->get_type()->to_string() << " @" << get_function()->get_name() << "(";
+            oss << params_to_string() << ")";
+        } else {
+            oss << name_ << " = call " << get_function()->get_type()->to_string()
+                    << " @" << get_function()->get_name() << "(";
+            oss << params_to_string() << ")";
+        }
+    }
+    return oss.str();
+}
+
+
+[[nodiscard]] std::string Add::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = ";
+    oss << "add " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", " << get_rhs()->
+            get_name();
+    return oss.str();
+}
+
+[[nodiscard]] std::string Sub::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = ";
+    oss << "sub " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", " << get_rhs()->
+            get_name();
+    return oss.str();
+}
+
+[[nodiscard]] std::string Mul::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = ";
+    oss << "mul " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", " << get_rhs()->
+            get_name();
+    return oss.str();
+}
+
+[[nodiscard]] std::string Div::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = ";
+    oss << "sdiv " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", " << get_rhs()->
+            get_name();
+    return oss.str();
+}
+
+[[nodiscard]] std::string Mod::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = ";
+    oss << "srem " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", " << get_rhs()->
+            get_name();
+    return oss.str();
+}
+
+[[nodiscard]] std::string FAdd::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = ";
+    oss << "fadd " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", " << get_rhs()->
+            get_name();
+    return oss.str();
+}
+
+[[nodiscard]] std::string FSub::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = ";
+    oss << "fsub " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", " << get_rhs()->
+            get_name();
+    return oss.str();
+}
+
+[[nodiscard]] std::string FMul::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = ";
+    oss << "fmul " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", " << get_rhs()->
+            get_name();
+    return oss.str();
+}
+
+[[nodiscard]] std::string FDiv::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = ";
+    oss << "fdiv " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", " << get_rhs()->
+            get_name();
+    return oss.str();
+}
+
+[[nodiscard]] std::string FMod::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = ";
+    oss << "frem " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", " << get_rhs()->
+            get_name();
+    return oss.str();
+}
 
 namespace Init {
     [[nodiscard]] std::string Constant::to_string() const {

@@ -27,7 +27,7 @@ public:
 
     void set_name(const std::string &name) { this->name_ = name; }
 
-    [[nodiscard]] const std::shared_ptr<Type::Type> &get_type() { return type_; }
+    [[nodiscard]] std::shared_ptr<Type::Type> get_type() { return type_; }
 
     // Value对应的User被销毁后，在users_中可能依然存有对该user的指针
     // 因此需要在增删user时清理users_，防止出现访存异常

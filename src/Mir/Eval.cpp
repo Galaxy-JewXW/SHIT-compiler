@@ -1,5 +1,6 @@
 #include "Mir/Builder.h"
 #include "Mir/Const.h"
+#include "Mir/Init.h"
 #include "Utils/Log.h"
 
 using namespace Mir;
@@ -42,7 +43,7 @@ EvalResult eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_p
             log_error("Error while indexing variable %s at dimension %d.", ident.c_str(), i + 1);
         }
         const auto &array = std::dynamic_pointer_cast<Init::Array>(init_value);
-        const auto &idx = indexes[i];
+        const auto idx = indexes[i];
         if (static_cast<size_t>(idx) >= array->get_size()) { log_error("Index out of bounds: %d", idx); }
         init_value = array->get_init_value(idx);
     }
@@ -58,6 +59,11 @@ EvalResult eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_p
     log_error("Unknown constant type");
 }
 
+// 添加头文件以使用std::fmod
+#include <cmath>
+
+// ... 其他已有代码 ...
+
 EvalResult eval(const EvalResult lhs, const EvalResult rhs, const Token::Type type) {
     switch (type) {
         case Token::Type::ADD: return apply(lhs, rhs, std::plus<>());
@@ -70,12 +76,14 @@ EvalResult eval(const EvalResult lhs, const EvalResult rhs, const Token::Type ty
             });
         }
         case Token::Type::MOD: {
-            if (!std::holds_alternative<int>(lhs) || !std::holds_alternative<int>(rhs)) {
-                log_error("Modulo of non-integer");
-            }
-            if (const int b = std::get<int>(rhs); b == 0)
-                log_error("Modulo by zero");
-            else return std::get<int>(lhs) % b;
+            return apply(lhs, rhs, [](auto a, auto b) -> EvalResult {
+                if (b == 0) { log_error("Modulo by zero"); }
+                if constexpr (std::is_integral_v<decltype(a)> && std::is_integral_v<decltype(b)>) {
+                    return a % b;
+                } else {
+                    return std::fmod(a, b);
+                }
+            });
         }
         default:
             log_fatal("Unknown operator");
@@ -83,13 +91,13 @@ EvalResult eval(const EvalResult lhs, const EvalResult rhs, const Token::Type ty
 }
 
 EvalResult eval_number(const std::shared_ptr<AST::Number> &number) {
-    const auto& p = *number;
+    const auto &p = *number;
     if (typeid(p) == typeid(AST::IntNumber)) {
-        const auto& int_num = std::dynamic_pointer_cast<AST::IntNumber>(number);
+        const auto &int_num = std::dynamic_pointer_cast<AST::IntNumber>(number);
         return int_num->get_value();
     }
     if (typeid(p) == typeid(AST::FloatNumber)) {
-        const auto& float_num = std::dynamic_pointer_cast<AST::FloatNumber>(number);
+        const auto &float_num = std::dynamic_pointer_cast<AST::FloatNumber>(number);
         return static_cast<float>(float_num->get_value());
     }
     log_fatal("Fatal at eval number");
@@ -109,7 +117,6 @@ EvalResult eval_primaryExp(const std::shared_ptr<AST::PrimaryExp> &primaryExp,
         const auto exp = std::get<std::shared_ptr<AST::Exp>>(primaryExp->get_value());
         return eval_exp(exp->addExp(), table);
     }
-    if (primaryExp->is_const_string()) { log_error("Const string cannot be calculated at compile time"); }
     log_fatal("Fatal at eval primaryExp");
 }
 
