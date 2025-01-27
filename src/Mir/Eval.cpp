@@ -1,3 +1,5 @@
+#include <cmath>
+
 #include "Mir/Builder.h"
 #include "Mir/Const.h"
 #include "Mir/Init.h"
@@ -58,11 +60,6 @@ EvalResult eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_p
     if (res.type() == typeid(float)) { return std::any_cast<float>(res); }
     log_error("Unknown constant type");
 }
-
-// 添加头文件以使用std::fmod
-#include <cmath>
-
-// ... 其他已有代码 ...
 
 EvalResult eval(const EvalResult lhs, const EvalResult rhs, const Token::Type type) {
     switch (type) {

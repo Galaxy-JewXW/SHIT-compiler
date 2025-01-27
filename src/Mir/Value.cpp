@@ -50,6 +50,7 @@ void User::clear_operands() {
     for (const auto &operand: operands_) {
         operand->delete_user(std::dynamic_pointer_cast<User>(shared_from_this()));
     }
+    operands_.clear();
 }
 
 void User::modify_operand(const std::shared_ptr<Value> &old_value,
