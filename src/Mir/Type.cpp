@@ -5,7 +5,9 @@
 
 namespace Mir::Type {
 const std::shared_ptr<Integer> Integer::i1 = std::make_shared<Integer>(1);
+const std::shared_ptr<Integer> Integer::i8 = std::make_shared<Integer>(8);
 const std::shared_ptr<Integer> Integer::i32 = std::make_shared<Integer>(32);
+const std::shared_ptr<Integer> Integer::i64 = std::make_shared<Integer>(64);
 const std::shared_ptr<Float> Float::f32 = std::make_shared<Float>();
 const std::shared_ptr<Void> Void::void_ = std::make_shared<Void>();
 const std::shared_ptr<Label> Label::label = std::make_shared<Label>();
@@ -63,5 +65,7 @@ const std::unordered_map<std::string, std::shared_ptr<Function>> Function::runti
     {"putf", create("putf", Type::Void::void_)},
     {"starttime", create("_sysy_starttime", Type::Void::void_, Type::Integer::i32)},
     {"stoptime", create("_sysy_stoptime", Type::Void::void_, Type::Integer::i32)},
+    {"llvm.memset.p0i8.i64", create("llvm.memset.p0i8.i64", Type::Void::void_,
+        std::make_shared<Type::Pointer>(Type::Integer::i8), Type::Integer::i8, Type::Integer::i64, Type::Integer::i1)},
 };
 }

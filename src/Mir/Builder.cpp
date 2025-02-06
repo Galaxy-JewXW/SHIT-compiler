@@ -2,8 +2,8 @@
 #include "Mir/Init.h"
 
 #include <algorithm>
-#include <unordered_set>
 #include <functional>
+#include <unordered_set>
 
 #include "Mir/Instruction.h"
 #include "Mir/Structure.h"
@@ -489,37 +489,63 @@ std::shared_ptr<Value> Builder::visit_number(const std::shared_ptr<AST::Number> 
 std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVal, const bool get_address) const {
     const auto &ident = lVal->ident();
     const auto &symbol = table->lookup_in_all_scopes(ident);
-    if (!symbol) {
-        log_error("Undefined variable: %s", ident.c_str());
-    }
+    bool is_constant = symbol->is_constant_symbol();
+    if (!symbol) { log_error("Undefined variable: %s", ident.c_str()); }
     const auto &address = symbol->get_address();
     if (!address->get_type()->is_pointer()) {
         log_fatal("Invalid address type %s of %s", address->get_type()->to_string().c_str(), ident.c_str());
     }
     const auto &ir_type = std::static_pointer_cast<Type::Pointer>(address->get_type())->get_contain_type();
-    if ((ir_type->is_integer() || ir_type->is_float()) && lVal->exps().empty() && !get_address) {
+    if (!get_address && (ir_type->is_int32() || ir_type->is_float()) && lVal->exps().empty()) {
+        if (is_constant) {
+            const auto initial = symbol->get_init_value();
+            if (const auto constant_initial = std::dynamic_pointer_cast<Init::Constant>(initial)) {
+                return constant_initial->get_const_value();
+            }
+        }
         return Load::create(gen_variable_name(), address, cur_block);
     }
-    std::shared_ptr<Value> pointer = address;
-    auto content_type = ir_type;
     std::vector<std::shared_ptr<Value>> indexes;
+    auto content_type = ir_type;
     for (const auto &exp: lVal->exps()) {
         const auto &idx_value = type_cast(visit_exp(exp), Type::Integer::i32, cur_block);
+        if (!idx_value->is_constant()) { is_constant = false; }
+        indexes.emplace_back(idx_value);
         if (content_type->is_pointer()) {
-            pointer = Load::create(gen_variable_name(), pointer, cur_block);
             content_type = std::static_pointer_cast<Type::Pointer>(content_type)->get_contain_type();
         } else if (content_type->is_array()) {
             content_type = std::static_pointer_cast<Type::Array>(content_type)->get_element_type();
         } else {
             log_error("Invalid content type %s", content_type->to_string().c_str());
         }
-        indexes.emplace_back(idx_value);
     }
-    for (const auto &idx: indexes) {
-        pointer = GetElementPtr::create(gen_variable_name(), pointer, idx, cur_block);
+    if (is_constant && !get_address && !indexes.empty()) {
+        auto initial = symbol->get_init_value();
+        if (auto array_init = std::dynamic_pointer_cast<Init::Array>(initial)) {
+            for (const auto &idx: indexes) {
+                const int index = std::any_cast<int>(std::dynamic_pointer_cast<ConstInt>(idx)->get_constant_value());
+                initial = array_init->get_init_value(index);
+                array_init = std::dynamic_pointer_cast<Init::Array>(initial);
+            }
+            if (const auto constant_initial = std::dynamic_pointer_cast<Init::Constant>(initial)) {
+                return constant_initial->get_const_value();
+            }
+        }
+    }
+    std::shared_ptr<Value> pointer = address;
+    content_type = ir_type;
+    for (const auto &index: indexes) {
+        if (content_type->is_pointer()) {
+            pointer = Load::create(gen_variable_name(), pointer, cur_block);
+            content_type = std::static_pointer_cast<Type::Pointer>(content_type)->get_contain_type();
+        }
+        pointer = GetElementPtr::create(gen_variable_name(), pointer, index, cur_block);
+        if (content_type->is_array()) {
+            content_type = std::static_pointer_cast<Type::Array>(content_type)->get_element_type();
+        }
     }
     if (get_address) { return pointer; }
-    if (content_type->is_integer() || content_type->is_float()) {
+    if (content_type->is_int32() || content_type->is_float()) {
         return Load::create(gen_variable_name(), pointer, cur_block);
     }
     if (content_type->is_array()) {

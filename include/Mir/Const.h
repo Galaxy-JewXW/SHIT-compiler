@@ -2,14 +2,15 @@
 #define CONST_H
 
 #include <any>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <iomanip>
 #include <sstream>
 #include <string>
-#include <cmath>
 
 #include "Value.h"
+#include "Utils/Log.h"
 
 namespace Mir {
 class Const : public Value {
@@ -48,6 +49,32 @@ public:
     }
 
     [[nodiscard]] std::any get_constant_value() const override { return value; }
+
+    ConstFloat operator+(const ConstFloat &other) const {
+        return ConstFloat(value + other.value);
+    }
+
+    ConstFloat operator-(const ConstFloat &other) const {
+        return ConstFloat(value - other.value);
+    }
+
+    ConstFloat operator*(const ConstFloat &other) const {
+        return ConstFloat(value * other.value);
+    }
+
+    ConstFloat operator/(const ConstFloat &other) const {
+        if (other.value == 0) {
+            log_error("Division by zero");
+        }
+        return ConstFloat(value / other.value);
+    }
+
+    ConstFloat operator%(const ConstFloat &other) const {
+        if (other.value == 0) {
+            log_error("Modulo by zero");
+        }
+        return ConstFloat(std::fmod(value, other.value));
+    }
 };
 
 class ConstInt final : public Const {
@@ -59,6 +86,32 @@ public:
     [[nodiscard]] bool is_zero() const override { return value == 0; }
 
     [[nodiscard]] std::any get_constant_value() const override { return value; }
+
+    ConstInt operator+(const ConstInt &other) const {
+        return ConstInt(value + other.value);
+    }
+
+    ConstInt operator-(const ConstInt &other) const {
+        return ConstInt(value - other.value);
+    }
+
+    ConstInt operator*(const ConstInt &other) const {
+        return ConstInt(value * other.value);
+    }
+
+    ConstInt operator/(const ConstInt &other) const {
+        if (other.value == 0) {
+            log_error("Division by zero");
+        }
+        return ConstInt(value / other.value);
+    }
+
+    ConstInt operator%(const ConstInt &other) const {
+        if (other.value == 0) {
+            log_error("Modulo by zero");
+        }
+        return ConstInt(value % other.value);
+    }
 };
 
 class ConstBool final : public Const {
