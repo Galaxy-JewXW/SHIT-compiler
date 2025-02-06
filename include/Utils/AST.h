@@ -85,7 +85,7 @@ public:
 
     [[nodiscard]] std::string ident() const { return ident_; }
 
-    [[nodiscard]] std::vector<std::shared_ptr<Exp>> exps() const { return exps_; }
+    [[nodiscard]] const std::vector<std::shared_ptr<Exp>> &exps() const { return exps_; }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -132,9 +132,9 @@ public:
         }
     }
 
-    [[nodiscard]] std::vector<std::shared_ptr<UnaryExp>> unaryExps() const { return unaryExps_; }
+    [[nodiscard]] const std::vector<std::shared_ptr<UnaryExp>> &unaryExps() const { return unaryExps_; }
 
-    [[nodiscard]] std::vector<Token::Type> operators() const { return operators_; }
+    [[nodiscard]] const std::vector<Token::Type> &operators() const { return operators_; }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -152,9 +152,9 @@ public:
         }
     }
 
-    [[nodiscard]] std::vector<std::shared_ptr<MulExp>> mulExps() const { return mulExps_; }
+    [[nodiscard]] const std::vector<std::shared_ptr<MulExp>> &mulExps() const { return mulExps_; }
 
-    [[nodiscard]] std::vector<Token::Type> operators() const { return operators_; }
+    [[nodiscard]] const std::vector<Token::Type> &operators() const { return operators_; }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -172,9 +172,9 @@ public:
         }
     }
 
-    [[nodiscard]] std::vector<std::shared_ptr<AddExp>> addExps() const { return addExps_; }
+    [[nodiscard]] const std::vector<std::shared_ptr<AddExp>> &addExps() const { return addExps_; }
 
-    [[nodiscard]] std::vector<Token::Type> operators() const { return operators_; }
+    [[nodiscard]] const std::vector<Token::Type> &operators() const { return operators_; }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -192,9 +192,9 @@ public:
         }
     }
 
-    [[nodiscard]] std::vector<std::shared_ptr<RelExp>> relExps() const { return relExps_; }
+    [[nodiscard]] const std::vector<std::shared_ptr<RelExp>> &relExps() const { return relExps_; }
 
-    [[nodiscard]] std::vector<Token::Type> operators() const { return operators_; }
+    [[nodiscard]] const std::vector<Token::Type> &operators() const { return operators_; }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -206,7 +206,7 @@ class LAndExp final : public Node {
 public:
     explicit LAndExp(const std::vector<std::shared_ptr<EqExp>> &eqExps) : eqExps_{eqExps} {}
 
-    [[nodiscard]] std::vector<std::shared_ptr<EqExp>> eqExps() const { return eqExps_; }
+    [[nodiscard]] const std::vector<std::shared_ptr<EqExp>> &eqExps() const { return eqExps_; }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -218,7 +218,7 @@ class LOrExp final : public Node {
 public:
     explicit LOrExp(const std::vector<std::shared_ptr<LAndExp>> &lAndExps) : lAndExps_{lAndExps} {}
 
-    [[nodiscard]] std::vector<std::shared_ptr<LAndExp>> lAndExps() const { return lAndExps_; }
+    [[nodiscard]] const std::vector<std::shared_ptr<LAndExp>> &lAndExps() const { return lAndExps_; }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -298,7 +298,7 @@ public:
     explicit Block(const std::vector<std::variant<std::shared_ptr<Decl>, std::shared_ptr<Stmt>>> &items) :
         items_{items} {}
 
-    [[nodiscard]] std::vector<std::variant<std::shared_ptr<Decl>, std::shared_ptr<Stmt>>> items() const {
+    [[nodiscard]] const std::vector<std::variant<std::shared_ptr<Decl>, std::shared_ptr<Stmt>>> &items() const {
         return items_;
     }
 
@@ -431,7 +431,7 @@ public:
     [[nodiscard]] std::string to_string() const override;
 
     [[nodiscard]] std::string ident() const { return ident_; }
-    [[nodiscard]] std::vector<std::shared_ptr<ConstExp>> constExps() const { return constExps_; }
+    [[nodiscard]] const std::vector<std::shared_ptr<ConstExp>> &constExps() const { return constExps_; }
     [[nodiscard]] std::shared_ptr<ConstInitVal> constInitVal() const { return constInitVal_; }
     [[nodiscard]] bool is_exp() const { return constInitVal_->is_constExp(); }
 };
@@ -449,7 +449,7 @@ public:
 
     [[nodiscard]] Token::Type bType() const { return bType_; }
 
-    [[nodiscard]] std::vector<std::shared_ptr<ConstDef>> constDefs() const { return constDefs_; }
+    [[nodiscard]] const std::vector<std::shared_ptr<ConstDef>> &constDefs() const { return constDefs_; }
 };
 
 // InitVal : Exp | '{' [ InitVal { ',' InitVal } ] '}'
@@ -511,7 +511,7 @@ public:
 
     [[nodiscard]] Token::Type bType() const { return bType_; }
 
-    [[nodiscard]] std::vector<std::shared_ptr<VarDef>> varDefs() const { return varDefs_; }
+    [[nodiscard]] const std::vector<std::shared_ptr<VarDef>> &varDefs() const { return varDefs_; }
 };
 
 // FuncFParam -> BType Ident ['[' ']' { '[' Exp ']' }]
@@ -527,7 +527,7 @@ public:
 
     [[nodiscard]] Token::Type bType() const { return bType_; }
     [[nodiscard]] std::string ident() const { return ident_; }
-    [[nodiscard]] std::vector<std::shared_ptr<Exp>> exps() const { return exps_; }
+    [[nodiscard]] const std::vector<std::shared_ptr<Exp>> &exps() const { return exps_; }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -549,7 +549,7 @@ public:
 
     [[nodiscard]] std::string ident() const { return ident_; }
     [[nodiscard]] Token::Type funcType() const { return funcType_; }
-    [[nodiscard]] std::vector<std::shared_ptr<FuncFParam>> funcParams() const { return funcParams_; }
+    [[nodiscard]] const std::vector<std::shared_ptr<FuncFParam>> &funcParams() const { return funcParams_; }
     [[nodiscard]] std::shared_ptr<Block> block() const { return block_; }
 };
 
@@ -564,7 +564,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    [[nodiscard]] std::vector<std::variant<std::shared_ptr<Decl>, std::shared_ptr<FuncDef>>> compunits() const {
+    [[nodiscard]] const std::vector<std::variant<std::shared_ptr<Decl>, std::shared_ptr<FuncDef>>> &compunits() const {
         return compunits_;
     }
 };

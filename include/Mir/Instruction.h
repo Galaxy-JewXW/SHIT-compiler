@@ -40,7 +40,7 @@ public:
 
     void set_block(const std::shared_ptr<Block> &block) {
         this->block = block;
-        block->add_instruction(std::dynamic_pointer_cast<Instruction>(shared_from_this()));
+        block->add_instruction(std::static_pointer_cast<Instruction>(shared_from_this()));
     }
 
     [[nodiscard]] Operator get_op() const;
@@ -69,7 +69,9 @@ public:
         : Instruction{
             name, std::dynamic_pointer_cast<Type::Pointer>(addr->get_type())->get_contain_type(),
             Operator::LOAD
-        } {}
+        } {
+        if (!addr->get_type()->is_pointer()) { log_error("Address must be a pointer"); }
+    }
 
     static std::shared_ptr<Load> create(const std::string &name, const std::shared_ptr<Value> &addr,
                                         const std::shared_ptr<Block> &block) {
@@ -89,7 +91,7 @@ public:
     Store(const std::shared_ptr<Value> &addr, const std::shared_ptr<Value> &value)
         : Instruction{"", Type::Void::void_, Operator::STORE} {
         if (!addr->get_type()->is_pointer()) { log_error("Address must be a pointer"); }
-        if (const auto contain_type = std::dynamic_pointer_cast<Type::Pointer>(addr->get_type())
+        if (const auto contain_type = std::static_pointer_cast<Type::Pointer>(addr->get_type())
               ->get_contain_type(); *contain_type != *value->get_type()) {
             log_error("Address type: %s, value type: %s",
                       contain_type->to_string().c_str(),
@@ -120,6 +122,7 @@ public:
                   const std::shared_ptr<Value> &addr,
                   const std::shared_ptr<Value> &index)
         : Instruction(name, calc_type_(addr), Operator::GEP) {
+        if (!addr->get_type()->is_pointer()) { log_error("Address must be a pointer"); }
         if (!index->get_type()->is_int32()) { log_error("Index must be an integer 32"); }
     }
 
@@ -286,11 +289,11 @@ public:
     [[nodiscard]] std::shared_ptr<Value> get_cond() const { return operands_[0]; }
 
     [[nodiscard]] std::shared_ptr<Block> get_true_block() const {
-        return std::dynamic_pointer_cast<Block>(operands_[1]);
+        return std::static_pointer_cast<Block>(operands_[1]);
     }
 
     [[nodiscard]] std::shared_ptr<Block> get_false_block() const {
-        return std::dynamic_pointer_cast<Block>(operands_[2]);
+        return std::static_pointer_cast<Block>(operands_[2]);
     }
 
     [[nodiscard]] std::string to_string() const override;
@@ -309,7 +312,7 @@ public:
     }
 
     [[nodiscard]] std::shared_ptr<Block> get_target_block() const {
-        return std::dynamic_pointer_cast<Block>(operands_[0]);
+        return std::static_pointer_cast<Block>(operands_[0]);
     }
 
     [[nodiscard]] std::string to_string() const override;

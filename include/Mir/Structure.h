@@ -35,7 +35,10 @@ public:
     [[nodiscard]] size_t get_const_string_size() const { return const_strings.size(); }
 
     void add_used_runtime_functions(const std::shared_ptr<Function> &function) {
-        used_runtime_functions.emplace_back(function);
+        if (std::find(used_runtime_functions.begin(), used_runtime_functions.end(), function)
+            == used_runtime_functions.end()) {
+            used_runtime_functions.emplace_back(function);
+        }
     }
 
     void add_function(const std::shared_ptr<Function> &function) { functions.emplace_back(function); }
@@ -61,17 +64,21 @@ class GlobalVariable final : public Value {
 public:
     GlobalVariable(const std::string &name, const std::shared_ptr<Type::Type> &type, const bool is_constant,
                    const std::shared_ptr<Init::Init> &init_value)
-        : Value{name, type}, is_constant{is_constant}, init_value{init_value} {}
+        : Value{"@" + name, std::make_shared<Type::Pointer>(type)}, is_constant{is_constant}, init_value{init_value} {}
 
     [[nodiscard]] std::string to_string() const override;
 };
 
 class Argument final : public Value {
-    const int index;
+    int index;
 
 public:
     Argument(const std::string &name, const std::shared_ptr<Type::Type> &type, const int index)
         : Value{name, type}, index{index} {}
+
+    [[nodiscard]] int get_index() const { return index; }
+
+    void set_index(const int index) { this->index = index; }
 
     [[nodiscard]] std::string to_string() const override { return type_->to_string() + " " + name_; }
 };
@@ -113,6 +120,11 @@ public:
 
     void add_block(const std::shared_ptr<Block> &block) { blocks.emplace_back(block); }
 
+    [[nodiscard]] std::vector<std::shared_ptr<Block>> &get_blocks() { return blocks; }
+
+    // 清除流图后需要更新基本块和指令的id
+    void update_id();
+
     [[nodiscard]] std::string to_string() const override;
 };
 
@@ -120,6 +132,8 @@ public:
 class Block final : public User {
     std::weak_ptr<Function> parent;
     std::vector<std::shared_ptr<Instruction>> instructions;
+    // 标记基本块是否被删除
+    bool deleted{false};
 
 public:
     explicit Block(const std::string &name): User(name, Type::Label::label) {}
@@ -132,10 +146,16 @@ public:
 
     void set_function(const std::shared_ptr<Function> &function) {
         parent = function;
-        function->add_block(std::dynamic_pointer_cast<Block>(shared_from_this()));
+        function->add_block(std::static_pointer_cast<Block>(shared_from_this()));
     }
 
+    [[nodiscard]] bool is_deleted() const { return deleted; }
+
+    void set_deleted(const bool flag = true) { deleted = flag; }
+
     [[nodiscard]] std::shared_ptr<Function> get_function() const { return parent.lock(); }
+
+    [[nodiscard]] std::vector<std::shared_ptr<Instruction>> &get_instructions() { return instructions; }
 
     void add_instruction(const std::shared_ptr<Instruction> &instruction) { instructions.emplace_back(instruction); }
 

@@ -46,16 +46,16 @@ int main(int argc, char *argv[]) {
     buffer << file.rdbuf();
     std::string src_code = buffer.str();
     file.close();
-    log_trace("Tokenizing source code.");
+    // 词法分析
     Lexer lexer(src_code);
     std::vector<Token::Token> tokens = lexer.tokenize();
-    log_trace("Parsing tokens to AST.");
+    // 语法分析
     Parser parser(tokens);
     std::shared_ptr<AST::CompUnit> ast = parser.parse();
-    log_debug("AST info as follows: \n%s", ast->to_string().c_str());
-    log_info("Building LLVM IR.");
+    log_info("AST info as follows: \n%s", ast->to_string().c_str());
+    // IR生成
     Mir::Builder builder;
     std::shared_ptr<Mir::Module> module = builder.visit(ast);
-    log_debug("Module info as follows: \n%s", module->to_string().c_str());
+    log_info("Module info as follows: \n%s", module->to_string().c_str());
     return 0;
 }

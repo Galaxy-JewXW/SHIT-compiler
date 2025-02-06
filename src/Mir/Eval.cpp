@@ -44,17 +44,17 @@ EvalResult eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_p
         if (!init_value->is_array_init()) {
             log_error("Error while indexing variable %s at dimension %d.", ident.c_str(), i + 1);
         }
-        const auto &array = std::dynamic_pointer_cast<Init::Array>(init_value);
+        const auto &array = std::static_pointer_cast<Init::Array>(init_value);
         const auto idx = indexes[i];
         if (static_cast<size_t>(idx) >= array->get_size()) { log_error("Index out of bounds: %d", idx); }
         init_value = array->get_init_value(idx);
     }
     // 编译期计算一定算得出具体的int或float值
     if (!init_value->is_constant_init()) { log_error("Non-constant expression"); }
-    const auto &constant_value = std::dynamic_pointer_cast<Init::Constant>(init_value);
+    const auto &constant_value = std::static_pointer_cast<Init::Constant>(init_value);
     const auto &value = constant_value->get_const_value();
     if (!value->is_constant()) { log_error("Non-constant expression"); }
-    const auto &const_ = std::dynamic_pointer_cast<Const>(value);
+    const auto &const_ = std::static_pointer_cast<Const>(value);
     const auto res = const_->get_constant_value();
     if (res.type() == typeid(int)) { return std::any_cast<int>(res); }
     if (res.type() == typeid(float)) { return std::any_cast<float>(res); }
@@ -90,11 +90,11 @@ EvalResult eval(const EvalResult lhs, const EvalResult rhs, const Token::Type ty
 EvalResult eval_number(const std::shared_ptr<AST::Number> &number) {
     const auto &p = *number;
     if (typeid(p) == typeid(AST::IntNumber)) {
-        const auto &int_num = std::dynamic_pointer_cast<AST::IntNumber>(number);
+        const auto &int_num = std::static_pointer_cast<AST::IntNumber>(number);
         return int_num->get_value();
     }
     if (typeid(p) == typeid(AST::FloatNumber)) {
-        const auto &float_num = std::dynamic_pointer_cast<AST::FloatNumber>(number);
+        const auto &float_num = std::static_pointer_cast<AST::FloatNumber>(number);
         return static_cast<float>(float_num->get_value());
     }
     log_fatal("Fatal at eval number");

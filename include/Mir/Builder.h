@@ -66,7 +66,7 @@ public:
 
     void visit_returnStmt(const std::shared_ptr<AST::ReturnStmt> &returnStmt) const;
 
-    std::shared_ptr<Value> visit_exp(const std::shared_ptr<AST::Exp> &exp) const;
+    std::shared_ptr<Value> visit_exp(const std::shared_ptr<AST::Exp> &exp) const; // NOLINT(*-use-nodiscard)
 
     void visit_cond(const std::shared_ptr<AST::Cond> &cond, const std::shared_ptr<Block> &_then,
                     const std::shared_ptr<Block> &_else);

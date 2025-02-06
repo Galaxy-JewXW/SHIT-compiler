@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <unordered_set>
+#include <functional>
 
 #include "Mir/Instruction.h"
 #include "Mir/Structure.h"
@@ -21,6 +22,10 @@ size_t Builder::block_count{0}, Builder::variable_count{0};
             visit_funcDef(std::get<std::shared_ptr<AST::FuncDef>>(unit));
         }
     }
+    // 释放不必要的引用计数
+    cur_block = nullptr;
+    cur_function = nullptr;
+    loop_stats.clear();
     return module;
 }
 
@@ -83,9 +88,9 @@ void Builder::visit_constDef(const Token::Type type, const std::shared_ptr<AST::
         const auto alloc = Alloc::create(gen_variable_name(), ir_type, cur_block);
         address = alloc;
         if (init_value->is_constant_init())
-            std::dynamic_pointer_cast<Init::Constant>(init_value)->gen_store_inst(address, cur_block);
+            std::static_pointer_cast<Init::Constant>(init_value)->gen_store_inst(address, cur_block);
         else
-            std::dynamic_pointer_cast<Init::Array>(init_value)->gen_store_inst(address, cur_block, dimensions);
+            std::static_pointer_cast<Init::Array>(init_value)->gen_store_inst(address, cur_block, dimensions);
     }
     table->insert_symbol(constDef->ident(), ir_type, true, init_value, address);
 }
@@ -126,7 +131,8 @@ void Builder::visit_varDef(const Token::Type type, const std::shared_ptr<AST::Va
                 init_value = Init::Constant::create_constant_init_value(ir_type, exp->addExp(), table);
             } else {
                 const auto &value = visit_exp(exp);
-                init_value = Init::Exp::create_exp_init_value(ir_type, type_cast(value, ir_type, cur_block));
+                const auto &casted_value = type_cast(value, ir_type, cur_block);
+                init_value = Init::Exp::create_exp_init_value(ir_type, casted_value);
             }
         } else if (ir_type->is_array()) {
             if (initVal->is_exp()) { log_fatal("Array cannot be initialized as a scalar"); }
@@ -152,11 +158,11 @@ void Builder::visit_varDef(const Token::Type type, const std::shared_ptr<AST::Va
         const auto alloc = Alloc::create(gen_variable_name(), ir_type, cur_block);
         address = alloc;
         if (init_value->is_constant_init())
-            std::dynamic_pointer_cast<Init::Constant>(init_value)->gen_store_inst(address, cur_block);
+            std::static_pointer_cast<Init::Constant>(init_value)->gen_store_inst(address, cur_block);
         else if (init_value->is_array_init())
-            std::dynamic_pointer_cast<Init::Array>(init_value)->gen_store_inst(address, cur_block, dimensions);
+            std::static_pointer_cast<Init::Array>(init_value)->gen_store_inst(address, cur_block, dimensions);
         else
-            std::dynamic_pointer_cast<Init::Exp>(init_value)->gen_store_inst(address, cur_block);
+            std::static_pointer_cast<Init::Exp>(init_value)->gen_store_inst(address, cur_block);
     }
     table->insert_symbol(varDef->ident(), ir_type, false, init_value, address);
 }
@@ -204,6 +210,65 @@ void Builder::visit_funcDef(const std::shared_ptr<AST::FuncDef> &funcDef) {
     }
     visit_block(funcDef->block());
     table->pop_scope();
+    if (ident == "main") { module->set_main_function(func); }
+    // 如果当前基本块没有终止指令，则插入默认返回语句
+    auto cur_block_not_terminated = [&] {
+        if (const auto &insts = cur_block->get_instructions(); insts.empty()) return true;
+        else return std::dynamic_pointer_cast<Terminator>(insts.back()) == nullptr;
+    };
+    if (cur_block_not_terminated()) {
+        if (const auto return_type = cur_function->get_return_type(); return_type->is_void()) {
+            Ret::create(cur_block);
+        } else if (return_type->is_int32()) {
+            Ret::create(std::make_shared<ConstInt>(0), cur_block);
+        } else if (return_type->is_float()) {
+            Ret::create(std::make_shared<ConstFloat>(0.0f), cur_block);
+        }
+    }
+    // 清除流图中无法到达的语句
+    std::for_each(cur_function->get_blocks().begin(), cur_function->get_blocks().end(),
+                  [&](const std::shared_ptr<Block> &block) {
+                      auto &instructions = block->get_instructions();
+                      auto find_terminator_index = [&] {
+                          size_t i = 0;
+                          for (; i < instructions.size() && std::dynamic_pointer_cast<Terminator>(instructions[i]) ==
+                                 nullptr; ++i) {}
+                          return i;
+                      };
+                      if (const auto l = find_terminator_index(); l < instructions.size() - 1) {
+                          instructions.erase(instructions.begin() + static_cast<long>(l) + 1, instructions.end());
+                      }
+                  });
+    // 清除流图中无法到达的基本块
+    std::unordered_set<std::shared_ptr<Block>> visited;
+    std::function<void(const std::shared_ptr<Block> &)> dfs = [&](const std::shared_ptr<Block> &block) -> void {
+        if (visited.find(block) != visited.end()) return;
+        visited.insert(block);
+        if (block->get_instructions().empty()) { log_error("Empty block"); }
+        const auto last_instruction = block->get_instructions().back();
+        if (const auto branch = std::dynamic_pointer_cast<Branch>(last_instruction)) {
+            dfs(branch->get_true_block());
+            dfs(branch->get_false_block());
+        }
+        if (const auto jump = std::dynamic_pointer_cast<Jump>(last_instruction)) {
+            dfs(jump->get_target_block());
+        }
+    };
+    dfs(entry_block);
+    auto &blocks = cur_function->get_blocks();
+    blocks.erase(std::remove_if(blocks.begin(), blocks.end(), [&visited](const std::shared_ptr<Block> &block) {
+        if (visited.find(block) != visited.end()) return false;
+        std::for_each(block->get_instructions().begin(), block->get_instructions().end(),
+                      [&](const std::shared_ptr<Instruction> &instruction) {
+                          instruction->clear_operands();
+                      });
+        block->clear_operands();
+        block->set_deleted();
+        return true;
+    }), blocks.end());
+    cur_function->update_id();
+    cur_block = nullptr;
+    cur_function = nullptr;
 }
 
 std::pair<std::string, std::shared_ptr<Type::Type>>
@@ -256,21 +321,22 @@ std::shared_ptr<Value> Builder::visit_addExp(const std::shared_ptr<AST::AddExp> 
     auto lhs = visit_mulExp(mul_exps[0]);
     for (size_t i = 1; i < mul_exps.size(); ++i) {
         const auto &rhs = visit_mulExp(mul_exps[i]);
-        if (const auto op = addExp->operators()[i - 1]; op == Token::Type::ADD) {
-            if (lhs->get_type()->is_float() || rhs->get_type()->is_float()) {
-                lhs = FAdd::create(gen_variable_name(), type_cast(lhs, Type::Float::f32, cur_block),
-                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
-            } else {
-                lhs = Add::create(gen_variable_name(), type_cast(lhs, Type::Integer::i32, cur_block),
-                                  type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+        const auto op = addExp->operators()[i - 1];
+        if (lhs->get_type()->is_float() || rhs->get_type()->is_float()) {
+            const auto &casted_lhs = type_cast(lhs, Type::Float::f32, cur_block),
+                       &casted_rhs = type_cast(rhs, Type::Float::f32, cur_block);
+            if (op == Token::Type::ADD) {
+                lhs = FAdd::create(gen_variable_name(), casted_lhs, casted_rhs, cur_block);
+            } else if (op == Token::Type::SUB) {
+                lhs = FSub::create(gen_variable_name(), casted_lhs, casted_rhs, cur_block);
             }
-        } else if (op == Token::Type::SUB) {
-            if (lhs->get_type()->is_float() || rhs->get_type()->is_float()) {
-                lhs = FSub::create(gen_variable_name(), type_cast(lhs, Type::Float::f32, cur_block),
-                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
-            } else {
-                lhs = Sub::create(gen_variable_name(), type_cast(lhs, Type::Integer::i32, cur_block),
-                                  type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+        } else {
+            const auto &casted_lhs = type_cast(lhs, Type::Integer::i32, cur_block),
+                       &casted_rhs = type_cast(rhs, Type::Integer::i32, cur_block);
+            if (op == Token::Type::ADD) {
+                lhs = Add::create(gen_variable_name(), casted_lhs, casted_rhs, cur_block);
+            } else if (op == Token::Type::SUB) {
+                lhs = Sub::create(gen_variable_name(), casted_lhs, casted_rhs, cur_block);
             }
         }
     }
@@ -282,29 +348,26 @@ std::shared_ptr<Value> Builder::visit_mulExp(const std::shared_ptr<AST::MulExp> 
     auto lhs = visit_unaryExp(unary_exps[0]);
     for (size_t i = 1; i < unary_exps.size(); ++i) {
         const auto &rhs = visit_unaryExp(unary_exps[i]);
-        if (const auto op = mulExp->operators()[i - 1]; op == Token::Type::MUL) {
-            if (lhs->get_type()->is_float() || rhs->get_type()->is_float()) {
-                lhs = FMul::create(gen_variable_name(), type_cast(lhs, Type::Float::f32, cur_block),
-                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
-            } else {
-                lhs = Mul::create(gen_variable_name(), type_cast(lhs, Type::Integer::i32, cur_block),
-                                  type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+        const auto op = mulExp->operators()[i - 1];
+        if (lhs->get_type()->is_float() || rhs->get_type()->is_float()) {
+            const auto &casted_lhs = type_cast(lhs, Type::Float::f32, cur_block),
+                       &casted_rhs = type_cast(rhs, Type::Float::f32, cur_block);
+            if (op == Token::Type::MUL) {
+                lhs = FMul::create(gen_variable_name(), casted_lhs, casted_rhs, cur_block);
+            } else if (op == Token::Type::DIV) {
+                lhs = FDiv::create(gen_variable_name(), casted_lhs, casted_rhs, cur_block);
+            } else if (op == Token::Type::MOD) {
+                lhs = FMod::create(gen_variable_name(), casted_lhs, casted_rhs, cur_block);
             }
-        } else if (op == Token::Type::DIV) {
-            if (lhs->get_type()->is_float() || rhs->get_type()->is_float()) {
-                lhs = FDiv::create(gen_variable_name(), type_cast(lhs, Type::Float::f32, cur_block),
-                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
-            } else {
-                lhs = Div::create(gen_variable_name(), type_cast(lhs, Type::Integer::i32, cur_block),
-                                  type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
-            }
-        } else if (op == Token::Type::MOD) {
-            if (lhs->get_type()->is_float() || rhs->get_type()->is_float()) {
-                lhs = FMod::create(gen_variable_name(), type_cast(lhs, Type::Float::f32, cur_block),
-                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
-            } else {
-                lhs = Mod::create(gen_variable_name(), type_cast(lhs, Type::Integer::i32, cur_block),
-                                  type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+        } else {
+            const auto &casted_lhs = type_cast(lhs, Type::Integer::i32, cur_block),
+                       &casted_rhs = type_cast(rhs, Type::Integer::i32, cur_block);
+            if (op == Token::Type::MUL) {
+                lhs = Mul::create(gen_variable_name(), casted_lhs, casted_rhs, cur_block);
+            } else if (op == Token::Type::DIV) {
+                lhs = Div::create(gen_variable_name(), casted_lhs, casted_rhs, cur_block);
+            } else if (op == Token::Type::MOD) {
+                lhs = Mod::create(gen_variable_name(), casted_lhs, casted_rhs, cur_block);
             }
         }
     }
@@ -312,7 +375,7 @@ std::shared_ptr<Value> Builder::visit_mulExp(const std::shared_ptr<AST::MulExp> 
 }
 
 std::shared_ptr<Value> Builder::visit_functionCall(const AST::UnaryExp::call &call) const {
-    const auto &[ident, args] = call;
+    const auto &[ident, params] = call;
     auto func = module->get_function(ident.content);
     if (!func) {
         if (const auto it = Function::runtime_functions.find(ident.content);
@@ -330,22 +393,26 @@ std::shared_ptr<Value> Builder::visit_functionCall(const AST::UnaryExp::call &ca
         return Call::create(func, r_params, cur_block);
     }
     if (ident.content == "putf") {
-        if (!args[0]->is_const_string()) { log_fatal("First parameter of putf must be a const string"); }
-        const auto &const_string = args[0]->get_const_string();
-        for (size_t i = 1; i < args.size(); ++i) {
-            if (args[i]->is_const_string()) { log_fatal("Parameter should not be a const string"); }
-            r_params.emplace_back(visit_exp(args[i]));
+        if (!params[0]->is_const_string()) { log_fatal("First parameter of putf must be a const string"); }
+        const auto &const_string = params[0]->get_const_string();
+        for (size_t i = 1; i < params.size(); ++i) {
+            if (params[i]->is_const_string()) { log_fatal("Parameter should not be a const string"); }
+            r_params.emplace_back(visit_exp(params[i]));
         }
         module->add_const_string(const_string);
         return Call::create(func, r_params, cur_block, static_cast<int>(module->get_const_string_size()));
     }
     const auto &arguments = func->get_arguments();
-    for (size_t i = 0; i < args.size(); ++i) {
-        if (args[i]->is_const_string()) { log_fatal("Parameter should not be a const string"); }
+    if (params.size() != arguments.size()) {
+        log_error("Function %s has %zu arguments, but %zu parameters are provided", ident.content.c_str(),
+                  arguments.size(), params.size());
+    }
+    for (size_t i = 0; i < params.size(); ++i) {
+        if (params[i]->is_const_string()) { log_fatal("Parameter should not be a const string"); }
         if (const auto f_type = arguments[i]->get_type(); f_type->is_int32() || f_type->is_float()) {
-            r_params.emplace_back(type_cast(visit_exp(args[i]), f_type, cur_block));
+            r_params.emplace_back(type_cast(visit_exp(params[i]), f_type, cur_block));
         } else {
-            const auto p = visit_exp(args[i]);
+            const auto p = visit_exp(params[i]);
             r_params.emplace_back(p);
         }
     }
@@ -370,21 +437,25 @@ std::shared_ptr<Value> Builder::visit_unaryExp(const std::shared_ptr<AST::UnaryE
         }
         if (type == Token::Type::SUB) {
             if (sub_exp_value->get_type()->is_float()) {
+                const auto &casted_sub_exp_value = type_cast(sub_exp_value, Type::Float::f32, cur_block);
                 return FSub::create(gen_variable_name(), std::make_shared<ConstFloat>(0.0f),
-                                    type_cast(sub_exp_value, Type::Float::f32, cur_block), cur_block);
+                                    casted_sub_exp_value, cur_block);
             }
+            const auto &casted_sub_exp_value = type_cast(sub_exp_value, Type::Integer::i32, cur_block);
             return Sub::create(gen_variable_name(), std::make_shared<ConstInt>(0),
-                               type_cast(sub_exp_value, Type::Integer::i32, cur_block), cur_block);
+                               casted_sub_exp_value, cur_block);
         }
         if (type == Token::Type::NOT) {
             if (sub_exp_value->get_type()->is_float()) {
+                const auto &casted_sub_exp_value = type_cast(sub_exp_value, Type::Float::f32, cur_block);
                 const auto &cmp = Fcmp::create(gen_variable_name(), Fcmp::Op::EQ,
-                                               type_cast(sub_exp_value, Type::Float::f32, cur_block),
+                                               casted_sub_exp_value,
                                                std::make_shared<ConstFloat>(0.0f), cur_block);
                 return type_cast(cmp, Type::Integer::i32, cur_block);
             }
+            const auto &casted_sub_exp_value = type_cast(sub_exp_value, Type::Integer::i32, cur_block);
             const auto &cmp = Icmp::create(gen_variable_name(), Icmp::Op::EQ,
-                                           type_cast(sub_exp_value, Type::Integer::i32, cur_block),
+                                           casted_sub_exp_value,
                                            std::make_shared<ConstInt>(0), cur_block);
             return type_cast(cmp, Type::Integer::i32, cur_block);
         }
@@ -425,7 +496,7 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
     if (!address->get_type()->is_pointer()) {
         log_fatal("Invalid address type %s of %s", address->get_type()->to_string().c_str(), ident.c_str());
     }
-    const auto &ir_type = std::dynamic_pointer_cast<Type::Pointer>(address->get_type())->get_contain_type();
+    const auto &ir_type = std::static_pointer_cast<Type::Pointer>(address->get_type())->get_contain_type();
     if ((ir_type->is_integer() || ir_type->is_float()) && lVal->exps().empty() && !get_address) {
         return Load::create(gen_variable_name(), address, cur_block);
     }
@@ -436,9 +507,9 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
         const auto &idx_value = type_cast(visit_exp(exp), Type::Integer::i32, cur_block);
         if (content_type->is_pointer()) {
             pointer = Load::create(gen_variable_name(), pointer, cur_block);
-            content_type = std::dynamic_pointer_cast<Type::Pointer>(content_type)->get_contain_type();
+            content_type = std::static_pointer_cast<Type::Pointer>(content_type)->get_contain_type();
         } else if (content_type->is_array()) {
-            content_type = std::dynamic_pointer_cast<Type::Array>(content_type)->get_element_type();
+            content_type = std::static_pointer_cast<Type::Array>(content_type)->get_element_type();
         } else {
             log_error("Invalid content type %s", content_type->to_string().c_str());
         }
@@ -499,28 +570,20 @@ std::shared_ptr<Value> Builder::visit_eqExp(const std::shared_ptr<AST::EqExp> &e
     auto lhs = visit_relExp(relExps[0]);
     for (size_t i = 1; i < relExps.size(); ++i) {
         if (auto rhs = visit_relExp(relExps[i]); lhs->get_type()->is_float() || rhs->get_type()->is_float()) {
+            const auto &casted_lhs = type_cast(lhs, Type::Float::f32, cur_block),
+                       &casted_rhs = type_cast(rhs, Type::Float::f32, cur_block);
             if (const auto op = eqExp->operators()[i - 1]; op == Token::Type::EQ) {
-                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::EQ,
-                                   type_cast(lhs, Type::Float::f32, cur_block),
-                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
+                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::EQ, casted_lhs, casted_rhs, cur_block);
             } else if (op == Token::Type::NE) {
-                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::NE,
-                                   type_cast(lhs, Type::Float::f32, cur_block),
-                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
-            } else {
-                log_error("Invalid relExp operator %s", Token::type_to_string(op).c_str());
+                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::NE, casted_lhs, casted_rhs, cur_block);
             }
         } else {
+            const auto &casted_lhs = type_cast(lhs, Type::Integer::i32, cur_block),
+                       &casted_rhs = type_cast(rhs, Type::Integer::i32, cur_block);
             if (const auto op = eqExp->operators()[i - 1]; op == Token::Type::EQ) {
-                lhs = Icmp::create(gen_variable_name(), Icmp::Op::EQ,
-                                   type_cast(lhs, Type::Integer::i32, cur_block),
-                                   type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+                lhs = Icmp::create(gen_variable_name(), Icmp::Op::EQ, casted_lhs, casted_rhs, cur_block);
             } else if (op == Token::Type::NE) {
-                lhs = Icmp::create(gen_variable_name(), Icmp::Op::NE,
-                                   type_cast(lhs, Type::Integer::i32, cur_block),
-                                   type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
-            } else {
-                log_error("Invalid relExp operator %s", Token::type_to_string(op).c_str());
+                lhs = Icmp::create(gen_variable_name(), Icmp::Op::NE, casted_lhs, casted_rhs, cur_block);
             }
         }
     }
@@ -536,40 +599,28 @@ std::shared_ptr<Value> Builder::visit_relExp(const std::shared_ptr<AST::RelExp> 
     for (size_t i = 1; i < addExps.size(); ++i) {
         if (auto rhs = visit_addExp(addExps[i]);
             lhs->get_type()->is_float() || rhs->get_type()->is_float()) {
+            const auto &casted_lhs = type_cast(lhs, Type::Float::f32, cur_block),
+                       &casted_rhs = type_cast(rhs, Type::Float::f32, cur_block);
             if (const auto op = relExp->operators()[i - 1]; op == Token::Type::LT) {
-                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::LT,
-                                   type_cast(lhs, Type::Float::f32, cur_block),
-                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
+                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::LT, casted_lhs, casted_rhs, cur_block);
             } else if (op == Token::Type::GT) {
-                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::GT,
-                                   type_cast(lhs, Type::Float::f32, cur_block),
-                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
+                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::GT, casted_lhs, casted_rhs, cur_block);
             } else if (op == Token::Type::LE) {
-                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::LE,
-                                   type_cast(lhs, Type::Float::f32, cur_block),
-                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
+                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::LE, casted_lhs, casted_rhs, cur_block);
             } else if (op == Token::Type::GE) {
-                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::GE,
-                                   type_cast(lhs, Type::Float::f32, cur_block),
-                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
+                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::GE, casted_lhs, casted_rhs, cur_block);
             }
         } else {
+            const auto &casted_lhs = type_cast(lhs, Type::Integer::i32, cur_block),
+                       &casted_rhs = type_cast(rhs, Type::Integer::i32, cur_block);
             if (const auto op = relExp->operators()[i - 1]; op == Token::Type::LT) {
-                lhs = Icmp::create(gen_variable_name(), Icmp::Op::LT,
-                                   type_cast(lhs, Type::Integer::i32, cur_block),
-                                   type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+                lhs = Icmp::create(gen_variable_name(), Icmp::Op::LT, casted_lhs, casted_rhs, cur_block);
             } else if (op == Token::Type::GT) {
-                lhs = Icmp::create(gen_variable_name(), Icmp::Op::GT,
-                                   type_cast(lhs, Type::Integer::i32, cur_block),
-                                   type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+                lhs = Icmp::create(gen_variable_name(), Icmp::Op::GT, casted_lhs, casted_rhs, cur_block);
             } else if (op == Token::Type::LE) {
-                lhs = Icmp::create(gen_variable_name(), Icmp::Op::LE,
-                                   type_cast(lhs, Type::Integer::i32, cur_block),
-                                   type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+                lhs = Icmp::create(gen_variable_name(), Icmp::Op::LE, casted_lhs, casted_rhs, cur_block);
             } else if (op == Token::Type::GE) {
-                lhs = Icmp::create(gen_variable_name(), Icmp::Op::GE,
-                                   type_cast(lhs, Type::Integer::i32, cur_block),
-                                   type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+                lhs = Icmp::create(gen_variable_name(), Icmp::Op::GE, casted_lhs, casted_rhs, cur_block);
             }
         }
     }
@@ -580,21 +631,21 @@ std::shared_ptr<Value> Builder::visit_relExp(const std::shared_ptr<AST::RelExp> 
 }
 
 void Builder::visit_stmt(const std::shared_ptr<AST::Stmt> &stmt) {
-    if (std::dynamic_pointer_cast<AST::BlockStmt>(stmt)) {
-        visit_blockStmt(std::dynamic_pointer_cast<AST::BlockStmt>(stmt));
-    } else if (std::dynamic_pointer_cast<AST::AssignStmt>(stmt)) {
-        visit_assignStmt(std::dynamic_pointer_cast<AST::AssignStmt>(stmt));
-    } else if (std::dynamic_pointer_cast<AST::ExpStmt>(stmt)) {
-        visit_expStmt(std::dynamic_pointer_cast<AST::ExpStmt>(stmt));
-    } else if (std::dynamic_pointer_cast<AST::ReturnStmt>(stmt)) {
-        visit_returnStmt(std::dynamic_pointer_cast<AST::ReturnStmt>(stmt));
-    } else if (std::dynamic_pointer_cast<AST::IfStmt>(stmt)) {
-        visit_ifStmt(std::dynamic_pointer_cast<AST::IfStmt>(stmt));
-    } else if (std::dynamic_pointer_cast<AST::WhileStmt>(stmt)) {
-        visit_whileStmt(std::dynamic_pointer_cast<AST::WhileStmt>(stmt));
-    } else if (std::dynamic_pointer_cast<AST::BreakStmt>(stmt)) {
+    if (const auto blockStmt = std::dynamic_pointer_cast<AST::BlockStmt>(stmt)) {
+        visit_blockStmt(blockStmt);
+    } else if (const auto assignStmt = std::dynamic_pointer_cast<AST::AssignStmt>(stmt)) {
+        visit_assignStmt(assignStmt);
+    } else if (const auto expStmt = std::dynamic_pointer_cast<AST::ExpStmt>(stmt)) {
+        visit_expStmt(expStmt);
+    } else if (const auto returnStmt = std::dynamic_pointer_cast<AST::ReturnStmt>(stmt)) {
+        visit_returnStmt(returnStmt);
+    } else if (const auto ifStmt = std::dynamic_pointer_cast<AST::IfStmt>(stmt)) {
+        visit_ifStmt(ifStmt);
+    } else if (const auto whileStmt = std::dynamic_pointer_cast<AST::WhileStmt>(stmt)) {
+        visit_whileStmt(whileStmt);
+    } else if (auto breakStmt = std::dynamic_pointer_cast<AST::BreakStmt>(stmt)) {
         visit_breakStmt();
-    } else if (std::dynamic_pointer_cast<AST::ContinueStmt>(stmt)) {
+    } else if (auto continueStmt = std::dynamic_pointer_cast<AST::ContinueStmt>(stmt)) {
         visit_continueStmt();
     } else {
         log_fatal("Invalid stmt type");
@@ -618,12 +669,13 @@ void Builder::visit_assignStmt(const std::shared_ptr<AST::AssignStmt> &assignStm
     if (!address->get_type()->is_pointer()) {
         log_error("Invalid address type %s", address->get_type()->to_string().c_str());
     }
-    const auto ir_type = std::dynamic_pointer_cast<Type::Pointer>(address->get_type())->get_contain_type();
+    const auto ir_type = std::static_pointer_cast<Type::Pointer>(address->get_type())->get_contain_type();
     if (!ir_type->is_int32() && !ir_type->is_float()) {
         log_error("Invalid element type %s", ir_type->to_string().c_str());
     }
     const auto exp_value = visit_exp(assignStmt->exp());
-    Store::create(address, type_cast(exp_value, ir_type, cur_block), cur_block);
+    const auto casted_exp_value = type_cast(exp_value, ir_type, cur_block);
+    Store::create(address, casted_exp_value, cur_block);
 }
 
 void Builder::visit_expStmt(const std::shared_ptr<AST::ExpStmt> &expStmt) const {
@@ -635,9 +687,12 @@ void Builder::visit_expStmt(const std::shared_ptr<AST::ExpStmt> &expStmt) const 
 
 void Builder::visit_returnStmt(const std::shared_ptr<AST::ReturnStmt> &returnStmt) const {
     if (const auto exp = returnStmt->exp()) {
+        if (cur_function->get_return_type()->is_void()) { log_error("Cannot return value in void function"); }
         const auto exp_value = visit_exp(exp);
-        Ret::create(type_cast(exp_value, cur_function->get_return_type(), cur_block), cur_block);
+        const auto casted_exp_value = type_cast(exp_value, cur_function->get_return_type(), cur_block);
+        Ret::create(casted_exp_value, cur_block);
     } else {
+        if (!cur_function->get_return_type()->is_void()) { log_error("Cannot return void value in non-void function"); }
         Ret::create(cur_block);
     }
 }
