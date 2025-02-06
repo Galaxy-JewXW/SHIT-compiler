@@ -120,6 +120,11 @@ public:
 
     void add_block(const std::shared_ptr<Block> &block) { blocks.emplace_back(block); }
 
+    [[nodiscard]] std::vector<std::shared_ptr<Block>> &get_blocks() { return blocks; }
+
+    // 清除流图后需要更新基本块和指令的id
+    void update_id();
+
     [[nodiscard]] std::string to_string() const override;
 };
 
@@ -149,6 +154,8 @@ public:
     void set_deleted(const bool flag = true) { deleted = flag; }
 
     [[nodiscard]] std::shared_ptr<Function> get_function() const { return parent.lock(); }
+
+    [[nodiscard]] std::vector<std::shared_ptr<Instruction>> &get_instructions() { return instructions; }
 
     void add_instruction(const std::shared_ptr<Instruction> &instruction) { instructions.emplace_back(instruction); }
 

@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <unordered_set>
+#include <functional>
 
 #include "Mir/Instruction.h"
 #include "Mir/Structure.h"
@@ -210,6 +211,64 @@ void Builder::visit_funcDef(const std::shared_ptr<AST::FuncDef> &funcDef) {
     visit_block(funcDef->block());
     table->pop_scope();
     if (ident == "main") { module->set_main_function(func); }
+    // 如果当前基本块没有终止指令，则插入默认返回语句
+    auto cur_block_not_terminated = [&] {
+        if (const auto &insts = cur_block->get_instructions(); insts.empty()) return true;
+        else return std::dynamic_pointer_cast<Terminator>(insts.back()) == nullptr;
+    };
+    if (cur_block_not_terminated()) {
+        if (const auto return_type = cur_function->get_return_type(); return_type->is_void()) {
+            Ret::create(cur_block);
+        } else if (return_type->is_int32()) {
+            Ret::create(std::make_shared<ConstInt>(0), cur_block);
+        } else if (return_type->is_float()) {
+            Ret::create(std::make_shared<ConstFloat>(0.0f), cur_block);
+        }
+    }
+    // 清除流图中无法到达的语句
+    std::for_each(cur_function->get_blocks().begin(), cur_function->get_blocks().end(),
+                  [&](const std::shared_ptr<Block> &block) {
+                      auto &instructions = block->get_instructions();
+                      auto find_terminator_index = [&] {
+                          size_t i = 0;
+                          for (; i < instructions.size() && std::dynamic_pointer_cast<Terminator>(instructions[i]) ==
+                                 nullptr; ++i) {}
+                          return i;
+                      };
+                      if (const auto l = find_terminator_index(); l < instructions.size() - 1) {
+                          instructions.erase(instructions.begin() + static_cast<long>(l) + 1, instructions.end());
+                      }
+                  });
+    // 清除流图中无法到达的基本块
+    std::unordered_set<std::shared_ptr<Block>> visited;
+    std::function<void(const std::shared_ptr<Block> &)> dfs = [&](const std::shared_ptr<Block> &block) -> void {
+        if (visited.find(block) != visited.end()) return;
+        visited.insert(block);
+        if (block->get_instructions().empty()) { log_error("Empty block"); }
+        const auto last_instruction = block->get_instructions().back();
+        if (const auto branch = std::dynamic_pointer_cast<Branch>(last_instruction)) {
+            dfs(branch->get_true_block());
+            dfs(branch->get_false_block());
+        }
+        if (const auto jump = std::dynamic_pointer_cast<Jump>(last_instruction)) {
+            dfs(jump->get_target_block());
+        }
+    };
+    dfs(entry_block);
+    auto &blocks = cur_function->get_blocks();
+    blocks.erase(std::remove_if(blocks.begin(), blocks.end(), [&visited](const std::shared_ptr<Block> &block) {
+        if (visited.find(block) != visited.end()) return false;
+        std::for_each(block->get_instructions().begin(), block->get_instructions().end(),
+                      [&](const std::shared_ptr<Instruction> &instruction) {
+                          instruction->clear_operands();
+                      });
+        block->clear_operands();
+        block->set_deleted();
+        return true;
+    }), blocks.end());
+    cur_function->update_id();
+    cur_block = nullptr;
+    cur_function = nullptr;
 }
 
 std::pair<std::string, std::shared_ptr<Type::Type>>
