@@ -87,9 +87,9 @@ void Builder::visit_constDef(const Token::Type type, const std::shared_ptr<AST::
         const auto alloc = Alloc::create(gen_variable_name(), ir_type, cur_block);
         address = alloc;
         if (init_value->is_constant_init())
-            std::dynamic_pointer_cast<Init::Constant>(init_value)->gen_store_inst(address, cur_block);
+            std::static_pointer_cast<Init::Constant>(init_value)->gen_store_inst(address, cur_block);
         else
-            std::dynamic_pointer_cast<Init::Array>(init_value)->gen_store_inst(address, cur_block, dimensions);
+            std::static_pointer_cast<Init::Array>(init_value)->gen_store_inst(address, cur_block, dimensions);
     }
     table->insert_symbol(constDef->ident(), ir_type, true, init_value, address);
 }
@@ -130,7 +130,8 @@ void Builder::visit_varDef(const Token::Type type, const std::shared_ptr<AST::Va
                 init_value = Init::Constant::create_constant_init_value(ir_type, exp->addExp(), table);
             } else {
                 const auto &value = visit_exp(exp);
-                init_value = Init::Exp::create_exp_init_value(ir_type, type_cast(value, ir_type, cur_block));
+                const auto &casted_value = type_cast(value, ir_type, cur_block);
+                init_value = Init::Exp::create_exp_init_value(ir_type, casted_value);
             }
         } else if (ir_type->is_array()) {
             if (initVal->is_exp()) { log_fatal("Array cannot be initialized as a scalar"); }
@@ -156,11 +157,11 @@ void Builder::visit_varDef(const Token::Type type, const std::shared_ptr<AST::Va
         const auto alloc = Alloc::create(gen_variable_name(), ir_type, cur_block);
         address = alloc;
         if (init_value->is_constant_init())
-            std::dynamic_pointer_cast<Init::Constant>(init_value)->gen_store_inst(address, cur_block);
+            std::static_pointer_cast<Init::Constant>(init_value)->gen_store_inst(address, cur_block);
         else if (init_value->is_array_init())
-            std::dynamic_pointer_cast<Init::Array>(init_value)->gen_store_inst(address, cur_block, dimensions);
+            std::static_pointer_cast<Init::Array>(init_value)->gen_store_inst(address, cur_block, dimensions);
         else
-            std::dynamic_pointer_cast<Init::Exp>(init_value)->gen_store_inst(address, cur_block);
+            std::static_pointer_cast<Init::Exp>(init_value)->gen_store_inst(address, cur_block);
     }
     table->insert_symbol(varDef->ident(), ir_type, false, init_value, address);
 }
@@ -261,21 +262,22 @@ std::shared_ptr<Value> Builder::visit_addExp(const std::shared_ptr<AST::AddExp> 
     auto lhs = visit_mulExp(mul_exps[0]);
     for (size_t i = 1; i < mul_exps.size(); ++i) {
         const auto &rhs = visit_mulExp(mul_exps[i]);
-        if (const auto op = addExp->operators()[i - 1]; op == Token::Type::ADD) {
-            if (lhs->get_type()->is_float() || rhs->get_type()->is_float()) {
-                lhs = FAdd::create(gen_variable_name(), type_cast(lhs, Type::Float::f32, cur_block),
-                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
-            } else {
-                lhs = Add::create(gen_variable_name(), type_cast(lhs, Type::Integer::i32, cur_block),
-                                  type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+        const auto op = addExp->operators()[i - 1];
+        if (lhs->get_type()->is_float() || rhs->get_type()->is_float()) {
+            const auto &casted_lhs = type_cast(lhs, Type::Float::f32, cur_block),
+                       &casted_rhs = type_cast(rhs, Type::Float::f32, cur_block);
+            if (op == Token::Type::ADD) {
+                lhs = FAdd::create(gen_variable_name(), casted_lhs, casted_rhs, cur_block);
+            } else if (op == Token::Type::SUB) {
+                lhs = FSub::create(gen_variable_name(), casted_lhs, casted_rhs, cur_block);
             }
-        } else if (op == Token::Type::SUB) {
-            if (lhs->get_type()->is_float() || rhs->get_type()->is_float()) {
-                lhs = FSub::create(gen_variable_name(), type_cast(lhs, Type::Float::f32, cur_block),
-                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
-            } else {
-                lhs = Sub::create(gen_variable_name(), type_cast(lhs, Type::Integer::i32, cur_block),
-                                  type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+        } else {
+            const auto &casted_lhs = type_cast(lhs, Type::Integer::i32, cur_block),
+                       &casted_rhs = type_cast(rhs, Type::Integer::i32, cur_block);
+            if (op == Token::Type::ADD) {
+                lhs = Add::create(gen_variable_name(), casted_lhs, casted_rhs, cur_block);
+            } else if (op == Token::Type::SUB) {
+                lhs = Sub::create(gen_variable_name(), casted_lhs, casted_rhs, cur_block);
             }
         }
     }
@@ -287,29 +289,26 @@ std::shared_ptr<Value> Builder::visit_mulExp(const std::shared_ptr<AST::MulExp> 
     auto lhs = visit_unaryExp(unary_exps[0]);
     for (size_t i = 1; i < unary_exps.size(); ++i) {
         const auto &rhs = visit_unaryExp(unary_exps[i]);
-        if (const auto op = mulExp->operators()[i - 1]; op == Token::Type::MUL) {
-            if (lhs->get_type()->is_float() || rhs->get_type()->is_float()) {
-                lhs = FMul::create(gen_variable_name(), type_cast(lhs, Type::Float::f32, cur_block),
-                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
-            } else {
-                lhs = Mul::create(gen_variable_name(), type_cast(lhs, Type::Integer::i32, cur_block),
-                                  type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+        const auto op = mulExp->operators()[i - 1];
+        if (lhs->get_type()->is_float() || rhs->get_type()->is_float()) {
+            const auto &casted_lhs = type_cast(lhs, Type::Float::f32, cur_block),
+                       &casted_rhs = type_cast(rhs, Type::Float::f32, cur_block);
+            if (op == Token::Type::MUL) {
+                lhs = FMul::create(gen_variable_name(), casted_lhs, casted_rhs, cur_block);
+            } else if (op == Token::Type::DIV) {
+                lhs = FDiv::create(gen_variable_name(), casted_lhs, casted_rhs, cur_block);
+            } else if (op == Token::Type::MOD) {
+                lhs = FMod::create(gen_variable_name(), casted_lhs, casted_rhs, cur_block);
             }
-        } else if (op == Token::Type::DIV) {
-            if (lhs->get_type()->is_float() || rhs->get_type()->is_float()) {
-                lhs = FDiv::create(gen_variable_name(), type_cast(lhs, Type::Float::f32, cur_block),
-                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
-            } else {
-                lhs = Div::create(gen_variable_name(), type_cast(lhs, Type::Integer::i32, cur_block),
-                                  type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
-            }
-        } else if (op == Token::Type::MOD) {
-            if (lhs->get_type()->is_float() || rhs->get_type()->is_float()) {
-                lhs = FMod::create(gen_variable_name(), type_cast(lhs, Type::Float::f32, cur_block),
-                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
-            } else {
-                lhs = Mod::create(gen_variable_name(), type_cast(lhs, Type::Integer::i32, cur_block),
-                                  type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+        } else {
+            const auto &casted_lhs = type_cast(lhs, Type::Integer::i32, cur_block),
+                       &casted_rhs = type_cast(rhs, Type::Integer::i32, cur_block);
+            if (op == Token::Type::MUL) {
+                lhs = Mul::create(gen_variable_name(), casted_lhs, casted_rhs, cur_block);
+            } else if (op == Token::Type::DIV) {
+                lhs = Div::create(gen_variable_name(), casted_lhs, casted_rhs, cur_block);
+            } else if (op == Token::Type::MOD) {
+                lhs = Mod::create(gen_variable_name(), casted_lhs, casted_rhs, cur_block);
             }
         }
     }
@@ -379,21 +378,25 @@ std::shared_ptr<Value> Builder::visit_unaryExp(const std::shared_ptr<AST::UnaryE
         }
         if (type == Token::Type::SUB) {
             if (sub_exp_value->get_type()->is_float()) {
+                const auto &casted_sub_exp_value = type_cast(sub_exp_value, Type::Float::f32, cur_block);
                 return FSub::create(gen_variable_name(), std::make_shared<ConstFloat>(0.0f),
-                                    type_cast(sub_exp_value, Type::Float::f32, cur_block), cur_block);
+                                    casted_sub_exp_value, cur_block);
             }
+            const auto &casted_sub_exp_value = type_cast(sub_exp_value, Type::Integer::i32, cur_block);
             return Sub::create(gen_variable_name(), std::make_shared<ConstInt>(0),
-                               type_cast(sub_exp_value, Type::Integer::i32, cur_block), cur_block);
+                               casted_sub_exp_value, cur_block);
         }
         if (type == Token::Type::NOT) {
             if (sub_exp_value->get_type()->is_float()) {
+                const auto &casted_sub_exp_value = type_cast(sub_exp_value, Type::Float::f32, cur_block);
                 const auto &cmp = Fcmp::create(gen_variable_name(), Fcmp::Op::EQ,
-                                               type_cast(sub_exp_value, Type::Float::f32, cur_block),
+                                               casted_sub_exp_value,
                                                std::make_shared<ConstFloat>(0.0f), cur_block);
                 return type_cast(cmp, Type::Integer::i32, cur_block);
             }
+            const auto &casted_sub_exp_value = type_cast(sub_exp_value, Type::Integer::i32, cur_block);
             const auto &cmp = Icmp::create(gen_variable_name(), Icmp::Op::EQ,
-                                           type_cast(sub_exp_value, Type::Integer::i32, cur_block),
+                                           casted_sub_exp_value,
                                            std::make_shared<ConstInt>(0), cur_block);
             return type_cast(cmp, Type::Integer::i32, cur_block);
         }
@@ -434,7 +437,7 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
     if (!address->get_type()->is_pointer()) {
         log_fatal("Invalid address type %s of %s", address->get_type()->to_string().c_str(), ident.c_str());
     }
-    const auto &ir_type = std::dynamic_pointer_cast<Type::Pointer>(address->get_type())->get_contain_type();
+    const auto &ir_type = std::static_pointer_cast<Type::Pointer>(address->get_type())->get_contain_type();
     if ((ir_type->is_integer() || ir_type->is_float()) && lVal->exps().empty() && !get_address) {
         return Load::create(gen_variable_name(), address, cur_block);
     }
@@ -445,9 +448,9 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
         const auto &idx_value = type_cast(visit_exp(exp), Type::Integer::i32, cur_block);
         if (content_type->is_pointer()) {
             pointer = Load::create(gen_variable_name(), pointer, cur_block);
-            content_type = std::dynamic_pointer_cast<Type::Pointer>(content_type)->get_contain_type();
+            content_type = std::static_pointer_cast<Type::Pointer>(content_type)->get_contain_type();
         } else if (content_type->is_array()) {
-            content_type = std::dynamic_pointer_cast<Type::Array>(content_type)->get_element_type();
+            content_type = std::static_pointer_cast<Type::Array>(content_type)->get_element_type();
         } else {
             log_error("Invalid content type %s", content_type->to_string().c_str());
         }
@@ -508,28 +511,20 @@ std::shared_ptr<Value> Builder::visit_eqExp(const std::shared_ptr<AST::EqExp> &e
     auto lhs = visit_relExp(relExps[0]);
     for (size_t i = 1; i < relExps.size(); ++i) {
         if (auto rhs = visit_relExp(relExps[i]); lhs->get_type()->is_float() || rhs->get_type()->is_float()) {
+            const auto &casted_lhs = type_cast(lhs, Type::Float::f32, cur_block),
+                       &casted_rhs = type_cast(rhs, Type::Float::f32, cur_block);
             if (const auto op = eqExp->operators()[i - 1]; op == Token::Type::EQ) {
-                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::EQ,
-                                   type_cast(lhs, Type::Float::f32, cur_block),
-                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
+                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::EQ, casted_lhs, casted_rhs, cur_block);
             } else if (op == Token::Type::NE) {
-                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::NE,
-                                   type_cast(lhs, Type::Float::f32, cur_block),
-                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
-            } else {
-                log_error("Invalid relExp operator %s", Token::type_to_string(op).c_str());
+                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::NE, casted_lhs, casted_rhs, cur_block);
             }
         } else {
+            const auto &casted_lhs = type_cast(lhs, Type::Integer::i32, cur_block),
+                       &casted_rhs = type_cast(rhs, Type::Integer::i32, cur_block);
             if (const auto op = eqExp->operators()[i - 1]; op == Token::Type::EQ) {
-                lhs = Icmp::create(gen_variable_name(), Icmp::Op::EQ,
-                                   type_cast(lhs, Type::Integer::i32, cur_block),
-                                   type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+                lhs = Icmp::create(gen_variable_name(), Icmp::Op::EQ, casted_lhs, casted_rhs, cur_block);
             } else if (op == Token::Type::NE) {
-                lhs = Icmp::create(gen_variable_name(), Icmp::Op::NE,
-                                   type_cast(lhs, Type::Integer::i32, cur_block),
-                                   type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
-            } else {
-                log_error("Invalid relExp operator %s", Token::type_to_string(op).c_str());
+                lhs = Icmp::create(gen_variable_name(), Icmp::Op::NE, casted_lhs, casted_rhs, cur_block);
             }
         }
     }
@@ -545,40 +540,28 @@ std::shared_ptr<Value> Builder::visit_relExp(const std::shared_ptr<AST::RelExp> 
     for (size_t i = 1; i < addExps.size(); ++i) {
         if (auto rhs = visit_addExp(addExps[i]);
             lhs->get_type()->is_float() || rhs->get_type()->is_float()) {
+            const auto &casted_lhs = type_cast(lhs, Type::Float::f32, cur_block),
+                       &casted_rhs = type_cast(rhs, Type::Float::f32, cur_block);
             if (const auto op = relExp->operators()[i - 1]; op == Token::Type::LT) {
-                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::LT,
-                                   type_cast(lhs, Type::Float::f32, cur_block),
-                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
+                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::LT, casted_lhs, casted_rhs, cur_block);
             } else if (op == Token::Type::GT) {
-                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::GT,
-                                   type_cast(lhs, Type::Float::f32, cur_block),
-                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
+                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::GT, casted_lhs, casted_rhs, cur_block);
             } else if (op == Token::Type::LE) {
-                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::LE,
-                                   type_cast(lhs, Type::Float::f32, cur_block),
-                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
+                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::LE, casted_lhs, casted_rhs, cur_block);
             } else if (op == Token::Type::GE) {
-                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::GE,
-                                   type_cast(lhs, Type::Float::f32, cur_block),
-                                   type_cast(rhs, Type::Float::f32, cur_block), cur_block);
+                lhs = Fcmp::create(gen_variable_name(), Fcmp::Op::GE, casted_lhs, casted_rhs, cur_block);
             }
         } else {
+            const auto &casted_lhs = type_cast(lhs, Type::Integer::i32, cur_block),
+                       &casted_rhs = type_cast(rhs, Type::Integer::i32, cur_block);
             if (const auto op = relExp->operators()[i - 1]; op == Token::Type::LT) {
-                lhs = Icmp::create(gen_variable_name(), Icmp::Op::LT,
-                                   type_cast(lhs, Type::Integer::i32, cur_block),
-                                   type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+                lhs = Icmp::create(gen_variable_name(), Icmp::Op::LT, casted_lhs, casted_rhs, cur_block);
             } else if (op == Token::Type::GT) {
-                lhs = Icmp::create(gen_variable_name(), Icmp::Op::GT,
-                                   type_cast(lhs, Type::Integer::i32, cur_block),
-                                   type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+                lhs = Icmp::create(gen_variable_name(), Icmp::Op::GT, casted_lhs, casted_rhs, cur_block);
             } else if (op == Token::Type::LE) {
-                lhs = Icmp::create(gen_variable_name(), Icmp::Op::LE,
-                                   type_cast(lhs, Type::Integer::i32, cur_block),
-                                   type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+                lhs = Icmp::create(gen_variable_name(), Icmp::Op::LE, casted_lhs, casted_rhs, cur_block);
             } else if (op == Token::Type::GE) {
-                lhs = Icmp::create(gen_variable_name(), Icmp::Op::GE,
-                                   type_cast(lhs, Type::Integer::i32, cur_block),
-                                   type_cast(rhs, Type::Integer::i32, cur_block), cur_block);
+                lhs = Icmp::create(gen_variable_name(), Icmp::Op::GE, casted_lhs, casted_rhs, cur_block);
             }
         }
     }
@@ -627,12 +610,13 @@ void Builder::visit_assignStmt(const std::shared_ptr<AST::AssignStmt> &assignStm
     if (!address->get_type()->is_pointer()) {
         log_error("Invalid address type %s", address->get_type()->to_string().c_str());
     }
-    const auto ir_type = std::dynamic_pointer_cast<Type::Pointer>(address->get_type())->get_contain_type();
+    const auto ir_type = std::static_pointer_cast<Type::Pointer>(address->get_type())->get_contain_type();
     if (!ir_type->is_int32() && !ir_type->is_float()) {
         log_error("Invalid element type %s", ir_type->to_string().c_str());
     }
     const auto exp_value = visit_exp(assignStmt->exp());
-    Store::create(address, type_cast(exp_value, ir_type, cur_block), cur_block);
+    const auto casted_exp_value = type_cast(exp_value, ir_type, cur_block);
+    Store::create(address, casted_exp_value, cur_block);
 }
 
 void Builder::visit_expStmt(const std::shared_ptr<AST::ExpStmt> &expStmt) const {
@@ -644,9 +628,12 @@ void Builder::visit_expStmt(const std::shared_ptr<AST::ExpStmt> &expStmt) const 
 
 void Builder::visit_returnStmt(const std::shared_ptr<AST::ReturnStmt> &returnStmt) const {
     if (const auto exp = returnStmt->exp()) {
+        if (cur_function->get_return_type()->is_void()) { log_error("Cannot return value in void function"); }
         const auto exp_value = visit_exp(exp);
-        Ret::create(type_cast(exp_value, cur_function->get_return_type(), cur_block), cur_block);
+        const auto casted_exp_value = type_cast(exp_value, cur_function->get_return_type(), cur_block);
+        Ret::create(casted_exp_value, cur_block);
     } else {
+        if (!cur_function->get_return_type()->is_void()) { log_error("Cannot return void value in non-void function"); }
         Ret::create(cur_block);
     }
 }

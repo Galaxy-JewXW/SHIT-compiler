@@ -122,7 +122,7 @@ namespace AST {
         const auto &constInitVals
                 = std::get<std::vector<std::shared_ptr<ConstInitVal>>>(value_);
         oss << "{\n";
-        for (auto i = 0u; i < constInitVals.size(); ++i) {
+        for (size_t i = 0u; i < constInitVals.size(); ++i) {
             oss << constInitVals[i]->to_string();
             if (i != constInitVals.size() - 1) {
                 oss << "\n,";
@@ -171,7 +171,7 @@ namespace AST {
         const auto &initVals
                 = std::get<std::vector<std::shared_ptr<InitVal>>>(value_);
         oss << "{\n";
-        for (auto i = 0u; i < initVals.size(); ++i) {
+        for (size_t i = 0u; i < initVals.size(); ++i) {
             oss << initVals[i]->to_string();
             if (i != initVals.size() - 1) {
                 oss << "\n,";
@@ -192,7 +192,7 @@ namespace AST {
     oss << "<Ident " << ident_ << ">\n";
     if (!funcParams_.empty()) {
         oss << "(\n";
-        for (auto i = 0u; i < funcParams_.size(); ++i) {
+        for (size_t i = 0u; i < funcParams_.size(); ++i) {
             oss << funcParams_[i]->to_string() << "\n";
             if (i != funcParams_.size() - 1) {
                 oss << ",\n";
@@ -357,7 +357,7 @@ namespace AST {
         oss << "<Ident " << ident.content << ">\n";
         if (!params.empty()) {
             oss << "(\n";
-            for (auto i = 0u; i < params.size(); ++i) {
+            for (size_t i = 0u; i < params.size(); ++i) {
                 oss << params[i]->to_string() << "\n";
                 if (i != params.size() - 1) {
                     oss << ",\n";
@@ -378,7 +378,7 @@ namespace AST {
 
 [[nodiscard]] std::string MulExp::to_string() const {
     std::ostringstream oss;
-    for (auto i = 0u; i < unaryExps_.size(); ++i) {
+    for (size_t i = 0u; i < unaryExps_.size(); ++i) {
         if (i > 0) {
             oss << "<" << type_to_string(operators_[i - 1]) << ">\n";
         }
@@ -390,7 +390,7 @@ namespace AST {
 
 [[nodiscard]] std::string AddExp::to_string() const {
     std::ostringstream oss;
-    for (auto i = 0u; i < mulExps_.size(); ++i) {
+    for (size_t i = 0u; i < mulExps_.size(); ++i) {
         if (i > 0) {
             oss << "<" << type_to_string(operators_[i - 1]) << ">\n";
         }
@@ -402,7 +402,7 @@ namespace AST {
 
 [[nodiscard]] std::string RelExp::to_string() const {
     std::ostringstream oss;
-    for (auto i = 0u; i < addExps_.size(); ++i) {
+    for (size_t i = 0u; i < addExps_.size(); ++i) {
         if (i > 0) {
             oss << "<" << type_to_string(operators_[i - 1]) << ">\n";
         }
@@ -414,7 +414,7 @@ namespace AST {
 
 [[nodiscard]] std::string EqExp::to_string() const {
     std::ostringstream oss;
-    for (auto i = 0u; i < relExps_.size(); ++i) {
+    for (size_t i = 0u; i < relExps_.size(); ++i) {
         if (i > 0) {
             oss << "<" << type_to_string(operators_[i - 1]) << ">\n";
         }
@@ -426,7 +426,7 @@ namespace AST {
 
 [[nodiscard]] std::string LAndExp::to_string() const {
     std::ostringstream oss;
-    for (auto i = 0u; i < eqExps_.size(); ++i) {
+    for (size_t i = 0u; i < eqExps_.size(); ++i) {
         if (i > 0) {
             oss << "<&&>\n";
         }
@@ -438,7 +438,7 @@ namespace AST {
 
 [[nodiscard]] std::string LOrExp::to_string() const {
     std::ostringstream oss;
-    for (auto i = 0u; i < lAndExps_.size(); ++i) {
+    for (size_t i = 0u; i < lAndExps_.size(); ++i) {
         if (i > 0) {
             oss << "<||>\n";
         }
@@ -455,7 +455,7 @@ namespace AST {
 }
 }
 
-std::string str_to_llvm_ir(const std::string& str) {
+std::string str_to_llvm_ir(const std::string &str) {
     auto s = str;
     const auto l = s.size() + 1;
     size_t pos = 0;
@@ -543,7 +543,7 @@ namespace Mir {
 [[nodiscard]] std::string Alloc::to_string() const {
     std::ostringstream oss;
     oss << name_ << " = ";
-    const auto &type = std::dynamic_pointer_cast<Type::Pointer>(type_);
+    const auto &type = std::static_pointer_cast<Type::Pointer>(type_);
     oss << "alloca " << type->get_contain_type()->to_string();
     return oss.str();
 }
@@ -568,7 +568,7 @@ namespace Mir {
 
 [[nodiscard]] std::string GetElementPtr::to_string() const {
     const auto addr = get_addr();
-    const auto ptr_type = std::dynamic_pointer_cast<Type::Pointer>(addr->get_type());
+    const auto ptr_type = std::static_pointer_cast<Type::Pointer>(addr->get_type());
     const auto target_type = ptr_type->get_contain_type();
     std::ostringstream oss;
     oss << name_ << " = getelementptr inbounds " << target_type->to_string()

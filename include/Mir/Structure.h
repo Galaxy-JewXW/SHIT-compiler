@@ -141,7 +141,7 @@ public:
 
     void set_function(const std::shared_ptr<Function> &function) {
         parent = function;
-        function->add_block(std::dynamic_pointer_cast<Block>(shared_from_this()));
+        function->add_block(std::static_pointer_cast<Block>(shared_from_this()));
     }
 
     [[nodiscard]] bool is_deleted() const { return deleted; }

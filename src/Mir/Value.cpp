@@ -3,14 +3,21 @@
 #include <vector>
 
 #include "Mir/Value.h"
+#include "Utils/Log.h"
 
 namespace Mir {
 void Value::add_user(const std::shared_ptr<User> &user) {
     cleanup_users();
-    users_.push_back(user);
+    if (std::none_of(users_.begin(), users_.end(),
+                     [&user](const std::weak_ptr<User> &wp) {
+                         return wp.lock() == user;
+                     })) {
+        users_.emplace_back(user);
+    }
 }
 
 void Value::delete_user(const std::shared_ptr<User> &user) {
+    if (!user) return;
     cleanup_users();
     users_.erase(
         std::remove_if(users_.begin(), users_.end(),
@@ -31,6 +38,7 @@ void Value::cleanup_users() {
 }
 
 void Value::replace_by_new_value(const std::shared_ptr<Value> &new_value) {
+    if (*type_ != *new_value->get_type()) { log_error("type mismatch"); }
     for (auto &user: users_) {
         if (const auto sp = user.lock()) {
             sp->modify_operand(shared_from_this(), new_value);
@@ -55,6 +63,7 @@ void User::clear_operands() {
 
 void User::modify_operand(const std::shared_ptr<Value> &old_value,
                           const std::shared_ptr<Value> &new_value) {
+    if (*old_value->get_type() != *new_value->get_type()) { log_error("type mismatch"); }
     for (auto &operand: operands_) {
         if (operand == old_value) {
             operand->delete_user(std::static_pointer_cast<User>(shared_from_this()));

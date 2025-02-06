@@ -44,23 +44,25 @@ void Constant::gen_store_inst(const std::shared_ptr<Value> &addr, const std::sha
     if (!addr->get_type()->is_pointer()) { log_error("Illegal type: %s", addr->get_type()->to_string().c_str()); }
     const auto &self = std::static_pointer_cast<Constant>(shared_from_this());
     const auto &value = self->get_const_value();
-    const auto &content_type = std::dynamic_pointer_cast<Type::Pointer>(addr->get_type())->get_contain_type();
-    Store::create(addr, type_cast(value, content_type, block), block);
+    const auto &content_type = std::static_pointer_cast<Type::Pointer>(addr->get_type())->get_contain_type();
+    const auto &casted_value = type_cast(value, content_type, block);
+    Store::create(addr, casted_value, block);
 }
 
 void Exp::gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared_ptr<Block> &block) {
     if (!addr->get_type()->is_pointer()) { log_error("Illegal type: %s", addr->get_type()->to_string().c_str()); }
     const auto &self = std::static_pointer_cast<Exp>(shared_from_this());
     const auto &value = self->get_exp_value();
-    const auto &content_type = std::dynamic_pointer_cast<Type::Pointer>(addr->get_type())->get_contain_type();
-    Store::create(addr, type_cast(value, content_type, block), block);
+    const auto &content_type = std::static_pointer_cast<Type::Pointer>(addr->get_type())->get_contain_type();
+    const auto &casted_value = type_cast(value, content_type, block);
+    Store::create(addr, casted_value, block);
 }
 
 std::shared_ptr<Array> Array::create_zero_array_init_value(const std::shared_ptr<Type::Type> &type) {
     if (!type->is_array()) {
         log_error("%s is not an array type", type->to_string().c_str());
     }
-    const auto array_type = std::dynamic_pointer_cast<Type::Array>(type);
+    const auto array_type = std::static_pointer_cast<Type::Array>(type);
     const size_t total_elements = array_type->get_flattened_size();
     const auto atomic_type = array_type->get_atomic_type();
     std::vector<std::shared_ptr<Init>> flattened;
@@ -83,7 +85,7 @@ void Array::gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared
         strides[i] = stride;
         stride *= dimensions[i];
     }
-    for (auto i = 0u; i < flattened_init_values.size(); ++i) {
+    for (size_t i = 0u; i < flattened_init_values.size(); ++i) {
         auto remaining = i;
         std::vector<int> indexes;
         for (auto j = 0u; j < dimensions.size(); ++j) {
@@ -96,9 +98,9 @@ void Array::gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared
                                             std::make_shared<ConstInt>(idx), block);
         }
         if (const auto &init_value = flattened_init_values[i]; init_value->is_exp_init()) {
-            std::dynamic_pointer_cast<Exp>(init_value)->gen_store_inst(address, block);
+            std::static_pointer_cast<Exp>(init_value)->gen_store_inst(address, block);
         } else if (init_value->is_constant_init()) {
-            std::dynamic_pointer_cast<Constant>(init_value)->gen_store_inst(address, block);
+            std::static_pointer_cast<Constant>(init_value)->gen_store_inst(address, block);
         } else {
             log_error("Unexpected element of Array initial values");
         }

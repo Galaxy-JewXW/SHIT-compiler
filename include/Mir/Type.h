@@ -20,9 +20,9 @@ public:
 
     [[nodiscard]] virtual std::string to_string() const = 0;
 
-    virtual bool operator==(const Type &other) const { return this->to_string() == other.to_string(); }
+    bool operator==(const Type &other) const { return this->to_string() == other.to_string(); }
 
-    virtual bool operator!=(const Type &other) const { return this->to_string() != other.to_string(); }
+    bool operator!=(const Type &other) const { return this->to_string() != other.to_string(); }
 };
 
 class Integer final : public Type {

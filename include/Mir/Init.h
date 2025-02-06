@@ -157,7 +157,11 @@ public:
         : Init{type}, flattened_init_values{flattened_init_values} {}
 
     [[nodiscard]] bool is_array_init() const override { return true; }
-    [[nodiscard]] std::vector<std::shared_ptr<Init>> get_flattened_init_values() const { return flattened_init_values; }
+
+    [[nodiscard]] const std::vector<std::shared_ptr<Init>> &get_flattened_init_values() const {
+        return flattened_init_values;
+    }
+
     [[nodiscard]] size_t get_size() const { return flattened_init_values.size(); }
     [[nodiscard]] std::shared_ptr<Init> get_init_value(const int idx) const { return init_values[idx]; }
     void add_init_value(const std::shared_ptr<Init> &init_value) { init_values.emplace_back(init_value); }
@@ -197,11 +201,11 @@ std::vector<std::shared_ptr<Init>> flatten_array(const std::shared_ptr<Type::Typ
     if (!Trait::is_array_vals(initVal)) {
         log_error("Not an array");
     }
-    const auto &array_type = std::dynamic_pointer_cast<Type::Array>(type);
+    const auto &array_type = std::static_pointer_cast<Type::Array>(type);
     const auto cur_dim_size = array_type->get_size();
     const auto &element_type = array_type->get_element_type();
     const auto element_cnt = element_type->is_array()
-                                 ? std::dynamic_pointer_cast<Type::Array>(element_type)->get_flattened_size()
+                                 ? std::static_pointer_cast<Type::Array>(element_type)->get_flattened_size()
                                  : 1;
     const auto &atomic_type = array_type->get_atomic_type();
 
@@ -241,7 +245,7 @@ inline std::shared_ptr<Array> fold_array(const std::shared_ptr<Type::Type> &type
         log_error("%s is not an array type", type->to_string().c_str());
     }
     const auto array = std::make_shared<Array>(type, flattened_init_values);
-    const auto &array_type = std::dynamic_pointer_cast<Type::Array>(type);
+    const auto &array_type = std::static_pointer_cast<Type::Array>(type);
     const auto cur_dim_size = array_type->get_size();
 
     // 计算每个子分块大小
