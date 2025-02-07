@@ -471,15 +471,15 @@ namespace Mir {
     for (size_t i = 0; i < const_strings.size(); ++i) {
         oss << "@.str_" << i + 1 << " = private unnamed_addr constant [" << str_to_llvm_ir(const_strings[i]) << "\n";
     }
-    oss << "\n";
+    if (!const_strings.empty()) { oss << "\n"; }
     join_and_append(oss, used_runtime_functions, "\n");
-    oss << "\n";
+    if (!used_runtime_functions.empty()) { oss << "\n"; }
     // 拼接全局变量
     join_and_append(oss, global_variables, "\n");
-    oss << "\n";
+    if (!global_variables.empty()) { oss << "\n"; }
     // 拼接函数
     join_and_append(oss, functions, "\n");
-    oss << "\n";
+    if (!functions.empty()) { oss << "\n"; }
     return oss.str();
 }
 

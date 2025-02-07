@@ -170,7 +170,11 @@ void Builder::visit_varDef(const Token::Type type, const std::shared_ptr<AST::Va
 void Builder::visit_funcDef(const std::shared_ptr<AST::FuncDef> &funcDef) {
     const auto &ir_type = Type::get_type(funcDef->funcType());
     const auto &ident = funcDef->ident();
+    // 检查标识符是否重定义，是否与库函数重名
     if (table->lookup_in_current_scope(ident)) { log_error("Redefinition of %s", ident.c_str()); }
+    if (const auto it = Function::runtime_functions.find(ident); it != Function::runtime_functions.end()) {
+        log_error("Redefinition of %s", ident.c_str());
+    }
     // 创建局部符号表
     table->push_scope();
     // 如果存在形参，获取函数形参的种类
@@ -236,7 +240,7 @@ void Builder::visit_funcDef(const std::shared_ptr<AST::FuncDef> &funcDef) {
                           return i;
                       };
                       if (const auto l = find_terminator_index(); l < instructions.size() - 1) {
-                          instructions.erase(instructions.begin() + static_cast<long>(l) + 1, instructions.end());
+                          instructions.erase(instructions.begin() + static_cast<long>(l + 1), instructions.end());
                       }
                   });
     // 清除流图中无法到达的基本块
@@ -545,7 +549,7 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
         }
     }
     if (get_address) { return pointer; }
-    if (content_type->is_int32() || content_type->is_float()) {
+    if (content_type->is_int32() || content_type->is_float() || content_type->is_pointer()) {
         return Load::create(gen_variable_name(), pointer, cur_block);
     }
     if (content_type->is_array()) {

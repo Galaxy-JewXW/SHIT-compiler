@@ -200,6 +200,20 @@ public:
 
     static std::shared_ptr<Value> create(const std::string &name, const Op op, const std::shared_ptr<Value> &lhs,
                                          const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block) {
+        if (!lhs->get_type()->is_float() || !rhs->get_type()->is_float()) { log_error("Operands must be a float"); }
+        if (lhs->is_constant() && rhs->is_constant()) {
+            const auto left = std::dynamic_pointer_cast<ConstFloat>(lhs),
+                       right = std::dynamic_pointer_cast<ConstFloat>(rhs);
+            switch (op) {
+                case Op::EQ: return std::make_shared<ConstBool>(*left == *right);
+                case Op::NE: return std::make_shared<ConstBool>(*left != *right);
+                case Op::GT: return std::make_shared<ConstBool>(*left > *right);
+                case Op::LT: return std::make_shared<ConstBool>(*left < *right);
+                case Op::GE: return std::make_shared<ConstBool>(*left >= *right);
+                case Op::LE: return std::make_shared<ConstBool>(*left <= *right);
+                default: break;
+            }
+        }
         const auto instruction = std::make_shared<Fcmp>(name, op, lhs, rhs);
         instruction->set_block(block);
         instruction->add_operand(lhs);
@@ -228,6 +242,22 @@ public:
 
     static std::shared_ptr<Value> create(const std::string &name, const Op op, const std::shared_ptr<Value> &lhs,
                                          const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block) {
+        if (!lhs->get_type()->is_int32() || !rhs->get_type()->is_int32()) {
+            log_error("Operands must be an integer 32");
+        }
+        if (lhs->is_constant() && rhs->is_constant()) {
+            const auto left = std::dynamic_pointer_cast<ConstInt>(lhs),
+                       right = std::dynamic_pointer_cast<ConstInt>(rhs);
+            switch (op) {
+                case Op::EQ: return std::make_shared<ConstBool>(*left == *right);
+                case Op::NE: return std::make_shared<ConstBool>(*left != *right);
+                case Op::GT: return std::make_shared<ConstBool>(*left > *right);
+                case Op::LT: return std::make_shared<ConstBool>(*left < *right);
+                case Op::GE: return std::make_shared<ConstBool>(*left >= *right);
+                case Op::LE: return std::make_shared<ConstBool>(*left <= *right);
+                default: break;
+            }
+        }
         const auto instruction = std::make_shared<Icmp>(name, op, lhs, rhs);
         instruction->set_block(block);
         instruction->add_operand(lhs);
@@ -268,6 +298,26 @@ protected:
     ~Terminator() override = default;
 };
 
+class Jump final : public Terminator {
+public:
+    explicit Jump(const std::shared_ptr<Block> &block) : Terminator(Type::Label::label, Operator::JUMP) {}
+
+    static std::shared_ptr<Jump> create(const std::shared_ptr<Block> &target_block,
+                                        const std::shared_ptr<Block> &block) {
+        const auto instruction = std::make_shared<Jump>(target_block);
+        instruction->set_block(block);
+        instruction->add_operand(target_block);
+        return instruction;
+    }
+
+    [[nodiscard]] std::shared_ptr<Block> get_target_block() const {
+        return std::static_pointer_cast<Block>(operands_[0]);
+    }
+
+    [[nodiscard]] std::string to_string() const override;
+};
+
+
 class Branch final : public Terminator {
 public:
     Branch(const std::shared_ptr<Value> &cond, const std::shared_ptr<Block> &true_block,
@@ -279,6 +329,14 @@ public:
     static std::shared_ptr<Value> create(const std::shared_ptr<Value> &cond, const std::shared_ptr<Block> &true_block,
                                          const std::shared_ptr<Block> &false_block,
                                          const std::shared_ptr<Block> &block) {
+        if (!cond->get_type()->is_int1()) { log_error("Cond must be an integer 1"); }
+        if (cond->is_constant()) {
+            if (const auto value = std::any_cast<int>(
+                std::dynamic_pointer_cast<ConstBool>(cond)->get_constant_value()); value == 1) {
+                return Jump::create(true_block, block);
+            }
+            return Jump::create(false_block, block);
+        }
         const auto instruction = std::make_shared<Branch>(cond, true_block, false_block);
         instruction->set_block(block);
         instruction->add_operand(cond);
@@ -295,25 +353,6 @@ public:
 
     [[nodiscard]] std::shared_ptr<Block> get_false_block() const {
         return std::static_pointer_cast<Block>(operands_[2]);
-    }
-
-    [[nodiscard]] std::string to_string() const override;
-};
-
-class Jump final : public Terminator {
-public:
-    explicit Jump(const std::shared_ptr<Block> &block) : Terminator(Type::Label::label, Operator::JUMP) {}
-
-    static std::shared_ptr<Jump> create(const std::shared_ptr<Block> &target_block,
-                                        const std::shared_ptr<Block> &block) {
-        const auto instruction = std::make_shared<Jump>(target_block);
-        instruction->set_block(block);
-        instruction->add_operand(target_block);
-        return instruction;
-    }
-
-    [[nodiscard]] std::shared_ptr<Block> get_target_block() const {
-        return std::static_pointer_cast<Block>(operands_[0]);
     }
 
     [[nodiscard]] std::string to_string() const override;
