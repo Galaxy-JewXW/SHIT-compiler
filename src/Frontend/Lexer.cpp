@@ -177,10 +177,9 @@ Token::Token Lexer::consume_operator() {
 
     // 未知字符
     log_fatal("Unrecognized operator %s at line %d", op.c_str(), start_line);
-    throw std::runtime_error("Lexer fatal");
 }
 
-std::vector<Token::Token> Lexer::tokenize() {
+const std::vector<Token::Token> &Lexer::tokenize() {
     while (pos < input.length()) {
         const char current = peek();
         // 跳过空白符和注释

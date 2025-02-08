@@ -124,7 +124,7 @@ public:
     explicit Lexer(std::string src) : input(std::move(src)), pos(0), line(1) {}
 
     // 获取分割好的Token列表
-    std::vector<Token::Token> tokenize();
+    const std::vector<Token::Token> &tokenize();
 };
 
 #endif
