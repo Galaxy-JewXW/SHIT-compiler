@@ -30,9 +30,12 @@ class Integer final : public Type {
 
 public:
     static const std::shared_ptr<Integer> i1;
+    static const std::shared_ptr<Integer> i8;
     static const std::shared_ptr<Integer> i32;
+    static const std::shared_ptr<Integer> i64;
     explicit Integer(const int bits) : bits{bits} {}
     [[nodiscard]] bool is_integer() const override { return true; }
+    [[nodiscard]] int get_bits() const { return bits; }
     [[nodiscard]] bool is_int32() const override { return bits == 32; }
     [[nodiscard]] bool is_int1() const override { return bits == 1; }
     [[nodiscard]] std::string to_string() const override { return "i" + std::to_string(bits); }

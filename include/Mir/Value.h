@@ -54,7 +54,7 @@ public:
 
     void set_name(const std::string &name) { this->name_ = name; }
 
-    [[nodiscard]] std::shared_ptr<Type::Type> get_type() { return type_; }
+    [[nodiscard]] std::shared_ptr<Type::Type> get_type() const { return type_; }
 
     void add_user(const std::shared_ptr<User> &user);
 

@@ -2,14 +2,15 @@
 #define CONST_H
 
 #include <any>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <iomanip>
 #include <sstream>
 #include <string>
-#include <cmath>
 
 #include "Value.h"
+#include "Utils/Log.h"
 
 namespace Mir {
 class Const : public Value {
@@ -25,6 +26,78 @@ public:
     [[nodiscard]] bool is_constant() override { return true; }
 
     [[nodiscard]] std::string to_string() const override { return name_; }
+};
+
+class ConstBool final : public Const {
+    const int value;
+
+public:
+    explicit ConstBool(const int value) : Const(std::to_string(value ? 1 : 0), Type::Integer::i1), value{value} {}
+
+    [[nodiscard]] bool is_zero() const override { return value == 0; }
+
+    [[nodiscard]] std::any get_constant_value() const override { return value; }
+};
+
+class ConstInt final : public Const {
+    const int value;
+
+public:
+    explicit ConstInt(const int value) : Const(std::to_string(value), Type::Integer::i32), value{value} {}
+
+    [[nodiscard]] bool is_zero() const override { return value == 0; }
+
+    [[nodiscard]] std::any get_constant_value() const override { return value; }
+
+    ConstInt operator+(const ConstInt &other) const {
+        return ConstInt(value + other.value);
+    }
+
+    ConstInt operator-(const ConstInt &other) const {
+        return ConstInt(value - other.value);
+    }
+
+    ConstInt operator*(const ConstInt &other) const {
+        return ConstInt(value * other.value);
+    }
+
+    ConstInt operator/(const ConstInt &other) const {
+        if (other.value == 0) {
+            log_error("Division by zero");
+        }
+        return ConstInt(value / other.value);
+    }
+
+    ConstInt operator%(const ConstInt &other) const {
+        if (other.value == 0) {
+            log_error("Modulo by zero");
+        }
+        return ConstInt(value % other.value);
+    }
+
+    ConstBool operator==(const ConstInt &other) const {
+        return ConstBool(value == other.value);
+    }
+
+    ConstBool operator!=(const ConstInt &other) const {
+        return ConstBool(value != other.value);
+    }
+
+    ConstBool operator<(const ConstInt &other) const {
+        return ConstBool(value < other.value);
+    }
+
+    ConstBool operator>(const ConstInt &other) const {
+        return ConstBool(value > other.value);
+    }
+
+    ConstBool operator<=(const ConstInt &other) const {
+        return ConstBool(value <= other.value);
+    }
+
+    ConstBool operator>=(const ConstInt &other) const {
+        return ConstBool(value >= other.value);
+    }
 };
 
 class ConstFloat final : public Const {
@@ -48,28 +121,62 @@ public:
     }
 
     [[nodiscard]] std::any get_constant_value() const override { return value; }
-};
 
-class ConstInt final : public Const {
-    const int value;
+    ConstFloat operator+(const ConstFloat &other) const {
+        return ConstFloat(value + other.value);
+    }
 
-public:
-    explicit ConstInt(const int value) : Const(std::to_string(value), Type::Integer::i32), value{value} {}
+    ConstFloat operator-(const ConstFloat &other) const {
+        return ConstFloat(value - other.value);
+    }
 
-    [[nodiscard]] bool is_zero() const override { return value == 0; }
+    ConstFloat operator*(const ConstFloat &other) const {
+        return ConstFloat(value * other.value);
+    }
 
-    [[nodiscard]] std::any get_constant_value() const override { return value; }
-};
+    ConstFloat operator/(const ConstFloat &other) const {
+        if (other.value == 0) {
+            log_error("Division by zero");
+        }
+        return ConstFloat(value / other.value);
+    }
 
-class ConstBool final : public Const {
-    const int value;
+    ConstFloat operator%(const ConstFloat &other) const {
+        if (other.value == 0) {
+            log_error("Modulo by zero");
+        }
+        return ConstFloat(std::fmod(value, other.value));
+    }
 
-public:
-    explicit ConstBool(const int value) : Const(std::to_string(value ? 1 : 0), Type::Integer::i1), value{value} {}
+    ConstBool operator==(const ConstFloat &other) const {
+        constexpr float tolerance = 1e-6f;
+        return ConstBool(std::fabs(value - other.value) < tolerance);
+    }
 
-    [[nodiscard]] bool is_zero() const override { return value == 0; }
+    ConstBool operator!=(const ConstFloat &other) const {
+        constexpr float tolerance = 1e-6f;
+        return ConstBool(std::fabs(value - other.value) >= tolerance);
+    }
 
-    [[nodiscard]] std::any get_constant_value() const override { return value; }
+    ConstBool operator<(const ConstFloat &other) const {
+        constexpr float tolerance = 1e-6f;
+        return ConstBool(value < other.value && std::fabs(value - other.value) >= tolerance);
+    }
+
+    ConstBool operator>(const ConstFloat &other) const {
+        constexpr float tolerance = 1e-6f;
+        return ConstBool(value > other.value && std::fabs(value - other.value) >= tolerance);
+    }
+
+    ConstBool operator<=(const ConstFloat &other) const {
+        constexpr float tolerance = 1e-6f;
+        return ConstBool(value <= other.value && std::fabs(value - other.value) >= tolerance);
+    }
+
+    ConstBool operator>=(const ConstFloat &other) const {
+        constexpr float tolerance = 1e-6f;
+        return ConstBool(value >= other.value && std::fabs(value - other.value) >= tolerance);
+    }
 };
 }
 

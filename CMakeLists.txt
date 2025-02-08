@@ -11,9 +11,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    add_definitions(-DLOG_LEVEL_TRACE)
-elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
-    add_definitions(-DLOG_LEVEL_INFO)
+    add_definitions(-DSHIT_DEBUG)
 endif ()
 
 add_subdirectory(src)
