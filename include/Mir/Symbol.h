@@ -47,7 +47,7 @@ public:
 };
 
 class Table {
-    std::vector<std::unordered_map<std::string, std::shared_ptr<Symbol>>> symbols; // 修改：使用 std::vector 代替 std::stack
+    std::vector<std::unordered_map<std::string, std::shared_ptr<Symbol>>> symbols;
 
 public:
     explicit Table() = default;

@@ -18,11 +18,13 @@ public:
     [[nodiscard]] virtual bool is_pointer() const { return false; }
     [[nodiscard]] virtual bool is_void() const { return false; }
 
+    [[nodiscard]] virtual bool _equal(const Type &other) const = 0;
+
     [[nodiscard]] virtual std::string to_string() const = 0;
 
-    bool operator==(const Type &other) const { return this->to_string() == other.to_string(); }
+    bool operator==(const Type &other) const { return _equal(other); }
 
-    bool operator!=(const Type &other) const { return this->to_string() != other.to_string(); }
+    bool operator!=(const Type &other) const { return !(*this == other); }
 };
 
 class Integer final : public Type {
@@ -35,10 +37,16 @@ public:
     static const std::shared_ptr<Integer> i64;
     explicit Integer(const int bits) : bits{bits} {}
     [[nodiscard]] bool is_integer() const override { return true; }
-    [[nodiscard]] int get_bits() const { return bits; }
     [[nodiscard]] bool is_int32() const override { return bits == 32; }
     [[nodiscard]] bool is_int1() const override { return bits == 1; }
     [[nodiscard]] std::string to_string() const override { return "i" + std::to_string(bits); }
+
+    [[nodiscard]] int operator->() const { return bits; }
+
+    [[nodiscard]] bool _equal(const Type &other) const override {
+        const auto p = dynamic_cast<const Integer *>(&other);
+        return p && bits == p->bits;
+    }
 };
 
 class Float final : public Type {
@@ -49,6 +57,10 @@ public:
 
     [[nodiscard]] bool is_float() const override { return true; }
     [[nodiscard]] std::string to_string() const override { return "float"; }
+
+    [[nodiscard]] bool _equal(const Type &other) const override {
+        return dynamic_cast<const Float *>(&other) != nullptr;
+    }
 };
 
 class Array final : public Type {
@@ -76,6 +88,11 @@ public:
     [[nodiscard]] std::string to_string() const override {
         return "[" + std::to_string(size) + " x " + element_type->to_string() + "]";
     }
+
+    [[nodiscard]] bool _equal(const Type &other) const override {
+        const auto p = dynamic_cast<const Array *>(&other);
+        return p && size == p->size && *element_type == *(p->element_type);
+    }
 };
 
 class Pointer final : public Type {
@@ -89,6 +106,11 @@ public:
     [[nodiscard]] std::shared_ptr<Type> get_contain_type() const { return contain_type; }
 
     [[nodiscard]] std::string to_string() const override { return contain_type->to_string() + "*"; }
+
+    [[nodiscard]] bool _equal(const Type &other) const override {
+        const auto p = dynamic_cast<const Pointer *>(&other);
+        return p && *contain_type == *p->contain_type;
+    }
 };
 
 class Void final : public Type {
@@ -98,8 +120,11 @@ public:
     explicit Void() = default;
 
     [[nodiscard]] bool is_void() const override { return true; }
-
     [[nodiscard]] std::string to_string() const override { return "void"; }
+
+    [[nodiscard]] bool _equal(const Type &other) const override {
+        return dynamic_cast<const Void *>(&other) != nullptr;
+    }
 };
 
 class Label final : public Type {
@@ -109,6 +134,10 @@ public:
     explicit Label() = default;
 
     [[nodiscard]] std::string to_string() const override { return "label"; }
+
+    [[nodiscard]] bool _equal(const Type &other) const override {
+        return dynamic_cast<const Label *>(&other) != nullptr;
+    }
 };
 
 [[nodiscard]] std::shared_ptr<Type> get_type(const Token::Type &token_type);
