@@ -49,54 +49,54 @@ public:
 
     [[nodiscard]] std::any get_constant_value() const override { return value; }
 
-    ConstInt operator+(const ConstInt &other) const {
-        return ConstInt(value + other.value);
+    int operator+(const ConstInt &other) const {
+        return value + other.value;
     }
 
-    ConstInt operator-(const ConstInt &other) const {
-        return ConstInt(value - other.value);
+    int operator-(const ConstInt &other) const {
+        return value - other.value;
     }
 
-    ConstInt operator*(const ConstInt &other) const {
-        return ConstInt(value * other.value);
+    int operator*(const ConstInt &other) const {
+        return value * other.value;
     }
 
-    ConstInt operator/(const ConstInt &other) const {
+    int operator/(const ConstInt &other) const {
         if (other.value == 0) {
             log_error("Division by zero");
         }
-        return ConstInt(value / other.value);
+        return value / other.value;
     }
 
-    ConstInt operator%(const ConstInt &other) const {
+    int operator%(const ConstInt &other) const {
         if (other.value == 0) {
             log_error("Modulo by zero");
         }
-        return ConstInt(value % other.value);
+        return value % other.value;
     }
 
-    ConstBool operator==(const ConstInt &other) const {
-        return ConstBool(value == other.value);
+    int operator==(const ConstInt &other) const {
+        return value == other.value;
     }
 
-    ConstBool operator!=(const ConstInt &other) const {
-        return ConstBool(value != other.value);
+    int operator!=(const ConstInt &other) const {
+        return value != other.value;
     }
 
-    ConstBool operator<(const ConstInt &other) const {
-        return ConstBool(value < other.value);
+    int operator<(const ConstInt &other) const {
+        return value < other.value;
     }
 
-    ConstBool operator>(const ConstInt &other) const {
-        return ConstBool(value > other.value);
+    int operator>(const ConstInt &other) const {
+        return value > other.value;
     }
 
-    ConstBool operator<=(const ConstInt &other) const {
-        return ConstBool(value <= other.value);
+    int operator<=(const ConstInt &other) const {
+        return value <= other.value;
     }
 
-    ConstBool operator>=(const ConstInt &other) const {
-        return ConstBool(value >= other.value);
+    int operator>=(const ConstInt &other) const {
+        return value >= other.value;
     }
 };
 
@@ -122,60 +122,60 @@ public:
 
     [[nodiscard]] std::any get_constant_value() const override { return value; }
 
-    ConstFloat operator+(const ConstFloat &other) const {
-        return ConstFloat(value + other.value);
+    float operator+(const ConstFloat &other) const {
+        return value + other.value;
     }
 
-    ConstFloat operator-(const ConstFloat &other) const {
-        return ConstFloat(value - other.value);
+    float operator-(const ConstFloat &other) const {
+        return value - other.value;
     }
 
-    ConstFloat operator*(const ConstFloat &other) const {
-        return ConstFloat(value * other.value);
+    float operator*(const ConstFloat &other) const {
+        return value * other.value;
     }
 
-    ConstFloat operator/(const ConstFloat &other) const {
+    float operator/(const ConstFloat &other) const {
         if (other.value == 0) {
             log_error("Division by zero");
         }
-        return ConstFloat(value / other.value);
+        return value / other.value;
     }
 
-    ConstFloat operator%(const ConstFloat &other) const {
+    float operator%(const ConstFloat &other) const {
         if (other.value == 0) {
             log_error("Modulo by zero");
         }
-        return ConstFloat(std::fmod(value, other.value));
+        return std::fmod(value, other.value);
     }
 
-    ConstBool operator==(const ConstFloat &other) const {
+    int operator==(const ConstFloat &other) const {
         constexpr float tolerance = 1e-6f;
-        return ConstBool(std::fabs(value - other.value) < tolerance);
+        return std::fabs(value - other.value) < tolerance;
     }
 
-    ConstBool operator!=(const ConstFloat &other) const {
+    int operator!=(const ConstFloat &other) const {
         constexpr float tolerance = 1e-6f;
-        return ConstBool(std::fabs(value - other.value) >= tolerance);
+        return std::fabs(value - other.value) >= tolerance;
     }
 
-    ConstBool operator<(const ConstFloat &other) const {
+    int operator<(const ConstFloat &other) const {
         constexpr float tolerance = 1e-6f;
-        return ConstBool(value < other.value && std::fabs(value - other.value) >= tolerance);
+        return value < other.value && std::fabs(value - other.value) >= tolerance;
     }
 
-    ConstBool operator>(const ConstFloat &other) const {
+    int operator>(const ConstFloat &other) const {
         constexpr float tolerance = 1e-6f;
-        return ConstBool(value > other.value && std::fabs(value - other.value) >= tolerance);
+        return value > other.value && std::fabs(value - other.value) >= tolerance;
     }
 
-    ConstBool operator<=(const ConstFloat &other) const {
+    int operator<=(const ConstFloat &other) const {
         constexpr float tolerance = 1e-6f;
-        return ConstBool(value <= other.value && std::fabs(value - other.value) >= tolerance);
+        return value <= other.value && std::fabs(value - other.value) >= tolerance;
     }
 
-    ConstBool operator>=(const ConstFloat &other) const {
+    int operator>=(const ConstFloat &other) const {
         constexpr float tolerance = 1e-6f;
-        return ConstBool(value >= other.value && std::fabs(value - other.value) >= tolerance);
+        return value >= other.value && std::fabs(value - other.value) >= tolerance;
     }
 };
 }
