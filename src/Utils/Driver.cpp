@@ -20,23 +20,23 @@ std::string opt_level_to_string(const Optimize_level level) {
 void compiler_options::print() const {
     std::stringstream ss;
     ss << "Options: "
-       << "-input=" << input_file
-       << ", -S=" << (flag_S ? "true" : "false");
+            << "-input=" << input_file
+            << ", -S=" << (flag_S ? "true" : "false");
     if (!output_file.empty()) {
         ss << ", -output=" << output_file;
     }
     ss << ", opt=-" << opt_level_to_string(opt_level);
     if (_emit_options.emit_tokens) {
         ss << ", -emit-tokens="
-           << (_emit_options.tokens_file.empty() ? "stdout" : _emit_options.tokens_file);
+                << (_emit_options.tokens_file.empty() ? "stdout" : _emit_options.tokens_file);
     }
     if (_emit_options.emit_ast) {
         ss << ", -emit-ast="
-           << (_emit_options.ast_file.empty() ? "stdout" : _emit_options.ast_file);
+                << (_emit_options.ast_file.empty() ? "stdout" : _emit_options.ast_file);
     }
     if (_emit_options.emit_llvm) {
         ss << ", -emit-llvm="
-           << (_emit_options.llvm_file.empty() ? "stdout" : _emit_options.llvm_file);
+                << (_emit_options.llvm_file.empty() ? "stdout" : _emit_options.llvm_file);
     }
     log_info("%s", ss.str().c_str());
 }
