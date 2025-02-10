@@ -18,15 +18,18 @@ class Symbol {
     const std::string name;
     const std::shared_ptr<Type::Type> type;
     const bool is_constant;
+    bool is_modified;
     // 变量对应的初始值
     const std::shared_ptr<Init::Init> init_value;
     // 为变量分配的栈空间，表现为一个llvm alloca语句
     const std::shared_ptr<Value> address;
 
 public:
-    Symbol(std::string name, const std::shared_ptr<Type::Type> &type, const bool is_constant,
-           const std::shared_ptr<Init::Init> &init_value, const std::shared_ptr<Value> &address) :
-        name{std::move(name)}, type{type}, is_constant{is_constant}, init_value{init_value}, address{address} {}
+    Symbol(std::string name, const std::shared_ptr<Type::Type> &type,
+           const std::shared_ptr<Init::Init> &init_value, const std::shared_ptr<Value> &address,
+           const bool is_constant, const bool is_modified) :
+        name{std::move(name)}, type{type}, is_constant{is_constant}, is_modified{is_modified},
+        init_value{init_value}, address{address} {}
 
     [[nodiscard]] const std::string &get_name() const { return name; }
 
@@ -37,6 +40,10 @@ public:
     [[nodiscard]] const std::shared_ptr<Init::Init> &get_init_value() const { return init_value; }
 
     [[nodiscard]] const std::shared_ptr<Value> &get_address() const { return address; }
+
+    [[nodiscard]] bool is_modified_symbol() const { return is_modified; }
+
+    void set_modified(const bool modified = true) { is_modified = modified; }
 
     // [[nodiscard]] const std::string &to_string() const {
     //     std::ostringstream oss;
@@ -56,9 +63,9 @@ public:
 
     void pop_scope();
 
-    void insert_symbol(const std::string &name, const std::shared_ptr<Type::Type> &type, bool is_constant,
-                       const std::shared_ptr<Init::Init> &
-                       init_value, const std::shared_ptr<Value> &address);
+    void insert_symbol(const std::string &name, const std::shared_ptr<Type::Type> &type,
+                       const std::shared_ptr<Init::Init> &init_value, const std::shared_ptr<Value> &address,
+                       bool is_constant, bool is_modified = false);
 
     [[nodiscard]] std::shared_ptr<Symbol> lookup_in_current_scope(const std::string &name) const;
 
