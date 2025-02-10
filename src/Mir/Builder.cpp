@@ -92,7 +92,7 @@ void Builder::visit_constDef(const Token::Type type, const std::shared_ptr<AST::
         else
             std::static_pointer_cast<Init::Array>(init_value)->gen_store_inst(address, cur_block, dimensions);
     }
-    table->insert_symbol(constDef->ident(), ir_type, init_value, address, true);
+    table->insert_symbol(constDef->ident(), ir_type, true, init_value, address);
 }
 
 void Builder::visit_varDecl(const std::shared_ptr<AST::VarDecl> &varDecl) const {
@@ -164,7 +164,7 @@ void Builder::visit_varDef(const Token::Type type, const std::shared_ptr<AST::Va
         else
             std::static_pointer_cast<Init::Exp>(init_value)->gen_store_inst(address, cur_block);
     }
-    table->insert_symbol(varDef->ident(), ir_type, init_value, address, false);
+    table->insert_symbol(varDef->ident(), ir_type, false, init_value, address);
 }
 
 void Builder::visit_funcDef(const std::shared_ptr<AST::FuncDef> &funcDef) {
@@ -210,7 +210,7 @@ void Builder::visit_funcDef(const std::shared_ptr<AST::FuncDef> &funcDef) {
         auto &[ident, ir_type] = arguments[i];
         const auto addr = Alloc::create(gen_variable_name(), ir_type, cur_block);
         Store::create(addr, func->get_arguments()[i], cur_block);
-        table->insert_symbol(ident, ir_type, nullptr, addr, false);
+        table->insert_symbol(ident, ir_type, false, nullptr, addr);
     }
     visit_block(funcDef->block());
     table->pop_scope();
@@ -493,27 +493,18 @@ std::shared_ptr<Value> Builder::visit_number(const std::shared_ptr<AST::Number> 
 std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVal, const bool get_address) const {
     const auto &ident = lVal->ident();
     const auto &symbol = table->lookup_in_all_scopes(ident);
+    bool is_constant = symbol->is_constant_symbol();
     if (!symbol) { log_error("Undefined variable: %s", ident.c_str()); }
     const auto &address = symbol->get_address();
     if (!address->get_type()->is_pointer()) {
         log_fatal("Invalid address type %s of %s", address->get_type()->to_string().c_str(), ident.c_str());
     }
-    auto is_symbol_unmodified = [&symbol, &address] {
-        if (symbol->is_constant_symbol()) return true;
-        if (symbol->is_modified_symbol()) return false;
-        return std::dynamic_pointer_cast<GlobalVariable>(address) == nullptr;
-    };
-    bool all_indexes_const = true;
     const auto &ir_type = std::static_pointer_cast<Type::Pointer>(address->get_type())->get_contain_type();
     if (!get_address && (ir_type->is_int32() || ir_type->is_float()) && lVal->exps().empty()) {
-        if (is_symbol_unmodified()) {
+        if (is_constant) {
             const auto initial = symbol->get_init_value();
             if (const auto constant_initial = std::dynamic_pointer_cast<Init::Constant>(initial)) {
                 return constant_initial->get_const_value();
-            }
-            if (const auto exp_initial = std::dynamic_pointer_cast<Init::Exp>(initial);
-                exp_initial != nullptr && !symbol->is_modified_symbol()) {
-                return exp_initial->get_exp_value();
             }
         }
         return Load::create(gen_variable_name(), address, cur_block);
@@ -522,7 +513,7 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
     auto content_type = ir_type;
     for (const auto &exp: lVal->exps()) {
         const auto &idx_value = type_cast(visit_exp(exp), Type::Integer::i32, cur_block);
-        if (!idx_value->is_constant()) { all_indexes_const = false; }
+        if (!idx_value->is_constant()) { is_constant = false; }
         indexes.emplace_back(idx_value);
         if (content_type->is_pointer()) {
             content_type = std::static_pointer_cast<Type::Pointer>(content_type)->get_contain_type();
@@ -532,7 +523,7 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
             log_error("Invalid content type %s", content_type->to_string().c_str());
         }
     }
-    if (all_indexes_const && is_symbol_unmodified() && !get_address && !indexes.empty()) {
+    if (is_constant && !get_address && !indexes.empty()) {
         auto initial = symbol->get_init_value();
         if (auto array_init = std::dynamic_pointer_cast<Init::Array>(initial)) {
             for (const auto &idx: indexes) {
@@ -542,9 +533,6 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
             }
             if (const auto constant_initial = std::dynamic_pointer_cast<Init::Constant>(initial)) {
                 return constant_initial->get_const_value();
-            }
-            if (const auto exp_initial = std::dynamic_pointer_cast<Init::Exp>(initial)) {
-                return exp_initial->get_exp_value();
             }
         }
     }
@@ -560,19 +548,11 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
             content_type = std::static_pointer_cast<Type::Array>(content_type)->get_element_type();
         }
     }
-    if (get_address) {
-        // 只有在解析assignStmt时，get_address才为true
-        // 认为取地址导致symbol的初始值被修改
-        symbol->set_modified();
-        return pointer;
-    }
+    if (get_address) { return pointer; }
     if (content_type->is_int32() || content_type->is_float() || content_type->is_pointer()) {
         return Load::create(gen_variable_name(), pointer, cur_block);
     }
     if (content_type->is_array()) {
-        // 解析向函数中调用数组指针的情况
-        // 此时也认为symbol的初始值被修改
-        symbol->set_modified();
         return GetElementPtr::create(gen_variable_name(), pointer, std::make_shared<ConstInt>(0), cur_block);
     }
     log_fatal("Invalid lVal");
@@ -715,7 +695,6 @@ void Builder::visit_assignStmt(const std::shared_ptr<AST::AssignStmt> &assignStm
     if (symbol->is_constant_symbol()) {
         log_error("Cannot assign to constant variable: %s", assignStmt->lVal()->ident().c_str());
     }
-    const auto exp_value = visit_exp(assignStmt->exp());
     const auto address = visit_lVal(assignStmt->lVal(), true);
     if (!address->get_type()->is_pointer()) {
         log_error("Invalid address type %s", address->get_type()->to_string().c_str());
@@ -724,6 +703,7 @@ void Builder::visit_assignStmt(const std::shared_ptr<AST::AssignStmt> &assignStm
     if (!ir_type->is_int32() && !ir_type->is_float()) {
         log_error("Invalid element type %s", ir_type->to_string().c_str());
     }
+    const auto exp_value = visit_exp(assignStmt->exp());
     const auto casted_exp_value = type_cast(exp_value, ir_type, cur_block);
     Store::create(address, casted_exp_value, cur_block);
 }

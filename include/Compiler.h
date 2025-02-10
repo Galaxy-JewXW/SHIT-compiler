@@ -31,7 +31,6 @@ struct compiler_options {
     std::string output_file;
     emit_options _emit_options;
     Optimize_level opt_level = Optimize_level::O0;
-
     void print() const;
 };
 

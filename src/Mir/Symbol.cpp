@@ -13,13 +13,12 @@ void Table::pop_scope() {
     symbols.pop_back();
 }
 
-void Table::insert_symbol(const std::string &name, const std::shared_ptr<Type::Type> &type,
-                          const std::shared_ptr<Init::Init> &init_value, const std::shared_ptr<Value> &address,
-                          const bool is_constant, const bool is_modified) {
+void Table::insert_symbol(const std::string &name, const std::shared_ptr<Type::Type> &type, const bool is_constant,
+                          const std::shared_ptr<Init::Init> &init_value, const std::shared_ptr<Value> &address) {
     if (symbols.back().find(name) != symbols.back().end()) {
         log_error("Symbol {%s} already exists in current scope.", name.c_str());
     }
-    const auto &symbol = std::make_shared<Symbol>(name, type, init_value, address, is_constant, is_modified);
+    const auto &symbol = std::make_shared<Symbol>(name, type, is_constant, init_value, address);
     symbols.back()[name] = symbol;
 }
 
