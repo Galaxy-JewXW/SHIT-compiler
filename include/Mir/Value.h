@@ -65,6 +65,38 @@ public:
     [[nodiscard]] virtual bool is_constant() { return false; }
 
     [[nodiscard]] virtual std::string to_string() const = 0;
+
+    class UserRange {
+        using UserPtr = std::weak_ptr<User>;
+        std::vector<UserPtr> &users_;
+
+    public:
+        explicit UserRange(std::vector<UserPtr> &users) : users_{users} {}
+
+        struct Iterator {
+            std::vector<UserPtr>::iterator current;
+
+            explicit Iterator(const std::vector<UserPtr>::iterator current) : current(current) {}
+
+            std::shared_ptr<User> operator*() const { return current->lock(); }
+
+            bool operator!=(const Iterator &other) const { return current != other.current; }
+
+            Iterator &operator++() {
+                ++current;
+                return *this;
+            }
+        };
+
+        [[nodiscard]] Iterator begin() const { return Iterator{users_.begin()}; }
+        [[nodiscard]] Iterator end() const { return Iterator{users_.end()}; }
+    };
+
+
+    [[nodiscard]] UserRange users() {
+        cleanup_users();
+        return UserRange{users_};
+    }
 };
 
 class User : public Value {
@@ -100,13 +132,16 @@ public:
         operands_.clear();
     }
 
-    [[nodiscard]] const std::vector<std::shared_ptr<Value>> &get_operands() const { return operands_; }
-
     void add_operand(const std::shared_ptr<Value> &value);
 
     void clear_operands();
 
     void modify_operand(const std::shared_ptr<Value> &old_value, const std::shared_ptr<Value> &new_value);
+
+    auto begin() { return operands_.begin(); }
+    auto end() { return operands_.end(); }
+    auto begin() const { return operands_.begin(); }
+    auto end() const { return operands_.end(); }
 };
 }
 
