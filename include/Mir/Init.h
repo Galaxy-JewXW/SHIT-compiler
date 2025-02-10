@@ -163,7 +163,7 @@ public:
     }
 
     [[nodiscard]] size_t get_size() const { return flattened_init_values.size(); }
-    [[nodiscard]] std::shared_ptr<Init> get_init_value(const int idx) const { return init_values[idx]; }
+    [[nodiscard]] std::shared_ptr<Init> get_init_value(const int idx) const { return init_values.at(idx); }
     void add_init_value(const std::shared_ptr<Init> &init_value) { init_values.emplace_back(init_value); }
 
     template<typename TVal>
