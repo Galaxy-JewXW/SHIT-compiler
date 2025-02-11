@@ -3,6 +3,7 @@
 
 #include <string>
 
+#include "Builder.h"
 #include "Const.h"
 #include "Type.h"
 #include "Utils/AST.h"
@@ -11,8 +12,6 @@
 namespace Mir {
 class Builder;
 }
-
-#include "Builder.h"
 
 namespace Mir {
 class Block;
@@ -76,23 +75,6 @@ struct InitValTrait<AST::InitVal> {
 namespace Mir::Init {
 class Init;
 class Array;
-
-template<typename TVal>
-std::vector<std::shared_ptr<Init>> flatten_array(const std::shared_ptr<Type::Type> &type,
-                                                 const std::shared_ptr<TVal> &initVal,
-                                                 const std::shared_ptr<Symbol::Table> &table, bool is_constant,
-                                                 const Builder *builder = nullptr
-);
-
-template<typename TVal>
-bool is_zero_array(const std::shared_ptr<Type::Type> &type,
-                   const std::shared_ptr<TVal> &initVal,
-                   const std::shared_ptr<Symbol::Table> &table, bool is_constant,
-                   const Builder *builder = nullptr
-);
-
-std::shared_ptr<Array> fold_array(const std::shared_ptr<Type::Type> &type,
-                                  const std::vector<std::shared_ptr<Init>> &flattened_init_values);
 
 class Init : public std::enable_shared_from_this<Init> {
 protected:
@@ -165,10 +147,9 @@ public:
 
     [[nodiscard]] bool is_array_init() const override { return true; }
 
-    [[nodiscard]] std::vector<std::shared_ptr<Init>> get_flattened_init_values() const;
-
     [[nodiscard]] size_t get_size() const { return init_values.size(); }
-    [[nodiscard]] std::shared_ptr<Init> get_init_value(const int idx) const { return init_values.at(idx); }
+
+    std::shared_ptr<Init> get_init_value(const std::vector<int> &indexes);
 
     static std::shared_ptr<Array> create_zero_array_init_value(const std::shared_ptr<Type::Type> &type);
 
@@ -176,22 +157,11 @@ public:
     static std::shared_ptr<Array> create_array_init_value(const std::shared_ptr<Type::Type> &type,
                                                           const std::shared_ptr<TVal> &initVal,
                                                           const std::shared_ptr<Symbol::Table> &table,
-                                                          const bool is_constant,
-                                                          const Builder *builder = nullptr) {
-        if (!type->is_array()) {
-            log_error("%s is not an array type", type->to_string().c_str());
-        }
-        if (is_zero_array<TVal>(type, initVal, table, is_constant, builder)) {
-            return create_zero_array_init_value(type);
-        }
-        log_trace("Not an zero array");
-        const auto &flattened = flatten_array<TVal>(type, initVal, table, is_constant, builder);
-        const auto &folded = fold_array(type, flattened);
-        return folded;
-    }
+                                                          bool is_constant,
+                                                          const Builder *builder = nullptr);
 
     void gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared_ptr<Block> &block,
-                        const std::vector<int> &dimensions);
+                        const std::vector<int> &dimensions) const;
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -248,11 +218,11 @@ bool is_zero_array(const std::shared_ptr<Type::Type> &type,
 }
 
 template<typename TVal>
-std::vector<std::shared_ptr<Init>> flatten_array(const std::shared_ptr<Type::Type> &type,
-                                                 const std::shared_ptr<TVal> &initVal,
-                                                 const std::shared_ptr<Symbol::Table> &table,
-                                                 bool is_constant,
-                                                 const Builder *const builder) {
+std::shared_ptr<Array> Array::create_array_init_value(const std::shared_ptr<Type::Type> &type,
+                                                      const std::shared_ptr<TVal> &initVal,
+                                                      const std::shared_ptr<Symbol::Table> &table,
+                                                      const bool is_constant,
+                                                      const Builder *const builder) {
     using Trait = InitValTrait<TVal>;
     if (!type->is_array()) {
         log_error("%s is not an array type", type->to_string().c_str());
@@ -260,80 +230,61 @@ std::vector<std::shared_ptr<Init>> flatten_array(const std::shared_ptr<Type::Typ
     if (!Trait::is_array_vals(initVal)) {
         log_error("Not an array");
     }
+    if (is_zero_array<TVal>(type, initVal, table, is_constant, builder)) {
+        return create_zero_array_init_value(type);
+    }
     const auto &array_type = std::static_pointer_cast<Type::Array>(type);
-    const auto cur_dim_size = array_type->get_size();
     const auto &element_type = array_type->get_element_type();
-    const auto element_cnt = element_type->is_array()
-                                 ? std::static_pointer_cast<Type::Array>(element_type)->get_flattened_size()
-                                 : 1;
-    const auto &atomic_type = array_type->get_atomic_type();
-
-    std::vector<std::shared_ptr<Init>> flattened;
-    flattened.reserve(cur_dim_size * element_cnt);
-
-    for (const auto &val: Trait::get_array_vals(initVal)) {
-        if (Trait::is_exp(val)) {
-            if (is_constant) {
-                flattened.emplace_back(
-                    Constant::create_constant_init_value(atomic_type, Trait::get_addExp(val), table));
-            } else {
-                const auto &exp_value = builder->visit_addExp(Trait::get_addExp(val));
-                flattened.emplace_back(
-                    Exp::create_exp_init_value(atomic_type, exp_value));
-            }
-        } else if (Trait::is_array_vals(val)) {
-            // 补零对齐
-            const auto pos = flattened.size();
-            for (auto i = 0lu; i < (element_cnt - pos % element_cnt) % element_cnt; ++i) {
-                flattened.emplace_back(Constant::create_zero_constant_init_value(atomic_type));
-            }
-            auto sub = flatten_array<TVal>(element_type, val, table, is_constant);
-            flattened.insert(flattened.end(), sub.begin(), sub.end());
-        }
-    }
-    // 补足零
-    for (auto i = flattened.size(); i < cur_dim_size * element_cnt; ++i) {
-        flattened.emplace_back(Constant::create_zero_constant_init_value(atomic_type));
-    }
-    return flattened;
-}
-
-inline std::shared_ptr<Array> fold_array(const std::shared_ptr<Type::Type> &type,
-                                         const std::vector<std::shared_ptr<Init>> &flattened_init_values) {
-    if (!type->is_array()) {
-        log_error("%s is not an array type", type->to_string().c_str());
-    }
-    const auto array_type = std::static_pointer_cast<Type::Array>(type);
-    const auto cur_dim_size = array_type->get_size();
-    const auto element_type = array_type->get_element_type();
-
     std::vector<std::shared_ptr<Init>> init_values;
-
-    const size_t total_elements = flattened_init_values.size();
-    if (total_elements % cur_dim_size != 0) {
-        log_error("Flattened elements count %zu is not divisible by current dimension size %zu", total_elements,
-                  cur_dim_size);
-    }
-    const size_t elements_per_sub = total_elements / cur_dim_size;
-
-    for (size_t i = 0; i < cur_dim_size; ++i) {
-        const size_t start = i * elements_per_sub;
-        const size_t end = start + elements_per_sub;
-        auto sub_flattened = std::vector(
-            flattened_init_values.begin() + static_cast<long>(start),
-            flattened_init_values.begin() + static_cast<long>(end)
-        );
-
-        if (element_type->is_array()) {
-            auto sub_array = fold_array(element_type, sub_flattened);
-            init_values.push_back(sub_array);
-        } else {
-            for (auto &val: sub_flattened) {
-                init_values.push_back(val);
+    const auto &vals = Trait::get_array_vals(initVal);
+    for (size_t i = 0; i < vals.size(); ++i) {
+        const auto &val = vals[i];
+        if (init_values.size() >= array_type->get_size()) break;
+        if (Trait::is_array_vals(val)) {
+            if (!element_type->is_array()) { log_error("Element not an array"); }
+            init_values.emplace_back(Array::create_array_init_value<TVal>(
+                element_type, val, table, is_constant, builder));
+        } else if (Trait::is_exp(val)) {
+            if (element_type->is_array()) {
+                auto basic_type = array_type->get_atomic_type();
+                const auto element_array_type = std::static_pointer_cast<Type::Array>(element_type);
+                const size_t flatten_size = element_array_type->get_flattened_size();
+                std::vector<std::shared_ptr<TVal>> sub_vals;
+                size_t cnt = 0;
+                for (size_t j = 0; j < flatten_size;) {
+                    if (i + cnt >= vals.size()) break;
+                    sub_vals.emplace_back(vals[i + cnt]);
+                    if (!Trait::is_array_vals(vals[i + cnt])) {
+                        ++j;
+                    } else {
+                        j += element_array_type->get_flattened_size();
+                    }
+                    ++cnt;
+                }
+                TVal ast_val{sub_vals};
+                std::shared_ptr<TVal> wrapped_val = std::make_shared<TVal>(ast_val);
+                init_values.emplace_back(Array::create_array_init_value<TVal>(
+                    element_type, wrapped_val, table, is_constant, builder));
+                i += cnt - 1;
+            } else {
+                if (is_constant) {
+                    init_values.emplace_back(
+                        Constant::create_constant_init_value(element_type, Trait::get_addExp(val), table));
+                } else {
+                    const auto &exp_value = builder->visit_addExp(Trait::get_addExp(val));
+                    init_values.emplace_back(
+                        Exp::create_exp_init_value(element_type, exp_value));
+                }
             }
         }
     }
-
+    while (init_values.size() < array_type->get_size()) {
+        if (element_type->is_array()) {
+            init_values.emplace_back(create_zero_array_init_value(element_type));
+        } else {
+            init_values.emplace_back(Constant::create_zero_constant_init_value(element_type));
+        }
+    }
     return std::make_shared<Array>(type, init_values);
 }
 }

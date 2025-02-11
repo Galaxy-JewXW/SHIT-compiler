@@ -122,10 +122,11 @@ Token::Token Lexer::consume_number() {
         number += advance();
     }
     if (is_float) {
-        return Token::Token{
-            std::to_string(std::stod(number, &idx)),
-            Token::Type::FLOAT_CONST, start_line
-        };
+        std::ostringstream oss;
+        const double val = std::stod(number, &idx);
+        oss << std::setprecision(12) << val;
+        std::string str = oss.str();
+        return Token::Token{str, Token::Type::FLOAT_CONST, start_line};
     }
     return Token::Token{
         std::to_string(std::stoi(number, &idx, 10)),
@@ -200,7 +201,7 @@ const std::vector<Token::Token> &Lexer::tokenize() {
         // 识别Token
         if (isalpha(current) || current == '_') {
             tokens.push_back(consume_ident_or_keyword());
-        } else if (isdigit(current)) {
+        } else if (isdigit(current) || current == '.') {
             tokens.push_back(consume_number());
         } else if (current == '"') {
             tokens.push_back(consume_string());

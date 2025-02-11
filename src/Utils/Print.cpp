@@ -579,6 +579,16 @@ namespace Mir {
     return oss.str();
 }
 
+[[nodiscard]] std::string BitCast::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = bitcast ";
+    const auto &origin_value = get_value();
+    oss << origin_value->get_type()->to_string() << " " << origin_value->get_name();
+    oss << " to " << type_->to_string();
+    return oss.str();
+}
+
+
 [[nodiscard]] std::string Fptosi::to_string() const {
     std::ostringstream oss;
     oss << name_ << " = fptosi ";

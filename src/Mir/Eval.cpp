@@ -40,13 +40,10 @@ EvalResult eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_p
         if (idx < 0) { log_error("Index out of bounds: %d", idx); }
         indexes.push_back(idx);
     }
-    for (size_t i = 0; i < indexes.size(); ++i) {
-        if (!init_value->is_array_init()) {
-            log_error("Error while indexing variable %s at dimension %d.", ident.c_str(), i + 1);
-        }
-        const auto &array = std::static_pointer_cast<Init::Array>(init_value);
-        init_value = array->get_init_value(indexes[i]);
+    if (!init_value->is_array_init()) {
+        log_error("Error while indexing variable %s", ident.c_str());
     }
+    init_value = std::static_pointer_cast<Init::Array>(init_value)->get_init_value(indexes);
     // 编译期计算一定算得出具体的int或float值
     if (!init_value->is_constant_init()) { log_error("Non-constant expression"); }
     const auto &constant_value = std::static_pointer_cast<Init::Constant>(init_value);

@@ -13,6 +13,7 @@ enum class Operator {
     LOAD,
     STORE,
     GEP,
+    BITCAST,
     FPTOSI,
     SITOFP,
     FCMP,
@@ -145,6 +146,35 @@ public:
 
 private:
     static std::shared_ptr<Type::Type> calc_type_(const std::shared_ptr<Value> &addr);
+};
+
+class BitCast final : public Instruction {
+public:
+    BitCast(const std::string &name, const std::shared_ptr<Value> &value,
+            const std::shared_ptr<Type::Type> &target_type)
+        : Instruction(name, target_type, Operator::BITCAST) {
+        const auto instruction = std::dynamic_pointer_cast<Instruction>(value);
+        if (instruction == nullptr) {
+            log_error("Value must be a instruction");
+        }
+        if (instruction->get_type()->is_void() || instruction->get_type()->is_label()
+            || instruction->get_name().empty()) {
+            log_error("Instruction must have a return value");
+        }
+    }
+
+    static std::shared_ptr<BitCast> create(const std::string &name, const std::shared_ptr<Value> &value,
+                                           const std::shared_ptr<Type::Type> &target_type,
+                                           const std::shared_ptr<Block> &block) {
+        const auto instruction = std::make_shared<BitCast>(name, value, target_type);
+        instruction->set_block(block);
+        instruction->add_operand(value);
+        return instruction;
+    }
+
+    [[nodiscard]] std::shared_ptr<Value> get_value() const { return operands_[0]; }
+
+    [[nodiscard]] std::string to_string() const override;
 };
 
 class Fptosi final : public Instruction {
@@ -411,6 +441,9 @@ public:
                                         const std::shared_ptr<Function> &function,
                                         const std::vector<std::shared_ptr<Value>> &params,
                                         const std::shared_ptr<Block> &block) {
+        if (function->get_return_type()->is_void()) {
+            log_error("Void function must not have a return value");
+        }
         const auto instruction = std::make_shared<Call>(name, function, params);
         instruction->set_block(block);
         instruction->add_operand(function);
@@ -426,6 +459,9 @@ public:
                                         const std::vector<std::shared_ptr<Value>> &params,
                                         const std::shared_ptr<Block> &block,
                                         const int const_string_index = -1) {
+        if (!function->get_return_type()->is_void()) {
+            log_error("Non-Void function must have a return value");
+        }
         const auto instruction = std::make_shared<Call>(function, params, const_string_index);
         instruction->set_block(block);
         instruction->add_operand(function);

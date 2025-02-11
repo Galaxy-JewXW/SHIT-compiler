@@ -47,7 +47,9 @@ std::shared_ptr<Value> type_cast(const std::shared_ptr<Value> &v, const std::sha
     auto check_type = [](const std::shared_ptr<Type::Type> &type) {
         return type->is_integer() || type->is_float();
     };
-    if (!check_type(src_type) || !check_type(target_type)) { log_error("Invalid cast"); }
+    if (!check_type(src_type) || !check_type(target_type)) {
+        log_error("Invalid cast");
+    }
     if (const auto c = std::dynamic_pointer_cast<Const>(v)) { return cast_constant_value(c, target_type); }
     if (*src_type == *target_type) return v;
 

@@ -43,7 +43,8 @@ class ConstInt final : public Const {
     const int value;
 
 public:
-    explicit ConstInt(const int value) : Const(std::to_string(value), Type::Integer::i32), value{value} {}
+    explicit ConstInt(const int value, const std::shared_ptr<Type::Type> &type = Type::Integer::i32)
+        : Const(std::to_string(value), type), value{value} {}
 
     [[nodiscard]] bool is_zero() const override { return value == 0; }
 

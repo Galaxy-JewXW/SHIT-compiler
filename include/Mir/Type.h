@@ -17,6 +17,7 @@ public:
     [[nodiscard]] virtual bool is_float() const { return false; }
     [[nodiscard]] virtual bool is_pointer() const { return false; }
     [[nodiscard]] virtual bool is_void() const { return false; }
+    [[nodiscard]] virtual bool is_label() const { return false; }
 
     [[nodiscard]] virtual bool _equal(const Type &other) const = 0;
 
@@ -135,6 +136,7 @@ public:
 
     explicit Label() = default;
 
+    [[nodiscard]] bool is_label() const override { return true; }
     [[nodiscard]] std::string to_string() const override { return "label"; }
 
     [[nodiscard]] bool _equal(const Type &other) const override {
