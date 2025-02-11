@@ -84,6 +84,13 @@ std::vector<std::shared_ptr<Init>> flatten_array(const std::shared_ptr<Type::Typ
                                                  const Builder *builder = nullptr
 );
 
+template<typename TVal>
+bool is_zero_array(const std::shared_ptr<Type::Type> &type,
+                   const std::shared_ptr<TVal> &initVal,
+                   const std::shared_ptr<Symbol::Table> &table, bool is_constant,
+                   const Builder *builder = nullptr
+);
+
 std::shared_ptr<Array> fold_array(const std::shared_ptr<Type::Type> &type,
                                   const std::vector<std::shared_ptr<Init>> &flattened_init_values);
 
@@ -112,6 +119,7 @@ public:
 
     [[nodiscard]] bool is_constant_init() const override { return true; }
     [[nodiscard]] std::shared_ptr<Const> get_const_value() const { return const_value; }
+    [[nodiscard]] bool is_zero() const { return const_value->is_zero(); }
 
     void gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared_ptr<Block> &block);
 
@@ -146,12 +154,14 @@ public:
 };
 
 class Array final : public Init {
-    std::vector<std::shared_ptr<Init>> init_values;
+    const bool is_zero_initialized;
+    const std::vector<std::shared_ptr<Init>> init_values;
 
 public:
     explicit Array(const std::shared_ptr<Type::Type> &type,
-                   const std::vector<std::shared_ptr<Init>> &init_values)
-        : Init{type}, init_values{init_values} {}
+                   const std::vector<std::shared_ptr<Init>> &init_values,
+                   const bool is_zero_initialized = false)
+        : Init{type}, is_zero_initialized{is_zero_initialized}, init_values{init_values} {}
 
     [[nodiscard]] bool is_array_init() const override { return true; }
 
@@ -159,6 +169,8 @@ public:
 
     [[nodiscard]] size_t get_size() const { return init_values.size(); }
     [[nodiscard]] std::shared_ptr<Init> get_init_value(const int idx) const { return init_values.at(idx); }
+
+    static std::shared_ptr<Array> create_zero_array_init_value(const std::shared_ptr<Type::Type> &type);
 
     template<typename TVal>
     static std::shared_ptr<Array> create_array_init_value(const std::shared_ptr<Type::Type> &type,
@@ -169,18 +181,71 @@ public:
         if (!type->is_array()) {
             log_error("%s is not an array type", type->to_string().c_str());
         }
+        if (is_zero_array<TVal>(type, initVal, table, is_constant, builder)) {
+            return create_zero_array_init_value(type);
+        }
+        log_trace("Not an zero array");
         const auto &flattened = flatten_array<TVal>(type, initVal, table, is_constant, builder);
         const auto &folded = fold_array(type, flattened);
         return folded;
     }
-
-    static std::shared_ptr<Array> create_zero_array_init_value(const std::shared_ptr<Type::Type> &type);
 
     void gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared_ptr<Block> &block,
                         const std::vector<int> &dimensions);
 
     [[nodiscard]] std::string to_string() const override;
 };
+
+template<typename TVal>
+bool is_zero_array(const std::shared_ptr<Type::Type> &type,
+                   const std::shared_ptr<TVal> &initVal,
+                   const std::shared_ptr<Symbol::Table> &table, bool is_constant,
+                   const Builder *const builder) {
+    using Trait = InitValTrait<TVal>;
+    if (!type->is_array()) {
+        return false;
+    }
+    if (!Trait::is_array_vals(initVal)) {
+        return false;
+    }
+    if (Trait::get_array_vals(initVal).empty()) {
+        return true;
+    }
+    const auto &array_type = std::static_pointer_cast<Type::Array>(type);
+    const auto element_type = array_type->get_element_type(),
+               atomic_type = array_type->get_atomic_type();
+    for (const auto &val: Trait::get_array_vals(initVal)) {
+        if (Trait::is_exp(val)) {
+            if (is_constant) {
+                auto res = eval_exp(Trait::get_addExp(val), table);
+                if (atomic_type->is_int32()) {
+                    if (const int value = std::visit([](auto &&arg) { return static_cast<int>(arg); }, res); value != 0)
+                        return false;
+                }
+                if (atomic_type->is_float()) {
+                    const float value = std::visit([](auto &&arg) { return static_cast<float>(arg); }, res);
+                    if (constexpr float tolerance = 1e-6f; std::abs(value - 0.0f) >= tolerance) {
+                        return false;
+                    }
+                }
+            } else {
+                const auto &exp_value = builder->visit_addExp(Trait::get_addExp(val));
+                if (!exp_value->is_constant()) {
+                    return false;
+                }
+                const auto const_exp_value = std::dynamic_pointer_cast<Const>(exp_value);
+                if (const_exp_value == nullptr || !const_exp_value->is_zero()) {
+                    return false;
+                }
+            }
+        } else if (Trait::is_array_vals(val)) {
+            if (!is_zero_array<TVal>(element_type, val, table, is_constant, builder)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
 
 template<typename TVal>
 std::vector<std::shared_ptr<Init>> flatten_array(const std::shared_ptr<Type::Type> &type,

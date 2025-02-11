@@ -81,6 +81,8 @@ public:
     // e.g. 对于 [2 x [3 x i32]]，该方法返回6
     [[nodiscard]] size_t get_flattened_size() const;
 
+    [[nodiscard]] size_t get_dimensions() const;
+
     // 获取数组中存在的最小元素类型
     // 返回值只可能为int32或f32的指针
     [[nodiscard]] std::shared_ptr<Type> get_atomic_type() const;

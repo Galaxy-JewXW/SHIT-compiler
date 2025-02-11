@@ -786,6 +786,10 @@ namespace Init {
 
     [[nodiscard]] std::string Array::to_string() const {
         std::ostringstream oss;
+        if (is_zero_initialized) {
+            oss << type->to_string() << " zeroinitializer";
+            return oss.str();
+        }
         oss << type->to_string() << " [";
         for (size_t i = 0; i < init_values.size(); ++i) {
             oss << init_values[i]->to_string();

@@ -30,6 +30,17 @@ size_t Array::get_flattened_size() const {
     return result;
 }
 
+size_t Array::get_dimensions() const {
+    size_t result = 1;
+    auto current = element_type;
+    while (current->is_array()) {
+        result++;
+        current = std::static_pointer_cast<Array>(current)->get_element_type();
+    }
+    return result;
+}
+
+
 [[nodiscard]] std::shared_ptr<Type> get_type(const Token::Type &token_type) {
     static const std::unordered_map<Token::Type, std::shared_ptr<Type>> type_map = {
         {Token::Type::INT, Integer::i32},

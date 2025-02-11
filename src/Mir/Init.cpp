@@ -62,15 +62,7 @@ std::shared_ptr<Array> Array::create_zero_array_init_value(const std::shared_ptr
     if (!type->is_array()) {
         log_error("%s is not an array type", type->to_string().c_str());
     }
-    const auto array_type = std::static_pointer_cast<Type::Array>(type);
-    const size_t total_elements = array_type->get_flattened_size();
-    const auto atomic_type = array_type->get_atomic_type();
-    std::vector<std::shared_ptr<Init>> flattened;
-    flattened.reserve(total_elements);
-    for (size_t i = 0; i < total_elements; ++i) {
-        flattened.emplace_back(Constant::create_zero_constant_init_value(atomic_type));
-    }
-    return fold_array(type, flattened);
+    return std::make_shared<Array>(type, std::vector<std::shared_ptr<Init>>{}, true);
 }
 
 std::vector<std::shared_ptr<Init>> Array::get_flattened_init_values() const {
