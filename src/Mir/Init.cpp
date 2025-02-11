@@ -73,6 +73,18 @@ std::shared_ptr<Array> Array::create_zero_array_init_value(const std::shared_ptr
     return fold_array(type, flattened);
 }
 
+std::vector<std::shared_ptr<Init>> Array::get_flattened_init_values() const {
+    std::vector<std::shared_ptr<Init>> result;
+    for (const auto &init: init_values) {
+        if (const auto arr = std::dynamic_pointer_cast<Array>(init)) {
+            auto sub = arr->get_flattened_init_values();
+            result.insert(result.end(), sub.begin(), sub.end());
+        } else {
+            result.push_back(init);
+        }
+    }
+    return result;
+}
 
 void Array::gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared_ptr<Block> &block,
                            const std::vector<int> &dimensions) {

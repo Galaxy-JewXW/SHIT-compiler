@@ -21,6 +21,10 @@ class Store;
 class GetElementPtr;
 }
 
+namespace Mir::Symbol {
+class Table;
+}
+
 template<typename TVal>
 struct InitValTrait {};
 
@@ -68,12 +72,6 @@ struct InitValTrait<AST::InitVal> {
         return std::get<std::shared_ptr<AST::Exp>>(node->get_value())->addExp();
     }
 };
-
-
-namespace Mir::Symbol {
-class Table;
-}
-
 
 namespace Mir::Init {
 class Init;
@@ -149,22 +147,18 @@ public:
 
 class Array final : public Init {
     std::vector<std::shared_ptr<Init>> init_values;
-    std::vector<std::shared_ptr<Init>> flattened_init_values;
 
 public:
     explicit Array(const std::shared_ptr<Type::Type> &type,
-                   const std::vector<std::shared_ptr<Init>> &flattened_init_values)
-        : Init{type}, flattened_init_values{flattened_init_values} {}
+                   const std::vector<std::shared_ptr<Init>> &init_values)
+        : Init{type}, init_values{init_values} {}
 
     [[nodiscard]] bool is_array_init() const override { return true; }
 
-    [[nodiscard]] const std::vector<std::shared_ptr<Init>> &get_flattened_init_values() const {
-        return flattened_init_values;
-    }
+    [[nodiscard]] std::vector<std::shared_ptr<Init>> get_flattened_init_values() const;
 
-    [[nodiscard]] size_t get_size() const { return flattened_init_values.size(); }
+    [[nodiscard]] size_t get_size() const { return init_values.size(); }
     [[nodiscard]] std::shared_ptr<Init> get_init_value(const int idx) const { return init_values.at(idx); }
-    void add_init_value(const std::shared_ptr<Init> &init_value) { init_values.emplace_back(init_value); }
 
     template<typename TVal>
     static std::shared_ptr<Array> create_array_init_value(const std::shared_ptr<Type::Type> &type,
@@ -244,34 +238,38 @@ inline std::shared_ptr<Array> fold_array(const std::shared_ptr<Type::Type> &type
     if (!type->is_array()) {
         log_error("%s is not an array type", type->to_string().c_str());
     }
-    const auto array = std::make_shared<Array>(type, flattened_init_values);
-    const auto &array_type = std::static_pointer_cast<Type::Array>(type);
+    const auto array_type = std::static_pointer_cast<Type::Array>(type);
     const auto cur_dim_size = array_type->get_size();
+    const auto element_type = array_type->get_element_type();
 
-    // 计算每个子分块大小
-    if (const auto length = flattened_init_values.size() / cur_dim_size; length == 1) {
-        // 只有一层
-        for (const auto &val: flattened_init_values) {
-            array->add_init_value(val);
-        }
-    } else {
-        // 仍然是多维，需要再 fold
-        const auto element_type = array_type->get_element_type();
-        for (size_t i = 0; i < cur_dim_size; ++i) {
-            const long start = static_cast<long>(i * length);
-            const long end = static_cast<long>((i + 1) * length);
-            array->add_init_value(
-                fold_array(
-                    element_type,
-                    std::vector(
-                        flattened_init_values.begin() + start,
-                        flattened_init_values.begin() + end
-                    )
-                )
-            );
+    std::vector<std::shared_ptr<Init>> init_values;
+
+    const size_t total_elements = flattened_init_values.size();
+    if (total_elements % cur_dim_size != 0) {
+        log_error("Flattened elements count %zu is not divisible by current dimension size %zu", total_elements,
+                  cur_dim_size);
+    }
+    const size_t elements_per_sub = total_elements / cur_dim_size;
+
+    for (size_t i = 0; i < cur_dim_size; ++i) {
+        const size_t start = i * elements_per_sub;
+        const size_t end = start + elements_per_sub;
+        auto sub_flattened = std::vector(
+            flattened_init_values.begin() + static_cast<long>(start),
+            flattened_init_values.begin() + static_cast<long>(end)
+        );
+
+        if (element_type->is_array()) {
+            auto sub_array = fold_array(element_type, sub_flattened);
+            init_values.push_back(sub_array);
+        } else {
+            for (auto &val: sub_flattened) {
+                init_values.push_back(val);
+            }
         }
     }
-    return array;
+
+    return std::make_shared<Array>(type, init_values);
 }
 }
 
