@@ -1,6 +1,6 @@
 #include "Utils/Log.h"
 
-#define MAX_CALLBACKS 32
+constexpr int MAX_CALLBACKS = 32;
 
 static std::chrono::steady_clock::time_point start_time = std::chrono::steady_clock::now();
 
@@ -103,7 +103,7 @@ void log_log(const int level, const char *file, const int line, const char *fmt,
     };
     lock();
     if (!L.quiet && level >= L.level) {
-        init_event(&ev, stderr);
+        init_event(&ev, stdout);
         va_start(ev.ap, fmt);
         stdout_callback(&ev);
         va_end(ev.ap);

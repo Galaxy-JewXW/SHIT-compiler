@@ -43,7 +43,7 @@ void compiler_options::print() const {
 
 
 void usage(const char *prog_name) {
-    std::cerr << "Usage: " << prog_name << " input-file [options]\n"
+    std::cout << "Usage: " << prog_name << " input-file [options]\n"
             << "Options:\n"
             << "  -S                      Generate assembly output\n"
             << "  -o <output>             Specify output file for assembly\n"
