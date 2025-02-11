@@ -2,6 +2,7 @@
 #include "Mir/Init.h"
 
 #include <algorithm>
+#include <cassert>
 #include <functional>
 #include <unordered_set>
 
@@ -26,6 +27,8 @@ size_t Builder::block_count{0}, Builder::variable_count{0};
     cur_block = nullptr;
     cur_function = nullptr;
     loop_stats.clear();
+    assert(cond_stats.empty());
+    assert(loop_stats.empty());
     return module;
 }
 
@@ -498,11 +501,16 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
     if (!address->get_type()->is_pointer()) {
         log_fatal("Invalid address type %s of %s", address->get_type()->to_string().c_str(), ident.c_str());
     }
-    auto is_symbol_unmodified = [&symbol, &address] {
+    auto is_symbol_unmodified = [&] {
         // 常量是“未被修改”的
         if (symbol->is_constant_symbol()) return true;
         // 已标记“被修改”
         if (symbol->is_modified_symbol()) return false;
+        // 在if或while语句块中，由于路径不确定，故标记为“被修改”
+        if (!loop_stats.empty() || !cond_stats.empty()) {
+            symbol->set_modified();
+            return false;
+        }
         // 如果是全局变量，默认是“被修改”的
         return std::dynamic_pointer_cast<GlobalVariable>(address) == nullptr;
     };
@@ -752,6 +760,7 @@ void Builder::visit_returnStmt(const std::shared_ptr<AST::ReturnStmt> &returnStm
 
 void Builder::visit_ifStmt(const std::shared_ptr<AST::IfStmt> &ifStmt) {
     const auto then_block = Block::create(gen_block_name(), cur_function);
+    cond_stats.emplace_back(ifStmt->cond());
     if (const auto else_stmt = ifStmt->_else()) {
         const auto else_block = Block::create(gen_block_name(), cur_function);
         const auto follow_block = Block::create(gen_block_name(), cur_function);
@@ -771,6 +780,7 @@ void Builder::visit_ifStmt(const std::shared_ptr<AST::IfStmt> &ifStmt) {
         Jump::create(follow_block, cur_block);
         cur_block = follow_block;
     }
+    cond_stats.pop_back();
 }
 
 void Builder::visit_whileStmt(const std::shared_ptr<AST::WhileStmt> &whileStmt) {
@@ -778,6 +788,7 @@ void Builder::visit_whileStmt(const std::shared_ptr<AST::WhileStmt> &whileStmt) 
          body_block = Block::create(gen_block_name(), cur_function),
          follow_block = Block::create(gen_block_name(), cur_function);
     loop_stats.emplace_back(cond_block, body_block, follow_block);
+    cond_stats.emplace_back(whileStmt->cond());
     Jump::create(cond_block, cur_block);
     cur_block = cond_block;
     visit_cond(whileStmt->cond(), body_block, follow_block);
@@ -785,6 +796,8 @@ void Builder::visit_whileStmt(const std::shared_ptr<AST::WhileStmt> &whileStmt) 
     visit_stmt(whileStmt->body());
     visit_cond(whileStmt->cond(), body_block, follow_block);
     cur_block = follow_block;
+    loop_stats.pop_back();
+    cond_stats.pop_back();
 }
 
 void Builder::visit_breakStmt() {

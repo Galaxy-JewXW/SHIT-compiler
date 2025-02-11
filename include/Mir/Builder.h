@@ -15,7 +15,8 @@ class Builder {
     std::shared_ptr<Symbol::Table> table = std::make_shared<Symbol::Table>();
     std::shared_ptr<Function> cur_function;
     std::shared_ptr<Block> cur_block;
-    std::vector<std::tuple<std::shared_ptr<Block>, std::shared_ptr<Block>, std::shared_ptr<Block>>> loop_stats;
+    std::vector<std::tuple<std::shared_ptr<Block>, std::shared_ptr<Block>, std::shared_ptr<Block>>> loop_stats{};
+    std::vector<std::shared_ptr<AST::Cond>> cond_stats{};
 
 public:
     explicit Builder() { table->push_scope(); }
