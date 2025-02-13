@@ -104,7 +104,7 @@ std::shared_ptr<Value> type_cast(const std::shared_ptr<Value> &v, const std::sha
 }
 
 // 用于在编译期内计算常数
-using EvalResult = std::variant<int, float>;
+using EvalResult = std::variant<int, double>;
 
 EvalResult eval_exp(const std::shared_ptr<AST::AddExp> &exp, const std::shared_ptr<Mir::Symbol::Table> &table);
 

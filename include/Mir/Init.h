@@ -193,8 +193,8 @@ bool is_zero_array(const std::shared_ptr<Type::Type> &type,
                         return false;
                 }
                 if (atomic_type->is_float()) {
-                    const float value = std::visit([](auto &&arg) { return static_cast<float>(arg); }, res);
-                    if (constexpr float tolerance = 1e-6f; std::abs(value - 0.0f) >= tolerance) {
+                    const double value = std::visit([](auto &&arg) { return static_cast<double>(arg); }, res);
+                    if (constexpr double tolerance = 1e-6f; std::abs(value - 0.0f) >= tolerance) {
                         return false;
                     }
                 }

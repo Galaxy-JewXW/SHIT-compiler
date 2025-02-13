@@ -13,7 +13,7 @@ std::shared_ptr<Constant> Constant::create_constant_init_value(const std::shared
         return std::make_shared<Constant>(type, std::make_shared<ConstInt>(value));
     }
     if (type->is_float()) {
-        float value = std::visit([](auto &&arg) { return static_cast<float>(arg); }, res);
+        double value = std::visit([](auto &&arg) { return static_cast<double>(arg); }, res);
         return std::make_shared<Constant>(type, std::make_shared<ConstFloat>(value));
     }
     log_error("Illegal type: %s", type->to_string().c_str());

@@ -7,13 +7,13 @@ template<typename From, typename To>
 To cast_constant(From value) {
     if constexpr (std::is_same_v<From, bool>) {
         if constexpr (std::is_same_v<To, int>) return value ? 1 : 0;
-        if constexpr (std::is_same_v<To, float>) return value ? 1.0f : 0.0f;
+        if constexpr (std::is_same_v<To, double>) return value ? 1.0f : 0.0f;
     }
     if constexpr (std::is_same_v<From, int>) {
         if constexpr (std::is_same_v<To, bool>) return value != 0;
-        if constexpr (std::is_same_v<To, float>) return static_cast<float>(value);
+        if constexpr (std::is_same_v<To, double>) return static_cast<double>(value);
     }
-    if constexpr (std::is_same_v<From, float>) {
+    if constexpr (std::is_same_v<From, double>) {
         if constexpr (std::is_same_v<To, int>) return static_cast<int>(value);
         if constexpr (std::is_same_v<To, bool>) return value != 0.0f;
     }
@@ -28,15 +28,15 @@ std::shared_ptr<Value> cast_constant_value(const std::shared_ptr<Const> &v,
     if (src_type->is_int1()) {
         const auto val = std::any_cast<int>(v->get_constant_value());
         if (target_type->is_int32()) return std::make_shared<ConstInt>(cast_constant<bool, int>(val));
-        if (target_type->is_float()) return std::make_shared<ConstFloat>(cast_constant<bool, float>(val));
+        if (target_type->is_float()) return std::make_shared<ConstFloat>(cast_constant<bool, double>(val));
     } else if (src_type->is_int32()) {
         const auto val = std::any_cast<int>(v->get_constant_value());
         if (target_type->is_int1()) return std::make_shared<ConstBool>(cast_constant<int, bool>(val));
-        if (target_type->is_float()) return std::make_shared<ConstFloat>(cast_constant<int, float>(val));
+        if (target_type->is_float()) return std::make_shared<ConstFloat>(cast_constant<int, double>(val));
     } else if (src_type->is_float()) {
-        const auto val = std::any_cast<float>(v->get_constant_value());
-        if (target_type->is_int32()) return std::make_shared<ConstInt>(cast_constant<float, int>(val));
-        if (target_type->is_int1()) return std::make_shared<ConstBool>(cast_constant<float, bool>(val));
+        const auto val = std::any_cast<double>(v->get_constant_value());
+        if (target_type->is_int32()) return std::make_shared<ConstInt>(cast_constant<double, int>(val));
+        if (target_type->is_int1()) return std::make_shared<ConstBool>(cast_constant<double, bool>(val));
     }
     log_error("Invalid constant cast");
 }

@@ -12,8 +12,8 @@ EvalResult apply(const EvalResult &lhs, const EvalResult &rhs, Op op) {
     if (std::holds_alternative<int>(lhs) && std::holds_alternative<int>(rhs)) {
         return op(std::get<int>(lhs), std::get<int>(rhs));
     }
-    float l = std::holds_alternative<int>(lhs) ? static_cast<float>(std::get<int>(lhs)) : std::get<float>(lhs);
-    float r = std::holds_alternative<int>(rhs) ? static_cast<float>(std::get<int>(rhs)) : std::get<float>(rhs);
+    double l = std::holds_alternative<int>(lhs) ? static_cast<double>(std::get<int>(lhs)) : std::get<double>(lhs);
+    double r = std::holds_alternative<int>(rhs) ? static_cast<double>(std::get<int>(rhs)) : std::get<double>(rhs);
     return op(l, r);
 }
 
@@ -32,8 +32,8 @@ EvalResult eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_p
         const auto &eval_result = eval_exp(exp->addExp(), table);
         int idx;
         if (!std::holds_alternative<int>(eval_result)) {
-            log_warn("Index of non-integer: %f", std::get<float>(eval_result));
-            idx = static_cast<int>(std::get<float>(eval_result));
+            log_warn("Index of non-integer: %f", std::get<double>(eval_result));
+            idx = static_cast<int>(std::get<double>(eval_result));
         } else {
             idx = std::get<int>(eval_result);
         }
@@ -52,7 +52,7 @@ EvalResult eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_p
     const auto &const_ = std::static_pointer_cast<Const>(value);
     const auto res = const_->get_constant_value();
     if (res.type() == typeid(int)) { return std::any_cast<int>(res); }
-    if (res.type() == typeid(float)) { return std::any_cast<float>(res); }
+    if (res.type() == typeid(double)) { return std::any_cast<double>(res); }
     log_error("Unknown constant type");
 }
 
@@ -90,7 +90,7 @@ EvalResult eval_number(const std::shared_ptr<AST::Number> &number) {
     }
     if (typeid(p) == typeid(AST::FloatNumber)) {
         const auto &float_num = std::static_pointer_cast<AST::FloatNumber>(number);
-        return static_cast<float>(float_num->get_value());
+        return float_num->get_value();
     }
     log_fatal("Fatal at eval number");
 }
@@ -128,12 +128,12 @@ EvalResult eval_unaryExp(const std::shared_ptr<AST::UnaryExp> &unaryExp, const s
             case Token::Type::ADD: return val;
             case Token::Type::SUB: {
                 if (std::holds_alternative<int>(val)) { return -std::get<int>(val); }
-                return -std::get<float>(val);
+                return -std::get<double>(val);
             }
             case Token::Type::NOT: {
                 const bool is_zero = std::holds_alternative<int>(val)
                                          ? std::get<int>(val) == 0
-                                         : std::get<float>(val) == 0.0f;
+                                         : std::get<double>(val) == 0.0f;
                 return is_zero ? 1 : 0;
             }
             default: log_fatal("Unknown operator");

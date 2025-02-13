@@ -57,8 +57,8 @@ void Builder::visit_constDef(const Token::Type type, const std::shared_ptr<AST::
         int dim;
         if (std::holds_alternative<int>(res)) {
             dim = std::get<int>(res);
-        } else if (std::holds_alternative<float>(res)) {
-            dim = static_cast<int>(std::get<float>(res));
+        } else if (std::holds_alternative<double>(res)) {
+            dim = static_cast<int>(std::get<double>(res));
         } else {
             log_error("Unexpected error on calculating dim");
         }
@@ -113,8 +113,8 @@ void Builder::visit_varDef(const Token::Type type, const std::shared_ptr<AST::Va
         int dim;
         if (std::holds_alternative<int>(res)) {
             dim = std::get<int>(res);
-        } else if (std::holds_alternative<float>(res)) {
-            dim = static_cast<int>(std::get<float>(res));
+        } else if (std::holds_alternative<double>(res)) {
+            dim = static_cast<int>(std::get<double>(res));
         } else {
             log_error("Unexpected error on calculating dim");
         }
@@ -296,8 +296,8 @@ Builder::visit_funcFParam(const std::shared_ptr<AST::FuncFParam> &funcFParam) co
         int dim;
         if (std::holds_alternative<int>(res)) {
             dim = std::get<int>(res);
-        } else if (std::holds_alternative<float>(res)) {
-            dim = static_cast<int>(std::get<float>(res));
+        } else if (std::holds_alternative<double>(res)) {
+            dim = static_cast<int>(std::get<double>(res));
         } else {
             log_error("Unexpected error on calculating dim");
         }

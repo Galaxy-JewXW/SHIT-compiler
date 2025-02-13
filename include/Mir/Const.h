@@ -102,47 +102,47 @@ public:
 };
 
 class ConstFloat final : public Const {
-    const float value;
+    const double value;
 
-    static std::string gen_name(const float value) {
-        uint32_t bits;
+    static std::string gen_name(const double value) {
+        uint64_t bits;
         static_assert(sizeof(value) == sizeof(bits), "Size mismatch");
         std::memcpy(&bits, &value, sizeof(value));
         std::ostringstream oss;
-        oss << "0x" << std::hex << std::setw(8) << std::setfill('0') << bits;
+        oss << "0x" << std::hex << std::setw(16) << std::setfill('0') << bits;
         return oss.str();
     }
 
 public:
-    explicit ConstFloat(const float value) : Const(gen_name(value), Type::Float::f32), value{value} {}
+    explicit ConstFloat(const double value) : Const(gen_name(value), Type::Float::f32), value{value} {}
 
     [[nodiscard]] bool is_zero() const override {
-        constexpr float tolerance = 1e-6f;
+        constexpr double tolerance = 1e-6f;
         return std::fabs(value) < tolerance;
     }
 
     [[nodiscard]] std::any get_constant_value() const override { return value; }
 
-    float operator+(const ConstFloat &other) const {
+    double operator+(const ConstFloat &other) const {
         return value + other.value;
     }
 
-    float operator-(const ConstFloat &other) const {
+    double operator-(const ConstFloat &other) const {
         return value - other.value;
     }
 
-    float operator*(const ConstFloat &other) const {
+    double operator*(const ConstFloat &other) const {
         return value * other.value;
     }
 
-    float operator/(const ConstFloat &other) const {
+    double operator/(const ConstFloat &other) const {
         if (other.value == 0) {
             log_error("Division by zero");
         }
         return value / other.value;
     }
 
-    float operator%(const ConstFloat &other) const {
+    double operator%(const ConstFloat &other) const {
         if (other.value == 0) {
             log_error("Modulo by zero");
         }
@@ -150,32 +150,32 @@ public:
     }
 
     int operator==(const ConstFloat &other) const {
-        constexpr float tolerance = 1e-6f;
+        constexpr double tolerance = 1e-6f;
         return std::fabs(value - other.value) < tolerance;
     }
 
     int operator!=(const ConstFloat &other) const {
-        constexpr float tolerance = 1e-6f;
+        constexpr double tolerance = 1e-6f;
         return std::fabs(value - other.value) >= tolerance;
     }
 
     int operator<(const ConstFloat &other) const {
-        constexpr float tolerance = 1e-6f;
+        constexpr double tolerance = 1e-6f;
         return value < other.value && std::fabs(value - other.value) >= tolerance;
     }
 
     int operator>(const ConstFloat &other) const {
-        constexpr float tolerance = 1e-6f;
+        constexpr double tolerance = 1e-6f;
         return value > other.value && std::fabs(value - other.value) >= tolerance;
     }
 
     int operator<=(const ConstFloat &other) const {
-        constexpr float tolerance = 1e-6f;
+        constexpr double tolerance = 1e-6f;
         return value <= other.value && std::fabs(value - other.value) >= tolerance;
     }
 
     int operator>=(const ConstFloat &other) const {
-        constexpr float tolerance = 1e-6f;
+        constexpr double tolerance = 1e-6f;
         return value >= other.value && std::fabs(value - other.value) >= tolerance;
     }
 };
