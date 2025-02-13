@@ -12,6 +12,9 @@
 #include "Frontend/Parser.h"
 #include "Mir/Builder.h"
 #include "Mir/Value.h"
+#include "Pass/Analysis.h"
+#include "Pass/Transform.h"
+#include "Pass/Utility.h"
 #include "Utils/Log.h"
 
 enum class Optimize_level { O0, O1, O2 };
