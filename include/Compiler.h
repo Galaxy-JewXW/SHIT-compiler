@@ -4,7 +4,6 @@
 // ReSharper disable CppUnusedIncludeDirective
 #include <fstream>
 #include <iostream>
-#include <sstream>
 #include <string>
 #include <vector>
 

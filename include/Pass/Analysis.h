@@ -1,5 +1,7 @@
 #ifndef ANALYSIS_H
 #define ANALYSIS_H
+#include <unordered_set>
+
 #include "Pass.h"
 
 namespace Pass {
@@ -20,12 +22,82 @@ protected:
     virtual void analyze(std::shared_ptr<const Mir::Module> module) = 0;
 };
 
-// 示例分析Pass
-class Example final : public Analysis {
+// ControlFlowGraph构建控制流图
+// 每个Function对应一套独立的CFG信息，键为FunctionPtr，代表不同的函数
+class ControlFlowGraph final : public Analysis {
 public:
-    explicit Example() : Analysis("Example") {}
+    using FunctionPtr = std::shared_ptr<Mir::Function>;
+    using BlockPtr = std::shared_ptr<Mir::Block>;
+    explicit ControlFlowGraph() : Analysis("ControlFlowGraph") {}
 
+    const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &predecessors(const FunctionPtr &func) const {
+        const auto it = predecessors_.find(func);
+        if (it == predecessors_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
+        return it->second;
+    }
+
+    const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &successors(const FunctionPtr &func) const {
+        const auto it = successors_.find(func);
+        if (it == successors_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
+        return it->second;
+    }
+
+    const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &dominated(const FunctionPtr &func) const {
+        const auto it = dominated_blocks_.find(func);
+        if (it == dominated_blocks_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
+        return it->second;
+    }
+
+    const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &dominator(const FunctionPtr &func) const {
+        const auto it = dominator_blocks_.find(func);
+        if (it == dominator_blocks_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
+        return it->second;
+    }
+
+    const std::unordered_map<BlockPtr, BlockPtr> &immediate_dominator(const FunctionPtr &func) const {
+        const auto it = immediate_dominator_.find(func);
+        if (it == immediate_dominator_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
+        return it->second;
+    }
+
+    const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &dominance_children(
+        const FunctionPtr &func) const {
+        const auto it = dominance_children_.find(func);
+        if (it == dominance_children_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
+        return it->second;
+    }
+
+    const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &dominance_frontier(const FunctionPtr &func) const {
+        const auto it = dominance_frontier_.find(func);
+        if (it == dominance_frontier_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
+        return it->second;
+    }
+
+protected:
     void analyze(std::shared_ptr<const Mir::Module> module) override;
+
+private:
+    using FuncBlockMap = std::unordered_map<FunctionPtr, std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>>>;
+    // 前驱块关系：function -> { block -> {所有前驱块} }
+    FuncBlockMap predecessors_;
+
+    // 后继块关系：function -> { block -> {所有后继块} }
+    FuncBlockMap successors_;
+
+    // 被支配块集合：function -> { block -> {被该块支配的所有块集合（含自身）} }
+    FuncBlockMap dominated_blocks_;
+
+    // 支配块集合：function -> { block -> {支配该块的所有块集合（含自身）} }
+    FuncBlockMap dominator_blocks_;
+
+    // 直接支配者：function -> { block -> 该块的唯一直接支配者（支配树中的父节点） }
+    std::unordered_map<FunctionPtr, std::unordered_map<BlockPtr, BlockPtr>> immediate_dominator_;
+
+    // 支配树子节点：function -> { block -> {该块在支配树中的直接子节点} }
+    FuncBlockMap dominance_children_;
+
+    // 支配边界集合：function -> { block -> {该块的支配边界} }
+    FuncBlockMap dominance_frontier_;
 };
 }
 

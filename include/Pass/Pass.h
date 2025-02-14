@@ -13,7 +13,11 @@ public:
 
     virtual ~Pass() = default;
 
+    Pass(Pass &&) = delete;
+
     Pass(const Pass &) = delete;
+
+    Pass &operator=(Pass &&) = delete;
 
     Pass &operator=(const Pass &) = delete;
 
@@ -23,8 +27,11 @@ public:
 
     virtual void run_on(std::shared_ptr<Mir::Module> module) = 0;
 
-    template<typename PassType>
-    static std::shared_ptr<PassType> create() { return std::make_shared<PassType>(); }
+    // 创建Pass实例
+    template<typename PassType, typename... Args>
+    static std::shared_ptr<PassType> create(Args &&... args) {
+        return std::make_shared<PassType>(std::forward<Args>(args)...);
+    }
 
 protected:
     explicit Pass(const PassType type, std::string name) : type_{type}, name_{std::move(name)} {}
