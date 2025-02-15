@@ -1,5 +1,7 @@
 #ifndef INSTRUCTION_H
 #define INSTRUCTION_H
+#include <utility>
+
 #include "Const.h"
 #include "Structure.h"
 #include "Value.h"
@@ -25,6 +27,7 @@ enum class Operator {
     CALL,
     INTBINARY,
     FLOATBINARY,
+    PHI,
 };
 
 class Instruction : public User {
@@ -45,7 +48,7 @@ public:
         block->add_instruction(std::static_pointer_cast<Instruction>(shared_from_this()));
     }
 
-    [[nodiscard]] Operator get_op() const;
+    [[nodiscard]] Operator get_op() const { return op; }
 
     [[nodiscard]] std::string to_string() const override = 0;
 };
@@ -785,6 +788,33 @@ public:
     }
 
     [[nodiscard]] std::string to_string() const override;
+};
+
+class Phi final : public Instruction {
+public:
+    using Optional_Values = std::unordered_map<std::shared_ptr<Block>, std::shared_ptr<Value>>;
+
+    explicit Phi(const std::string &name, const std::shared_ptr<Type::Type> &type, Optional_Values optional_values)
+        : Instruction{name, type, Operator::PHI}, optional_values{std::move(optional_values)} {}
+
+    static std::shared_ptr<Phi> create(const std::string &name, const std::shared_ptr<Type::Type> &type,
+                                       const std::shared_ptr<Block> &block,
+                                       const Optional_Values &optional_values) {
+        const auto instruction = std::make_shared<Phi>(name, type, optional_values);
+        for (const auto &[block, value]: optional_values) {
+            instruction->add_operand(block);
+        }
+        // block 为nullptr时，不进行自动插入
+        if (block) { instruction->set_block(block); }
+        return instruction;
+    }
+
+    [[nodiscard]] std::string to_string() const override;
+
+    void set_optional_value(const std::shared_ptr<Block> &block, const std::shared_ptr<Value> &optional_value);
+
+private:
+    Optional_Values optional_values;
 };
 }
 

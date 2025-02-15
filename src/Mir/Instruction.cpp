@@ -16,4 +16,10 @@ std::shared_ptr<Type::Type> GetElementPtr::calc_type_(const std::shared_ptr<Valu
     }
     log_fatal("Invalid pointer target type");
 }
+
+void Phi::set_optional_value(const std::shared_ptr<Block> &block, const std::shared_ptr<Value> &optional_value) {
+    if (*optional_value->get_type() != *type_) { log_error("Phi operand type must be same"); }
+    optional_values[block] = optional_value;
+    optional_value->add_user(std::static_pointer_cast<User>(shared_from_this()));
+}
 }

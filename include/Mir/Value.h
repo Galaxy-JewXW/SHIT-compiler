@@ -88,6 +88,7 @@ public:
             }
         };
 
+        [[nodiscard]] size_t size() const { return users_.size(); }
         [[nodiscard]] Iterator begin() const { return Iterator{users_.begin()}; }
         [[nodiscard]] Iterator end() const { return Iterator{users_.end()}; }
     };

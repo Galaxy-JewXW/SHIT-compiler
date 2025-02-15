@@ -277,7 +277,6 @@ void Builder::visit_funcDef(const std::shared_ptr<AST::FuncDef> &funcDef) {
         block->set_deleted();
         return true;
     }), blocks.end());
-    cur_function->update_id();
     cur_block = nullptr;
     cur_function = nullptr;
 }

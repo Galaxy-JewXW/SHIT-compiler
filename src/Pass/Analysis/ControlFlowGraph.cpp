@@ -30,12 +30,14 @@ void build_predecessors_successors(const FunctionPtr &func,
                       last_instruction->to_string().c_str());
         }
         std::unordered_set<BlockPtr> successors;
-        if (const auto branch = std::dynamic_pointer_cast<Mir::Branch>(terminator)) {
+        if (terminator->get_op() == Mir::Operator::BRANCH) {
+            const auto branch = std::static_pointer_cast<Mir::Branch>(terminator);
             successors.insert(branch->get_true_block());
             successors.insert(branch->get_false_block());
-        } else if (const auto jump = std::dynamic_pointer_cast<Mir::Jump>(terminator)) {
+        } else if (terminator->get_op() == Mir::Operator::JUMP) {
+            const auto jump = std::static_pointer_cast<Mir::Jump>(terminator);
             successors.insert(jump->get_target_block());
-        } else if (const auto ret = std::dynamic_pointer_cast<Mir::Ret>(terminator); ret == nullptr) {
+        } else if (terminator->get_op() != Mir::Operator::RET) {
             log_error("Last instruction of block %s is not a terminator: %s", block->get_name().c_str(),
                       last_instruction->to_string().c_str());
         }
