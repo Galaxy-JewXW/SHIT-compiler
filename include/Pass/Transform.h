@@ -57,6 +57,9 @@ private:
 
     void rename_variables(const std::shared_ptr<Mir::Block> &block);
 };
+
+// 常数折叠：编译期计算常量表达式
+DEFINE_DEFAULT_TRANSFORM_CLASS(ConstantFolding);
 }
 
 #endif //TRANSFORM_H

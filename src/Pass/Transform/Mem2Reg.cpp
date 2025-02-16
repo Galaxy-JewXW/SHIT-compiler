@@ -132,5 +132,11 @@ void Mem2Reg::transform(const std::shared_ptr<Module> module) {
             rename_variables(current_alloc->get_block());
         }
     }
+    current_alloc = nullptr;
+    current_function = nullptr;
+    def_instructions.clear();
+    use_instructions.clear();
+    def_blocks.clear();
+    def_stack.clear();
 }
 }

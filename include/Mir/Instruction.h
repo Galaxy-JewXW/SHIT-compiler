@@ -231,8 +231,18 @@ public:
         if (!lhs->get_type()->is_float() || !rhs->get_type()->is_float()) { log_error("Operands must be a float"); }
     }
 
-    static std::shared_ptr<Value> create(const std::string &name, const Op op, const std::shared_ptr<Value> &lhs,
-                                         const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block) {
+    static Op swap_op(const Op op) {
+        switch (op) {
+            case Op::GT: return Op::LT;
+            case Op::LT: return Op::GT;
+            case Op::GE: return Op::LE;
+            case Op::LE: return Op::GE;
+            default: return op;
+        }
+    }
+
+    static std::shared_ptr<Value> create(const std::string &name, Op op, std::shared_ptr<Value> lhs,
+                                         std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block) {
         if (!lhs->get_type()->is_float() || !rhs->get_type()->is_float()) { log_error("Operands must be a float"); }
         if (lhs->is_constant() && rhs->is_constant()) {
             const auto left = std::dynamic_pointer_cast<ConstFloat>(lhs),
@@ -246,6 +256,10 @@ public:
                 case Op::LE: return std::make_shared<ConstBool>(*left <= *right);
                 default: break;
             }
+        }
+        if (lhs->is_constant() && !rhs->is_constant()) {
+            std::swap(lhs, rhs);
+            op = swap_op(op);
         }
         const auto instruction = std::make_shared<Fcmp>(name, op, lhs, rhs);
         instruction->set_block(block);
@@ -273,8 +287,18 @@ public:
         }
     }
 
-    static std::shared_ptr<Value> create(const std::string &name, const Op op, const std::shared_ptr<Value> &lhs,
-                                         const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block) {
+    static Op swap_op(const Op op) {
+        switch (op) {
+            case Op::GT: return Op::LT;
+            case Op::LT: return Op::GT;
+            case Op::GE: return Op::LE;
+            case Op::LE: return Op::GE;
+            default: return op;
+        }
+    }
+
+    static std::shared_ptr<Value> create(const std::string &name, Op op, std::shared_ptr<Value> lhs,
+                                         std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block) {
         if (!lhs->get_type()->is_int32() || !rhs->get_type()->is_int32()) {
             log_error("Operands must be an integer 32");
         }
@@ -290,6 +314,10 @@ public:
                 case Op::LE: return std::make_shared<ConstBool>(*left <= *right);
                 default: break;
             }
+        }
+        if (lhs->is_constant() && !rhs->is_constant()) {
+            std::swap(lhs, rhs);
+            op = swap_op(op);
         }
         const auto instruction = std::make_shared<Icmp>(name, op, lhs, rhs);
         instruction->set_block(block);
@@ -499,6 +527,7 @@ protected:
 
     ~Binary() override = default;
 
+public:
     [[nodiscard]] std::shared_ptr<Value> get_lhs() const { return operands_[0]; }
 
     [[nodiscard]] std::shared_ptr<Value> get_rhs() const { return operands_[1]; }
@@ -545,8 +574,8 @@ public:
     explicit Add(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : IntBinary(name, lhs, rhs, Op::ADD) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, const std::shared_ptr<Value> &lhs,
-                                         const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block) {
+    static std::shared_ptr<Value> create(const std::string &name, std::shared_ptr<Value> lhs,
+                                         std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block) {
         if (!lhs->get_type()->is_int32() || !rhs->get_type()->is_int32()) {
             log_error("Operands must be int 32");
         }
@@ -554,6 +583,9 @@ public:
             const auto left = std::dynamic_pointer_cast<ConstInt>(lhs),
                        right = std::dynamic_pointer_cast<ConstInt>(rhs);
             return std::make_shared<ConstInt>(*left + *right);
+        }
+        if (lhs->is_constant() && !rhs->is_constant()) {
+            std::swap(lhs, rhs);
         }
         const auto instruction = std::make_shared<Add>(name, lhs, rhs);
         instruction->set_block(block);
@@ -595,8 +627,8 @@ public:
     explicit Mul(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : IntBinary(name, lhs, rhs, Op::MUL) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, const std::shared_ptr<Value> &lhs,
-                                         const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block) {
+    static std::shared_ptr<Value> create(const std::string &name, std::shared_ptr<Value> lhs,
+                                         std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block) {
         if (!lhs->get_type()->is_int32() || !rhs->get_type()->is_int32()) {
             log_error("Operands must be int 32");
         }
@@ -604,6 +636,9 @@ public:
             const auto left = std::dynamic_pointer_cast<ConstInt>(lhs),
                        right = std::dynamic_pointer_cast<ConstInt>(rhs);
             return std::make_shared<ConstInt>(*left * *right);
+        }
+        if (lhs->is_constant() && !rhs->is_constant()) {
+            std::swap(lhs, rhs);
         }
         const auto instruction = std::make_shared<Mul>(name, lhs, rhs);
         instruction->set_block(block);
@@ -670,8 +705,8 @@ public:
     explicit FAdd(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : FloatBinary(name, lhs, rhs, Op::ADD) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, const std::shared_ptr<Value> &lhs,
-                                         const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block) {
+    static std::shared_ptr<Value> create(const std::string &name, std::shared_ptr<Value> lhs,
+                                         std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block) {
         if (!lhs->get_type()->is_float() || !rhs->get_type()->is_float()) {
             log_error("Operands must be float");
         }
@@ -679,6 +714,9 @@ public:
             const auto left = std::dynamic_pointer_cast<ConstFloat>(lhs),
                        right = std::dynamic_pointer_cast<ConstFloat>(rhs);
             return std::make_shared<ConstFloat>(*left + *right);
+        }
+        if (lhs->is_constant() && !rhs->is_constant()) {
+            std::swap(lhs, rhs);
         }
         const auto instruction = std::make_shared<FAdd>(name, lhs, rhs);
         instruction->set_block(block);
@@ -720,8 +758,8 @@ public:
     explicit FMul(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : FloatBinary(name, lhs, rhs, Op::MUL) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, const std::shared_ptr<Value> &lhs,
-                                         const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block) {
+    static std::shared_ptr<Value> create(const std::string &name, std::shared_ptr<Value> lhs,
+                                         std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block) {
         if (!lhs->get_type()->is_float() || !rhs->get_type()->is_float()) {
             log_error("Operands must be float");
         }
@@ -729,6 +767,9 @@ public:
             const auto left = std::dynamic_pointer_cast<ConstFloat>(lhs),
                        right = std::dynamic_pointer_cast<ConstFloat>(rhs);
             return std::make_shared<ConstFloat>(*left * *right);
+        }
+        if (lhs->is_constant() && !rhs->is_constant()) {
+            std::swap(lhs, rhs);
         }
         const auto instruction = std::make_shared<FMul>(name, lhs, rhs);
         instruction->set_block(block);

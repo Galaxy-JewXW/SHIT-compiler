@@ -103,6 +103,7 @@ public:
 
 class ConstFloat final : public Const {
     const double value;
+    static constexpr double tolerance = 1e-6f;
 
     static std::string gen_name(const double value) {
         uint64_t bits;
@@ -150,32 +151,26 @@ public:
     }
 
     int operator==(const ConstFloat &other) const {
-        constexpr double tolerance = 1e-6f;
         return std::fabs(value - other.value) < tolerance;
     }
 
     int operator!=(const ConstFloat &other) const {
-        constexpr double tolerance = 1e-6f;
         return std::fabs(value - other.value) >= tolerance;
     }
 
     int operator<(const ConstFloat &other) const {
-        constexpr double tolerance = 1e-6f;
         return value < other.value && std::fabs(value - other.value) >= tolerance;
     }
 
     int operator>(const ConstFloat &other) const {
-        constexpr double tolerance = 1e-6f;
         return value > other.value && std::fabs(value - other.value) >= tolerance;
     }
 
     int operator<=(const ConstFloat &other) const {
-        constexpr double tolerance = 1e-6f;
         return value <= other.value && std::fabs(value - other.value) >= tolerance;
     }
 
     int operator>=(const ConstFloat &other) const {
-        constexpr double tolerance = 1e-6f;
         return value >= other.value && std::fabs(value - other.value) >= tolerance;
     }
 };
