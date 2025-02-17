@@ -60,6 +60,8 @@ private:
 
 // 常数折叠：编译期计算常量表达式
 DEFINE_DEFAULT_TRANSFORM_CLASS(ConstantFolding);
+
+DEFINE_DEFAULT_TRANSFORM_CLASS(SimplifyCFG);
 }
 
 #endif //TRANSFORM_H

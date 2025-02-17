@@ -43,9 +43,11 @@ public:
 
     [[nodiscard]] std::shared_ptr<Block> get_block() const { return block.lock(); }
 
-    void set_block(const std::shared_ptr<Block> &block) {
+    void set_block(const std::shared_ptr<Block> &block, const bool insert = true) {
         this->block = block;
-        block->add_instruction(std::static_pointer_cast<Instruction>(shared_from_this()));
+        if (insert) [[likely]] {
+            block->add_instruction(std::static_pointer_cast<Instruction>(shared_from_this()));
+        }
     }
 
     [[nodiscard]] Operator get_op() const { return op; }
@@ -555,6 +557,8 @@ public:
                                        const Optional_Values &optional_values);
 
     [[nodiscard]] std::string to_string() const override;
+
+    [[nodiscard]] Optional_Values &get_optional_values() { return optional_values; }
 
     void set_optional_value(const std::shared_ptr<Block> &block, const std::shared_ptr<Value> &optional_value);
 

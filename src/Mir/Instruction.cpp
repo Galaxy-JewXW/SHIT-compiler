@@ -4,14 +4,14 @@ namespace Mir {
 std::shared_ptr<Alloc> Alloc::create(const std::string &name, const std::shared_ptr<Type::Type> &type,
                                      const std::shared_ptr<Block> &block) {
     const auto instruction = std::make_shared<Alloc>(name, type);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     return instruction;
 }
 
 std::shared_ptr<Load> Load::create(const std::string &name, const std::shared_ptr<Value> &addr,
                                    const std::shared_ptr<Block> &block) {
     const auto instruction = std::make_shared<Load>(name, addr);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(addr);
     return instruction;
 }
@@ -37,7 +37,7 @@ std::shared_ptr<GetElementPtr> GetElementPtr::create(const std::string &name,
                                                      const std::shared_ptr<Value> &index,
                                                      const std::shared_ptr<Block> &block) {
     const auto instruction = std::make_shared<GetElementPtr>(name, addr, index);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(addr);
     instruction->add_operand(index);
     return instruction;
@@ -47,7 +47,7 @@ std::shared_ptr<BitCast> BitCast::create(const std::string &name, const std::sha
                                          const std::shared_ptr<Type::Type> &target_type,
                                          const std::shared_ptr<Block> &block) {
     const auto instruction = std::make_shared<BitCast>(name, value, target_type);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(value);
     return instruction;
 }
@@ -55,7 +55,7 @@ std::shared_ptr<BitCast> BitCast::create(const std::string &name, const std::sha
 std::shared_ptr<Fptosi> Fptosi::create(const std::string &name, const std::shared_ptr<Value> &value,
                                        const std::shared_ptr<Block> &block) {
     const auto instruction = std::make_shared<Fptosi>(name, value);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(value);
     return instruction;
 }
@@ -63,7 +63,7 @@ std::shared_ptr<Fptosi> Fptosi::create(const std::string &name, const std::share
 std::shared_ptr<Sitofp> Sitofp::create(const std::string &name, const std::shared_ptr<Value> &value,
                                        const std::shared_ptr<Block> &block) {
     const auto instruction = std::make_shared<Sitofp>(name, value);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(value);
     return instruction;
 }
@@ -89,7 +89,7 @@ std::shared_ptr<Value> Fcmp::create(const std::string &name, Op op, std::shared_
         op = swap_op(op);
     }
     const auto instruction = std::make_shared<Fcmp>(name, op, lhs, rhs);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(lhs);
     instruction->add_operand(rhs);
     return instruction;
@@ -118,7 +118,7 @@ std::shared_ptr<Value> Icmp::create(const std::string &name, Op op, std::shared_
         op = swap_op(op);
     }
     const auto instruction = std::make_shared<Icmp>(name, op, lhs, rhs);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(lhs);
     instruction->add_operand(rhs);
     return instruction;
@@ -127,7 +127,7 @@ std::shared_ptr<Value> Icmp::create(const std::string &name, Op op, std::shared_
 std::shared_ptr<Zext> Zext::create(const std::string &name, const std::shared_ptr<Value> &value,
                                    const std::shared_ptr<Block> &block) {
     const auto instruction = std::make_shared<Zext>(name, value);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(value);
     return instruction;
 }
@@ -135,7 +135,7 @@ std::shared_ptr<Zext> Zext::create(const std::string &name, const std::shared_pt
 std::shared_ptr<Jump> Jump::create(const std::shared_ptr<Block> &target_block,
                                    const std::shared_ptr<Block> &block) {
     const auto instruction = std::make_shared<Jump>(target_block);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(target_block);
     return instruction;
 }
@@ -152,7 +152,7 @@ std::shared_ptr<Value> Branch::create(const std::shared_ptr<Value> &cond, const 
         return Jump::create(false_block, block);
     }
     const auto instruction = std::make_shared<Branch>(cond, true_block, false_block);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(cond);
     instruction->add_operand(true_block);
     instruction->add_operand(false_block);
@@ -161,14 +161,14 @@ std::shared_ptr<Value> Branch::create(const std::shared_ptr<Value> &cond, const 
 
 std::shared_ptr<Ret> Ret::create(const std::shared_ptr<Value> &value, const std::shared_ptr<Block> &block) {
     const auto instruction = std::make_shared<Ret>(value);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(value);
     return instruction;
 }
 
 std::shared_ptr<Ret> Ret::create(const std::shared_ptr<Block> &block) {
     const auto instruction = std::make_shared<Ret>();
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     return instruction;
 }
 
@@ -180,7 +180,7 @@ std::shared_ptr<Call> Call::create(const std::string &name,
         log_error("Void function must not have a return value");
     }
     const auto instruction = std::make_shared<Call>(name, function, params);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(function);
     for (const auto &param: params) {
         instruction->add_operand(param);
@@ -196,7 +196,7 @@ std::shared_ptr<Call> Call::create(const std::shared_ptr<Function> &function,
         log_error("Non-Void function must have a return value");
     }
     const auto instruction = std::make_shared<Call>(function, params, const_string_index);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(function);
     for (const auto &param: params) {
         instruction->add_operand(param);
@@ -224,7 +224,7 @@ std::shared_ptr<Value> Add::create(const std::string &name, std::shared_ptr<Valu
         }
     }
     const auto instruction = std::make_shared<Add>(name, lhs, rhs);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(lhs);
     instruction->add_operand(rhs);
     return instruction;
@@ -247,7 +247,7 @@ std::shared_ptr<Value> Sub::create(const std::string &name, const std::shared_pt
         }
     }
     const auto instruction = std::make_shared<Sub>(name, lhs, rhs);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(lhs);
     instruction->add_operand(rhs);
     return instruction;
@@ -275,7 +275,7 @@ std::shared_ptr<Value> Mul::create(const std::string &name, std::shared_ptr<Valu
         }
     }
     const auto instruction = std::make_shared<Mul>(name, lhs, rhs);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(lhs);
     instruction->add_operand(rhs);
     return instruction;
@@ -300,7 +300,7 @@ std::shared_ptr<Value> Div::create(const std::string &name, const std::shared_pt
         }
     }
     const auto instruction = std::make_shared<Div>(name, lhs, rhs);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(lhs);
     instruction->add_operand(rhs);
     return instruction;
@@ -317,7 +317,7 @@ std::shared_ptr<Value> Mod::create(const std::string &name, const std::shared_pt
         return std::make_shared<ConstInt>(*left % *right);
     }
     const auto instruction = std::make_shared<Mod>(name, lhs, rhs);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(lhs);
     instruction->add_operand(rhs);
     return instruction;
@@ -337,7 +337,7 @@ std::shared_ptr<Value> FAdd::create(const std::string &name, std::shared_ptr<Val
         std::swap(lhs, rhs);
     }
     const auto instruction = std::make_shared<FAdd>(name, lhs, rhs);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(lhs);
     instruction->add_operand(rhs);
     return instruction;
@@ -354,7 +354,7 @@ std::shared_ptr<Value> FSub::create(const std::string &name, const std::shared_p
         return std::make_shared<ConstFloat>(*left - *right);
     }
     const auto instruction = std::make_shared<FSub>(name, lhs, rhs);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(lhs);
     instruction->add_operand(rhs);
     return instruction;
@@ -374,7 +374,7 @@ std::shared_ptr<Value> FMul::create(const std::string &name, std::shared_ptr<Val
         std::swap(lhs, rhs);
     }
     const auto instruction = std::make_shared<FMul>(name, lhs, rhs);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(lhs);
     instruction->add_operand(rhs);
     return instruction;
@@ -391,7 +391,7 @@ std::shared_ptr<Value> FDiv::create(const std::string &name, const std::shared_p
         return std::make_shared<ConstFloat>(*left / *right);
     }
     const auto instruction = std::make_shared<FDiv>(name, lhs, rhs);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(lhs);
     instruction->add_operand(rhs);
     return instruction;
@@ -408,7 +408,7 @@ std::shared_ptr<Value> FMod::create(const std::string &name, const std::shared_p
         return std::make_shared<ConstFloat>(*left % *right);
     }
     const auto instruction = std::make_shared<FMod>(name, lhs, rhs);
-    instruction->set_block(block);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(lhs);
     instruction->add_operand(rhs);
     return instruction;
@@ -422,7 +422,7 @@ std::shared_ptr<Phi> Phi::create(const std::string &name, const std::shared_ptr<
         instruction->add_operand(block);
     }
     // block 为nullptr时，不进行自动插入
-    if (block) { instruction->set_block(block); }
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     return instruction;
 }
 

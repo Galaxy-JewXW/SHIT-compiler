@@ -24,7 +24,7 @@ struct binary_traits<FloatBinary> {
 };
 
 template<typename Binary>
-bool evaluate_binary(const std::shared_ptr<Binary> &inst, typename binary_traits<Binary>::value_type &res) {
+static bool evaluate_binary(const std::shared_ptr<Binary> &inst, typename binary_traits<Binary>::value_type &res) {
     // 自动推导操作数的值类型和常量类型
     using T = typename binary_traits<Binary>::value_type;
     using ConstType = typename binary_traits<Binary>::constant_type;
@@ -86,7 +86,7 @@ struct cmp_traits<Fcmp> {
 
 // 修改后的evaluate_cmp函数，只需传入指令类型Cmp，其余类型自动推导
 template<typename Cmp>
-bool evaluate_cmp(const std::shared_ptr<Cmp> &inst, int &res) {
+static bool evaluate_cmp(const std::shared_ptr<Cmp> &inst, int &res) {
     // 自动推导比较操作的数值类型和对应的常量类型
     using T = typename cmp_traits<Cmp>::value_type;
     using ConstType = typename cmp_traits<Cmp>::constant_type;
@@ -125,7 +125,7 @@ bool evaluate_cmp(const std::shared_ptr<Cmp> &inst, int &res) {
 }
 
 namespace Pass {
-bool _try_fold(const std::shared_ptr<Instruction> &instruction) {
+static bool _try_fold(const std::shared_ptr<Instruction> &instruction) {
     if (const Operator op = instruction->get_op(); op == Operator::INTBINARY) {
         const auto int_binary = std::static_pointer_cast<IntBinary>(instruction);
         if (int res_val; evaluate_binary(int_binary, res_val)) {
@@ -158,7 +158,7 @@ bool _try_fold(const std::shared_ptr<Instruction> &instruction) {
     return false;
 }
 
-void run_on_function(const std::shared_ptr<Function> &func) {
+static void run_on_function(const std::shared_ptr<Function> &func) {
     for (const auto &block: func->get_blocks()) {
         for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
             if (_try_fold(*it)) {

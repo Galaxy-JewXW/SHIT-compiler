@@ -8,4 +8,6 @@ void execute_O0_passes(std::shared_ptr<Mir::Module> &module) {
     module = module | mem2reg;
     const auto constant_folding = Pass::Pass::create<Pass::ConstantFolding>();
     module = module | constant_folding;
+    const auto simplify_cfg = Pass::Pass::create<Pass::SimplifyCFG>();
+    module = module | simplify_cfg;
 }
