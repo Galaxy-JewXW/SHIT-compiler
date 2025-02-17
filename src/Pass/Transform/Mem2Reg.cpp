@@ -62,13 +62,23 @@ void Mem2Reg::insert_phi() {
 
 void Mem2Reg::rename_variables(const std::shared_ptr<Block> &block) {
     int stack_depth{0};
+    const auto contain_type = std::static_pointer_cast<Type::Pointer>(current_alloc->get_type())
+          ->get_contain_type();
     for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
         if (auto instruction = *it; instruction == current_alloc) {
             it = block->get_instructions().erase(it);
         } else if (const auto load = std::dynamic_pointer_cast<Load>(instruction);
             load && std::find(use_instructions.begin(), use_instructions.end(), load) != use_instructions.end()) {
-            if (def_stack.empty()) { log_error("Definition Stack of %s is empty", current_alloc->to_string().c_str()); }
-            const auto new_value = def_stack.back();
+            std::shared_ptr<Value> new_value;
+            if (!def_stack.empty()) {
+                new_value = def_stack.back();
+            } else if (contain_type->is_int32()) {
+                new_value = std::make_shared<ConstInt>(0);
+            } else if (contain_type->is_float()) {
+                new_value = std::make_shared<ConstFloat>(0.0f);
+            } else {
+                log_error("Unsupported type: %s", contain_type->to_string().c_str());
+            }
             load->replace_by_new_value(new_value);
             it = block->get_instructions().erase(it);
         } else if (const auto store = std::dynamic_pointer_cast<Store>(instruction);
@@ -92,8 +102,16 @@ void Mem2Reg::rename_variables(const std::shared_ptr<Block> &block) {
         const auto first_instruction = succ_block->get_instructions().front();
         if (const auto phi = std::dynamic_pointer_cast<Phi>(first_instruction);
             phi && std::find(use_instructions.begin(), use_instructions.end(), phi) != use_instructions.end()) {
-            if (def_stack.empty()) { log_error("Definition Stack of %s is empty", current_alloc->to_string().c_str()); }
-            const auto new_value = def_stack.back();
+            std::shared_ptr<Value> new_value;
+            if (!def_stack.empty()) {
+                new_value = def_stack.back();
+            } else if (contain_type->is_int32()) {
+                new_value = std::make_shared<ConstInt>(0);
+            } else if (contain_type->is_float()) {
+                new_value = std::make_shared<ConstFloat>(0.0f);
+            } else {
+                log_error("Unsupported type: %s", contain_type->to_string().c_str());
+            }
             phi->set_optional_value(block, new_value);
         }
     }
@@ -129,7 +147,7 @@ void Mem2Reg::transform(const std::shared_ptr<Module> module) {
             def_blocks.clear();
             init_mem2reg();
             insert_phi();
-            rename_variables(current_alloc->get_block());
+            rename_variables(current_function->get_blocks().front());
         }
     }
     current_alloc = nullptr;
