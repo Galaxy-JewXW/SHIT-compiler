@@ -226,6 +226,13 @@ void build_dominance_frontier(const FunctionPtr &func,
 }
 
 void Pass::ControlFlowGraph::analyze(const std::shared_ptr<const Mir::Module> module) {
+    predecessors_.clear();
+    successors_.clear();
+    dominator_blocks_.clear();
+    dominated_blocks_.clear();
+    immediate_dominator_.clear();
+    dominance_children_.clear();
+    dominance_frontier_.clear();
     for (const auto &func: *module) {
         auto &pred_map = predecessors_[func], // 前驱块
              &succ_map = successors_[func], // 后驱块

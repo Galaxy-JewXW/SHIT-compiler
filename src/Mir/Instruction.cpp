@@ -419,7 +419,8 @@ std::shared_ptr<Phi> Phi::create(const std::string &name, const std::shared_ptr<
                                  const Optional_Values &optional_values) {
     const auto instruction = std::make_shared<Phi>(name, type, optional_values);
     for (const auto &[block, value]: optional_values) {
-        instruction->add_operand(block);
+        // block不是phi指令的操作数，在此只维护使用关系
+        block->add_user(std::static_pointer_cast<User>(instruction));
     }
     // block 为nullptr时，不进行自动插入
     if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
@@ -429,6 +430,26 @@ std::shared_ptr<Phi> Phi::create(const std::string &name, const std::shared_ptr<
 void Phi::set_optional_value(const std::shared_ptr<Block> &block, const std::shared_ptr<Value> &optional_value) {
     if (*optional_value->get_type() != *type_) { log_error("Phi operand type must be same"); }
     optional_values[block] = optional_value;
-    optional_value->add_user(std::static_pointer_cast<User>(shared_from_this()));
+    add_operand(optional_value);
+}
+
+void Phi::modify_operand(const std::shared_ptr<Value> &old_value, const std::shared_ptr<Value> &new_value) {
+    if (const auto old_block = std::dynamic_pointer_cast<Block>(old_value)) {
+        const auto new_block = std::dynamic_pointer_cast<Block>(new_value);
+        if (new_block == nullptr) {
+            log_error("Phi operand must be Block");
+        }
+        const auto it = optional_values.find(old_block);
+        if (it == optional_values.end()) {
+            log_error("Phi operand not found");
+        }
+        const auto value = it->second;
+        old_block->delete_user(std::static_pointer_cast<User>(shared_from_this()));
+        optional_values.erase(it);
+        optional_values[new_block] = value;
+        new_block->add_user(std::static_pointer_cast<User>(shared_from_this()));
+    } else {
+        User::modify_operand(old_value, new_value);
+    }
 }
 }

@@ -158,7 +158,7 @@ static bool _try_fold(const std::shared_ptr<Instruction> &instruction) {
     return false;
 }
 
-static void run_on_function(const std::shared_ptr<Function> &func) {
+static void remove_phi(const std::shared_ptr<Function> &func) {
     for (const auto &block: func->get_blocks()) {
         for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
             if (_try_fold(*it)) {
@@ -173,7 +173,7 @@ static void run_on_function(const std::shared_ptr<Function> &func) {
 
 void ConstantFolding::transform(const std::shared_ptr<Module> module) {
     for (const auto &func: *module) {
-        run_on_function(func);
+        remove_phi(func);
     }
 }
 }

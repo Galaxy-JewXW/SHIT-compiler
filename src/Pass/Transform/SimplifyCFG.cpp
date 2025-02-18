@@ -1,9 +1,13 @@
 #include <unordered_set>
+#include <Pass/Analysis.h>
+
 #include "Pass/Transform.h"
 
 using namespace Mir;
 
 static std::unordered_set<std::shared_ptr<Block>> visited{};
+
+static std::shared_ptr<Pass::ControlFlowGraph> cfg_info;
 
 namespace Pass {
 static void dfs(const std::shared_ptr<Block> &current_block) {
@@ -42,7 +46,7 @@ static void dfs(const std::shared_ptr<Block> &current_block) {
     }
 }
 
-static void remove_deleted_blocks(const std::shared_ptr<Phi> &phi) {
+static void remove_deleted_blocks_for_phi(const std::shared_ptr<Phi> &phi) {
     for (auto it = phi->get_optional_values().begin(); it != phi->get_optional_values().end();) {
         if (auto &[block, value] = *it; block->is_deleted()) {
             value->delete_user(phi);
@@ -55,15 +59,143 @@ static void remove_deleted_blocks(const std::shared_ptr<Phi> &phi) {
 
 static bool all_operands_equal(const std::shared_ptr<Phi> &phi) {
     const auto &values = phi->get_optional_values();
-    if (values.empty()) { log_fatal("Phi has no optional values");}
-    if (values.size() == 1) return true;
+    if (values.empty()) {
+        log_fatal("Phi has no optional values");
+    }
+    if (values.size() == 1)
+        return true;
     const auto &first_val = values.begin()->second;
     return std::all_of(values.begin(), values.end(),
                        [&](const auto &entry) { return entry.second == first_val; });
 }
 
+static void perform_merge(const std::shared_ptr<Block> &block, const std::shared_ptr<Block> &child) {
+    // child的唯一前驱是block，child向block合并
+    const auto last_instruction = block->get_instructions().back();
+    last_instruction->clear_operands();
+    block->get_instructions().pop_back();
+    // 将child的所有指令移动到block中
+    for (auto it = child->get_instructions().begin(); it != child->get_instructions().end();) {
+        auto instruction = *it;
+        if (const auto op = instruction->get_op(); op == Operator::PHI) {
+            const auto phi = std::static_pointer_cast<Phi>(instruction);
+            if (phi->get_optional_values().find(block) != phi->get_optional_values().end()) {
+                auto optional_value = phi->get_optional_values().at(block);
+                phi->replace_by_new_value(optional_value);
+            }
+            phi->clear_operands();
+        } else {
+            instruction->set_block(block);
+        }
+        it = child->get_instructions().erase(it);
+    }
+    child->replace_by_new_value(block);
+    child->set_deleted();
+}
 
-static void run_on_function(const std::shared_ptr<Function> &func) {
+// 如果一个块有唯一的前驱，是前驱的唯一后继，则将当前块合并到前驱块
+static bool try_merge_blocks(const std::shared_ptr<Function> &func) {
+    bool changed = false;
+    auto &blocks = func->get_blocks();
+    for (const auto &block: blocks) {
+        if (block->is_deleted())
+            continue;
+        if (cfg_info->successors(func).at(block).size() != 1)
+            continue;
+        const auto &child = *cfg_info->successors(func).at(block).begin();
+        if (child->is_deleted())
+            continue;
+        if (cfg_info->predecessors(func).at(child).size() != 1)
+            continue;
+        if (const auto parent = *cfg_info->predecessors(func).at(child).begin(); parent != block) {
+            log_error("Parent block is not the current block");
+        }
+        perform_merge(block, child);
+        changed = true;
+    }
+    if (changed) [[unlikely]] {
+        blocks.erase(std::remove_if(blocks.begin(), blocks.end(), [](const std::shared_ptr<Block> &block) {
+            if (!block->is_deleted()) [[likely]] {
+                return false;
+            }
+            std::for_each(block->get_instructions().begin(), block->get_instructions().end(),
+                          [&](const std::shared_ptr<Instruction> &instruction) {
+                              instruction->clear_operands();
+                          });
+            block->clear_operands();
+            block->set_deleted();
+            return true;
+        }), blocks.end());
+    }
+    return changed;
+}
+
+// 消除只包含单个非条件跳转的基本块
+static bool try_simplify_single_jump(const std::shared_ptr<Function> &func) {
+    bool changed = false;
+    auto is_single_jump_block = [&](const std::shared_ptr<Block> &block) -> std::shared_ptr<Block> {
+        if (block->get_instructions().size() != 1)
+            return nullptr;
+        if (cfg_info->predecessors(func).at(block).empty()) {
+            return nullptr;
+        }
+        if (const auto op = block->get_instructions().front()->get_op(); op == Operator::JUMP) {
+            return std::static_pointer_cast<Jump>(block->get_instructions().front())->get_target_block();
+        }
+        return nullptr;
+    };
+    auto &blocks = func->get_blocks();
+    for (const auto &block: blocks) {
+        if (block->is_deleted())
+            continue;
+        const auto target_block = is_single_jump_block(block);
+        if (target_block == nullptr)
+            continue;
+        if (cfg_info->successors(func).at(block).size() != 1)
+            log_error("Block has more than one successor");
+        block->cleanup_users();
+        const auto copied_users = block->weak_users();
+        for (const auto &user: copied_users) {
+            if (const auto sp = user.lock()) {
+                if (const auto phi = std::dynamic_pointer_cast<Phi>(sp)) {
+                    // 对于使用block的phi指令，应将其替换为block的前驱
+                    auto &optional_values = phi->get_optional_values();
+                    auto it = optional_values.find(block);
+                    if (it == optional_values.end()) { log_error("Phi operand not found"); }
+                    const auto value = it->second;
+                    block->delete_user(phi);
+                    optional_values.erase(it);
+                    for (const auto &prev: cfg_info->predecessors(func).at(block)) {
+                        phi->set_optional_value(prev, value);
+                        prev->add_user(phi);
+                    }
+                } else {
+                    sp->modify_operand(block, target_block);
+                }
+            }
+        }
+        block->weak_users().clear();
+        block->set_deleted();
+        changed = true;
+    }
+    if (changed) [[unlikely]] {
+        blocks.erase(std::remove_if(blocks.begin(), blocks.end(), [](const std::shared_ptr<Block> &block) {
+            if (!block->is_deleted()) [[likely]] {
+                return false;
+            }
+            std::for_each(block->get_instructions().begin(), block->get_instructions().end(),
+                          [&](const std::shared_ptr<Instruction> &instruction) {
+                              instruction->clear_operands();
+                          });
+            block->clear_operands();
+            block->set_deleted();
+            return true;
+        }), blocks.end());
+    }
+    return changed;
+}
+
+static void remove_unreachable_blocks(const std::shared_ptr<Function> &func) {
     // 遍历控制流删除无法到达的block
     visited.clear();
     const auto entry_block = func->get_blocks().front();
@@ -81,14 +213,18 @@ static void run_on_function(const std::shared_ptr<Function> &func) {
         block->set_deleted();
         return true;
     }), blocks.end());
+}
+
+static void remove_phi(const std::shared_ptr<Function> &func) {
     // 对于无法到达的block，清理有关的phi节点
     // 如果phi节点的每个可选值都是相同的，则替换为第一个可选值，并删除phi节点
     // 如果没有指令使用phi节点，则删除phi节点
+    auto &blocks = func->get_blocks();
     for (const auto &block: blocks) {
         for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
             if ((*it)->get_op() != Operator::PHI) break;
             auto phi = std::static_pointer_cast<Phi>(*it);
-            remove_deleted_blocks(phi);
+            remove_deleted_blocks_for_phi(phi);
             if (all_operands_equal(phi) || phi->users().size() == 0) {
                 auto first_val = phi->get_optional_values().begin()->second;
                 phi->replace_by_new_value(first_val);
@@ -103,7 +239,20 @@ static void run_on_function(const std::shared_ptr<Function> &func) {
 
 void SimplifyCFG::transform(const std::shared_ptr<Module> module) {
     for (const auto &func: *module) {
-        run_on_function(func);
+        remove_unreachable_blocks(func);
     }
+    cfg_info = create<ControlFlowGraph>();
+    cfg_info->run_on(module);
+    for (const auto &func: *module) {
+        remove_phi(func);
+        while (try_merge_blocks(func)) {
+            cfg_info->run_on(module);
+        }
+        while (try_simplify_single_jump(func)) {
+            cfg_info->run_on(module);
+        }
+        remove_phi(func);
+    }
+    cfg_info = nullptr;
 }
 }

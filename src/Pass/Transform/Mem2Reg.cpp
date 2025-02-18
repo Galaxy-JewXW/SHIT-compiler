@@ -126,6 +126,8 @@ void Mem2Reg::rename_variables(const std::shared_ptr<Block> &block) {
 }
 
 void Mem2Reg::transform(const std::shared_ptr<Module> module) {
+    cfg_info = create<ControlFlowGraph>();
+    cfg_info->run_on(module);
     for (const auto &func: *module) {
         // 收集当前函数的所有Alloc指令
         std::vector<std::shared_ptr<Alloc>> valid_allocs;
@@ -152,6 +154,7 @@ void Mem2Reg::transform(const std::shared_ptr<Module> module) {
     }
     current_alloc = nullptr;
     current_function = nullptr;
+    cfg_info = nullptr;
     def_instructions.clear();
     use_instructions.clear();
     def_blocks.clear();

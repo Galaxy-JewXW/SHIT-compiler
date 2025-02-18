@@ -30,14 +30,14 @@ class ControlFlowGraph;
 
 class Mem2Reg final : public Transform {
 public:
-    explicit Mem2Reg(const std::shared_ptr<ControlFlowGraph> &cfg_info) : Transform("Mem2Reg"), cfg_info{cfg_info} {}
+    explicit Mem2Reg() : Transform("Mem2Reg") {}
 
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
 private:
     // 控制流图信息，用于后续基本块支配关系和变量使用/定义分析
-    const std::shared_ptr<ControlFlowGraph> cfg_info;
+    std::shared_ptr<ControlFlowGraph> cfg_info;
     // 当前正在处理的函数对象
     std::shared_ptr<Mir::Function> current_function;
     // 当前被处理的alloca指令，可能被提升为寄存器变量
@@ -61,6 +61,13 @@ private:
 // 常数折叠：编译期计算常量表达式
 DEFINE_DEFAULT_TRANSFORM_CLASS(ConstantFolding);
 
+/**
+ * 简化控制流：
+ * 1. 删除没有前驱块（即无法到达）的基本块
+ * 2. 如果某一个基本块只有一个前驱，且前驱的后继只有当前基本块，则将当前基本块与其前驱合并
+ * 3. 消除只有一个前驱块的phi节点
+ * 4. 消除只包含单个非条件跳转的基本块
+ */
 DEFINE_DEFAULT_TRANSFORM_CLASS(SimplifyCFG);
 }
 
