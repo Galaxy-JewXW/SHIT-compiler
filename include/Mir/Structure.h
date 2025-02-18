@@ -54,7 +54,15 @@ public:
 
     void set_main_function(const std::shared_ptr<Function> &main_function) { this->main_function = main_function; }
 
+    // 更新基本块和指令的id
+    void update_id();
+
     [[nodiscard]] std::string to_string() const;
+
+    auto begin() { return functions.begin(); }
+    auto end() { return functions.end(); }
+    [[nodiscard]] auto begin() const { return functions.begin(); }
+    [[nodiscard]] auto end() const { return functions.end(); }
 };
 
 class GlobalVariable final : public Value {

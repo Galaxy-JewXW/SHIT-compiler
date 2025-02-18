@@ -789,6 +789,22 @@ namespace Mir {
     return oss.str();
 }
 
+[[nodiscard]] std::string Phi::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = phi " << type_->to_string();
+    size_t i{0};
+    for (const auto &[value, block] : optional_values) {
+        oss << " [ " << block->get_name() << ", %" << value->get_name();
+        if (i != optional_values.size() - 1) {
+            oss << " ], ";
+        } else {
+            oss << " ]";
+        }
+        ++i;
+    }
+    return oss.str();
+}
+
 namespace Init {
     [[nodiscard]] std::string Constant::to_string() const {
         return type->to_string() + " " + const_value->to_string();

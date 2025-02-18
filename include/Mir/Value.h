@@ -18,10 +18,6 @@ protected:
     std::shared_ptr<Type::Type> type_;
     std::vector<std::weak_ptr<User>> users_{};
 
-    // Value对应的User被销毁后，在users_中可能依然存有对该user的指针
-    // 因此需要在增删user时清理users_，防止出现访存异常
-    void cleanup_users();
-
 public:
     Value(std::string name, const std::shared_ptr<Type::Type> &type)
         : name_{std::move(name)}, type_(type) {}
@@ -56,11 +52,17 @@ public:
 
     [[nodiscard]] std::shared_ptr<Type::Type> get_type() const { return type_; }
 
+    // Value对应的User被销毁后，在users_中可能依然存有对该user的指针
+    // 因此需要在增删user时清理users_，防止出现访存异常
+    void cleanup_users();
+
     void add_user(const std::shared_ptr<User> &user);
 
     void delete_user(const std::shared_ptr<User> &user);
 
     void replace_by_new_value(const std::shared_ptr<Value> &new_value);
+
+    std::vector<std::weak_ptr<User>> &weak_users() { return users_; }
 
     [[nodiscard]] virtual bool is_constant() { return false; }
 
@@ -88,6 +90,7 @@ public:
             }
         };
 
+        [[nodiscard]] size_t size() const { return users_.size(); }
         [[nodiscard]] Iterator begin() const { return Iterator{users_.begin()}; }
         [[nodiscard]] Iterator end() const { return Iterator{users_.end()}; }
     };
@@ -136,7 +139,7 @@ public:
 
     void clear_operands();
 
-    void modify_operand(const std::shared_ptr<Value> &old_value, const std::shared_ptr<Value> &new_value);
+    virtual void modify_operand(const std::shared_ptr<Value> &old_value, const std::shared_ptr<Value> &new_value);
 
     auto begin() { return operands_.begin(); }
     auto end() { return operands_.end(); }

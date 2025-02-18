@@ -38,8 +38,13 @@ void Value::cleanup_users() {
 }
 
 void Value::replace_by_new_value(const std::shared_ptr<Value> &new_value) {
-    if (*type_ != *new_value->get_type()) { log_error("type mismatch"); }
-    for (auto &user: users_) {
+    if (*type_ != *new_value->get_type()) {
+        log_error("type mismatch: expected %s, got %s", type_->to_string().c_str(),
+                  new_value->get_type()->to_string().c_str());
+    }
+    cleanup_users();
+    const auto copied_users = users_;
+    for (const auto &user: copied_users) {
         if (const auto sp = user.lock()) {
             sp->modify_operand(shared_from_this(), new_value);
         }

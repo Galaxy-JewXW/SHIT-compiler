@@ -3,6 +3,10 @@
 #include "Mir/Instruction.h"
 
 namespace Mir {
+void Module::update_id() {
+    for (const auto &function: functions) { function->update_id(); }
+}
+
 void Function::update_id() {
     Builder::reset_count();
     for (const auto &arg: arguments) {

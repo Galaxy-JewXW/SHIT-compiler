@@ -159,5 +159,6 @@ void emit_ast(const std::shared_ptr<AST::CompUnit> &ast, const emit_options &opt
 void emit_llvm(const std::shared_ptr<Mir::Module> &module, const emit_options &options) {
     if (!options.emit_llvm) return;
     log_info("Emitting LLVM IR...");
+    module->update_id();
     emit_output(options.llvm_file, module->to_string());
 }

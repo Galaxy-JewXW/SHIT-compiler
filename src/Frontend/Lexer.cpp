@@ -1,3 +1,5 @@
+#include <iomanip>
+
 #include "Frontend/Lexer.h"
 #include "Utils/Log.h"
 

@@ -31,6 +31,9 @@ int main(int argc, char *argv[]) {
     std::shared_ptr<Mir::Module> module = builder.visit(ast);
     emit_llvm(module, options._emit_options);
 
+    execute_O0_passes(module);
+    emit_llvm(module, options._emit_options);
+
     if (options.flag_S) {
         // TODO
     }

@@ -4,8 +4,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
-#include "../Compiler.h"
 #include "../Utils/Token.h"
 
 class Lexer {

@@ -43,7 +43,11 @@ public:
 
     [[nodiscard]] bool is_modified_symbol() const { return is_modified; }
 
-    void set_modified(const bool modified = true) { is_modified = modified; }
+    void set_modified(const bool modified = true) {
+        if (!is_constant) {
+            is_modified = modified;
+        }
+    }
 
     // [[nodiscard]] const std::string &to_string() const {
     //     std::ostringstream oss;
