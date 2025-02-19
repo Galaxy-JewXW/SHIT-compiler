@@ -22,13 +22,77 @@ static void build_call_graph(const FunctionPtr &function, FunctionMap &call_map,
     }
 }
 
+static bool analyse_side_effect(const FunctionPtr &function) {
+    using namespace Mir;
+    for (const auto &block: function->get_blocks()) {
+        for (const auto &inst: block->get_instructions()) {
+            if (const auto op = inst->get_op(); op == Operator::CALL) {
+                const auto &call = std::static_pointer_cast<Call>(inst);
+                if (const auto &called_func = std::static_pointer_cast<Function>(call->get_function());
+                    called_func->is_sysy_runtime_func()) {
+                    return true;
+                }
+            } else if (op == Operator::STORE) {
+                const auto &store = std::static_pointer_cast<Store>(inst);
+                const auto &addr = store->get_addr();
+                if (std::dynamic_pointer_cast<GlobalVariable>(addr)) {
+                    return true;
+                }
+                if (auto gep = std::dynamic_pointer_cast<GetElementPtr>(addr)) {
+                    std::shared_ptr<Value> current_address = gep;
+                    while (const auto cur_gep = std::dynamic_pointer_cast<GetElementPtr>(current_address)) {
+                        current_address = cur_gep->get_addr();
+                    }
+                    // TODO：这里需要考虑全局变量是否为常值
+                    if (const auto &gv = std::dynamic_pointer_cast<GlobalVariable>(current_address)) {
+                        if (!gv->is_constant_gv()) return true;
+                    }
+                    if (std::dynamic_pointer_cast<Argument>(current_address)) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
 void Pass::FunctionAnalysis::analyze(const std::shared_ptr<const Mir::Module> module) {
+    call_graph_.clear();
+    call_graph_reverse_.clear();
+    side_effect_functions_.clear();
     for (const auto &func: *module) {
         build_call_graph(func, call_graph_, call_graph_reverse_);
     }
     for (const auto &func: *module) {
+        if (analyse_side_effect(func)) {
+            side_effect_functions_.insert(func);
+        }
+    }
+    // 传播副作用
+    bool changed = false;
+    do {
+        for (const auto &[func, callees]: call_graph_) {
+            bool has_side_effect = false;
+            for (const auto &callee: callees) {
+                if (side_effect_functions_.find(callee) != side_effect_functions_.end()) {
+                    has_side_effect = true;
+                    break;
+                }
+            }
+            if (has_side_effect) {
+                changed = true;
+                side_effect_functions_.insert(func);
+            }
+        }
+    } while (changed);
+    for (const auto &func: *module) {
         std::ostringstream log_msg;
-        log_msg << "\nFunction [" << func->get_name() << "] calls:";
+        log_msg << "\n";
+        if (side_effect_functions_.find(func) != side_effect_functions_.end()) {
+            log_msg << "[With side effect] ";
+        }
+        log_msg << "Function [" << func->get_name() << "] calls:";
         if (call_graph_.find(func) == call_graph_.end()) {
             log_msg << "\n  No callees";
         } else {

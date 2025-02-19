@@ -128,7 +128,7 @@ void Array::gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared
         const size_t total_bytes = total_elements * element_size;
         const auto i8_ptr_type = std::make_shared<Type::Pointer>(Type::Integer::i8);
         const auto bitcast = BitCast::create(Builder::gen_variable_name(), addr, i8_ptr_type, block);
-        const auto func_memset = Function::runtime_functions.find("llvm.memset.p0i8.i64")->second;
+        const auto func_memset = Function::llvm_runtime_functions.find("llvm.memset.p0i8.i64")->second;
         const auto size_val = std::make_shared<ConstInt>(static_cast<int>(total_bytes), Type::Integer::i64),
                    zero_val = std::make_shared<ConstInt>(0, Type::Integer::i8),
                    is_volatile = std::make_shared<ConstInt>(0, Type::Integer::i1);

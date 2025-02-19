@@ -101,9 +101,14 @@ private:
     FuncBlockMap dominance_frontier_;
 };
 
-// FunctionAnalysis 函数分析
-// 构建函数调用图
-// TODO: 分析函数是否有副作用
+/**
+ * FunctionAnalysis 函数分析
+ * 1. 构建函数调用图
+ * 2. 分析函数是否有副作用
+ *   - 函数中包含对全局变量的store指令
+ *   - 函数中包含对指针实参的gep与store指令
+ *   - 函数调用了IO相关的库函数
+ */
 class FunctionAnalysis final : public Analysis {
 public:
     using FunctionPtr = std::shared_ptr<Mir::Function>;
@@ -127,6 +132,11 @@ public:
 
     const FunctionMap &call_graph_reverse() const { return call_graph_reverse_; }
 
+    bool has_side_effect(const FunctionPtr &func) const {
+        const auto it = side_effect_functions_.find(func);
+        return it != side_effect_functions_.end();
+    }
+
 protected:
     void analyze(std::shared_ptr<const Mir::Module> module) override;
 
@@ -135,6 +145,8 @@ private:
     FunctionMap call_graph_;
     // 反向函数调用图：function -> { function被调用的函数集合 }
     FunctionMap call_graph_reverse_;
+    // 函数是否有副作用：具有副作用的函数集合
+    FunctionSet side_effect_functions_;
 };
 }
 

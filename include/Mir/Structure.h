@@ -78,6 +78,8 @@ public:
                    const std::shared_ptr<Init::Init> &init_value)
         : Value{"@" + name, std::make_shared<Type::Pointer>(type)}, is_constant{is_constant}, init_value{init_value} {}
 
+    [[nodiscard]] bool is_constant_gv() const { return is_constant; }
+
     [[nodiscard]] std::string to_string() const override;
 };
 
@@ -122,9 +124,15 @@ public:
     }
 
     // SysY 定义的运行时库函数
-    const static std::unordered_map<std::string, std::shared_ptr<Function>> runtime_functions;
+    const static std::unordered_map<std::string, std::shared_ptr<Function>> sysy_runtime_functions;
+
+    const static std::unordered_map<std::string, std::shared_ptr<Function>> llvm_runtime_functions;
 
     [[nodiscard]] bool is_runtime_func() const { return is_runtime_function; }
+
+    [[nodiscard]] bool is_sysy_runtime_func() const {
+        return is_runtime_function && sysy_runtime_functions.find(name_) != sysy_runtime_functions.end();
+    }
 
     [[nodiscard]] const std::shared_ptr<Type::Type> &get_return_type() const { return return_type; }
 

@@ -179,7 +179,10 @@ void Builder::visit_funcDef(const std::shared_ptr<AST::FuncDef> &funcDef) {
     const auto &ident = funcDef->ident();
     // 检查标识符是否重定义，是否与库函数重名
     if (table->lookup_in_current_scope(ident)) { log_error("Redefinition of %s", ident.c_str()); }
-    if (const auto it = Function::runtime_functions.find(ident); it != Function::runtime_functions.end()) {
+    if (const auto it = Function::sysy_runtime_functions.find(ident); it != Function::sysy_runtime_functions.end()) {
+        log_error("Redefinition of %s", ident.c_str());
+    }
+    if (const auto it = Function::llvm_runtime_functions.find(ident); it != Function::llvm_runtime_functions.end()) {
         log_error("Redefinition of %s", ident.c_str());
     }
     // 创建局部符号表
@@ -388,8 +391,8 @@ std::shared_ptr<Value> Builder::visit_functionCall(const AST::UnaryExp::call &ca
     const auto &[ident, params] = call;
     auto func = module->get_function(ident.content);
     if (!func) {
-        if (const auto it = Function::runtime_functions.find(ident.content);
-            it != Function::runtime_functions.end()) {
+        if (const auto it = Function::sysy_runtime_functions.find(ident.content);
+            it != Function::sysy_runtime_functions.end()) {
             func = it->second;
             module->add_used_runtime_functions(func);
         } else {
