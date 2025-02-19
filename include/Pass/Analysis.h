@@ -67,7 +67,8 @@ public:
         return it->second;
     }
 
-    const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &dominance_frontier(const FunctionPtr &func) const {
+    const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &
+    dominance_frontier(const FunctionPtr &func) const {
         const auto it = dominance_frontier_.find(func);
         if (it == dominance_frontier_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
         return it->second;
@@ -98,6 +99,42 @@ private:
 
     // 支配边界集合：function -> { block -> {该块的支配边界} }
     FuncBlockMap dominance_frontier_;
+};
+
+// FunctionAnalysis 函数分析
+// 构建函数调用图
+// TODO: 分析函数是否有副作用
+class FunctionAnalysis final : public Analysis {
+public:
+    using FunctionPtr = std::shared_ptr<Mir::Function>;
+    using FunctionMap = std::unordered_map<FunctionPtr, std::unordered_set<FunctionPtr>>;
+    using FunctionSet = std::unordered_set<FunctionPtr>;
+    explicit FunctionAnalysis() : Analysis("FunctionCallGraph") {}
+
+    const FunctionSet &call_graph_func(const FunctionPtr &func) const {
+        const auto it = call_graph_.find(func);
+        if (it == call_graph_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
+        return it->second;
+    }
+
+    const FunctionSet &call_graph_reverse_func(const FunctionPtr &func) const {
+        const auto it = call_graph_reverse_.find(func);
+        if (it == call_graph_reverse_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
+        return it->second;
+    }
+
+    const FunctionMap &call_graph() const { return call_graph_; }
+
+    const FunctionMap &call_graph_reverse() const { return call_graph_reverse_; }
+
+protected:
+    void analyze(std::shared_ptr<const Mir::Module> module) override;
+
+private:
+    // 函数调用图：function -> { function调用的函数集合 }
+    FunctionMap call_graph_;
+    // 反向函数调用图：function -> { function被调用的函数集合 }
+    FunctionMap call_graph_reverse_;
 };
 }
 

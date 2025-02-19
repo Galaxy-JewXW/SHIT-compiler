@@ -1,13 +1,13 @@
 #include <unordered_set>
-#include <Pass/Analysis.h>
 
+#include "Pass/Analysis.h"
 #include "Pass/Transform.h"
 
 using namespace Mir;
 
 static std::unordered_set<std::shared_ptr<Block>> visited{};
 
-static std::shared_ptr<Pass::ControlFlowGraph> cfg_info;
+static std::shared_ptr<Pass::ControlFlowGraph> cfg_info = nullptr;
 
 namespace Pass {
 static void dfs(const std::shared_ptr<Block> &current_block) {

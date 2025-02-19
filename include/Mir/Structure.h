@@ -41,6 +41,8 @@ public:
         }
     }
 
+    [[nodiscard]] std::vector<std::shared_ptr<Function>> &all_functions() { return functions; }
+
     void add_function(const std::shared_ptr<Function> &function) { functions.emplace_back(function); }
 
     [[nodiscard]] std::shared_ptr<Function> get_function(const std::string &name) {
@@ -51,6 +53,8 @@ public:
         if (it != functions.end()) { return *it; }
         return nullptr;
     }
+
+    [[nodiscard]] std::shared_ptr<Function> get_main_function() const { return main_function; }
 
     void set_main_function(const std::shared_ptr<Function> &main_function) { this->main_function = main_function; }
 
@@ -119,6 +123,8 @@ public:
 
     // SysY 定义的运行时库函数
     const static std::unordered_map<std::string, std::shared_ptr<Function>> runtime_functions;
+
+    [[nodiscard]] bool is_runtime_func() const { return is_runtime_function; }
 
     [[nodiscard]] const std::shared_ptr<Type::Type> &get_return_type() const { return return_type; }
 
