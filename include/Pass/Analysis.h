@@ -137,6 +137,16 @@ public:
         return it != side_effect_functions_.end();
     }
 
+    bool accept_input(const FunctionPtr &func) const {
+        const auto it = accept_input_functions_.find(func);
+        return it != accept_input_functions_.end();
+    }
+
+    bool return_output(const FunctionPtr &func) const {
+        const auto it = return_output_functions_.find(func);
+        return it != return_output_functions_.end();
+    }
+
 protected:
     void analyze(std::shared_ptr<const Mir::Module> module) override;
 
@@ -147,6 +157,18 @@ private:
     FunctionMap call_graph_reverse_;
     // 函数是否有副作用：具有副作用的函数集合
     FunctionSet side_effect_functions_;
+    // 函数是否接受输入：接受输入的函数集合
+    FunctionSet accept_input_functions_;
+    // 函数是否返回输出：返回输出的函数集合
+    FunctionSet return_output_functions_;
+
+    void clear() {
+        call_graph_.clear();
+        call_graph_reverse_.clear();
+        side_effect_functions_.clear();
+        accept_input_functions_.clear();
+        return_output_functions_.clear();
+    }
 };
 }
 

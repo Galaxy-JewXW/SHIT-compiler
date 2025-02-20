@@ -57,13 +57,31 @@ static bool analyse_side_effect(const FunctionPtr &function) {
     return false;
 }
 
+static void analyse_io(const FunctionPtr &function, FunctionSet &input, FunctionSet &output) {
+    using namespace Mir;
+    for (const auto &block: function->get_blocks()) {
+        for (const auto &inst: block->get_instructions()) {
+            if (inst->get_op() != Operator::CALL) continue;
+            const auto &call = std::static_pointer_cast<Call>(inst);
+            const auto &called_func = std::static_pointer_cast<Function>(call->get_function());
+            const auto &func_name = called_func->get_name();
+            if (func_name.find("get") != std::string::npos) {
+                input.insert(function);
+            }
+            if (func_name.find("put") != std::string::npos) {
+                output.insert(function);
+            }
+        }
+    }
+}
+
 void Pass::FunctionAnalysis::analyze(const std::shared_ptr<const Mir::Module> module) {
-    call_graph_.clear();
-    call_graph_reverse_.clear();
-    side_effect_functions_.clear();
+    clear();
+    // 构建函数调用图
     for (const auto &func: *module) {
         build_call_graph(func, call_graph_, call_graph_reverse_);
     }
+    // 确定函数是否有副作用
     for (const auto &func: *module) {
         if (analyse_side_effect(func)) {
             side_effect_functions_.insert(func);
@@ -86,11 +104,21 @@ void Pass::FunctionAnalysis::analyze(const std::shared_ptr<const Mir::Module> mo
             }
         }
     } while (changed);
+    // 分析函数是否接受输入/返回输出
+    for (const auto &func: *module) {
+        analyse_io(func, accept_input_functions_, return_output_functions_);
+    }
     for (const auto &func: *module) {
         std::ostringstream log_msg;
         log_msg << "\n";
         if (side_effect_functions_.find(func) != side_effect_functions_.end()) {
-            log_msg << "[With side effect] ";
+            log_msg << "[Side Effect] ";
+        }
+        if (accept_input_functions_.find(func) != accept_input_functions_.end()) {
+            log_msg << "[I] ";
+        }
+        if (return_output_functions_.find(func) != return_output_functions_.end()) {
+            log_msg << "[O] ";
         }
         log_msg << "Function [" << func->get_name() << "] calls:";
         if (call_graph_.find(func) == call_graph_.end()) {
