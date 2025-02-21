@@ -450,6 +450,11 @@ void Phi::modify_operand(const std::shared_ptr<Value> &old_value, const std::sha
         new_block->add_user(std::static_pointer_cast<User>(shared_from_this()));
     } else {
         User::modify_operand(old_value, new_value);
+        for (auto &[block, value]: optional_values) {
+            if (value == old_value) [[likely]] {
+                value = new_value;
+            }
+        }
     }
 }
 }

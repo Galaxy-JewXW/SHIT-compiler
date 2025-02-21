@@ -90,6 +90,7 @@ void Pass::FunctionAnalysis::analyze(const std::shared_ptr<const Mir::Module> mo
     // 传播副作用
     bool changed = false;
     do {
+        changed = false;
         for (const auto &[func, callees]: call_graph_) {
             bool has_side_effect = false;
             for (const auto &callee: callees) {

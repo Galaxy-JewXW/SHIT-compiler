@@ -177,6 +177,7 @@ static bool fold(const std::shared_ptr<Function> &func) {
 void ConstantFolding::transform(const std::shared_ptr<Module> module) {
     bool changed = false;
     do {
+        changed = false;
         for (const auto &func: *module) {
             changed |= fold(func);
         }
