@@ -196,7 +196,7 @@ class Fcmp final : public Instruction {
 public:
     enum class Op { EQ, NE, GT, LT, GE, LE };
 
-    const Op op;
+    Op op;
 
     Fcmp(const std::string &name, const Op op, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : Instruction(name, Type::Integer::i1, Operator::FCMP), op{op} {
@@ -213,11 +213,15 @@ public:
         }
     }
 
+    void reverse_op() { this->op = swap_op(this->op); }
+
     static std::shared_ptr<Value> create(const std::string &name, Op op, std::shared_ptr<Value> lhs,
                                          std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::shared_ptr<Value> get_lhs() const { return operands_[0]; }
     [[nodiscard]] std::shared_ptr<Value> get_rhs() const { return operands_[1]; }
+    [[nodiscard]] std::shared_ptr<Value> &lhs() { return operands_[0]; }
+    [[nodiscard]] std::shared_ptr<Value> &rhs() { return operands_[1]; }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -226,7 +230,7 @@ class Icmp final : public Instruction {
 public:
     enum class Op { EQ, NE, GT, LT, GE, LE };
 
-    const Op op;
+    Op op;
 
     Icmp(const std::string &name, const Op op, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : Instruction(name, Type::Integer::i1, Operator::ICMP), op{op} {
@@ -245,11 +249,15 @@ public:
         }
     }
 
+    void reverse_op() { this->op = swap_op(this->op); }
+
     static std::shared_ptr<Value> create(const std::string &name, Op op, std::shared_ptr<Value> lhs,
                                          std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::shared_ptr<Value> get_lhs() const { return operands_[0]; }
     [[nodiscard]] std::shared_ptr<Value> get_rhs() const { return operands_[1]; }
+    [[nodiscard]] std::shared_ptr<Value> &lhs() { return operands_[0]; }
+    [[nodiscard]] std::shared_ptr<Value> &rhs() { return operands_[1]; }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -397,6 +405,10 @@ public:
     [[nodiscard]] std::shared_ptr<Value> get_lhs() const { return operands_[0]; }
 
     [[nodiscard]] std::shared_ptr<Value> get_rhs() const { return operands_[1]; }
+
+    [[nodiscard]] std::shared_ptr<Value> &lhs() { return operands_[0]; }
+
+    [[nodiscard]] std::shared_ptr<Value> &rhs() { return operands_[1]; }
 
     [[nodiscard]] std::string to_string() const override = 0;
 };

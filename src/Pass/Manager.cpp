@@ -14,4 +14,5 @@ void execute_O0_passes(std::shared_ptr<Mir::Module> &module) {
     module = module | dead_func;
     const auto dead_inst = Pass::Pass::create<Pass::DeadInstEliminate>();
     module = module | dead_inst;
+    module = module | Pass::Pass::create<Pass::StandardizeBinary>();
 }
