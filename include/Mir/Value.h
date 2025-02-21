@@ -135,6 +135,8 @@ public:
         operands_.clear();
     }
 
+    const std::vector<std::shared_ptr<Value>> &get_operands() const { return operands_; }
+
     void add_operand(const std::shared_ptr<Value> &value);
 
     void clear_operands();

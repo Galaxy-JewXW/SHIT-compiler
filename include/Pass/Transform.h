@@ -69,6 +69,12 @@ DEFINE_DEFAULT_TRANSFORM_CLASS(ConstantFolding);
  * 4. 消除只包含单个非条件跳转的基本块
  */
 DEFINE_DEFAULT_TRANSFORM_CLASS(SimplifyCFG);
+
+// 删除未被调用的函数
+DEFINE_DEFAULT_TRANSFORM_CLASS(DeadFuncEliminate);
+
+// 删除不被使用的指令
+DEFINE_DEFAULT_TRANSFORM_CLASS(DeadInstEliminate);
 }
 
 #endif //TRANSFORM_H
