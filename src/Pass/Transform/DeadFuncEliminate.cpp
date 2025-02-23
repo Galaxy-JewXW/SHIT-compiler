@@ -14,6 +14,7 @@ static void dfs(const FunctionPtr &cur_function, FunctionSet &reachable, const F
     if (reachable.find(cur_function) != reachable.end()) {
         return;
     }
+    log_trace("Add to reachable %s", cur_function->get_name().c_str());
     reachable.insert(cur_function);
     if (call_graph.find(cur_function) != call_graph.end()) {
         for (const auto &func: call_graph.at(cur_function)) {

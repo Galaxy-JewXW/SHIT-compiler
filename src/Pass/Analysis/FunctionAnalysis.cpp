@@ -100,8 +100,7 @@ void Pass::FunctionAnalysis::analyze(const std::shared_ptr<const Mir::Module> mo
                 }
             }
             if (has_side_effect) {
-                changed = true;
-                side_effect_functions_.insert(func);
+                changed = side_effect_functions_.insert(func).second;
             }
         }
     } while (changed);
