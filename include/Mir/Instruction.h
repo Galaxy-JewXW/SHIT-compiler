@@ -452,8 +452,8 @@ public:
     explicit Add(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : IntBinary(name, lhs, rhs, Op::ADD) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, std::shared_ptr<Value> lhs,
-                                         std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
+    static std::shared_ptr<Add> create(const std::string &name, std::shared_ptr<Value> lhs,
+                                       std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -463,7 +463,7 @@ public:
     explicit Sub(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : IntBinary(name, lhs, rhs, Op::SUB) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, const std::shared_ptr<Value> &lhs,
+    static std::shared_ptr<Sub> create(const std::string &name, const std::shared_ptr<Value> &lhs,
                                          const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
@@ -474,7 +474,7 @@ public:
     explicit Mul(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : IntBinary(name, lhs, rhs, Op::MUL) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, std::shared_ptr<Value> lhs,
+    static std::shared_ptr<Mul> create(const std::string &name, std::shared_ptr<Value> lhs,
                                          std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
@@ -485,7 +485,7 @@ public:
     explicit Div(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : IntBinary(name, lhs, rhs, Op::DIV) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, const std::shared_ptr<Value> &lhs,
+    static std::shared_ptr<Div> create(const std::string &name, const std::shared_ptr<Value> &lhs,
                                          const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
@@ -496,7 +496,7 @@ public:
     explicit Mod(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : IntBinary(name, lhs, rhs, Op::MOD) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, const std::shared_ptr<Value> &lhs,
+    static std::shared_ptr<Mod> create(const std::string &name, const std::shared_ptr<Value> &lhs,
                                          const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
@@ -507,7 +507,7 @@ public:
     explicit FAdd(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : FloatBinary(name, lhs, rhs, Op::ADD) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, std::shared_ptr<Value> lhs,
+    static std::shared_ptr<FAdd> create(const std::string &name, std::shared_ptr<Value> lhs,
                                          std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
@@ -518,7 +518,7 @@ public:
     explicit FSub(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : FloatBinary(name, lhs, rhs, Op::SUB) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, const std::shared_ptr<Value> &lhs,
+    static std::shared_ptr<FSub> create(const std::string &name, const std::shared_ptr<Value> &lhs,
                                          const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
@@ -529,7 +529,7 @@ public:
     explicit FMul(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : FloatBinary(name, lhs, rhs, Op::MUL) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, std::shared_ptr<Value> lhs,
+    static std::shared_ptr<FMul> create(const std::string &name, std::shared_ptr<Value> lhs,
                                          std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
@@ -540,7 +540,7 @@ public:
     explicit FDiv(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : FloatBinary(name, lhs, rhs, Op::DIV) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, const std::shared_ptr<Value> &lhs,
+    static std::shared_ptr<FDiv> create(const std::string &name, const std::shared_ptr<Value> &lhs,
                                          const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
@@ -551,7 +551,7 @@ public:
     explicit FMod(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : FloatBinary(name, lhs, rhs, Op::MOD) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, const std::shared_ptr<Value> &lhs,
+    static std::shared_ptr<FMod> create(const std::string &name, const std::shared_ptr<Value> &lhs,
                                          const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
