@@ -48,7 +48,7 @@ std::shared_ptr<Init> Exp::create_exp_init_value(const std::shared_ptr<Type::Typ
     while (current_type->is_array()) {
         const auto arr_type = std::static_pointer_cast<Type::Array>(current_type);
         if (dim_count >= indexes.size()) break;
-        if (indexes[dim_count] < 0 || (indexes[dim_count]) >= static_cast<int>(arr_type->get_size())) {
+        if (indexes[dim_count] < 0 || indexes[dim_count] >= static_cast<int>(arr_type->get_size())) {
             log_error("Index out of range[%zu]: [0, %zu) vs %d",
                       dim_count, arr_type->get_size(), indexes[dim_count]);
         }

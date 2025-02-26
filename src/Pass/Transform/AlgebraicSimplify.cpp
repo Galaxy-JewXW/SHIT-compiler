@@ -325,8 +325,8 @@ static bool reduce_sub(const std::shared_ptr<Sub> &sub, std::vector<std::shared_
 static bool reduce_mul(const std::shared_ptr<Mul> &mul, std::vector<std::shared_ptr<Instruction>> &instructions,
                        const size_t &idx) {
     const auto current_block = mul->get_block();
-    const auto lhs = mul->get_lhs(), rhs = mul->get_rhs();
-    if (rhs->is_constant()) [[unlikely]] {
+    const auto lhs = mul->get_lhs();
+    if (const auto rhs = mul->get_rhs(); rhs->is_constant()) [[unlikely]] {
         const auto constant_rhs = std::static_pointer_cast<ConstInt>(rhs);
         const auto zero = std::make_shared<ConstInt>(0);
         // a * 0 = 0
