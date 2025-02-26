@@ -6,6 +6,8 @@ aux_source_directory(Mir MIR)
 
 add_subdirectory(Pass)
 
-add_executable(compiler Compiler.cpp ${UTILS} ${FRONTEND} ${MIR} ${PASS})
+add_executable(compiler Compiler.cpp ${UTILS} ${FRONTEND} ${MIR} ${PASS}
+        Pass/Analysis/LoopAnalysis.cpp
+)
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)

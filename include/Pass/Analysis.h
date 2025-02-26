@@ -170,6 +170,27 @@ private:
         return_output_functions_.clear();
     }
 };
+
+class LoopAnalysis : public Analysis {
+public:
+    using FunctionPtr = std::shared_ptr<Mir::Function>;
+    using BlockPtr = std::shared_ptr<Mir::Block>;
+
+    struct Loop {
+        BlockPtr header;
+        BlockPtr preheader;
+        BlockPtr latch;
+        std::vector<BlockPtr> blocks;
+        std::vector<BlockPtr> exitings;
+    };
+
+    explicit LoopAnalysis() : Analysis("LoopAnalysis") {}
+    void analyze(std::shared_ptr<const Mir::Module> module) override;
+
+private:
+    using FunctLoopsMap = std::unordered_map<std::shared_ptr<Mir::Function>, std::vector<std::shared_ptr<Loop>>>;
+    FunctLoopsMap loops_;
+ };
 }
 
 #endif //ANALYSIS_H
