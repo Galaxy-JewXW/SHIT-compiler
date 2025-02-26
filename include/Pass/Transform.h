@@ -75,6 +75,13 @@ DEFINE_DEFAULT_TRANSFORM_CLASS(DeadFuncEliminate);
 
 // 删除不被使用的指令
 DEFINE_DEFAULT_TRANSFORM_CLASS(DeadInstEliminate);
+
+// 标准化计算指令 "Binary"
+// 为之后的代数编写/GVN做准备
+DEFINE_DEFAULT_TRANSFORM_CLASS(StandardizeBinary);
+
+// 对指令进行代数优化恒等式变形
+DEFINE_DEFAULT_TRANSFORM_CLASS(AlgebraicSimplify);
 }
 
 #endif //TRANSFORM_H
