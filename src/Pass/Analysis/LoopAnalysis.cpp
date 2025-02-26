@@ -42,18 +42,19 @@ namespace Pass {
                     auto current_block = working_set.back();
                     working_set.pop_back();
                     if (current_block != header_block) {
-                        for (const auto &dominator : block_dominators[current_block]) {
-                            if (std::find(loop_blocks.begin(), loop_blocks.end(), dominator) == loop_blocks.end()) {
-                                working_set.push_back(dominator);
-                                loop_blocks.push_back(dominator);
+                        for (const auto &predecessor : block_predecessors[current_block]) {
+                            if (std::find(loop_blocks.begin(), loop_blocks.end(), predecessor) == loop_blocks.end()) {
+                                working_set.push_back(predecessor);
+                                loop_blocks.push_back(predecessor);
                             }
                         }
                     }
-                }//将结点的所有支配结点加入循环结点集（自然循环中，循环所有结点被 header 支配）
+                }//将结点的所有前驱结点加入循环结点集（自然循环中，循环所有结点被 header 支配）
 
                 Loop loop = {
                         .header = header_block,
-                        .blocks = loop_blocks
+                        .blocks = loop_blocks,
+                        .latch_blocks = latching_blocks,
                 };
                 loops_[func].push_back(std::make_shared<Loop>(loop));
             }
@@ -66,6 +67,9 @@ namespace Pass {
                 oss << "  ■ header: \"" << loop->header->get_name() << "\"\n";
                     for (const auto &block : loop->blocks) {
                         oss << "    block: \"" << block->get_name() << "\"\n";
+                    }
+                    for (const auto &block : loop->latch_blocks) {
+                        oss << "    latch: \"" << block->get_name() << "\"\n";
                     }
             }
             log_debug("%s", oss.str().c_str());

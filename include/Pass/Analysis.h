@@ -181,6 +181,7 @@ public:
         BlockPtr preheader;
         BlockPtr latch;
         std::vector<BlockPtr> blocks;
+        std::vector<BlockPtr> latch_blocks;
         std::vector<BlockPtr> exitings;
     };
 
