@@ -51,12 +51,11 @@ namespace Pass {
                     }
                 }//将结点的所有前驱结点加入循环结点集（自然循环中，循环所有结点被 header 支配）
 
-                Loop loop = {
+                loops_[func].push_back(std::make_shared<Loop>(Loop{
                         .header = header_block,
                         .blocks = loop_blocks,
                         .latch_blocks = latching_blocks,
-                };
-                loops_[func].push_back(std::make_shared<Loop>(loop));
+                }));
             }
 
             std::ostringstream oss;

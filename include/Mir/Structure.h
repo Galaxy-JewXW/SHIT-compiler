@@ -182,6 +182,10 @@ public:
     void add_instruction(const std::shared_ptr<Instruction> &instruction) { instructions.emplace_back(instruction); }
 
     [[nodiscard]] std::string to_string() const override;
+
+    void change_successor(const std::shared_ptr<Block> &old_successor, const std::shared_ptr<Block> &new_successor);
+
+    std::shared_ptr<std::vector<std::shared_ptr<Instruction>>> get_phis();
 };
 }
 

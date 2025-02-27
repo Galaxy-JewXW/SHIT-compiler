@@ -188,6 +188,12 @@ public:
     explicit LoopAnalysis() : Analysis("LoopAnalysis") {}
     void analyze(std::shared_ptr<const Mir::Module> module) override;
 
+    std::vector<std::shared_ptr<Loop>> loops(const FunctionPtr &func) const {
+        const auto it = loops_.find(func);
+        if (it == loops_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
+        return it->second;
+    }
+
 private:
     using FunctLoopsMap = std::unordered_map<std::shared_ptr<Mir::Function>, std::vector<std::shared_ptr<Loop>>>;
     FunctLoopsMap loops_;

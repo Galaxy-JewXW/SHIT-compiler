@@ -58,6 +58,14 @@ private:
     void rename_variables(const std::shared_ptr<Mir::Block> &block);
 };
 
+class LoopSimplyForm final : public Transform {
+public:
+    explicit LoopSimplyForm() : Transform("LoopSimplyform") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+};
+
 // 常数折叠：编译期计算常量表达式
 DEFINE_DEFAULT_TRANSFORM_CLASS(ConstantFolding);
 

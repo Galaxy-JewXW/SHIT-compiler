@@ -19,4 +19,29 @@ void Function::update_id() {
         }
     }
 }
+
+void Block::change_successor(const std::shared_ptr<Block> &old_successor, const std::shared_ptr<Block> &new_successor) {
+    for (auto &instruction: instructions) {
+        if (dynamic_cast<Branch*>(instruction.get()) != nullptr) {
+            auto branch = std::static_pointer_cast<Branch>(instruction);
+            branch->modify_operand(old_successor, new_successor);
+        }
+        if (dynamic_cast<Jump*>(instruction.get()) != nullptr) {
+            auto jump = std::static_pointer_cast<Jump>(instruction);
+            jump->modify_operand(old_successor, new_successor);
+        }
+    }
+}
+
+std::shared_ptr<std::vector<std::shared_ptr<Instruction>>> Block::get_phis() {
+    auto phis = std::make_shared<std::vector<std::shared_ptr<Instruction>>>();
+    for (auto &instruction: instructions) {
+        if (dynamic_cast<Phi*>(instruction.get()) != nullptr) {
+            auto phi = std::static_pointer_cast<Phi>(instruction);
+            phis->push_back(phi);
+        }
+    }
+    return phis;
+}
+
 }

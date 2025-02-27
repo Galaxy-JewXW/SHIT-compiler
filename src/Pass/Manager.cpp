@@ -16,7 +16,6 @@ void execute_O0_passes(std::shared_ptr<Mir::Module> &module) {
     module = module | dead_inst;
     const auto algebraic = Pass::Pass::create<Pass::AlgebraicSimplify>();
     module = module | algebraic;
-    module->update_id();
-    const auto analysis = Pass::Pass::create<Pass::LoopAnalysis>();
-    module = module | analysis;
+//    const auto loop_simply_form = Pass::Pass::create<Pass::LoopSimplyForm>();
+//    module = module | loop_simply_form;
 }
