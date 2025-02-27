@@ -171,7 +171,7 @@ private:
     }
 };
 
-class LoopAnalysis : public Analysis {
+class LoopAnalysis final : public Analysis {
 public:
     using FunctionPtr = std::shared_ptr<Mir::Function>;
     using BlockPtr = std::shared_ptr<Mir::Block>;
