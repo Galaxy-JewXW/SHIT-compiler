@@ -5,7 +5,7 @@ compiler_options debug_compile_options = {
     .flag_S = true,
     .output_file = "../testcase.s",
     ._emit_options = {.emit_tokens = false, .emit_ast = false, .emit_llvm = true},
-    .opt_level = Optimize_level::O0
+    .opt_level = Optimize_level::O1
 };
 
 std::string opt_level_to_string(const Optimize_level level) {

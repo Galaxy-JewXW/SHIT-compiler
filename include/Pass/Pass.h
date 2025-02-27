@@ -51,4 +51,6 @@ inline std::shared_ptr<Mir::Module> operator|(std::shared_ptr<Mir::Module> modul
 
 void execute_O0_passes(std::shared_ptr<Mir::Module> &module);
 
+void execute_O1_passes(std::shared_ptr<Mir::Module> &module);
+
 #endif //PASS_H

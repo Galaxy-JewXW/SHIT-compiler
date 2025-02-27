@@ -14,7 +14,6 @@ static void dfs(const FunctionPtr &cur_function, FunctionSet &reachable, const F
     if (reachable.find(cur_function) != reachable.end()) {
         return;
     }
-    log_trace("Add to reachable %s", cur_function->get_name().c_str());
     reachable.insert(cur_function);
     if (call_graph.find(cur_function) != call_graph.end()) {
         for (const auto &func: call_graph.at(cur_function)) {
@@ -32,11 +31,11 @@ void DeadFuncEliminate::transform(const std::shared_ptr<Module> module) {
     for (auto it = module->all_functions().begin(); it != module->all_functions().end();) {
         if (reachable_functions.find(*it) == reachable_functions.end()) {
             const auto func = *it;
-            for (const auto& block: func->get_blocks()) {
+            for (const auto &block: func->get_blocks()) {
                 std::for_each(block->get_instructions().begin(), block->get_instructions().end(),
-                          [&](const std::shared_ptr<Instruction> &instruction) {
-                              instruction->clear_operands();
-                          });
+                              [&](const std::shared_ptr<Instruction> &instruction) {
+                                  instruction->clear_operands();
+                              });
                 block->clear_operands();
                 block->set_deleted();
             }

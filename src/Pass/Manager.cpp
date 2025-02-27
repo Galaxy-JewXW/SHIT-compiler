@@ -1,7 +1,9 @@
 #include "Pass/Analysis.h"
 #include "Pass/Transform.h"
 
-void execute_O0_passes(std::shared_ptr<Mir::Module> &module) {
+[[maybe_unused]] void execute_O0_passes(std::shared_ptr<Mir::Module> &module) {}
+
+void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
     const auto mem2reg = Pass::Pass::create<Pass::Mem2Reg>();
     module = module | mem2reg;
     auto constant_folding = Pass::Pass::create<Pass::ConstantFolding>();
@@ -16,6 +18,7 @@ void execute_O0_passes(std::shared_ptr<Mir::Module> &module) {
     module = module | dead_inst;
     const auto algebraic = Pass::Pass::create<Pass::AlgebraicSimplify>();
     module = module | algebraic;
-//    const auto loop_simply_form = Pass::Pass::create<Pass::LoopSimplyForm>();
-//    module = module | loop_simply_form;
+    module = module | simplify_cfg;
+    //    const auto loop_simply_form = Pass::Pass::create<Pass::LoopSimplyForm>();
+    //    module = module | loop_simply_form;
 }
