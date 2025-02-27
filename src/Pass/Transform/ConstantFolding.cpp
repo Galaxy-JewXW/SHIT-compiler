@@ -158,22 +158,29 @@ static bool _try_fold(const std::shared_ptr<Instruction> &instruction) {
     return false;
 }
 
-static void remove_phi(const std::shared_ptr<Function> &func) {
+static bool fold(const std::shared_ptr<Function> &func) {
+    bool changed = false;
     for (const auto &block: func->get_blocks()) {
         for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
             if (_try_fold(*it)) {
                 (*it)->clear_operands();
                 it = block->get_instructions().erase(it);
+                changed = true;
             } else {
                 ++it;
             }
         }
     }
+    return changed;
 }
 
 void ConstantFolding::transform(const std::shared_ptr<Module> module) {
-    for (const auto &func: *module) {
-        remove_phi(func);
-    }
+    bool changed = false;
+    do {
+        changed = false;
+        for (const auto &func: *module) {
+            changed |= fold(func);
+        }
+    } while (changed);
 }
 }

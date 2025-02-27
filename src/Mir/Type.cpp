@@ -56,7 +56,7 @@ size_t Array::get_dimensions() const {
 
 namespace Mir {
 class Call;
-const std::unordered_map<std::string, std::shared_ptr<Function>> Function::runtime_functions = {
+const std::unordered_map<std::string, std::shared_ptr<Function>> Function::sysy_runtime_functions = {
     {"getint", create("getint", Type::Integer::i32)},
     {"getch", create("getch", Type::Integer::i32)},
     {"getfloat", create("getfloat", Type::Float::f32)},
@@ -76,7 +76,13 @@ const std::unordered_map<std::string, std::shared_ptr<Function>> Function::runti
     {"putf", create("putf", Type::Void::void_)},
     {"starttime", create("_sysy_starttime", Type::Void::void_, Type::Integer::i32)},
     {"stoptime", create("_sysy_stoptime", Type::Void::void_, Type::Integer::i32)},
-    {"llvm.memset.p0i8.i64", create("llvm.memset.p0i8.i64", Type::Void::void_,
-        std::make_shared<Type::Pointer>(Type::Integer::i8), Type::Integer::i8, Type::Integer::i64, Type::Integer::i1)},
+};
+
+const std::unordered_map<std::string, std::shared_ptr<Function>> Function::llvm_runtime_functions = {
+    {
+        "llvm.memset.p0i8.i64", create("llvm.memset.p0i8.i64", Type::Void::void_,
+                                       std::make_shared<Type::Pointer>(Type::Integer::i8), Type::Integer::i8,
+                                       Type::Integer::i64, Type::Integer::i1)
+    },
 };
 }

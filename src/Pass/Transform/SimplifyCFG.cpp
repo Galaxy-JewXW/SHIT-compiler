@@ -1,13 +1,13 @@
 #include <unordered_set>
-#include <Pass/Analysis.h>
 
+#include "Pass/Analysis.h"
 #include "Pass/Transform.h"
 
 using namespace Mir;
 
 static std::unordered_set<std::shared_ptr<Block>> visited{};
 
-static std::shared_ptr<Pass::ControlFlowGraph> cfg_info;
+static std::shared_ptr<Pass::ControlFlowGraph> cfg_info = nullptr;
 
 namespace Pass {
 static void dfs(const std::shared_ptr<Block> &current_block) {
@@ -66,7 +66,7 @@ static bool all_operands_equal(const std::shared_ptr<Phi> &phi) {
         return true;
     const auto &first_val = values.begin()->second;
     return std::all_of(values.begin(), values.end(),
-                       [&](const auto &entry) { return entry.second == first_val; });
+                       [&](const auto &entry) { return entry.second->get_name() == first_val->get_name(); });
 }
 
 static void perform_merge(const std::shared_ptr<Block> &block, const std::shared_ptr<Block> &child) {

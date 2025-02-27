@@ -196,7 +196,7 @@ class Fcmp final : public Instruction {
 public:
     enum class Op { EQ, NE, GT, LT, GE, LE };
 
-    const Op op;
+    Op op;
 
     Fcmp(const std::string &name, const Op op, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : Instruction(name, Type::Integer::i1, Operator::FCMP), op{op} {
@@ -213,11 +213,15 @@ public:
         }
     }
 
+    void reverse_op() { this->op = swap_op(this->op); }
+
     static std::shared_ptr<Value> create(const std::string &name, Op op, std::shared_ptr<Value> lhs,
                                          std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::shared_ptr<Value> get_lhs() const { return operands_[0]; }
     [[nodiscard]] std::shared_ptr<Value> get_rhs() const { return operands_[1]; }
+    [[nodiscard]] std::shared_ptr<Value> &lhs() { return operands_[0]; }
+    [[nodiscard]] std::shared_ptr<Value> &rhs() { return operands_[1]; }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -226,7 +230,7 @@ class Icmp final : public Instruction {
 public:
     enum class Op { EQ, NE, GT, LT, GE, LE };
 
-    const Op op;
+    Op op;
 
     Icmp(const std::string &name, const Op op, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : Instruction(name, Type::Integer::i1, Operator::ICMP), op{op} {
@@ -245,11 +249,15 @@ public:
         }
     }
 
+    void reverse_op() { this->op = swap_op(this->op); }
+
     static std::shared_ptr<Value> create(const std::string &name, Op op, std::shared_ptr<Value> lhs,
                                          std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::shared_ptr<Value> get_lhs() const { return operands_[0]; }
     [[nodiscard]] std::shared_ptr<Value> get_rhs() const { return operands_[1]; }
+    [[nodiscard]] std::shared_ptr<Value> &lhs() { return operands_[0]; }
+    [[nodiscard]] std::shared_ptr<Value> &rhs() { return operands_[1]; }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -398,6 +406,10 @@ public:
 
     [[nodiscard]] std::shared_ptr<Value> get_rhs() const { return operands_[1]; }
 
+    [[nodiscard]] std::shared_ptr<Value> &lhs() { return operands_[0]; }
+
+    [[nodiscard]] std::shared_ptr<Value> &rhs() { return operands_[1]; }
+
     [[nodiscard]] std::string to_string() const override = 0;
 };
 
@@ -440,8 +452,8 @@ public:
     explicit Add(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : IntBinary(name, lhs, rhs, Op::ADD) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, std::shared_ptr<Value> lhs,
-                                         std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
+    static std::shared_ptr<Add> create(const std::string &name, std::shared_ptr<Value> lhs,
+                                       std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -451,7 +463,7 @@ public:
     explicit Sub(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : IntBinary(name, lhs, rhs, Op::SUB) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, const std::shared_ptr<Value> &lhs,
+    static std::shared_ptr<Sub> create(const std::string &name, const std::shared_ptr<Value> &lhs,
                                          const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
@@ -462,7 +474,7 @@ public:
     explicit Mul(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : IntBinary(name, lhs, rhs, Op::MUL) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, std::shared_ptr<Value> lhs,
+    static std::shared_ptr<Mul> create(const std::string &name, std::shared_ptr<Value> lhs,
                                          std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
@@ -473,7 +485,7 @@ public:
     explicit Div(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : IntBinary(name, lhs, rhs, Op::DIV) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, const std::shared_ptr<Value> &lhs,
+    static std::shared_ptr<Div> create(const std::string &name, const std::shared_ptr<Value> &lhs,
                                          const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
@@ -484,7 +496,7 @@ public:
     explicit Mod(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : IntBinary(name, lhs, rhs, Op::MOD) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, const std::shared_ptr<Value> &lhs,
+    static std::shared_ptr<Mod> create(const std::string &name, const std::shared_ptr<Value> &lhs,
                                          const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
@@ -495,7 +507,7 @@ public:
     explicit FAdd(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : FloatBinary(name, lhs, rhs, Op::ADD) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, std::shared_ptr<Value> lhs,
+    static std::shared_ptr<FAdd> create(const std::string &name, std::shared_ptr<Value> lhs,
                                          std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
@@ -506,7 +518,7 @@ public:
     explicit FSub(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : FloatBinary(name, lhs, rhs, Op::SUB) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, const std::shared_ptr<Value> &lhs,
+    static std::shared_ptr<FSub> create(const std::string &name, const std::shared_ptr<Value> &lhs,
                                          const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
@@ -517,7 +529,7 @@ public:
     explicit FMul(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : FloatBinary(name, lhs, rhs, Op::MUL) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, std::shared_ptr<Value> lhs,
+    static std::shared_ptr<FMul> create(const std::string &name, std::shared_ptr<Value> lhs,
                                          std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
@@ -528,7 +540,7 @@ public:
     explicit FDiv(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : FloatBinary(name, lhs, rhs, Op::DIV) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, const std::shared_ptr<Value> &lhs,
+    static std::shared_ptr<FDiv> create(const std::string &name, const std::shared_ptr<Value> &lhs,
                                          const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
@@ -539,7 +551,7 @@ public:
     explicit FMod(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
         : FloatBinary(name, lhs, rhs, Op::MOD) {}
 
-    static std::shared_ptr<Value> create(const std::string &name, const std::shared_ptr<Value> &lhs,
+    static std::shared_ptr<FMod> create(const std::string &name, const std::shared_ptr<Value> &lhs,
                                          const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
@@ -561,6 +573,8 @@ public:
     [[nodiscard]] Optional_Values &get_optional_values() { return optional_values; }
 
     void set_optional_value(const std::shared_ptr<Block> &block, const std::shared_ptr<Value> &optional_value);
+
+    void delete_optional_value(const std::shared_ptr<Block> &block);
 
     void modify_operand(const std::shared_ptr<Value> &old_value, const std::shared_ptr<Value> &new_value) override;
 

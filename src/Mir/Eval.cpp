@@ -40,19 +40,22 @@ EvalResult eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_p
         if (idx < 0) { log_error("Index out of bounds: %d", idx); }
         indexes.push_back(idx);
     }
-    if (!init_value->is_array_init()) {
-        log_error("Error while indexing variable %s", ident.c_str());
+    if (init_value->is_constant_init()) {
+        if (!indexes.empty()) { log_error("Non-array variable %s", ident.c_str()); }
+        const auto &constant_value = std::static_pointer_cast<Init::Constant>(init_value)->get_const_value();
+        if (!constant_value->is_constant()) { log_error("Non-constant expression"); }
+        const auto res = std::static_pointer_cast<Const>(constant_value)->get_constant_value();
+        if (res.type() == typeid(int)) { return std::any_cast<int>(res); }
+        if (res.type() == typeid(double)) { return std::any_cast<double>(res); }
+    } else if (init_value->is_array_init()) {
+        init_value = std::static_pointer_cast<Init::Array>(init_value)->get_init_value(indexes);
+        if (!init_value->is_constant_init()) { log_error("Non-constant expression"); }
+        const auto &constant_value = std::static_pointer_cast<Init::Constant>(init_value)->get_const_value();
+        if (!constant_value->is_constant()) { log_error("Non-constant expression"); }
+        const auto res = std::static_pointer_cast<Const>(constant_value)->get_constant_value();
+        if (res.type() == typeid(int)) { return std::any_cast<int>(res); }
+        if (res.type() == typeid(double)) { return std::any_cast<double>(res); }
     }
-    init_value = std::static_pointer_cast<Init::Array>(init_value)->get_init_value(indexes);
-    // 编译期计算一定算得出具体的int或float值
-    if (!init_value->is_constant_init()) { log_error("Non-constant expression"); }
-    const auto &constant_value = std::static_pointer_cast<Init::Constant>(init_value);
-    const auto &value = constant_value->get_const_value();
-    if (!value->is_constant()) { log_error("Non-constant expression"); }
-    const auto &const_ = std::static_pointer_cast<Const>(value);
-    const auto res = const_->get_constant_value();
-    if (res.type() == typeid(int)) { return std::any_cast<int>(res); }
-    if (res.type() == typeid(double)) { return std::any_cast<double>(res); }
     log_error("Unknown constant type");
 }
 

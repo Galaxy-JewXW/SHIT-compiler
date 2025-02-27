@@ -58,6 +58,14 @@ private:
     void rename_variables(const std::shared_ptr<Mir::Block> &block);
 };
 
+class LoopSimplyForm final : public Transform {
+public:
+    explicit LoopSimplyForm() : Transform("LoopSimplyform") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+};
+
 // 常数折叠：编译期计算常量表达式
 DEFINE_DEFAULT_TRANSFORM_CLASS(ConstantFolding);
 
@@ -69,6 +77,19 @@ DEFINE_DEFAULT_TRANSFORM_CLASS(ConstantFolding);
  * 4. 消除只包含单个非条件跳转的基本块
  */
 DEFINE_DEFAULT_TRANSFORM_CLASS(SimplifyCFG);
+
+// 删除未被调用的函数
+DEFINE_DEFAULT_TRANSFORM_CLASS(DeadFuncEliminate);
+
+// 删除不被使用的指令
+DEFINE_DEFAULT_TRANSFORM_CLASS(DeadInstEliminate);
+
+// 标准化计算指令 "Binary"
+// 为之后的代数编写/GVN做准备
+DEFINE_DEFAULT_TRANSFORM_CLASS(StandardizeBinary);
+
+// 对指令进行代数优化恒等式变形
+DEFINE_DEFAULT_TRANSFORM_CLASS(AlgebraicSimplify);
 }
 
 #endif //TRANSFORM_H
