@@ -183,6 +183,7 @@ public:
         std::vector<BlockPtr> blocks;
         std::vector<BlockPtr> latch_blocks;
         std::vector<BlockPtr> exitings;
+        std::vector<BlockPtr> exits;
     };
 
     explicit LoopAnalysis() : Analysis("LoopAnalysis") {}

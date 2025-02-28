@@ -35,6 +35,8 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
 
             std::vector<BlockPtr> working_set;
             std::vector<BlockPtr> loop_blocks;
+            std::vector<BlockPtr> exiting_blocks;
+            std::vector<BlockPtr> exit_block;
             for (const auto &latching_block: latching_blocks) {
                 working_set.push_back(latching_block);
                 loop_blocks.push_back(latching_block);
@@ -52,10 +54,21 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
                 }
             } //将结点的所有前驱结点加入循环结点集（自然循环中，循环所有结点被 header 支配）
 
+            for (auto &block : loop_blocks) {
+                for (auto &succ : block_successors[block]) {
+                    if (std::find(loop_blocks.begin(), loop_blocks.end(), succ) == loop_blocks.end()) {
+                        exiting_blocks.push_back(block);
+                        exit_block.push_back(succ);
+                    }
+                }
+            }
+
             loops_[func].push_back(std::make_shared<Loop>(Loop{
                 .header = header_block,
                 .blocks = loop_blocks,
                 .latch_blocks = latching_blocks,
+                .exitings = exiting_blocks,
+                .exits = exit_block
             }));
         }
 
