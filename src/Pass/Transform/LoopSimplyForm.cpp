@@ -74,11 +74,12 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
                 for (auto &phi_: *phis) {
                     auto phi = std::dynamic_pointer_cast<Mir::Phi>(phi_);
                     Mir::Phi::Optional_Values values;
+                    auto new_phi = Mir::Phi::create(phi->get_name(), phi->get_type(), latch_block, values);
                     for (auto &latch: loop->latch_blocks) {
-                        values[latch] = phi->get_optional_values()[latch];
+                        new_phi->set_optional_value(latch, phi->get_optional_values()[latch]);
                         phi->delete_optional_value(latch);
                     }
-                    auto new_phi = Mir::Phi::create(phi->get_name(), phi->get_type(), latch_block, values);
+
                     phi->set_optional_value(latch_block, new_phi);
                 }
             }
