@@ -79,8 +79,36 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
                         new_phi->set_optional_value(latch, phi->get_optional_values()[latch]);
                         phi->delete_optional_value(latch);
                     }
-
                     phi->set_optional_value(latch_block, new_phi);
+                }
+            }
+        }
+
+        for (auto &loop: loops) {
+            for (auto &exit : loop->exits) {
+                if (block_dominators[exit].find(loop->header) == block_dominators[exit].end()) {
+                    auto new_exit_block = Mir::Block::create(Mir::Builder::gen_block_name(), func);
+                    auto jump_instruction = Mir::Jump::create(exit, new_exit_block);
+
+                    std::vector<std::shared_ptr<Mir::Block>> tem_exitings;
+                    for (auto &exiting: loop->exitings) {
+                        if (block_predecessors[exit].find(exiting) != block_predecessors[exit].end()) {
+                            exiting->change_successor(exit, new_exit_block);
+                            tem_exitings.push_back(exiting);
+                        }
+                    }
+
+                    auto phis = exit->get_phis();
+                    for (auto &phi_: *phis) {
+                        auto phi = std::dynamic_pointer_cast<Mir::Phi>(phi_);
+                        Mir::Phi::Optional_Values values;
+                        auto new_phi = Mir::Phi::create(phi->get_name(), phi->get_type(), new_exit_block, values);
+                        for (auto &exiting: tem_exitings) {
+                            new_phi->set_optional_value(exiting, phi->get_optional_values()[exiting]);
+                            phi->delete_optional_value(exiting);
+                        }
+                        phi->set_optional_value(new_exit_block, new_phi);
+                    }
                 }
             }
         }
