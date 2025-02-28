@@ -4,7 +4,7 @@
 #include "Mir/Instruction.h"
 
 #define DEFINE_DEFAULT_TRANSFORM_CLASS(ClassName) \
-class ClassName : public Transform { \
+class ClassName final : public Transform { \
 public: \
 explicit ClassName() : Transform(#ClassName) {} \
 protected: \

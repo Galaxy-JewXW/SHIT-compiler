@@ -9,7 +9,7 @@
 namespace Pass {
 class Pass {
 public:
-    enum class PassType { ANALYSIS, TRANSFORM, UTILITY };
+    enum class PassType { ANALYSIS, TRANSFORM, UTIL };
 
     virtual ~Pass() = default;
 
@@ -30,6 +30,10 @@ public:
     // 创建Pass实例
     template<typename PassType, typename... Args>
     static std::shared_ptr<PassType> create(Args &&... args) {
+        // 检查 PassType 是否是 Pass 的派生类
+        static_assert(std::is_base_of_v<Pass, PassType>, "PassType must be a derived class of Pass::Pass");
+        // 检查 PassType 是否是非抽象类
+        static_assert(!std::is_abstract_v<PassType>, "PassType must not be an abstract class");
         return std::make_shared<PassType>(std::forward<Args>(args)...);
     }
 
@@ -47,6 +51,19 @@ inline std::shared_ptr<Mir::Module> operator|(std::shared_ptr<Mir::Module> modul
     pass->run_on(module);
     return module;
 }
+}
+
+// 对每个 Passes 类型进行检查
+template<typename PassType>
+struct PassChecker {
+    static_assert(std::is_base_of_v<Pass::Pass, PassType>, "PassType must be a derived class of Pass::Pass");
+    static_assert(!std::is_abstract_v<PassType>, "PassType must not be an abstract class");
+};
+
+template<typename... Passes>
+void apply(std::shared_ptr<Mir::Module> &module) {
+    (void) std::initializer_list<int>{(PassChecker<Passes>(), 0)...};
+    (..., (module = module | Pass::Pass::create<Passes>()));
 }
 
 void execute_O0_passes(std::shared_ptr<Mir::Module> &module);
