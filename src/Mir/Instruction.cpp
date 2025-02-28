@@ -392,7 +392,7 @@ void Phi::modify_operand(const std::shared_ptr<Value> &old_value, const std::sha
 
 void Phi::delete_optional_value(const std::shared_ptr<Block> &block) {
     optional_values.erase(block);
-    this->delete_operand(block);
+    this->remove_operand(block);
 }
 
 }

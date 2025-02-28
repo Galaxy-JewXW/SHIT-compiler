@@ -66,7 +66,7 @@ void User::clear_operands() {
     operands_.clear();
 }
 
-void User::delete_operand(const std::shared_ptr<Value> &value) {
+void User::remove_operand(const std::shared_ptr<Value> &value) {
     if (!value) return;
     this->operands_.erase(
         std::remove_if(operands_.begin(), operands_.end(),
