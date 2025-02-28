@@ -26,6 +26,7 @@ size_t Builder::block_count{0}, Builder::variable_count{0};
     // 释放不必要的引用计数
     cur_block = nullptr;
     cur_function = nullptr;
+    table = nullptr;
     loop_stats.clear();
     assert(cond_stats.empty());
     assert(loop_stats.empty());
@@ -33,10 +34,10 @@ size_t Builder::block_count{0}, Builder::variable_count{0};
 }
 
 void Builder::visit_decl(const std::shared_ptr<AST::Decl> &decl) const {
-    if (std::dynamic_pointer_cast<AST::ConstDecl>(decl)) {
-        visit_constDecl(std::dynamic_pointer_cast<AST::ConstDecl>(decl));
-    } else if (std::dynamic_pointer_cast<AST::VarDecl>(decl)) {
-        visit_varDecl(std::dynamic_pointer_cast<AST::VarDecl>(decl));
+    if (const auto &constDecl = std::dynamic_pointer_cast<AST::ConstDecl>(decl)) {
+        visit_constDecl(constDecl);
+    } else if (const auto &varDecl = std::dynamic_pointer_cast<AST::VarDecl>(decl)) {
+        visit_varDecl(varDecl);
     } else {
         log_fatal("unknown decl type");
     }
@@ -90,10 +91,11 @@ void Builder::visit_constDef(const Token::Type type, const std::shared_ptr<AST::
     } else {
         const auto alloc = Alloc::create(gen_variable_name(), ir_type, cur_block);
         address = alloc;
-        if (init_value->is_constant_init())
+        if (init_value->is_constant_init()) {
             std::static_pointer_cast<Init::Constant>(init_value)->gen_store_inst(address, cur_block);
-        else
+        } else {
             std::static_pointer_cast<Init::Array>(init_value)->gen_store_inst(address, cur_block, dimensions);
+        }
     }
     table->insert_symbol(constDef->ident(), ir_type, init_value, address, true);
 }
@@ -164,12 +166,13 @@ void Builder::visit_varDef(const Token::Type type, const std::shared_ptr<AST::Va
         const auto alloc = Alloc::create(gen_variable_name(), ir_type, cur_block);
         address = alloc;
         is_modified = false;
-        if (init_value->is_constant_init())
+        if (init_value->is_constant_init()) {
             std::static_pointer_cast<Init::Constant>(init_value)->gen_store_inst(address, cur_block);
-        else if (init_value->is_array_init())
+        } else if (init_value->is_array_init()) {
             std::static_pointer_cast<Init::Array>(init_value)->gen_store_inst(address, cur_block, dimensions);
-        else
+        } else {
             std::static_pointer_cast<Init::Exp>(init_value)->gen_store_inst(address, cur_block);
+        }
     }
     table->insert_symbol(varDef->ident(), ir_type, init_value, address, false, is_modified);
 }
@@ -557,12 +560,14 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
                 const int index = std::any_cast<int>(std::dynamic_pointer_cast<ConstInt>(idx)->get_constant_value());
                 int_indexes.push_back(index);
             }
-            initial = array_init->get_init_value(int_indexes);
-            if (const auto constant_initial = std::dynamic_pointer_cast<Init::Constant>(initial)) {
-                return constant_initial->get_const_value();
-            }
-            if (const auto exp_initial = std::dynamic_pointer_cast<Init::Exp>(initial)) {
-                return exp_initial->get_exp_value();
+            if (std::static_pointer_cast<Type::Array>(ir_type)->get_dimensions() == int_indexes.size()) {
+                initial = array_init->get_init_value(int_indexes);
+                if (const auto constant_initial = std::dynamic_pointer_cast<Init::Constant>(initial)) {
+                    return constant_initial->get_const_value();
+                }
+                if (const auto exp_initial = std::dynamic_pointer_cast<Init::Exp>(initial)) {
+                    return exp_initial->get_exp_value();
+                }
             }
         }
     }

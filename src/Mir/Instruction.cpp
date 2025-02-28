@@ -26,6 +26,16 @@ std::shared_ptr<Store> Store::create(const std::shared_ptr<Value> &addr,
     return instruction;
 }
 
+/**
+ * 计算addr经过一次indexing得到的指针类型
+ * 1. 如果addr是数组指针，则返回其元素的指针
+ *   - e.g. %4 = getelementptr inbounds [2 x [2 x i32]], [2 x [2 x i32]]* %2, i32 0, i32 1
+ *     - addr的类型为[2 x [2 x i32]]*，此时默认进行一次索引将其转化为[2 x [2 x i32]]，
+ *     - 第二次索引将其转换为执行第二个子数组的指针，类型为[2 x i32]*
+ * 2. 如果addr是指向基本类型(int 或 float)的指针，则直接进行偏移，类型不发生变化
+ *   - %1 = getelementptr inbounds i32, i32* %0, i32 1
+ *     - %0 和 %1 的类型均为i32*
+ */
 std::shared_ptr<Type::Type> GetElementPtr::calc_type_(const std::shared_ptr<Value> &addr) {
     const auto type = addr->get_type();
     const auto ptr_type = std::dynamic_pointer_cast<Type::Pointer>(type);
@@ -48,7 +58,15 @@ std::shared_ptr<GetElementPtr> GetElementPtr::create(const std::string &name,
                                                      const std::shared_ptr<Block> &block) {
     const auto instruction = std::make_shared<GetElementPtr>(name, addr, index);
     if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
+    const auto type = addr->get_type();
+    const auto ptr_type = std::dynamic_pointer_cast<Type::Pointer>(type);
+    if (!ptr_type) {
+        log_error("First operand must be a pointer type");
+    }
     instruction->add_operand(addr);
+    if (const auto target_type = ptr_type->get_contain_type(); target_type->is_array()) {
+        instruction->add_operand(std::make_shared<ConstInt>(0));
+    }
     instruction->add_operand(index);
     return instruction;
 }
