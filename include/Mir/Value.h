@@ -147,6 +147,8 @@ public:
     auto end() { return operands_.end(); }
     auto begin() const { return operands_.begin(); }
     auto end() const { return operands_.end(); }
+
+    void delete_operand(const std::shared_ptr<Value> &value);
 };
 }
 
