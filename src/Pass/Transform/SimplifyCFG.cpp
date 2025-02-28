@@ -46,9 +46,21 @@ static void dfs(const std::shared_ptr<Block> &current_block) {
     }
 }
 
-static void remove_deleted_blocks_for_phi(const std::shared_ptr<Phi> &phi) {
+// 删除phi中无法到达的键值对（block已被删除或block并非phi的直接前继节点）
+static void remove_unreachable_blocks_for_phi(const std::shared_ptr<Phi> &phi, const std::shared_ptr<Function> &func) {
+    const auto &current_block = phi->get_block();
+    auto block_is_unreachable = [&](const std::shared_ptr<Block> &block) -> bool {
+        if (block->is_deleted()) {
+            return true;
+        }
+        if (const auto &succ = cfg_info->predecessors(func).at(current_block);
+            succ.find(block) == succ.end()) {
+            return true;
+        }
+        return false;
+    };
     for (auto it = phi->get_optional_values().begin(); it != phi->get_optional_values().end();) {
-        if (auto &[block, value] = *it; block->is_deleted()) {
+        if (auto &[block, value] = *it; block_is_unreachable(block)) {
             value->delete_user(phi);
             it = phi->get_optional_values().erase(it);
         } else {
@@ -224,7 +236,7 @@ static void remove_phi(const std::shared_ptr<Function> &func) {
         for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
             if ((*it)->get_op() != Operator::PHI) break;
             auto phi = std::static_pointer_cast<Phi>(*it);
-            remove_deleted_blocks_for_phi(phi);
+            remove_unreachable_blocks_for_phi(phi, func);
             if (all_operands_equal(phi) || phi->users().size() == 0) {
                 auto first_val = phi->get_optional_values().begin()->second;
                 phi->replace_by_new_value(first_val);

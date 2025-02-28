@@ -49,6 +49,7 @@ void Mem2Reg::insert_phi() {
                   ->get_contain_type();
             const auto phi = Phi::create(Builder::gen_variable_name(), contain_type,
                                          nullptr, optional_map);
+            phi->set_block(y, false);
             y->get_instructions().insert(y->get_instructions().begin(), phi);
             use_instructions.emplace_back(phi);
             def_instructions.emplace_back(phi);

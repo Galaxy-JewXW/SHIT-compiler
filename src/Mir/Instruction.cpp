@@ -16,6 +16,16 @@ std::shared_ptr<Load> Load::create(const std::string &name, const std::shared_pt
     return instruction;
 }
 
+std::shared_ptr<Store> Store::create(const std::shared_ptr<Value> &addr,
+                                         const std::shared_ptr<Value> &value,
+                                         const std::shared_ptr<Block> &block) {
+    const auto instruction = std::make_shared<Store>(addr, value);
+    if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
+    instruction->add_operand(addr);
+    instruction->add_operand(value);
+    return instruction;
+}
+
 std::shared_ptr<Type::Type> GetElementPtr::calc_type_(const std::shared_ptr<Value> &addr) {
     const auto type = addr->get_type();
     const auto ptr_type = std::dynamic_pointer_cast<Type::Pointer>(type);

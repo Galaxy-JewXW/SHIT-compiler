@@ -99,13 +99,7 @@ public:
 
     static std::shared_ptr<Store> create(const std::shared_ptr<Value> &addr,
                                          const std::shared_ptr<Value> &value,
-                                         const std::shared_ptr<Block> &block) {
-        const auto instruction = std::make_shared<Store>(addr, value);
-        instruction->set_block(block);
-        instruction->add_operand(addr);
-        instruction->add_operand(value);
-        return instruction;
-    }
+                                         const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::shared_ptr<Value> get_addr() const { return operands_[0]; }
 
