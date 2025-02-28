@@ -42,7 +42,7 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
                 auto jump_instruction = Mir::Jump::create(loop->header, pre_header);
 
                 for (auto &enter: entering) {
-                    enter->change_successor(loop->header, pre_header);
+                    enter->modify_successor(loop->header, pre_header);
                 } //先改变跳转关系
 
                 //TODO: 这里本来还应该有 PHI 指令的前提操作，但因为中端翻译 while 指令的奇怪做法，目前认为 pre-header 的单一性被保证，暂时认为无需补足该方法
@@ -67,7 +67,7 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
                 auto jump_instruction = Mir::Jump::create(header, latch_block);
 
                 for (auto &latch: loop->latch_blocks) {
-                    latch->change_successor(header, latch_block);
+                    latch->modify_successor(header, latch_block);
                 }
 
                 auto phis = header->get_phis();
@@ -93,7 +93,7 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
                     std::vector<std::shared_ptr<Mir::Block>> tem_exitings;
                     for (auto &exiting: loop->exitings) {
                         if (block_predecessors[exit].find(exiting) != block_predecessors[exit].end()) {
-                            exiting->change_successor(exit, new_exit_block);
+                            exiting->modify_successor(exit, new_exit_block);
                             tem_exitings.push_back(exiting);
                         }
                     }

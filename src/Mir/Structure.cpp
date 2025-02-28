@@ -20,7 +20,7 @@ void Function::update_id() {
     }
 }
 
-void Block::change_successor(const std::shared_ptr<Block> &old_successor, const std::shared_ptr<Block> &new_successor) {
+void Block::modify_successor(const std::shared_ptr<Block> &old_successor, const std::shared_ptr<Block> &new_successor) {
     for (auto &instruction: instructions) {
         if (dynamic_cast<Branch*>(instruction.get()) != nullptr) {
             auto branch = std::static_pointer_cast<Branch>(instruction);
