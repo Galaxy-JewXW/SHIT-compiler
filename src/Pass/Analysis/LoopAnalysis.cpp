@@ -63,24 +63,20 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
                 }
             }
 
-            loops_[func].push_back(std::make_shared<Loop>(Loop{
-                .header = header_block,
-                .blocks = loop_blocks,
-                .latch_blocks = latching_blocks,
-                .exitings = exiting_blocks,
-                .exits = exit_block
-            }));
+            loops_[func].push_back(std::make_shared<Loop>(
+                header_block,loop_blocks,latching_blocks,exiting_blocks,exit_block
+            ));
         }
 
         std::ostringstream oss;
         oss << "\n▷▷ loops in func: ["
                 << func->get_name() << "]\n";
         for (const auto &loop: loops_[func]) {
-            oss << "  ■ header: \"" << loop->header->get_name() << "\"\n";
-            for (const auto &block: loop->blocks) {
+            oss << "  ■ header: \"" << loop->get_header()->get_name() << "\"\n";
+            for (const auto &block: loop->get_blocks()) {
                 oss << "    block: \"" << block->get_name() << "\"\n";
             }
-            for (const auto &block: loop->latch_blocks) {
+            for (const auto &block: loop->get_latch_blocks()) {
                 oss << "    latch: \"" << block->get_name() << "\"\n";
             }
         }

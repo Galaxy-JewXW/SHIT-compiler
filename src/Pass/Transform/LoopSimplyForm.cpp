@@ -20,29 +20,29 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
 
         for (auto &loop: loops) {
             //首先进行 entering 单一化：对于 header, 如果存在多个 entering, 则新建一个 , 将所有 entering 的跳转都指向它
-            auto predecessors = block_predecessors[loop->header];
+            auto predecessors = block_predecessors[loop->get_header()];
             std::vector<std::shared_ptr<Mir::Block>> entering;
             for (auto &predecessor: predecessors) {
-                if (block_dominators[predecessor].find(loop->header) == block_dominators[loop->header].end()) entering.
+                if (block_dominators[predecessor].find(loop->get_header()) == block_dominators[loop->get_header()].end()) entering.
                         push_back(predecessor);
             }
 
             if (entering.size() == 1) {
-                loop->preheader = entering[0];
+                loop->get_preheader() = entering[0];
                 continue;
             } // header 只有一个前驱，则为其 pre_header
 
             if (entering.empty()) {
                 auto block = Mir::Block::create(Mir::Builder::gen_block_name(), func);
-                auto jump_instruction = Mir::Jump::create(loop->header, block);
+                auto jump_instruction = Mir::Jump::create(loop->get_header(), block);
             } //循环位于 function 头部，或位于不可达处，需补上头节点
 
             if (entering.size() > 1) {
                 auto pre_header = Mir::Block::create(Mir::Builder::gen_block_name(), func);
-                auto jump_instruction = Mir::Jump::create(loop->header, pre_header);
+                auto jump_instruction = Mir::Jump::create(loop->get_header(), pre_header);
 
                 for (auto &enter: entering) {
-                    enter->modify_successor(loop->header, pre_header);
+                    enter->modify_successor(loop->get_header(), pre_header);
                 } //先改变跳转关系
 
                 //TODO: 这里本来还应该有 PHI 指令的前提操作，但因为中端翻译 while 指令的奇怪做法，目前认为 pre-header 的单一性被保证，暂时认为无需补足该方法
@@ -54,19 +54,19 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
 
         for (auto &loop: loops) {
             // loop 不会没有 latch 块，否则不被识别为循环
-            if (loop->latch_blocks.size() == 1) {
-                loop->latch = loop->latch_blocks[0];
-                loop->latch_blocks.clear();
+            if (loop->get_latch_blocks().size() == 1) {
+                loop->get_latch() = loop->get_latch_blocks()[0];
+                loop->get_latch_blocks().clear();
                 continue;
             }
             //两步：改变跳转关系，header 与 latch 相关的 phi 指令移到 latch 中
             else {
-                auto header = loop->header;
+                auto header = loop->get_header();
 
                 auto latch_block = Mir::Block::create(Mir::Builder::gen_block_name(), func);
                 auto jump_instruction = Mir::Jump::create(header, latch_block);
 
-                for (auto &latch: loop->latch_blocks) {
+                for (auto &latch: loop->get_latch_blocks()) {
                     latch->modify_successor(header, latch_block);
                 }
 
@@ -75,7 +75,7 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
                     auto phi = std::dynamic_pointer_cast<Mir::Phi>(phi_);
                     Mir::Phi::Optional_Values values;
                     auto new_phi = Mir::Phi::create(phi->get_name(), phi->get_type(), latch_block, values);
-                    for (auto &latch: loop->latch_blocks) {
+                    for (auto &latch: loop->get_latch_blocks()) {
                         new_phi->set_optional_value(latch, phi->get_optional_values()[latch]);
                         phi->delete_optional_value(latch);
                     }
@@ -85,13 +85,13 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
         }
 
         for (auto &loop: loops) {
-            for (auto &exit : loop->exits) {
-                if (block_dominators[exit].find(loop->header) == block_dominators[exit].end()) {
+            for (auto &exit : loop->get_exits()) {
+                if (block_dominators[exit].find(loop->get_header()) == block_dominators[exit].end()) {
                     auto new_exit_block = Mir::Block::create(Mir::Builder::gen_block_name(), func);
                     auto jump_instruction = Mir::Jump::create(exit, new_exit_block);
 
                     std::vector<std::shared_ptr<Mir::Block>> tem_exitings;
-                    for (auto &exiting: loop->exitings) {
+                    for (auto &exiting: loop->get_exitings()) {
                         if (block_predecessors[exit].find(exiting) != block_predecessors[exit].end()) {
                             exiting->modify_successor(exit, new_exit_block);
                             tem_exitings.push_back(exiting);

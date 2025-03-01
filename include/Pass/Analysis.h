@@ -1,6 +1,7 @@
 #ifndef ANALYSIS_H
 #define ANALYSIS_H
 #include <unordered_set>
+#include <utility>
 
 #include "Pass.h"
 
@@ -171,20 +172,38 @@ private:
     }
 };
 
+class Loop {
+private:
+    using FunctionPtr = std::shared_ptr<Mir::Function>;
+    using BlockPtr = std::shared_ptr<Mir::Block>;
+    BlockPtr header;
+    BlockPtr preheader;
+    BlockPtr latch;
+    std::vector<BlockPtr> blocks;
+    std::vector<BlockPtr> latch_blocks;
+    std::vector<BlockPtr> exitings;
+    std::vector<BlockPtr> exits;
+
+public:
+
+    Loop(BlockPtr header,  const std::vector<BlockPtr> &blocks,
+        const std::vector<BlockPtr> &latch_blocks, const std::vector<BlockPtr> &exitings,
+        const std::vector<BlockPtr> &exits)
+        : header{std::move(header)}, blocks{blocks}, latch_blocks{latch_blocks},
+          exitings{exitings}, exits{exits} {}
+
+    [[nodiscard]] BlockPtr get_header() const { return header; }
+    [[nodiscard]] BlockPtr get_preheader() const { return preheader; }
+    [[nodiscard]] BlockPtr get_latch() const { return latch; }
+    [[nodiscard]] std::vector<BlockPtr> &get_blocks()  { return blocks; }
+    [[nodiscard]] std::vector<BlockPtr> &get_latch_blocks()  { return latch_blocks; }
+    [[nodiscard]] std::vector<BlockPtr> &get_exitings()  { return exitings; }
+    [[nodiscard]] std::vector<BlockPtr> &get_exits()  { return exits; }
+};
 class LoopAnalysis final : public Analysis {
 public:
     using FunctionPtr = std::shared_ptr<Mir::Function>;
     using BlockPtr = std::shared_ptr<Mir::Block>;
-
-    struct Loop {
-        BlockPtr header;
-        BlockPtr preheader;
-        BlockPtr latch;
-        std::vector<BlockPtr> blocks;
-        std::vector<BlockPtr> latch_blocks;
-        std::vector<BlockPtr> exitings;
-        std::vector<BlockPtr> exits;
-    };
 
     explicit LoopAnalysis() : Analysis("LoopAnalysis") {}
     void analyze(std::shared_ptr<const Mir::Module> module) override;
