@@ -23,12 +23,12 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
             auto predecessors = block_predecessors[loop->get_header()];
             std::vector<std::shared_ptr<Mir::Block>> entering;
             for (auto &predecessor: predecessors) {
-                if (block_dominators[predecessor].find(loop->get_header()) == block_dominators[loop->get_header()].end()) entering.
-                        push_back(predecessor);
+                if (block_dominators[predecessor].find(loop->get_header()) == block_dominators[loop->get_header()].end())
+                    entering.push_back(predecessor);
             }
 
             if (entering.size() == 1) {
-                loop->get_preheader() = entering[0];
+                loop->set_preheader(entering[0]);
                 continue;
             } // header 只有一个前驱，则为其 pre_header
 
@@ -55,7 +55,7 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
         for (auto &loop: loops) {
             // loop 不会没有 latch 块，否则不被识别为循环
             if (loop->get_latch_blocks().size() == 1) {
-                loop->get_latch() = loop->get_latch_blocks()[0];
+                loop->set_latch(loop->get_latch_blocks()[0]);
                 loop->get_latch_blocks().clear();
                 continue;
             }

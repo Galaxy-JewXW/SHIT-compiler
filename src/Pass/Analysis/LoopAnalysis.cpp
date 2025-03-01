@@ -42,7 +42,7 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
                 loop_blocks.push_back(latching_block);
             } //将 latch 节点加入循环，并使用工作集算法，寻找其支配结点，直至 header
             while (!working_set.empty()) {
-                auto current_block = working_set.back();
+                auto &current_block = working_set.back();
                 working_set.pop_back();
                 if (current_block != header_block) {
                     for (const auto &predecessor: block_predecessors[current_block]) {
