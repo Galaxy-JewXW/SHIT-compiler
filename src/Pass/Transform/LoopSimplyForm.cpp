@@ -35,11 +35,21 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
             if (entering.empty()) {
                 auto block = Mir::Block::create(Mir::Builder::gen_block_name(), func);
                 auto jump_instruction = Mir::Jump::create(loop->get_header(), block);
+
+                loop->add_block(block);
+                if (auto parent_loop_node = loop_info->find_loop_in_forest(func, loop)->get_parent()) {
+                    parent_loop_node->add_block4ancestors(block);
+                }
             } //循环位于 function 头部，或位于不可达处，需补上头节点
 
             if (entering.size() > 1) {
                 auto pre_header = Mir::Block::create(Mir::Builder::gen_block_name(), func);
                 auto jump_instruction = Mir::Jump::create(loop->get_header(), pre_header);
+
+                loop->add_block(pre_header);
+                if (auto parent_loop_node = loop_info->find_loop_in_forest(func, loop)->get_parent()) {
+                    parent_loop_node->add_block4ancestors(pre_header);
+                }
 
                 for (auto &enter: entering) {
                     enter->modify_successor(loop->get_header(), pre_header);
@@ -65,6 +75,10 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
 
                 auto latch_block = Mir::Block::create(Mir::Builder::gen_block_name(), func);
                 auto jump_instruction = Mir::Jump::create(header, latch_block);
+                loop->add_block(latch_block);
+                if (auto parent_loop_node = loop_info->find_loop_in_forest(func, loop)->get_parent()) {
+                    parent_loop_node->add_block4ancestors(latch_block);
+                }
 
                 for (auto &latch: loop->get_latch_blocks()) {
                     latch->modify_successor(header, latch_block);
@@ -89,6 +103,10 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
                 if (block_dominators[exit].find(loop->get_header()) == block_dominators[exit].end()) {
                     auto new_exit_block = Mir::Block::create(Mir::Builder::gen_block_name(), func);
                     auto jump_instruction = Mir::Jump::create(exit, new_exit_block);
+                    loop->add_block(new_exit_block);
+                    if (auto parent_loop_node = loop_info->find_loop_in_forest(func, loop)->get_parent()) {
+                        parent_loop_node->add_block4ancestors(new_exit_block);
+                    }
 
                     std::vector<std::shared_ptr<Mir::Block>> tem_exitings;
                     for (auto &exiting: loop->get_exitings()) {
