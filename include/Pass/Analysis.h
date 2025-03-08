@@ -75,6 +75,12 @@ public:
         return it->second;
     }
 
+    const std::vector<BlockPtr> &post_order_blocks(const FunctionPtr &func) const {
+        const auto it = post_order_blocks_.find(func);
+        if (it == post_order_blocks_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
+        return it->second;
+    }
+
 protected:
     void analyze(std::shared_ptr<const Mir::Module> module) override;
 
@@ -100,6 +106,9 @@ private:
 
     // 支配边界集合：function -> { block -> {该块的支配边界} }
     FuncBlockMap dominance_frontier_;
+
+    // block的后序遍历顺序：function -> { 按照后序遍历排序的block集合 }
+    std::unordered_map<FunctionPtr, std::vector<BlockPtr>> post_order_blocks_;
 };
 
 /**
@@ -211,6 +220,7 @@ public:
     using BlockPtr = std::shared_ptr<Mir::Block>;
 
     explicit LoopAnalysis() : Analysis("LoopAnalysis") {}
+
     void analyze(std::shared_ptr<const Mir::Module> module) override;
 
     const std::vector<std::shared_ptr<Loop>> &loops(const FunctionPtr &func) const {
@@ -222,7 +232,7 @@ public:
 private:
     using FunctLoopsMap = std::unordered_map<std::shared_ptr<Mir::Function>, std::vector<std::shared_ptr<Loop>>>;
     FunctLoopsMap loops_;
- };
+};
 }
 
 #endif //ANALYSIS_H
