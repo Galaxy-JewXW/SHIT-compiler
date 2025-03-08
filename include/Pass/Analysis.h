@@ -209,8 +209,52 @@ public:
     [[nodiscard]] std::vector<BlockPtr> &get_exitings()  { return exitings_; }
     [[nodiscard]] std::vector<BlockPtr> &get_exits()  { return exits_; }
 
+    std::shared_ptr<Mir::Block> find_block(const std::shared_ptr<Mir::Block>& block);
+
     void set_preheader(BlockPtr preheader) { preheader_ = std::move(preheader); }
     void set_latch(BlockPtr latch) { latch_ = std::move(latch); }
+};
+
+class LoopNodeTreeNode : public std::enable_shared_from_this<LoopNodeTreeNode>{
+public:
+    explicit LoopNodeTreeNode(std::shared_ptr<Loop> loop): loop_{std::move(loop)} {}
+    void add_child(std::shared_ptr<LoopNodeTreeNode> child) {
+        children_.push_back(std::move(child));
+    }
+
+    void remove_child(const std::shared_ptr<LoopNodeTreeNode>& child) {
+        auto it = std::find(children_.begin(), children_.end(), child);
+        if (it != children_.end()) {
+            children_.erase(it);
+        }
+    }
+
+    void set_parent(std::shared_ptr<LoopNodeTreeNode> parent) {
+        parent_ = std::move(parent);
+    }
+
+    std::vector<std::shared_ptr<LoopNodeTreeNode>>& get_children() {
+        return children_;
+    }
+
+    std::shared_ptr<LoopNodeTreeNode> get_parent() {
+        return parent_;
+    }
+
+    std::shared_ptr<LoopNodeTreeNode> get_ancestor() {
+        if (this->get_parent() == nullptr) { return shared_from_this();}
+        else { return this->get_parent()->get_ancestor(); }
+    }
+
+    std::shared_ptr<LoopNodeTreeNode> find_loop(const std::shared_ptr<Loop> &loop);
+
+    std::shared_ptr<LoopNodeTreeNode> find_block_in_loop(const std::shared_ptr<Mir::Block>& block);
+
+private:
+    std::shared_ptr<Loop> loop_;
+    std::shared_ptr<LoopNodeTreeNode> parent_;
+    std::vector<std::shared_ptr<LoopNodeTreeNode >> children_;
+
 };
 
 
@@ -232,6 +276,12 @@ public:
 private:
     using FunctLoopsMap = std::unordered_map<std::shared_ptr<Mir::Function>, std::vector<std::shared_ptr<Loop>>>;
     FunctLoopsMap loops_;
+    using FunctLoopForestMap = std::unordered_map<std::shared_ptr<Mir::Function>, std::vector<std::shared_ptr<LoopNodeTreeNode>>>;
+    FunctLoopForestMap loop_forest_;
+
+    std::shared_ptr<LoopNodeTreeNode> find_loop_in_forest(const FunctionPtr &func, const std::shared_ptr<Loop>& loop);
+
+    std::shared_ptr<LoopNodeTreeNode> find_block_in_forest(const FunctionPtr &func, const std::shared_ptr<Mir::Block>& block);
 };
 }
 
