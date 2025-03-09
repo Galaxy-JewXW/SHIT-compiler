@@ -179,8 +179,8 @@ def main():
             opt_level = int(arg)
 
     if path_to_compiler != '':
-        os.system('rm -f ./Compiler')
-        os.system('ln -s {} ./Compiler'.format(path_to_compiler))
+        os.system('rm -f ./compiler')
+        os.system('ln -s {} ./compiler'.format(path_to_compiler))
     if not test_suit:
         usage()
 

@@ -16,10 +16,12 @@ endif ()
 
 add_subdirectory(src)
 
+message(${CMAKE_CURRENT_BINARY_DIR})
+
 enable_testing()
 add_test(NAME Functional-LLVM-O0
-        COMMAND ./auto_test.py llvm -s ${CMAKE_CURRENT_BINARY_DIR}/Compiler -d functional -O0
+        COMMAND ./auto_test.py llvm -s ${PROJECT_SOURCE_DIR}/bin/compiler -d functional -O0
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 add_test(NAME Functional-LLVM-O0-HIDDEN
-        COMMAND ./auto_test.py llvm -s ${CMAKE_CURRENT_BINARY_DIR}/Compiler -d h_functional -O0
+        COMMAND ./auto_test.py llvm -s ${PROJECT_SOURCE_DIR}/bin/compiler -d h_functional -O0
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests)

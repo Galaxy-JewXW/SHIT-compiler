@@ -129,11 +129,11 @@ void Array::gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared
         const auto i8_ptr_type = std::make_shared<Type::Pointer>(Type::Integer::i8);
         const auto bitcast = BitCast::create(Builder::gen_variable_name(), addr, i8_ptr_type, block);
         const auto func_memset = Function::llvm_runtime_functions.find("llvm.memset.p0i8.i64")->second;
-        const auto size_val = std::make_shared<ConstInt>(static_cast<int>(total_bytes), Type::Integer::i64),
+        const auto size_val = std::make_shared<ConstInt>(static_cast<int>(total_bytes)),
                    zero_val = std::make_shared<ConstInt>(0, Type::Integer::i8),
                    is_volatile = std::make_shared<ConstInt>(0, Type::Integer::i1);
         // 用 memset 将整个数组内存区域置 0
-        Call::create(func_memset, {bitcast, size_val, zero_val, is_volatile}, block);
+        Call::create(func_memset, {bitcast, zero_val, size_val, is_volatile}, block);
     }
     // 遍历 init_values，对于非零初始化的元素生成 store 指令
     for (size_t i = 0; i < init_values.size(); ++i) {

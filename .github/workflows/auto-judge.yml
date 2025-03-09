@@ -21,14 +21,16 @@ jobs:
         id: cache-cmake
         uses: actions/cache@v4
         with:
-          path: ${{github.workspace}}/bin
+          path: |
+            ${{github.workspace}}/build
+            ${{github.workspace}}/bin
           key: ${{runner.os}}-cmake-${{hashFiles('src/**','include/**')}}
 
       - name: Install LLVM and Clang
         if: steps.cache-cmake.outputs.cache-hit != 'true'
         uses: KyleMayes/install-llvm-action@v2
         with:
-          version: "10.0"
+          version: "16.0"
 
       - name: CMake Build
         if: steps.cache-cmake.outputs.cache-hit != 'true'
@@ -52,12 +54,17 @@ jobs:
         id: cache-cmake
         uses: actions/cache@v4
         with:
-          path: ${{github.workspace}}/bin
+          path: |
+            ${{github.workspace}}/build
+            ${{github.workspace}}/bin
           key: ${{runner.os}}-cmake-${{hashFiles('src/**','include/**')}}
 
-      - name: If Cache Missed
+      - name: CMake Build
         if: steps.cache-cmake.outputs.cache-hit != 'true'
-        run: exit 1
+        run: |
+          cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
+                -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++
+          cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} -- -j4
 
       - name: Install LLVM and Clang
         uses: KyleMayes/install-llvm-action@v2
