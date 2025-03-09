@@ -19,12 +19,13 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
 
         std::vector<std::shared_ptr<Mir::Block>> headers;
         for (const auto &block: cfg_info->post_order_blocks(func)) {
-            for (const auto &successor: block_successors[block]) {
-                if (block_dominators[block].find(successor) != block_dominators[block].end()) {
-                    headers.push_back(successor);
+            for (const auto &predecessor: block_predecessors[block]) {
+                if (block_dominators[predecessor].find(block) != block_dominators[predecessor].end()) {
+                    headers.push_back(block);
+                    break;
                 }
             }
-        } // 每条回边对应一个头节点，每个头节点对应一个循环
+        } // 一个节点若有回边则是头节点，每个头节点对应一个循环
           // 按后续遍历节点，使得子循环一定先于父循环被发现
 
         for (const auto &header_block: headers) {
@@ -44,7 +45,7 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
                 working_set.push_back(latching_block);
             } //将 latch 节点加入循环，并使用工作集算法，寻找其支配结点，直至 header
             while (!working_set.empty()) {
-                auto &current_block = working_set.back();
+                auto current_block = working_set.back();
                 working_set.pop_back();
                 if (current_block != header_block) {
                     for (const auto &predecessor: block_predecessors[current_block]) {
@@ -66,6 +67,7 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
                 for (auto &succ : block_successors[block]) {
                     if (std::find(loop_blocks.begin(), loop_blocks.end(), succ) == loop_blocks.end()) {
                         exiting_blocks.push_back(block);
+                        if (std::find(exit_block.begin(), exit_block.end(), succ) == exit_block.end())
                         exit_block.push_back(succ);
                     }
                 }
