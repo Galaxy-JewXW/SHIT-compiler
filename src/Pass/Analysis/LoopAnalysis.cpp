@@ -11,6 +11,7 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
     std::shared_ptr<Mir::Module> mutable_module = std::const_pointer_cast<Mir::Module>(module);
     cfg_info->run_on(mutable_module);
 
+    //TODO: 这里的逻辑也稍有混乱了，好好设计整理一下
     for (const auto &func: *module) {
         auto block_predecessors = cfg_info->predecessors(func);
         auto block_successors = cfg_info->successors(func);
@@ -41,7 +42,6 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
             std::vector<std::shared_ptr<LoopNodeTreeNode>> child_loop_node;
             for (const auto &latching_block: latching_blocks) {
                 working_set.push_back(latching_block);
-                loop_blocks.push_back(latching_block);
             } //将 latch 节点加入循环，并使用工作集算法，寻找其支配结点，直至 header
             while (!working_set.empty()) {
                 auto &current_block = working_set.back();
@@ -50,7 +50,6 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
                     for (const auto &predecessor: block_predecessors[current_block]) {
                         if (std::find(loop_blocks.begin(), loop_blocks.end(), predecessor) == loop_blocks.end()) {
                             working_set.push_back(predecessor);
-                            loop_blocks.push_back(predecessor);
                         }
                     }
                 }
@@ -60,6 +59,7 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
                     loop_forest_[func].erase(std::remove(loop_forest_[func].begin(), loop_forest_[func].end(),
                                                          ancestor), loop_forest_[func].end());
                 }
+                else loop_blocks.push_back(current_block);
             } //将结点的所有前驱结点加入循环结点集（自然循环中，循环所有结点被 header 支配）
 
             for (auto &block : loop_blocks) {
