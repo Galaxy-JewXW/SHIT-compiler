@@ -4,7 +4,7 @@
 #include "Mir/Instruction.h"
 
 #define DEFINE_DEFAULT_TRANSFORM_CLASS(ClassName) \
-class ClassName : public Transform { \
+class ClassName final : public Transform { \
 public: \
 explicit ClassName() : Transform(#ClassName) {} \
 protected: \
@@ -90,6 +90,9 @@ DEFINE_DEFAULT_TRANSFORM_CLASS(StandardizeBinary);
 
 // 对指令进行代数优化恒等式变形
 DEFINE_DEFAULT_TRANSFORM_CLASS(AlgebraicSimplify);
+
+// 全局代码移动
+DEFINE_DEFAULT_TRANSFORM_CLASS(GlobalCodeMotion);
 }
 
 #endif //TRANSFORM_H

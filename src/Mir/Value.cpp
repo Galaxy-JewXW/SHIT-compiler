@@ -66,6 +66,17 @@ void User::clear_operands() {
     operands_.clear();
 }
 
+void User::remove_operand(const std::shared_ptr<Value> &value) {
+    if (!value) return;
+    this->operands_.erase(
+        std::remove_if(operands_.begin(), operands_.end(),
+                       [&value](const std::shared_ptr<Value> &operand) {
+                           return operand == value;
+                       }),
+        operands_.end());
+    value->delete_user(std::static_pointer_cast<User>(shared_from_this()));
+}
+
 void User::modify_operand(const std::shared_ptr<Value> &old_value,
                           const std::shared_ptr<Value> &new_value) {
     if (*old_value->get_type() != *new_value->get_type()) { log_error("type mismatch"); }

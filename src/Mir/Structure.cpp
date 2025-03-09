@@ -20,7 +20,7 @@ void Function::update_id() {
     }
 }
 
-void Block::change_successor(const std::shared_ptr<Block> &old_successor, const std::shared_ptr<Block> &new_successor) {
+void Block::modify_successor(const std::shared_ptr<Block> &old_successor, const std::shared_ptr<Block> &new_successor) {
     for (auto &instruction: instructions) {
         if (dynamic_cast<Branch*>(instruction.get()) != nullptr) {
             auto branch = std::static_pointer_cast<Branch>(instruction);
@@ -36,7 +36,7 @@ void Block::change_successor(const std::shared_ptr<Block> &old_successor, const 
 std::shared_ptr<std::vector<std::shared_ptr<Instruction>>> Block::get_phis() {
     auto phis = std::make_shared<std::vector<std::shared_ptr<Instruction>>>();
     for (auto &instruction: instructions) {
-        if (dynamic_cast<Phi*>(instruction.get()) != nullptr) {
+        if (instruction->get_op() == Mir::Operator::PHI) {
             auto phi = std::static_pointer_cast<Phi>(instruction);
             phis->push_back(phi);
         }
