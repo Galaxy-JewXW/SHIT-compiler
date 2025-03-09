@@ -60,10 +60,6 @@ jobs:
           name: bin
           path: ${{github.workspace}}/bin
 
-      - name: If Cache Missed
-        if: steps.cache-cmake.outputs.cache-hit != 'true'
-        run: exit 1
-
       - name: Install LLVM and Clang
         uses: KyleMayes/install-llvm-action@v2
         if: ${{ matrix.type == 'LLVM' }}
