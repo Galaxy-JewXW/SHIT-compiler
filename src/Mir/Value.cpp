@@ -74,7 +74,6 @@ void User::remove_operand(const std::shared_ptr<Value> &value) {
                            return operand == value;
                        }),
         operands_.end());
-
     value->delete_user(std::static_pointer_cast<User>(shared_from_this()));
 }
 

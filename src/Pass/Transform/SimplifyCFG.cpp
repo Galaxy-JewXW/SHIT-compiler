@@ -61,7 +61,8 @@ static void remove_unreachable_blocks_for_phi(const std::shared_ptr<Phi> &phi, c
     };
     for (auto it = phi->get_optional_values().begin(); it != phi->get_optional_values().end();) {
         if (auto &[block, value] = *it; block_is_unreachable(block)) {
-            value->delete_user(phi);
+            phi->remove_operand(value);
+            block->delete_user(phi);
             it = phi->get_optional_values().erase(it);
         } else {
             ++it;

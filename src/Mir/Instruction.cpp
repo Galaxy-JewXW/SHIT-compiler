@@ -17,8 +17,8 @@ std::shared_ptr<Load> Load::create(const std::string &name, const std::shared_pt
 }
 
 std::shared_ptr<Store> Store::create(const std::shared_ptr<Value> &addr,
-                                         const std::shared_ptr<Value> &value,
-                                         const std::shared_ptr<Block> &block) {
+                                     const std::shared_ptr<Value> &value,
+                                     const std::shared_ptr<Block> &block) {
     const auto instruction = std::make_shared<Store>(addr, value);
     if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(addr);
@@ -248,7 +248,7 @@ std::shared_ptr<Add> Add::create(const std::string &name, std::shared_ptr<Value>
 }
 
 std::shared_ptr<Sub> Sub::create(const std::string &name, const std::shared_ptr<Value> &lhs,
-                                   const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block) {
+                                 const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block) {
     if (!lhs->get_type()->is_int32() || !rhs->get_type()->is_int32()) {
         log_error("Operands must be int 32");
     }
@@ -409,8 +409,9 @@ void Phi::modify_operand(const std::shared_ptr<Value> &old_value, const std::sha
 }
 
 void Phi::delete_optional_value(const std::shared_ptr<Block> &block) {
+    const auto value = optional_values[block];
     optional_values.erase(block);
-    this->remove_operand(block);
+    remove_operand(block);
+    remove_operand(value);
 }
-
 }
