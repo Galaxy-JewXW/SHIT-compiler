@@ -37,6 +37,12 @@ jobs:
                 -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++
           cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
+      - name: Upload bin directory
+        uses: actions/upload-artifact@v4
+        with:
+          name: bin
+          path: ${{github.workspace}}/bin
+
   functional-test:
     needs: compile
     runs-on: ubuntu-latest
@@ -48,12 +54,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Restore Build Cache
-        id: cache-cmake
-        uses: actions/cache@v4
+      - name: Download bin directory
+        uses: actions/download-artifact@v4
         with:
+          name: bin
           path: ${{github.workspace}}/bin
-          key: ${{runner.os}}-cmake-${{hashFiles('src/**','include/**')}}
 
       - name: If Cache Missed
         if: steps.cache-cmake.outputs.cache-hit != 'true'
@@ -72,7 +77,7 @@ jobs:
           mv testdata/* tests
 
       - name: Test
-        working-directory: ${{github.workspace}}/build
+        working-directory: ${{github.workspace}}/bin
         run: |
           chmod +x ${{github.workspace}}/tests/*.sh
           chmod +x ${{github.workspace}}/tests/*.py
