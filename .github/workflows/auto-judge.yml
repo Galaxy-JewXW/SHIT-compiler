@@ -52,7 +52,7 @@ jobs:
         id: cache-cmake
         uses: actions/cache@v4
         with:
-          path: ${{github.workspace}}/build
+          path: ${{github.workspace}}/bin
           key: ${{runner.os}}-cmake-${{hashFiles('src/**','include/**')}}
 
       - name: If Cache Missed
