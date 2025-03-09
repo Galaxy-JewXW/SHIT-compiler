@@ -64,7 +64,7 @@ std::shared_ptr<Init> Exp::create_exp_init_value(const std::shared_ptr<Type::Typ
         if (!arr) { log_error("Indexing into non-array init value"); }
         if (arr->is_zero_initialized) {
             return Constant::create_zero_constant_init_value(
-                std::static_pointer_cast<Type::Array>(arr->type)->get_element_type());
+                std::static_pointer_cast<Type::Array>(arr->type)->get_atomic_type());
         }
         if (idx < 0 || idx >= static_cast<int>(arr->init_values.size())) {
             log_error("Index %d out of array bounds[0, %zu)", idx, arr->init_values.size());
