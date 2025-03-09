@@ -89,7 +89,9 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
                 for (auto &phi_: *phis) {
                     auto phi = std::dynamic_pointer_cast<Mir::Phi>(phi_);
                     Mir::Phi::Optional_Values values;
-                    auto new_phi = Mir::Phi::create(phi->get_name(), phi->get_type(), latch_block, values);
+                    auto new_phi = Mir::Phi::create(phi->get_name(), phi->get_type(), nullptr, values);
+                    new_phi->set_block(latch_block, false);
+                    latch_block->get_instructions().insert(latch_block->get_instructions().begin(), new_phi);
                     for (auto &latch: loop->get_latch_blocks()) {
                         new_phi->set_optional_value(latch, phi->get_optional_values()[latch]);
                         phi->delete_optional_value(latch);
@@ -121,7 +123,9 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
                     for (auto &phi_: *phis) {
                         auto phi = std::dynamic_pointer_cast<Mir::Phi>(phi_);
                         Mir::Phi::Optional_Values values;
-                        auto new_phi = Mir::Phi::create(phi->get_name(), phi->get_type(), new_exit_block, values);
+                        auto new_phi = Mir::Phi::create(phi->get_name(), phi->get_type(), nullptr, values);
+                        new_phi->set_block(new_exit_block, false);
+                        new_exit_block->get_instructions().insert(new_exit_block->get_instructions().begin(), new_phi);
                         for (auto &exiting: tem_exitings) {
                             new_phi->set_optional_value(exiting, phi->get_optional_values()[exiting]);
                             phi->delete_optional_value(exiting);
