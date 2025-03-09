@@ -90,6 +90,9 @@ DEFINE_DEFAULT_TRANSFORM_CLASS(StandardizeBinary);
 
 // 对指令进行代数优化恒等式变形
 DEFINE_DEFAULT_TRANSFORM_CLASS(AlgebraicSimplify);
+
+// 全局代码移动
+DEFINE_DEFAULT_TRANSFORM_CLASS(GlobalCodeMotion);
 }
 
 #endif //TRANSFORM_H
