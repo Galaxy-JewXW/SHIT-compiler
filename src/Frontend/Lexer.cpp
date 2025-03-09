@@ -42,36 +42,30 @@ Token::Token Lexer::consume_number() {
     std::string number;
     bool is_float = false;
     std::size_t idx;
-    // 检查是否为十六进制数（以 0x 或 0X 开头）
+
+    // 十六进制数处理 (0x...)
     if (peek() == '0' && (peek_next() == 'x' || peek_next() == 'X')) {
-        number += advance();
-        number += advance();
-        // 解析十六进制数字部分
+        number += advance(); // '0'
+        number += advance(); // 'x'/'X'
         while (pos < input.length() && std::isxdigit(peek())) {
             number += advance();
         }
-        // 检查是否有小数点 '.'
-        if (peek() == '.') {
-            is_float = true;
-            number += advance(); // 添加 '.'
-            while (pos < input.length() && std::isxdigit(peek())) {
-                number += advance();
+
+        // 处理十六进制浮点数
+        if (peek() == '.' || peek() == 'p' || peek() == 'P') {
+            if (peek() == '.') {
+                number += advance(); // '.'
+                while (pos < input.length() && std::isxdigit(peek())) {
+                    number += advance();
+                }
             }
-        }
-        // 检查是否有指数部分 'p', 'P', 'e', 'E'
-        if (peek() == 'p' || peek() == 'P' || peek() == 'e' || peek() == 'E') {
-            is_float = true;
-            number += advance();
-            // 处理指数的可选符号 '+' 或 '-'
-            if (peek() == '+' || peek() == '-') {
-                number += advance();
+            if (peek() == 'p' || peek() == 'P') {
+                number += advance(); // 'p'/'P'
+                if (peek() == '+' || peek() == '-') number += advance();
+                while (pos < input.length() && std::isdigit(peek())) {
+                    number += advance();
+                }
             }
-            // 对于十六进制浮点数，指数部分可以包含十六进制数字
-            while (pos < input.length() && std::isxdigit(peek())) {
-                number += advance();
-            }
-        }
-        if (is_float) {
             return Token::Token{
                 std::to_string(std::stod(number, &idx)),
                 Token::Type::FLOAT_CONST, start_line
@@ -82,54 +76,70 @@ Token::Token Lexer::consume_number() {
             Token::Type::INT_CONST, start_line
         };
     }
-    // 八进制数
-    if (peek() == '0' && std::isdigit(peek_next())) {
-        number += advance(); // 添加 '0'
+
+    // 八进制数处理 (0后面紧跟0-7)
+    if (peek() == '0' && (peek_next() >= '0' && peek_next() <= '7')) {
+        number += advance(); // '0'
         while (pos < input.length() && peek() >= '0' && peek() <= '7') {
             number += advance();
         }
-        return Token::Token{
-            std::to_string(std::stoi(number, &idx, 8)),
-            Token::Type::INT_CONST, start_line
-        };
+
+        // 检查八进制后是否接浮点或指数（转换为十进制处理）
+        if (peek() == '.' || peek() == 'e' || peek() == 'E') {
+            int oct_part = std::stoi(number, nullptr, 8);
+            number = std::to_string(oct_part);
+            is_float = true;
+        } else {
+            return Token::Token{
+                std::to_string(std::stoi(number, &idx, 8)),
+                Token::Type::INT_CONST, start_line
+            };
+        }
     }
-    // 十进制数字
-    while (pos < input.length() && std::isdigit(peek())) {
-        number += advance();
+
+    // 十进制数字处理
+    if (number.empty()) {
+        while (pos < input.length() && std::isdigit(peek())) {
+            number += advance();
+        }
     }
-    // 检查是否有小数点 '.'
+
+    // 前导零错误检查（仅限十进制整数）
+    if (!is_float && number.size() > 1 && number[0] == '0') {
+        log_fatal("Invalid leading zero in integer at line %d", start_line);
+    }
+
+    // 浮点数处理
     if (peek() == '.') {
         is_float = true;
-        number += advance(); // 添加 '.'
+        number += advance();
         while (pos < input.length() && std::isdigit(peek())) {
             number += advance();
         }
     }
-    // 检查是否有指数部分 'e', 'E', 'p', 'P'
-    if (peek() == 'e' || peek() == 'E' || peek() == 'p' || peek() == 'P') {
+
+    if (peek() == 'e' || peek() == 'E') {
         is_float = true;
         number += advance();
-        // 可选符号 '+' 或 '-'
-        if (peek() == '+' || peek() == '-') {
-            number += advance();
-        }
-        // 十进制浮点数指数部分仅包含十进制数字
+        if (peek() == '+' || peek() == '-') number += advance();
         while (pos < input.length() && std::isdigit(peek())) {
             number += advance();
         }
     }
-    // 检查是否有浮点数后缀 'f', 'F', 'l', 'L'
+
+    // 浮点后缀
     if (peek() == 'f' || peek() == 'F' || peek() == 'l' || peek() == 'L') {
         is_float = true;
         number += advance();
     }
+
     if (is_float) {
         std::ostringstream oss;
-        const double val = std::stod(number, &idx);
+        double val = std::stod(number, &idx);
         oss << std::setprecision(12) << val;
-        std::string str = oss.str();
-        return Token::Token{str, Token::Type::FLOAT_CONST, start_line};
+        return Token::Token{oss.str(), Token::Type::FLOAT_CONST, start_line};
     }
+
     return Token::Token{
         std::to_string(std::stoi(number, &idx, 10)),
         Token::Type::INT_CONST, start_line

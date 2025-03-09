@@ -210,8 +210,14 @@ std::shared_ptr<Call> Call::create(const std::string &name,
     const auto instruction = std::make_shared<Call>(name, function, params);
     if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(function);
-    for (const auto &param: params) {
-        instruction->add_operand(param);
+    const auto func_arguments = function->get_arguments();
+    for (size_t i = 0; i < params.size(); ++i) {
+        const auto &param_received = params[i];
+        if (*param_received->get_type() != *func_arguments[i]->get_type()) {
+            log_error("Expected argument type %s, got %s", func_arguments[i]->get_type()->to_string().c_str(),
+                      param_received->get_type()->to_string().c_str());
+        }
+        instruction->add_operand(param_received);
     }
     return instruction;
 }
@@ -226,8 +232,14 @@ std::shared_ptr<Call> Call::create(const std::shared_ptr<Function> &function,
     const auto instruction = std::make_shared<Call>(function, params, const_string_index);
     if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     instruction->add_operand(function);
-    for (const auto &param: params) {
-        instruction->add_operand(param);
+    const auto func_arguments = function->get_arguments();
+    for (size_t i = 0; i < params.size(); ++i) {
+        const auto &param_received = params[i];
+        if (*param_received->get_type() != *func_arguments[i]->get_type()) {
+            log_error("Expected argument type %s, got %s", func_arguments[i]->get_type()->to_string().c_str(),
+                      param_received->get_type()->to_string().c_str());
+        }
+        instruction->add_operand(param_received);
     }
     return instruction;
 }

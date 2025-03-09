@@ -82,7 +82,7 @@ const std::unordered_map<std::string, std::shared_ptr<Function>> Function::llvm_
     {
         "llvm.memset.p0i8.i64", create("llvm.memset.p0i8.i64", Type::Void::void_,
                                        std::make_shared<Type::Pointer>(Type::Integer::i8), Type::Integer::i8,
-                                       Type::Integer::i64, Type::Integer::i1)
+                                       Type::Integer::i32, Type::Integer::i1)
     },
 };
 }
