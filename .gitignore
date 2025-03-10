@@ -2,6 +2,8 @@
 /jpcc.iml
 /.idea/
 *.sy
+*.ll
+*.asm
 .vscode
 build/
 bin/

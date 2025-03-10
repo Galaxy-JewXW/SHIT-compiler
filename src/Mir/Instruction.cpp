@@ -36,38 +36,55 @@ std::shared_ptr<Store> Store::create(const std::shared_ptr<Value> &addr,
  *   - %1 = getelementptr inbounds i32, i32* %0, i32 1
  *     - %0 和 %1 的类型均为i32*
  */
-std::shared_ptr<Type::Type> GetElementPtr::calc_type_(const std::shared_ptr<Value> &addr) {
+std::shared_ptr<Type::Type> GetElementPtr::calc_type_(const std::shared_ptr<Value> &addr,
+                                                      const std::vector<std::shared_ptr<Value>> &indexes) {
     const auto type = addr->get_type();
     const auto ptr_type = std::dynamic_pointer_cast<Type::Pointer>(type);
     if (!ptr_type) {
-        log_error("First operand must be a pointer type");
+        log_trace("%s", addr->to_string().c_str());
+        log_error("First operand of getelementptr must be a pointer type");
     }
-    auto target_type = ptr_type->get_contain_type();
-    if (const auto array_type = std::dynamic_pointer_cast<Type::Array>(target_type)) {
-        return std::make_shared<Type::Pointer>(array_type->get_element_type());
+    if (indexes.size() == 1) {
+        return ptr_type;
     }
-    if (target_type->is_int32() || target_type->is_float()) {
-        return std::make_shared<Type::Pointer>(target_type);
+    if (indexes.size() == 2) {
+        const auto constant_zero = std::dynamic_pointer_cast<ConstInt>(indexes[0]);
+        if (constant_zero == nullptr) {
+            log_error("First index should be constant zero");
+        }
+        if (std::any_cast<int>(constant_zero->get_constant_value()) != 0) {
+            log_error("Index should be zero");
+        }
+        if (const auto contain_type = ptr_type->get_contain_type(); !contain_type->is_array()) {
+            log_error("Indexing on non-array type");
+        } else {
+            const auto element_type = std::static_pointer_cast<Type::Array>(contain_type)->get_element_type();
+            return std::make_shared<Type::Pointer>(element_type);
+        }
     }
-    log_fatal("Invalid pointer target type");
+    log_error("Invalid indexes size %d", indexes.size());
 }
 
 std::shared_ptr<GetElementPtr> GetElementPtr::create(const std::string &name,
                                                      const std::shared_ptr<Value> &addr,
                                                      const std::shared_ptr<Value> &index,
                                                      const std::shared_ptr<Block> &block) {
-    const auto instruction = std::make_shared<GetElementPtr>(name, addr, index);
+    return nullptr;
+}
+
+std::shared_ptr<GetElementPtr> GetElementPtr::create_1(const std::string &name,
+                                                       const std::shared_ptr<Value> &addr,
+                                                       const std::vector<std::shared_ptr<Value>> &indexes,
+                                                       const std::shared_ptr<Block> &block) {
+    const auto instruction = std::make_shared<GetElementPtr>(name, addr, indexes);
     if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
-    const auto type = addr->get_type();
-    const auto ptr_type = std::dynamic_pointer_cast<Type::Pointer>(type);
-    if (!ptr_type) {
+    if (const auto type = addr->get_type(); !type->is_pointer()) {
         log_error("First operand must be a pointer type");
     }
     instruction->add_operand(addr);
-    if (const auto target_type = ptr_type->get_contain_type(); target_type->is_array()) {
-        instruction->add_operand(std::make_shared<ConstInt>(0));
+    for (const auto &index: indexes) {
+        instruction->add_operand(index);
     }
-    instruction->add_operand(index);
     return instruction;
 }
 
@@ -235,9 +252,11 @@ std::shared_ptr<Call> Call::create(const std::shared_ptr<Function> &function,
     const auto func_arguments = function->get_arguments();
     for (size_t i = 0; i < params.size(); ++i) {
         const auto &param_received = params[i];
-        if (*param_received->get_type() != *func_arguments[i]->get_type()) {
-            log_error("Expected argument type %s, got %s", func_arguments[i]->get_type()->to_string().c_str(),
-                      param_received->get_type()->to_string().c_str());
+        if (function->get_name() != "putf") {
+            if (*param_received->get_type() != *func_arguments[i]->get_type()) {
+                log_error("Expected argument type %s, got %s", func_arguments[i]->get_type()->to_string().c_str(),
+                          param_received->get_type()->to_string().c_str());
+            }
         }
         instruction->add_operand(param_received);
     }

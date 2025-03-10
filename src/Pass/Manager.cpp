@@ -14,8 +14,7 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         Pass::DeadFuncEliminate,
         Pass::DeadInstEliminate,
         Pass::AlgebraicSimplify,
-        Pass::SimplifyCFG,
-        Pass::LoopSimplyForm,
+        Pass::EmitModule<>,
         Pass::SimplifyCFG
     >(module);
 }

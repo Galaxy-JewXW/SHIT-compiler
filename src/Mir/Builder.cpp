@@ -525,15 +525,16 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
         }
     }
     std::shared_ptr<Value> pointer = address;
-    content_type = ir_type;
+    content_type = std::static_pointer_cast<Type::Pointer>(address->get_type())->get_contain_type();
     for (const auto &index: indexes) {
         if (content_type->is_pointer()) {
             pointer = Load::create(gen_variable_name(), pointer, cur_block);
             content_type = std::static_pointer_cast<Type::Pointer>(content_type)->get_contain_type();
-        }
-        pointer = GetElementPtr::create(gen_variable_name(), pointer, index, cur_block);
-        if (content_type->is_array()) {
+            pointer = GetElementPtr::create_1(gen_variable_name(), pointer, {index}, cur_block);
+        } else if (content_type->is_array()) {
             content_type = std::static_pointer_cast<Type::Array>(content_type)->get_element_type();
+            pointer = GetElementPtr::create_1(gen_variable_name(), pointer,
+                                              {std::make_shared<ConstInt>(0), index}, cur_block);
         }
     }
     if (get_address) {
@@ -547,7 +548,8 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
     if (content_type->is_array()) {
         // 解析向函数中调用数组指针的情况
         // 此时也认为symbol的初始值被修改
-        return GetElementPtr::create(gen_variable_name(), pointer, std::make_shared<ConstInt>(0), cur_block);
+        const auto constant_zero = std::make_shared<ConstInt>(0);
+        return GetElementPtr::create_1(gen_variable_name(), pointer, {constant_zero, constant_zero}, cur_block);
     }
     log_fatal("Invalid lVal");
 }

@@ -112,16 +112,20 @@ class GetElementPtr final : public Instruction {
 public:
     GetElementPtr(const std::string &name,
                   const std::shared_ptr<Value> &addr,
-                  const std::shared_ptr<Value> &index)
-        : Instruction(name, calc_type_(addr), Operator::GEP) {
+                  const std::vector<std::shared_ptr<Value>> &indexes)
+        : Instruction(name, calc_type_(addr, indexes), Operator::GEP) {
         if (!addr->get_type()->is_pointer()) { log_error("Address must be a pointer"); }
-        if (!index->get_type()->is_int32()) { log_error("Index must be an integer 32"); }
     }
 
-    static std::shared_ptr<GetElementPtr> create(const std::string &name,
-                                                 const std::shared_ptr<Value> &addr,
-                                                 const std::shared_ptr<Value> &index,
-                                                 const std::shared_ptr<Block> &block);
+    [[deprecated]] static std::shared_ptr<GetElementPtr> create(const std::string &name,
+                                                                const std::shared_ptr<Value> &addr,
+                                                                const std::shared_ptr<Value> &index,
+                                                                const std::shared_ptr<Block> &block);
+
+    static std::shared_ptr<GetElementPtr> create_1(const std::string &name,
+                                                   const std::shared_ptr<Value> &addr,
+                                                   const std::vector<std::shared_ptr<Value>> &indexes,
+                                                   const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::shared_ptr<Value> get_addr() const { return operands_[0]; }
 
@@ -138,7 +142,7 @@ public:
     [[nodiscard]] std::string to_string() const override;
 
 private:
-    static std::shared_ptr<Type::Type> calc_type_(const std::shared_ptr<Value> &addr);
+    static std::shared_ptr<Type::Type> calc_type_(const std::shared_ptr<Value> &addr, const std::vector<std::shared_ptr<Value>> &indexes);
 };
 
 class BitCast final : public Instruction {
