@@ -457,7 +457,7 @@ namespace AST {
 
 std::string str_to_llvm_ir(const std::string &str) {
     auto s = str;
-    const auto l = s.size() + 1;
+    const auto l = s.size();
     size_t pos = 0;
     while ((pos = s.find("\\n", pos)) != std::string::npos) {
         s.replace(pos, 2, "\\0A");

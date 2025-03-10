@@ -235,9 +235,11 @@ std::shared_ptr<Call> Call::create(const std::shared_ptr<Function> &function,
     const auto func_arguments = function->get_arguments();
     for (size_t i = 0; i < params.size(); ++i) {
         const auto &param_received = params[i];
-        if (*param_received->get_type() != *func_arguments[i]->get_type()) {
-            log_error("Expected argument type %s, got %s", func_arguments[i]->get_type()->to_string().c_str(),
-                      param_received->get_type()->to_string().c_str());
+        if (function->get_name() != "putf") {
+            if (*param_received->get_type() != *func_arguments[i]->get_type()) {
+                log_error("Expected argument type %s, got %s", func_arguments[i]->get_type()->to_string().c_str(),
+                          param_received->get_type()->to_string().c_str());
+            }
         }
         instruction->add_operand(param_received);
     }
