@@ -66,13 +66,6 @@ std::shared_ptr<Type::Type> GetElementPtr::calc_type_(const std::shared_ptr<Valu
 }
 
 std::shared_ptr<GetElementPtr> GetElementPtr::create(const std::string &name,
-                                                     const std::shared_ptr<Value> &addr,
-                                                     const std::shared_ptr<Value> &index,
-                                                     const std::shared_ptr<Block> &block) {
-    return nullptr;
-}
-
-std::shared_ptr<GetElementPtr> GetElementPtr::create_1(const std::string &name,
                                                        const std::shared_ptr<Value> &addr,
                                                        const std::vector<std::shared_ptr<Value>> &indexes,
                                                        const std::shared_ptr<Block> &block) {

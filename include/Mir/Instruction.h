@@ -117,12 +117,7 @@ public:
         if (!addr->get_type()->is_pointer()) { log_error("Address must be a pointer"); }
     }
 
-    [[deprecated]] static std::shared_ptr<GetElementPtr> create(const std::string &name,
-                                                                const std::shared_ptr<Value> &addr,
-                                                                const std::shared_ptr<Value> &index,
-                                                                const std::shared_ptr<Block> &block);
-
-    static std::shared_ptr<GetElementPtr> create_1(const std::string &name,
+    static std::shared_ptr<GetElementPtr> create(const std::string &name,
                                                    const std::shared_ptr<Value> &addr,
                                                    const std::vector<std::shared_ptr<Value>> &indexes,
                                                    const std::shared_ptr<Block> &block);
