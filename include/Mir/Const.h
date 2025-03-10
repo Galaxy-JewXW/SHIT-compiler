@@ -106,13 +106,23 @@ class ConstFloat final : public Const {
     static constexpr double tolerance = 1e-6f;
 
     static std::string gen_name(const double value) {
-        uint64_t bits;
-        static_assert(sizeof(value) == sizeof(bits), "Size mismatch");
-        std::memcpy(&bits, &value, sizeof(value));
+        const auto f = static_cast<float>(value);
+        uint32_t bits = 0;
+        static_assert(sizeof(f) == sizeof(bits), "Size mismatch");
+        std::memcpy(&bits, &f, sizeof(f));
         std::ostringstream oss;
-        oss << "0x" << std::hex << std::setw(16) << std::setfill('0') << bits;
+        oss << "0x" << std::uppercase << std::hex << std::setfill('0') << std::setw(8) << bits;
         return oss.str();
     }
+
+    // static std::string gen_name(const double value) {
+    //     uint64_t bits;
+    //     static_assert(sizeof(value) == sizeof(bits), "Size mismatch");
+    //     std::memcpy(&bits, &value, sizeof(value));
+    //     std::ostringstream oss;
+    //     oss << "0x" << std::hex << std::setw(16) << std::setfill('0') << bits;
+    //     return oss.str();
+    // }
 
 public:
     explicit ConstFloat(const double value) : Const(gen_name(value), Type::Float::f32), value{value} {}

@@ -480,6 +480,7 @@ namespace Mir {
     // 拼接函数
     join_and_append(oss, functions, "\n");
     if (!functions.empty()) { oss << "\n"; }
+    oss << "\ndeclare void @llvm.memset.p0i8.i32(i8* nocapture writeonly, i8, i32, i1 immarg)\n";
     return oss.str();
 }
 
