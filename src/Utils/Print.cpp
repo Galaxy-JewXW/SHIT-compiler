@@ -574,7 +574,7 @@ namespace Mir {
     std::ostringstream oss;
     oss << name_ << " = getelementptr inbounds " << target_type->to_string()
             << ", " << ptr_type->to_string() << " " << addr->get_name();
-    if (target_type->is_array()) oss << ", i32 0, i32 ";
+    if (operands_.size() == 3) oss << ", i32 0, i32 ";
     else oss << ", i32 ";
     oss << get_index()->get_name();
     return oss.str();
@@ -794,7 +794,7 @@ namespace Mir {
     std::ostringstream oss;
     oss << name_ << " = phi " << type_->to_string();
     size_t i{0};
-    for (const auto &[value, block] : optional_values) {
+    for (const auto &[value, block]: optional_values) {
         oss << " [ " << block->get_name() << ", %" << value->get_name();
         if (i != optional_values.size() - 1) {
             oss << " ], ";

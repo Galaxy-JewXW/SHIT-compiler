@@ -151,7 +151,9 @@ void Array::gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared
         }
         if (skip) continue;
         auto index_val = std::make_shared<ConstInt>(static_cast<int>(i));
-        auto element_addr = GetElementPtr::create(Builder::gen_variable_name(), addr, index_val, block);
+        const auto zero_index = std::make_shared<ConstInt>(0);
+        auto element_addr = GetElementPtr::create_1(Builder::gen_variable_name(), addr,
+                                                    {zero_index, index_val}, block);
         // 如果当前元素是子数组，则递归生成内部 store 指令
         if (init->is_array_init()) {
             // 对于子数组，其对应的维度为原 dimensions 去掉第一维
