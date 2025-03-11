@@ -16,6 +16,9 @@ static std::unordered_set<InstructionPtr> visited_instructions{};
 
 // 将指令从其所在的block中移除，并移动到target_block的倒数第二位（在该block的terminator之前）
 static void move_instruction(const InstructionPtr &instruction, const BlockPtr &target_block) {
+    if (instruction == nullptr || target_block == nullptr) {
+        log_fatal("nullptr instruction or block");
+    }
     const BlockPtr &current_block = instruction->get_block();
     auto &instructions = current_block->get_instructions();
     const auto it = std::find(instructions.begin(), instructions.end(), instruction);
@@ -34,23 +37,61 @@ static void move_instruction(const InstructionPtr &instruction, const BlockPtr &
 
 // 将指令从其所在的block中移除，并移动到target之前
 static void move_instruction_before(const InstructionPtr &instruction, const InstructionPtr &target) {
-    const auto &current_block = instruction->get_block(),
-               &target_block = target->get_block();
-    auto &instructions = current_block->get_instructions(),
-         &target_instructions = target_block->get_instructions();
-    if (const auto it = std::find(instructions.begin(), instructions.end(), instruction);
-        it == instructions.end()) [[unlikely]] {
-        log_error("Instruction %s not in block %s", instruction->to_string().c_str(),
-                  current_block->get_name().c_str());
-    } else {
-        instructions.erase(it);
+    if (instruction == nullptr || target == nullptr) {
+        log_fatal("nullptr instruction or target");
     }
-    instruction->set_block(target_block, false);
-    if (const auto it = std::find(target_instructions.begin(), target_instructions.end(), target);
-        it == target_instructions.end()) [[unlikely]] {
-        log_error("Instruction %s not in block %s", target->to_string().c_str(), target_block->get_name().c_str());
+    const auto &current_block = instruction->get_block();
+    // 如果源块和目标块是同一个块，需要特别处理避免迭代器失效
+    if (const auto &target_block = target->get_block(); current_block == target_block) {
+        auto &instructions = current_block->get_instructions();
+        // 找到两个指令的位置
+        const auto instr_pos = std::distance(
+            instructions.begin(),
+            std::find(instructions.begin(), instructions.end(), instruction)
+        );
+        auto target_pos = std::distance(
+            instructions.begin(),
+            std::find(instructions.begin(), instructions.end(), target)
+        );
+        if (static_cast<size_t>(instr_pos) == instructions.size()) [[unlikely]] {
+            log_error("Instruction %s not in block %s", instruction->to_string().c_str(),
+                      current_block->get_name().c_str());
+        }
+        if (static_cast<size_t>(target_pos) == instructions.size()) [[unlikely]] {
+            log_error("Instruction %s not in block %s", target->to_string().c_str(),
+                      target_block->get_name().c_str());
+        }
+        // 如果指令已经在目标之前且相邻，则无需移动
+        if (instr_pos + 1 == target_pos) {
+            return;
+        }
+        // 暂时保存指令，先从原位置移除
+        const InstructionPtr &instr_copy = instruction;
+        instructions.erase(instructions.begin() + instr_pos);
+        // 由于移除元素后，如果target_pos > instr_pos，target位置需要调整
+        if (target_pos > instr_pos) {
+            target_pos--;
+        }
+        // 插入到target之前
+        instructions.insert(instructions.begin() + target_pos, instr_copy);
     } else {
-        target_instructions.insert(it, instruction);
+        auto &instructions = current_block->get_instructions();
+        auto &target_instructions = target_block->get_instructions();
+        if (const auto it = std::find(instructions.begin(), instructions.end(), instruction);
+            it == instructions.end()) [[unlikely]] {
+            log_error("Instruction %s not in block %s", instruction->to_string().c_str(),
+                      current_block->get_name().c_str());
+        } else {
+            instructions.erase(it);
+        }
+        instruction->set_block(target_block, false);
+        if (const auto it = std::find(target_instructions.begin(), target_instructions.end(), target);
+            it == target_instructions.end()) [[unlikely]] {
+            log_error("Instruction %s not in block %s", target->to_string().c_str(),
+                      target_block->get_name().c_str());
+        } else {
+            target_instructions.insert(it, instruction);
+        }
     }
 }
 
@@ -59,6 +100,7 @@ static void move_instruction_before(const InstructionPtr &instruction, const Ins
 static bool is_pinned(const InstructionPtr &instruction) {
     switch (instruction->get_op()) {
         case Operator::BRANCH:
+        case Operator::JUMP:
         case Operator::RET:
         case Operator::PHI:
         case Operator::STORE:
@@ -85,12 +127,11 @@ static int dom_tree_depth(const BlockPtr &block) {
     return depth;
 }
 
-[[maybe_unused]] static int loop_depth(const BlockPtr &block) {
+static int loop_depth(const BlockPtr &block) {
     if (block == nullptr) {
         log_error("BlockPtr cannot be nullptr");
     }
-    // TODO: 与LoopAnalysis对齐接口
-    return 0;
+    return loop_analysis->get_block_depth(current_function, block);
 }
 
 // 计算两个基本块在支配树上的最近公共祖先
@@ -113,12 +154,12 @@ static BlockPtr find_lca(const BlockPtr &block1, const BlockPtr &block2) {
         p = imm_dom_map.at(p);
         q = imm_dom_map.at(q);
     }
-    return nullptr;
+    return p;
 }
 
 // 尽可能的把指令前移，确定每个指令能被调度到的最早的基本块，同时不影响指令间的依赖关系。
 // 当我们把指令向前提时，限制它前移的是它的输入，即每条指令最早要在它的所有输入定义后的位置。
-[[maybe_unused]] static void schedule_early(const InstructionPtr &instruction) {
+static void schedule_early(const InstructionPtr &instruction) {
     if (is_pinned(instruction)) {
         return;
     }
@@ -176,40 +217,37 @@ static BlockPtr find_lca(const BlockPtr &block1, const BlockPtr &block2) {
         }
     }
     if (instruction->users().size() != 0) {
+        if (lca == nullptr) {
+            log_error("LCA is null for instruction %s", instruction->to_string().c_str());
+        }
         BlockPtr select = lca;
         while (lca != instruction->get_block()) {
             if (lca == nullptr) { log_error("lca cannot be nullptr"); }
             lca = cfg->immediate_dominator(current_function).at(lca);
             if (lca == nullptr) { log_error("lca cannot be nullptr"); }
-            if (loop_depth(lca) < loop_depth(select)) {
-                select = lca;
-            } else if (const auto &succ = cfg->successors(current_function).at(lca);
-                succ.size() == 1 && succ.find(select) != succ.end()) {
+            if (loop_depth(lca) < loop_depth(select) || [&] {
+                const auto &succ = cfg->successors(current_function).at(lca);
+                return succ.size() == 1 && succ.find(select) != succ.end();
+            }()) {
                 select = lca;
             }
         }
         move_instruction(instruction, select);
     }
-    // TODO
-    const BlockPtr &current_block = instruction->get_block();
-    bool moved = false;
+    const BlockPtr current_block = instruction->get_block();
     for (const auto &inst: current_block->get_instructions()) {
         if (inst != instruction && inst->get_op() != Operator::PHI) {
             for (const auto &operand: inst->get_operands()) {
                 if (operand == instruction) {
                     move_instruction_before(instruction, inst);
-                    moved = true;
-                    break;
+                    return;
                 }
-            }
-            if (moved) {
-                break;
             }
         }
     }
 }
 
-[[maybe_unused]] static void run_on_func(const FunctionPtr &func) {
+static void run_on_func(const FunctionPtr &func) {
     current_function = func;
     visited_instructions.clear();
     std::vector<BlockPtr> post_order_blocks = cfg->post_order_blocks(func);
@@ -227,9 +265,14 @@ static BlockPtr find_lca(const BlockPtr &block1, const BlockPtr &block2) {
             snap_instructions.push_back(instruction);
         }
     }
-    // for (const auto &instruction: snap_instructions) {
-    //     schedule_early(instruction);
-    // }
+    for (const auto &instruction: snap_instructions) {
+        schedule_early(instruction);
+    }
+    visited_instructions.clear();
+    std::reverse(snap_instructions.begin(), snap_instructions.end());
+    for (const auto &instruction: snap_instructions) {
+        schedule_late(instruction);
+    }
 }
 
 namespace Pass {
