@@ -157,6 +157,18 @@ void LoopNodeTreeNode::add_block4ancestors(const std::shared_ptr<Mir::Block>& bl
     if (this->get_parent() != nullptr) this->get_parent()->add_block4ancestors(block);
 }
 
+int LoopAnalysis::get_block_depth(const FunctionPtr &func, const std::shared_ptr<Mir::Block>& block) {
+    auto loop_node = find_block_in_forest(func, block);
+    if (nullptr == loop_node) return 0;
+
+    int depth = 0;
+    while (loop_node != nullptr) {
+        depth++;
+        loop_node = loop_node->get_parent();
+    }
+    return depth;
+}
+
 }
 
 

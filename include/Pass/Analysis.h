@@ -279,6 +279,8 @@ public:
 
     std::shared_ptr<LoopNodeTreeNode> find_loop_in_forest(const FunctionPtr &func, const std::shared_ptr<Loop>& loop);
 
+    int get_block_depth(const FunctionPtr &func, const std::shared_ptr<Mir::Block>& block);
+
 private:
     using FunctLoopsMap = std::unordered_map<std::shared_ptr<Mir::Function>, std::vector<std::shared_ptr<Loop>>>;
     FunctLoopsMap loops_;
