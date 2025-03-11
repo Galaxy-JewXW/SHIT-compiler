@@ -2,6 +2,7 @@
 #define TRANSFORM_H
 #include "Pass.h"
 #include "Mir/Instruction.h"
+#include "Analysis.h"
 
 #define DEFINE_DEFAULT_TRANSFORM_CLASS(ClassName) \
 class ClassName final : public Transform { \
@@ -72,6 +73,9 @@ public:
 
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
+    void runOnNode(std::shared_ptr<LoopNodeTreeNode> loop_node);
+    bool usedOutLoop(std::shared_ptr<Mir::Instruction> inst, std::shared_ptr<Loop> loop);
+    void addPhi4Exit(std::shared_ptr<Mir::Instruction> inst, std::shared_ptr<Mir::Block> exit, std::shared_ptr<Loop> loop);
 };
 
 // 常数折叠：编译期计算常量表达式

@@ -152,6 +152,11 @@ std::shared_ptr<Mir::Block> Loop::find_block(const std::shared_ptr<Mir::Block>& 
     return nullptr;
 }
 
+bool Loop::contain_block(const std::shared_ptr<Mir::Block> &block) {
+    if (find_block(block)) return true;
+    return false;
+}
+
 void LoopNodeTreeNode::add_block4ancestors(const std::shared_ptr<Mir::Block>& block) {
     this->loop_->add_block(block);
     if (this->get_parent() != nullptr) this->get_parent()->add_block4ancestors(block);
