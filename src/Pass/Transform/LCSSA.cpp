@@ -46,6 +46,8 @@ void LCSSA::addPhi4Exit(std::shared_ptr<Mir::Instruction> inst, std::shared_ptr<
     }
 
     std::vector<std::shared_ptr<Mir::Instruction>> out_user;
+    auto block_dominated = this->cfg_info()->dominated(exit->get_function());
+    auto dominated = block_dominated[exit];
     for (auto user : inst->users()) {
         if (auto user_instr = std::dynamic_pointer_cast<Mir::Instruction>(user)) {
             if (loop->contain_block(user_instr->get_block())) continue;
@@ -53,11 +55,21 @@ void LCSSA::addPhi4Exit(std::shared_ptr<Mir::Instruction> inst, std::shared_ptr<
                 if (std::find(loop->get_exits().begin(), loop->get_exits().end(), user_instr->get_block()) != loop->get_exits().end())
                     continue;
 
-
+                auto phi_user = std::dynamic_pointer_cast<Mir::Phi>(user_instr);
+                auto coming_block = phi_user->find_optional_block(inst);
+                if (std::find(dominated.begin(), dominated.end(), coming_block) == dominated.end())
+                    continue;
             }
-
-
+            else {
+                if (std::find(dominated.begin(), dominated.end(), user_instr->get_block()) == dominated.end())
+                    continue;
+            }
+            out_user.push_back(user_instr);
         }
+    }
+
+    for (auto user: out_user) {
+        user->modify_operand(inst, new_phi);
     }
 
 }
