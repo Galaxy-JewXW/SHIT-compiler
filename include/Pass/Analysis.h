@@ -211,6 +211,8 @@ public:
 
     std::shared_ptr<Mir::Block> find_block(const std::shared_ptr<Mir::Block>& block);
 
+    bool contain_block(const std::shared_ptr<Mir::Block>& block);
+
     void set_preheader(BlockPtr preheader) { preheader_ = std::move(preheader); }
     void set_latch(BlockPtr latch) { latch_ = std::move(latch); }
 
@@ -248,6 +250,10 @@ public:
         else { return this->get_parent()->get_ancestor(); }
     }
 
+    std::shared_ptr<Loop> get_loop() {
+        return loop_;
+    }
+
     void add_block4ancestors(const std::shared_ptr<Mir::Block>& block) ;
 
     std::shared_ptr<LoopNodeTreeNode> find_loop(const std::shared_ptr<Loop> &loop);
@@ -274,6 +280,12 @@ public:
     const std::vector<std::shared_ptr<Loop>> &loops(const FunctionPtr &func) const {
         const auto it = loops_.find(func);
         if (it == loops_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
+        return it->second;
+    }
+
+    const std::vector<std::shared_ptr<LoopNodeTreeNode>> &loop_forest(const FunctionPtr &func) const {
+        const auto it = loop_forest_.find(func);
+        if (it == loop_forest_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
         return it->second;
     }
 
