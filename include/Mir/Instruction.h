@@ -576,9 +576,11 @@ public:
 
     void set_optional_value(const std::shared_ptr<Block> &block, const std::shared_ptr<Value> &optional_value);
 
-    void delete_optional_value(const std::shared_ptr<Block> &block);
+    void remove_optional_value(const std::shared_ptr<Block> &block);
 
     void modify_operand(const std::shared_ptr<Value> &old_value, const std::shared_ptr<Value> &new_value) override;
+
+    std::shared_ptr<Block> find_optional_block(const std::shared_ptr<Value>& value);
 
 private:
     Optional_Values optional_values;

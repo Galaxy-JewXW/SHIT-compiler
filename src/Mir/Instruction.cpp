@@ -66,9 +66,9 @@ std::shared_ptr<Type::Type> GetElementPtr::calc_type_(const std::shared_ptr<Valu
 }
 
 std::shared_ptr<GetElementPtr> GetElementPtr::create(const std::string &name,
-                                                       const std::shared_ptr<Value> &addr,
-                                                       const std::vector<std::shared_ptr<Value>> &indexes,
-                                                       const std::shared_ptr<Block> &block) {
+                                                     const std::shared_ptr<Value> &addr,
+                                                     const std::vector<std::shared_ptr<Value>> &indexes,
+                                                     const std::shared_ptr<Block> &block) {
     const auto instruction = std::make_shared<GetElementPtr>(name, addr, indexes);
     if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     if (const auto type = addr->get_type(); !type->is_pointer()) {
@@ -432,10 +432,19 @@ void Phi::modify_operand(const std::shared_ptr<Value> &old_value, const std::sha
     }
 }
 
-void Phi::delete_optional_value(const std::shared_ptr<Block> &block) {
+void Phi::remove_optional_value(const std::shared_ptr<Block> &block) {
     const auto value = optional_values[block];
     optional_values.erase(block);
     remove_operand(block);
     remove_operand(value);
+}
+
+std::shared_ptr<Block> Phi::find_optional_block(const std::shared_ptr<Value> &value) {
+    for (const auto &[block, optional_value]: optional_values) {
+        if (optional_value == value) {
+            return block;
+        }
+    }
+    return nullptr;
 }
 }
