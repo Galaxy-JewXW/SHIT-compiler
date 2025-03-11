@@ -15,6 +15,8 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         Pass::DeadInstEliminate,
         Pass::AlgebraicSimplify,
         Pass::EmitModule<>,
-        Pass::SimplifyCFG
+        Pass::SimplifyCFG,
+        Pass::EmitModule<true>,
+        Pass::GlobalCodeMotion
     >(module);
 }
