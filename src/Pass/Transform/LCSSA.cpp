@@ -7,8 +7,12 @@
 namespace Pass {
 
 void LCSSA::transform(std::shared_ptr<Mir::Module> module) {
+    const auto cfg_info = create<ControlFlowGraph>();
     const auto loop_info = create<LoopAnalysis>();
+    cfg_info->run_on(module);
     loop_info->run_on(module);
+    this->set_cfg(cfg_info);
+
     for (auto &fun: *module) {
         for (auto loop_node: loop_info->loop_forest(fun)) {
             runOnNode(loop_node);
@@ -31,6 +35,30 @@ void LCSSA::runOnNode(std::shared_ptr<LoopNodeTreeNode> loop_node) {
 }
 
 void LCSSA::addPhi4Exit(std::shared_ptr<Mir::Instruction> inst, std::shared_ptr<Mir::Block> exit, std::shared_ptr<Loop> loop) {
+    Mir::Phi::Optional_Values values;
+    auto new_phi = Mir::Phi::create("phi", inst->get_type(), nullptr, values);
+    new_phi->set_block(exit, false);
+    exit->get_instructions().insert(exit->get_instructions().begin(), new_phi);
+
+    auto block_pre = this->cfg_info()->predecessors(exit->get_function());
+    for (auto& pre : block_pre[exit]) {
+        new_phi->set_optional_value(pre, inst);
+    }
+
+    std::vector<std::shared_ptr<Mir::Instruction>> out_user;
+    for (auto user : inst->users()) {
+        if (auto user_instr = std::dynamic_pointer_cast<Mir::Instruction>(user)) {
+            if (loop->contain_block(user_instr->get_block())) continue;
+            if (user_instr->get_op() == Mir::Operator::PHI) {
+                if (std::find(loop->get_exits().begin(), loop->get_exits().end(), user_instr->get_block()) != loop->get_exits().end())
+                    continue;
+
+
+            }
+
+
+        }
+    }
 
 }
 

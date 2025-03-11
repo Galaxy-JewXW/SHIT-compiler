@@ -70,12 +70,19 @@ protected:
 class LCSSA final : public Transform {
 public:
     explicit LCSSA() : Transform("LCSSA") {}
+    void set_cfg(const std::shared_ptr<ControlFlowGraph>& cfg) { cfg_info_ = cfg; }
+
+    std::shared_ptr<ControlFlowGraph> cfg_info() { return cfg_info_; }
 
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
     void runOnNode(std::shared_ptr<LoopNodeTreeNode> loop_node);
     bool usedOutLoop(std::shared_ptr<Mir::Instruction> inst, std::shared_ptr<Loop> loop);
     void addPhi4Exit(std::shared_ptr<Mir::Instruction> inst, std::shared_ptr<Mir::Block> exit, std::shared_ptr<Loop> loop);
+
+private:
+    std::shared_ptr<ControlFlowGraph> cfg_info_;
+
 };
 
 // 常数折叠：编译期计算常量表达式
