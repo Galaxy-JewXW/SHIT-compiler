@@ -42,7 +42,8 @@ static void move_instruction_before(const InstructionPtr &instruction, const Ins
     }
     const auto &current_block = instruction->get_block();
     // 如果源块和目标块是同一个块，需要特别处理避免迭代器失效
-    if (const auto &target_block = target->get_block(); current_block == target_block) {
+    const auto &target_block = target->get_block();
+    if (current_block == target_block) {
         auto &instructions = current_block->get_instructions();
         // 找到两个指令的位置
         const auto instr_pos = std::distance(
@@ -70,33 +71,32 @@ static void move_instruction_before(const InstructionPtr &instruction, const Ins
         instructions.erase(instructions.begin() + instr_pos);
         // 由于移除元素后，如果target_pos > instr_pos，target位置需要调整
         if (target_pos > instr_pos) {
-            target_pos--;
+            --target_pos;
         }
         // 插入到target之前
         instructions.insert(instructions.begin() + target_pos, instr_copy);
+        return;
+    }
+    auto &instructions = current_block->get_instructions();
+    auto &target_instructions = target_block->get_instructions();
+    if (const auto it = std::find(instructions.begin(), instructions.end(), instruction);
+        it == instructions.end()) [[unlikely]] {
+        log_error("Instruction %s not in block %s", instruction->to_string().c_str(),
+                  current_block->get_name().c_str());
     } else {
-        auto &instructions = current_block->get_instructions();
-        auto &target_instructions = target_block->get_instructions();
-        if (const auto it = std::find(instructions.begin(), instructions.end(), instruction);
-            it == instructions.end()) [[unlikely]] {
-            log_error("Instruction %s not in block %s", instruction->to_string().c_str(),
-                      current_block->get_name().c_str());
-        } else {
-            instructions.erase(it);
-        }
-        instruction->set_block(target_block, false);
-        if (const auto it = std::find(target_instructions.begin(), target_instructions.end(), target);
-            it == target_instructions.end()) [[unlikely]] {
-            log_error("Instruction %s not in block %s", target->to_string().c_str(),
-                      target_block->get_name().c_str());
-        } else {
-            target_instructions.insert(it, instruction);
-        }
+        instructions.erase(it);
+    }
+    instruction->set_block(target_block, false);
+    if (const auto it = std::find(target_instructions.begin(), target_instructions.end(), target);
+        it == target_instructions.end()) [[unlikely]] {
+        log_error("Instruction %s not in block %s", target->to_string().c_str(),
+                  target_block->get_name().c_str());
+    } else {
+        target_instructions.insert(it, instruction);
     }
 }
 
 // 有些指令是无法被灵活调度的，它们受到控制依赖的牵制，无法被调度到其他基本块。
-// TODO：考虑某些情况下，CALL是可被调度的
 static bool is_pinned(const InstructionPtr &instruction) {
     switch (instruction->get_op()) {
         case Operator::BRANCH:
@@ -105,6 +105,8 @@ static bool is_pinned(const InstructionPtr &instruction) {
         case Operator::PHI:
         case Operator::STORE:
         case Operator::LOAD:
+            return true;
+        // TODO：考虑某些情况下，CALL是可被调度的
         case Operator::CALL:
             return true;
         default:
@@ -183,7 +185,7 @@ static void schedule_early(const InstructionPtr &instruction) {
 
 // 尽可能的把指令后移，确定每个指令能被调度到的最晚的基本块。
 // 每个指令也会被使用它们的指令限制，限制其不能无限向后移。
-[[maybe_unused]] static void schedule_late(const InstructionPtr &instruction) {
+static void schedule_late(const InstructionPtr &instruction) {
     if (is_pinned(instruction)) {
         return;
     }
@@ -291,5 +293,7 @@ void GlobalCodeMotion::transform(const std::shared_ptr<Module> module) {
     }
     cfg = nullptr;
     loop_analysis = nullptr;
+    current_function = nullptr;
+    visited_instructions.clear();
 }
 }
