@@ -107,15 +107,18 @@ DEFINE_DEFAULT_TRANSFORM_CLASS(DeadFuncEliminate);
 DEFINE_DEFAULT_TRANSFORM_CLASS(DeadInstEliminate);
 
 // 标准化计算指令 "Binary"
-// 为之后的代数编写/GVN做准备
+// 为之后的代数变形/GVN做准备
 DEFINE_DEFAULT_TRANSFORM_CLASS(StandardizeBinary);
 
 // 对指令进行代数优化恒等式变形
 DEFINE_DEFAULT_TRANSFORM_CLASS(AlgebraicSimplify);
 
 // 全局代码移动
+// 根据Value之间的依赖关系，将代码的位置重新安排，从而使得一些不必要（不会影响结果）的代码尽可能少执行
 DEFINE_DEFAULT_TRANSFORM_CLASS(GlobalCodeMotion);
 
+// 全局值编号
+// 实现全局的消除公共表达式
 DEFINE_DEFAULT_TRANSFORM_CLASS(GlobalValueNumbering);
 }
 

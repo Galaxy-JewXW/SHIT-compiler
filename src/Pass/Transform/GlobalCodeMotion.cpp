@@ -105,9 +105,7 @@ static bool is_pinned(const InstructionPtr &instruction) {
         case Operator::PHI:
         case Operator::STORE:
         case Operator::LOAD:
-            return true;
-        // TODO：考虑某些情况下，CALL是可被调度的
-        case Operator::CALL:
+        case Operator::CALL: // TODO：考虑某些情况下，CALL是可被调度的
             return true;
         default:
             return false;
@@ -223,7 +221,7 @@ static void schedule_late(const InstructionPtr &instruction) {
             log_error("LCA is null for instruction %s", instruction->to_string().c_str());
         }
         BlockPtr select = lca;
-        while (lca != instruction->get_block()) {
+        while (lca != instruction->get_block() && lca != current_function->get_blocks().front()) {
             if (lca == nullptr) { log_error("lca cannot be nullptr"); }
             lca = cfg->immediate_dominator(current_function).at(lca);
             if (lca == nullptr) { log_error("lca cannot be nullptr"); }

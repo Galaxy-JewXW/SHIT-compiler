@@ -17,6 +17,6 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         Pass::EmitModule<>,
         Pass::SimplifyCFG,
         Pass::EmitModule<true>,
-        Pass::GlobalCodeMotion
+        Pass::GlobalValueNumbering
     >(module);
 }
