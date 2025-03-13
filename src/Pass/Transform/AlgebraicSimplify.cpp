@@ -517,6 +517,7 @@ static bool reduce_mod(const std::shared_ptr<Mod> &mod, std::vector<std::shared_
 
 void Pass::AlgebraicSimplify::transform(const std::shared_ptr<Module> module) {
     bool changed = false;
+    size_t cnt = 0;
     do {
         changed = false;
         // 常量折叠
@@ -530,11 +531,12 @@ void Pass::AlgebraicSimplify::transform(const std::shared_ptr<Module> module) {
                 changed |= run_on_block(block);
             }
         }
-        const auto dead_inst = create<DeadInstEliminate>();
-        dead_inst->run_on(module);
-    } while (changed);
+        ++cnt;
+        // const auto dead_inst = create<DeadInstEliminate>();
+        // dead_inst->run_on(module);
+    } while (changed && cnt < 6);
     const auto fold = create<ConstantFolding>();
     fold->run_on(module);
-    const auto dead_inst = create<DeadInstEliminate>();
-    dead_inst->run_on(module);
+    // const auto dead_inst = create<DeadInstEliminate>();
+    // dead_inst->run_on(module);
 }

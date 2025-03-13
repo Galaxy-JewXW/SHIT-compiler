@@ -100,12 +100,6 @@ DEFINE_DEFAULT_TRANSFORM_CLASS(ConstantFolding);
  */
 DEFINE_DEFAULT_TRANSFORM_CLASS(SimplifyCFG);
 
-// 删除未被调用的函数
-DEFINE_DEFAULT_TRANSFORM_CLASS(DeadFuncEliminate);
-
-// 删除不被使用的指令
-DEFINE_DEFAULT_TRANSFORM_CLASS(DeadInstEliminate);
-
 // 标准化计算指令 "Binary"
 // 为之后的代数变形/GVN做准备
 DEFINE_DEFAULT_TRANSFORM_CLASS(StandardizeBinary);
