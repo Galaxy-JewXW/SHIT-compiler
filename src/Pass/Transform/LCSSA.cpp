@@ -14,7 +14,7 @@ void LCSSA::transform(std::shared_ptr<Mir::Module> module) {
     this->set_cfg(cfg_info);
 
     for (auto &fun: *module) {
-        for (auto loop_node: loop_info->loop_forest(fun)) {
+        for (const auto& loop_node: loop_info->loop_forest(fun)) {
             runOnNode(loop_node);
         }
     }

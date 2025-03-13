@@ -555,7 +555,7 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
         }
     }
 
-    if (all_index_constant && is_symbol_unmodified() && !get_address && !indexes.empty()) {
+    if (all_index_constant && is_symbol_unmodified() && !get_address && !indexes.empty() && !content_type->is_array()) {
         auto initial = symbol->get_init_value();
         if (const auto array_init = std::dynamic_pointer_cast<Init::Array>(initial)) {
             std::vector<int> int_indexes;
@@ -589,6 +589,7 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
     if (get_address) {
         // 只有在解析assignStmt时，get_address才为true
         // 认为取地址导致symbol的初始值被修改
+        symbol->set_modified();
         return pointer;
     }
     if (content_type->is_int32() || content_type->is_float() || content_type->is_pointer()) {
@@ -597,6 +598,7 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
     if (content_type->is_array()) {
         // 解析向函数中调用数组指针的情况
         // 此时也认为symbol的初始值被修改
+        symbol->set_modified();
         const auto constant_zero = std::make_shared<ConstInt>(0);
         return GetElementPtr::create(gen_variable_name(), pointer, {constant_zero, constant_zero}, cur_block);
     }

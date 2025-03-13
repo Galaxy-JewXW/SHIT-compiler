@@ -285,7 +285,10 @@ public:
 
     const std::vector<std::shared_ptr<LoopNodeTreeNode>> &loop_forest(const FunctionPtr &func) const {
         const auto it = loop_forest_.find(func);
-        if (it == loop_forest_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
+        if (it == loop_forest_.end()) {
+            static const std::vector<std::shared_ptr<LoopNodeTreeNode>> empty_vector;
+            return empty_vector;
+        }
         return it->second;
     }
 
