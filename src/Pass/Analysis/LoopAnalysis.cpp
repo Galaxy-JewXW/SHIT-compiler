@@ -37,20 +37,23 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
             } //确认 latching_blocks,接下来 latching 节点的支配节点组成该循环
 
             std::vector<BlockPtr> working_set;
+            std::vector<BlockPtr> visited_blocks;
             std::vector<BlockPtr> loop_blocks;
             std::vector<BlockPtr> exiting_blocks;
             std::vector<BlockPtr> exit_block;
             std::vector<std::shared_ptr<LoopNodeTreeNode>> child_loop_node;
             for (const auto &latching_block: latching_blocks) {
                 working_set.push_back(latching_block);
+                visited_blocks.push_back(latching_block);
             } //将 latch 节点加入循环，并使用工作集算法，寻找其支配结点，直至 header
             while (!working_set.empty()) {
                 auto current_block = working_set.back();
                 working_set.pop_back();
                 if (current_block != header_block) {
                     for (const auto &predecessor: block_predecessors[current_block]) {
-                        if (std::find(loop_blocks.begin(), loop_blocks.end(), predecessor) == loop_blocks.end()) {
+                        if (std::find(visited_blocks.begin(), visited_blocks.end(), predecessor) == visited_blocks.end()) {
                             working_set.push_back(predecessor);
+                            visited_blocks.push_back(predecessor);
                         }
                     }
                 }
@@ -149,9 +152,26 @@ std::shared_ptr<Mir::Block> Loop::find_block(const std::shared_ptr<Mir::Block>& 
     return nullptr;
 }
 
+bool Loop::contain_block(const std::shared_ptr<Mir::Block> &block) {
+    if (find_block(block)) return true;
+    return false;
+}
+
 void LoopNodeTreeNode::add_block4ancestors(const std::shared_ptr<Mir::Block>& block) {
     this->loop_->add_block(block);
     if (this->get_parent() != nullptr) this->get_parent()->add_block4ancestors(block);
+}
+
+int LoopAnalysis::get_block_depth(const FunctionPtr &func, const std::shared_ptr<Mir::Block>& block) {
+    auto loop_node = find_block_in_forest(func, block);
+    if (nullptr == loop_node) return 0;
+
+    int depth = 0;
+    while (loop_node != nullptr) {
+        depth++;
+        loop_node = loop_node->get_parent();
+    }
+    return depth;
 }
 
 }

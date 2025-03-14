@@ -97,7 +97,7 @@ void Builder::visit_constDef(const Token::Type type, const std::shared_ptr<AST::
             std::static_pointer_cast<Init::Array>(init_value)->gen_store_inst(address, cur_block, dimensions);
         }
     }
-    table->insert_symbol(constDef->ident(), ir_type, init_value, address, true);
+    table->insert_symbol(constDef->ident(), ir_type, init_value, address, true, false);
 }
 
 void Builder::visit_varDecl(const std::shared_ptr<AST::VarDecl> &varDecl) const {
@@ -171,7 +171,7 @@ void Builder::visit_varDef(const Token::Type type, const std::shared_ptr<AST::Va
             std::static_pointer_cast<Init::Exp>(init_value)->gen_store_inst(address, cur_block);
         }
     }
-    table->insert_symbol(varDef->ident(), ir_type, init_value, address, false);
+    table->insert_symbol(varDef->ident(), ir_type, init_value, address, false, is_global);
 }
 
 void Builder::visit_funcDef(const std::shared_ptr<AST::FuncDef> &funcDef) {
@@ -220,7 +220,7 @@ void Builder::visit_funcDef(const std::shared_ptr<AST::FuncDef> &funcDef) {
         auto &[ident, ir_type] = arguments[i];
         const auto addr = Alloc::create(gen_variable_name(), ir_type, cur_block);
         Store::create(addr, func->get_arguments()[i], cur_block);
-        table->insert_symbol(ident, ir_type, nullptr, addr, false);
+        table->insert_symbol(ident, ir_type, nullptr, addr, false, true);
     }
     visit_block(funcDef->block());
     table->pop_scope();
@@ -507,14 +507,44 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
     if (!address->get_type()->is_pointer()) {
         log_fatal("Invalid address type %s of %s", address->get_type()->to_string().c_str(), ident.c_str());
     }
+
+    const auto is_symbol_unmodified = [&]() -> bool {
+        // 常量是“未被修改”的
+        if (symbol->is_constant_symbol()) return true;
+        // 已标记“被修改”
+        if (symbol->is_modified_symbol()) return false;
+        // 在if或while语句块中，由于路径不确定，故标记为“被修改”
+        if (!loop_stats.empty() || !cond_stats.empty()) {
+            symbol->set_modified();
+            return false;
+        }
+        // 如果是全局变量，默认是“被修改”的
+        return std::dynamic_pointer_cast<GlobalVariable>(address) == nullptr;
+    };
+
     const auto ir_type = std::static_pointer_cast<Type::Pointer>(address->get_type())->get_contain_type();
     if (!get_address && (ir_type->is_int32() || ir_type->is_float()) && lVal->exps().empty()) {
+        if (is_symbol_unmodified()) {
+            const auto initial = symbol->get_init_value();
+            if (const auto constant_initial = std::dynamic_pointer_cast<Init::Constant>(initial)) {
+                return constant_initial->get_const_value();
+            }
+            if (const auto exp_initial = std::dynamic_pointer_cast<Init::Exp>(initial);
+                exp_initial != nullptr && !symbol->is_modified_symbol()) {
+                return exp_initial->get_exp_value();
+            }
+        }
         return Load::create(gen_variable_name(), address, cur_block);
     }
+
     std::vector<std::shared_ptr<Value>> indexes;
     auto content_type = ir_type;
+    bool all_index_constant = true;
     for (const auto &exp: lVal->exps()) {
         const auto &idx_value = type_cast(visit_exp(exp), Type::Integer::i32, cur_block);
+        if (!idx_value->is_constant()) {
+            all_index_constant = false;
+        }
         indexes.emplace_back(idx_value);
         if (content_type->is_pointer()) {
             content_type = std::static_pointer_cast<Type::Pointer>(content_type)->get_contain_type();
@@ -524,22 +554,42 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
             log_error("Invalid content type %s", content_type->to_string().c_str());
         }
     }
+
+    if (all_index_constant && is_symbol_unmodified() && !get_address && !indexes.empty() && !content_type->is_array()) {
+        auto initial = symbol->get_init_value();
+        if (const auto array_init = std::dynamic_pointer_cast<Init::Array>(initial)) {
+            std::vector<int> int_indexes;
+            for (const auto &idx: indexes) {
+                const int index = std::any_cast<int>(std::dynamic_pointer_cast<ConstInt>(idx)->get_constant_value());
+                int_indexes.push_back(index);
+            }
+            initial = array_init->get_init_value(int_indexes);
+            if (const auto constant_initial = std::dynamic_pointer_cast<Init::Constant>(initial)) {
+                return constant_initial->get_const_value();
+            }
+            if (const auto exp_initial = std::dynamic_pointer_cast<Init::Exp>(initial)) {
+                return exp_initial->get_exp_value();
+            }
+        }
+    }
+
     std::shared_ptr<Value> pointer = address;
     content_type = std::static_pointer_cast<Type::Pointer>(address->get_type())->get_contain_type();
     for (const auto &index: indexes) {
         if (content_type->is_pointer()) {
             pointer = Load::create(gen_variable_name(), pointer, cur_block);
             content_type = std::static_pointer_cast<Type::Pointer>(content_type)->get_contain_type();
-            pointer = GetElementPtr::create_1(gen_variable_name(), pointer, {index}, cur_block);
+            pointer = GetElementPtr::create(gen_variable_name(), pointer, {index}, cur_block);
         } else if (content_type->is_array()) {
             content_type = std::static_pointer_cast<Type::Array>(content_type)->get_element_type();
-            pointer = GetElementPtr::create_1(gen_variable_name(), pointer,
-                                              {std::make_shared<ConstInt>(0), index}, cur_block);
+            pointer = GetElementPtr::create(gen_variable_name(), pointer,
+                                            {std::make_shared<ConstInt>(0), index}, cur_block);
         }
     }
     if (get_address) {
         // 只有在解析assignStmt时，get_address才为true
         // 认为取地址导致symbol的初始值被修改
+        symbol->set_modified();
         return pointer;
     }
     if (content_type->is_int32() || content_type->is_float() || content_type->is_pointer()) {
@@ -548,8 +598,9 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
     if (content_type->is_array()) {
         // 解析向函数中调用数组指针的情况
         // 此时也认为symbol的初始值被修改
+        symbol->set_modified();
         const auto constant_zero = std::make_shared<ConstInt>(0);
-        return GetElementPtr::create_1(gen_variable_name(), pointer, {constant_zero, constant_zero}, cur_block);
+        return GetElementPtr::create(gen_variable_name(), pointer, {constant_zero, constant_zero}, cur_block);
     }
     log_fatal("Invalid lVal");
 }

@@ -61,7 +61,9 @@ static void remove_unreachable_blocks_for_phi(const std::shared_ptr<Phi> &phi, c
     };
     for (auto it = phi->get_optional_values().begin(); it != phi->get_optional_values().end();) {
         if (auto &[block, value] = *it; block_is_unreachable(block)) {
+            // remove_operand包括了delete_user的步骤
             phi->remove_operand(value);
+            // block不是phi的操作数，这里只需要delete_user即可
             block->delete_user(phi);
             it = phi->get_optional_values().erase(it);
         } else {
@@ -250,6 +252,26 @@ static void remove_phi(const std::shared_ptr<Function> &func) {
     }
 }
 
+// 上述优化出现将br指令改造为形如br i1 %2, label %block_1, label %block_1的形式
+// 可将其转化为无条件的br，暴露更多的优化机会
+static void replace_branch_with_jump(const std::shared_ptr<Function> &func) {
+    for (const auto &block: func->get_blocks()) {
+        auto &last_instruction = block->get_instructions().back();
+        if (last_instruction->get_op() != Operator::BRANCH) {
+            continue;
+        }
+        const auto &last_br = std::static_pointer_cast<Branch>(last_instruction);
+        if (last_br->get_true_block() != last_br->get_false_block()) {
+            continue;
+        }
+        const auto jump = Jump::create(last_br->get_true_block(), nullptr);
+        jump->set_block(block, false);
+        last_instruction->replace_by_new_value(jump);
+        last_instruction->clear_operands();
+        last_instruction = jump;
+    }
+}
+
 void SimplifyCFG::transform(const std::shared_ptr<Module> module) {
     for (const auto &func: *module) {
         remove_unreachable_blocks(func);
@@ -259,9 +281,15 @@ void SimplifyCFG::transform(const std::shared_ptr<Module> module) {
     for (const auto &func: *module) {
         remove_phi(func);
         while (try_merge_blocks(func)) {
+            replace_branch_with_jump(func);
             cfg_info->run_on(module);
         }
         while (try_simplify_single_jump(func)) {
+            replace_branch_with_jump(func);
+            cfg_info->run_on(module);
+        }
+        while (try_merge_blocks(func)) {
+            replace_branch_with_jump(func);
             cfg_info->run_on(module);
         }
         remove_phi(func);

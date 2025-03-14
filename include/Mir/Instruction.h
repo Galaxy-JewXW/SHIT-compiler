@@ -117,12 +117,7 @@ public:
         if (!addr->get_type()->is_pointer()) { log_error("Address must be a pointer"); }
     }
 
-    [[deprecated]] static std::shared_ptr<GetElementPtr> create(const std::string &name,
-                                                                const std::shared_ptr<Value> &addr,
-                                                                const std::shared_ptr<Value> &index,
-                                                                const std::shared_ptr<Block> &block);
-
-    static std::shared_ptr<GetElementPtr> create_1(const std::string &name,
+    static std::shared_ptr<GetElementPtr> create(const std::string &name,
                                                    const std::shared_ptr<Value> &addr,
                                                    const std::vector<std::shared_ptr<Value>> &indexes,
                                                    const std::shared_ptr<Block> &block);
@@ -581,9 +576,11 @@ public:
 
     void set_optional_value(const std::shared_ptr<Block> &block, const std::shared_ptr<Value> &optional_value);
 
-    void delete_optional_value(const std::shared_ptr<Block> &block);
+    void remove_optional_value(const std::shared_ptr<Block> &block);
 
     void modify_operand(const std::shared_ptr<Value> &old_value, const std::shared_ptr<Value> &new_value) override;
+
+    std::shared_ptr<Block> find_optional_block(const std::shared_ptr<Value>& value);
 
 private:
     Optional_Values optional_values;

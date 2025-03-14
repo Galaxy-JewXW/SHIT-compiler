@@ -2,6 +2,7 @@
 #define TRANSFORM_H
 #include "Pass.h"
 #include "Mir/Instruction.h"
+#include "Analysis.h"
 
 #define DEFINE_DEFAULT_TRANSFORM_CLASS(ClassName) \
 class ClassName final : public Transform { \
@@ -66,6 +67,27 @@ protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 };
 
+class LCSSA final : public Transform {
+public:
+    explicit LCSSA() : Transform("LCSSA") {}
+    void set_cfg(const std::shared_ptr<ControlFlowGraph> &cfg) { cfg_info_ = cfg; }
+
+    std::shared_ptr<ControlFlowGraph> cfg_info() { return cfg_info_; }
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+    void runOnNode(std::shared_ptr<LoopNodeTreeNode> loop_node);
+
+    bool usedOutLoop(std::shared_ptr<Mir::Instruction> inst, std::shared_ptr<Loop> loop);
+
+    void addPhi4Exit(std::shared_ptr<Mir::Instruction> inst, std::shared_ptr<Mir::Block> exit,
+                     std::shared_ptr<Loop> loop);
+
+private:
+    std::shared_ptr<ControlFlowGraph> cfg_info_;
+};
+
 // 常数折叠：编译期计算常量表达式
 DEFINE_DEFAULT_TRANSFORM_CLASS(ConstantFolding);
 
@@ -78,21 +100,20 @@ DEFINE_DEFAULT_TRANSFORM_CLASS(ConstantFolding);
  */
 DEFINE_DEFAULT_TRANSFORM_CLASS(SimplifyCFG);
 
-// 删除未被调用的函数
-DEFINE_DEFAULT_TRANSFORM_CLASS(DeadFuncEliminate);
-
-// 删除不被使用的指令
-DEFINE_DEFAULT_TRANSFORM_CLASS(DeadInstEliminate);
-
 // 标准化计算指令 "Binary"
-// 为之后的代数编写/GVN做准备
+// 为之后的代数变形/GVN做准备
 DEFINE_DEFAULT_TRANSFORM_CLASS(StandardizeBinary);
 
 // 对指令进行代数优化恒等式变形
 DEFINE_DEFAULT_TRANSFORM_CLASS(AlgebraicSimplify);
 
 // 全局代码移动
+// 根据Value之间的依赖关系，将代码的位置重新安排，从而使得一些不必要（不会影响结果）的代码尽可能少执行
 DEFINE_DEFAULT_TRANSFORM_CLASS(GlobalCodeMotion);
+
+// 全局值编号
+// 实现全局的消除公共表达式
+DEFINE_DEFAULT_TRANSFORM_CLASS(GlobalValueNumbering);
 }
 
 #endif //TRANSFORM_H

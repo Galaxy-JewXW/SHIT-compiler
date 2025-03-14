@@ -124,6 +124,27 @@ public:
     using FunctionPtr = std::shared_ptr<Mir::Function>;
     using FunctionMap = std::unordered_map<FunctionPtr, std::unordered_set<FunctionPtr>>;
     using FunctionSet = std::unordered_set<FunctionPtr>;
+
+    struct FunctionInfo {
+        // 递归调用
+        bool is_recursive = false;
+        // 叶函数：不做任何调用
+        bool is_leaf = false;
+        // 对全局内存进行读写
+        bool memory_read = false;
+        bool memory_write = false;
+        bool memory_alloc = false;
+        // IO操作
+        bool io_read = false;
+        bool io_write = false;
+        // 返回值
+        bool has_return = false;
+        // 具有副作用：对传入的指针进行读操作
+        bool has_side_effect = false;
+        // 无状态：输出与内存无关
+        bool no_state = false;
+    };
+
     explicit FunctionAnalysis() : Analysis("FunctionCallGraph") {}
 
     const FunctionSet &call_graph_func(const FunctionPtr &func) const {
@@ -142,19 +163,10 @@ public:
 
     const FunctionMap &call_graph_reverse() const { return call_graph_reverse_; }
 
-    bool has_side_effect(const FunctionPtr &func) const {
-        const auto it = side_effect_functions_.find(func);
-        return it != side_effect_functions_.end();
-    }
-
-    bool accept_input(const FunctionPtr &func) const {
-        const auto it = accept_input_functions_.find(func);
-        return it != accept_input_functions_.end();
-    }
-
-    bool return_output(const FunctionPtr &func) const {
-        const auto it = return_output_functions_.find(func);
-        return it != return_output_functions_.end();
+    std::shared_ptr<FunctionInfo> func_info(const FunctionPtr &func) const {
+        const auto it = infos_.find(func);
+        if (it == infos_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
+        return it->second;
     }
 
 protected:
@@ -165,20 +177,8 @@ private:
     FunctionMap call_graph_;
     // 反向函数调用图：function -> { function被调用的函数集合 }
     FunctionMap call_graph_reverse_;
-    // 函数是否有副作用：具有副作用的函数集合
-    FunctionSet side_effect_functions_;
-    // 函数是否接受输入：接受输入的函数集合
-    FunctionSet accept_input_functions_;
-    // 函数是否返回输出：返回输出的函数集合
-    FunctionSet return_output_functions_;
 
-    void clear() {
-        call_graph_.clear();
-        call_graph_reverse_.clear();
-        side_effect_functions_.clear();
-        accept_input_functions_.clear();
-        return_output_functions_.clear();
-    }
+    std::unordered_map<FunctionPtr, std::shared_ptr<FunctionInfo>> infos_;
 };
 
 class Loop {
@@ -210,6 +210,8 @@ public:
     [[nodiscard]] std::vector<BlockPtr> &get_exits()  { return exits_; }
 
     std::shared_ptr<Mir::Block> find_block(const std::shared_ptr<Mir::Block>& block);
+
+    bool contain_block(const std::shared_ptr<Mir::Block>& block);
 
     void set_preheader(BlockPtr preheader) { preheader_ = std::move(preheader); }
     void set_latch(BlockPtr latch) { latch_ = std::move(latch); }
@@ -248,6 +250,10 @@ public:
         else { return this->get_parent()->get_ancestor(); }
     }
 
+    std::shared_ptr<Loop> get_loop() {
+        return loop_;
+    }
+
     void add_block4ancestors(const std::shared_ptr<Mir::Block>& block) ;
 
     std::shared_ptr<LoopNodeTreeNode> find_loop(const std::shared_ptr<Loop> &loop);
@@ -277,7 +283,18 @@ public:
         return it->second;
     }
 
+    const std::vector<std::shared_ptr<LoopNodeTreeNode>> &loop_forest(const FunctionPtr &func) const {
+        const auto it = loop_forest_.find(func);
+        if (it == loop_forest_.end()) {
+            static const std::vector<std::shared_ptr<LoopNodeTreeNode>> empty_vector;
+            return empty_vector;
+        }
+        return it->second;
+    }
+
     std::shared_ptr<LoopNodeTreeNode> find_loop_in_forest(const FunctionPtr &func, const std::shared_ptr<Loop>& loop);
+
+    int get_block_depth(const FunctionPtr &func, const std::shared_ptr<Mir::Block>& block);
 
 private:
     using FunctLoopsMap = std::unordered_map<std::shared_ptr<Mir::Function>, std::vector<std::shared_ptr<Loop>>>;
