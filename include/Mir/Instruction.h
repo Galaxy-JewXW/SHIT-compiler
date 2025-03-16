@@ -117,10 +117,10 @@ public:
         if (!addr->get_type()->is_pointer()) { log_error("Address must be a pointer"); }
     }
 
-    static std::shared_ptr<GetElementPtr> create(const std::string &name,
-                                                   const std::shared_ptr<Value> &addr,
-                                                   const std::vector<std::shared_ptr<Value>> &indexes,
-                                                   const std::shared_ptr<Block> &block);
+    static std::shared_ptr<Value> create(const std::string &name,
+                                         const std::shared_ptr<Value> &addr,
+                                         const std::vector<std::shared_ptr<Value>> &indexes,
+                                         const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::shared_ptr<Value> get_addr() const { return operands_[0]; }
 
@@ -137,7 +137,8 @@ public:
     [[nodiscard]] std::string to_string() const override;
 
 private:
-    static std::shared_ptr<Type::Type> calc_type_(const std::shared_ptr<Value> &addr, const std::vector<std::shared_ptr<Value>> &indexes);
+    static std::shared_ptr<Type::Type> calc_type_(const std::shared_ptr<Value> &addr,
+                                                  const std::vector<std::shared_ptr<Value>> &indexes);
 };
 
 class BitCast final : public Instruction {
@@ -580,7 +581,7 @@ public:
 
     void modify_operand(const std::shared_ptr<Value> &old_value, const std::shared_ptr<Value> &new_value) override;
 
-    std::shared_ptr<Block> find_optional_block(const std::shared_ptr<Value>& value);
+    std::shared_ptr<Block> find_optional_block(const std::shared_ptr<Value> &value);
 
 private:
     Optional_Values optional_values;

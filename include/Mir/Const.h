@@ -37,6 +37,10 @@ public:
     [[nodiscard]] bool is_zero() const override { return value == 0; }
 
     [[nodiscard]] std::any get_constant_value() const override { return value; }
+
+    int operator*() const {
+        return value;
+    }
 };
 
 class ConstInt final : public Const {
@@ -99,6 +103,10 @@ public:
     int operator>=(const ConstInt &other) const {
         return value >= other.value;
     }
+
+    int operator*() const {
+        return value;
+    }
 };
 
 class ConstFloat final : public Const {
@@ -154,6 +162,10 @@ public:
             log_error("Modulo by zero");
         }
         return std::fmod(value, other.value);
+    }
+
+    double operator*() const {
+        return value;
     }
 
     int operator==(const ConstFloat &other) const {

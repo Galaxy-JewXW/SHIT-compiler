@@ -65,10 +65,21 @@ std::shared_ptr<Type::Type> GetElementPtr::calc_type_(const std::shared_ptr<Valu
     log_error("Invalid indexes size %d", indexes.size());
 }
 
-std::shared_ptr<GetElementPtr> GetElementPtr::create(const std::string &name,
-                                                     const std::shared_ptr<Value> &addr,
-                                                     const std::vector<std::shared_ptr<Value>> &indexes,
-                                                     const std::shared_ptr<Block> &block) {
+std::shared_ptr<Value> GetElementPtr::create(const std::string &name,
+                                             const std::shared_ptr<Value> &addr,
+                                             const std::vector<std::shared_ptr<Value>> &indexes,
+                                             const std::shared_ptr<Block> &block) {
+    if (indexes.size() == 1) {
+        if (const auto &idx = indexes[0]; idx->is_constant()) {
+            const auto constant_idx = std::dynamic_pointer_cast<ConstInt>(idx);
+            if (constant_idx == nullptr) {
+                log_error("Index should be constant");
+            }
+            if (**constant_idx == 0) {
+                return addr;
+            }
+        }
+    }
     const auto instruction = std::make_shared<GetElementPtr>(name, addr, indexes);
     if (block != nullptr) [[unlikely]] { instruction->set_block(block); }
     if (const auto type = addr->get_type(); !type->is_pointer()) {
