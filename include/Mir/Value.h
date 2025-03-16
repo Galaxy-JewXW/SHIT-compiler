@@ -100,6 +100,11 @@ public:
         cleanup_users();
         return UserRange{users_};
     }
+
+    template<typename T>
+    std::shared_ptr<T> as() {
+        return std::static_pointer_cast<T>(shared_from_this());
+    }
 };
 
 class User : public Value {

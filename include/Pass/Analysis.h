@@ -139,9 +139,10 @@ public:
         bool io_write = false;
         // 返回值
         bool has_return = false;
-        // 具有副作用：对传入的指针进行读操作
+        // 具有副作用：对传入的指针（数组参数）进行写操作
         bool has_side_effect = false;
-        // 无状态：输出与内存无关
+        // 无状态依赖：输出与内存无关，即函数执行过程中不存在影响全局内存的行为，且没有副作用
+        // 注意无状态依赖并不意味着没有进行IO操作
         bool no_state = false;
     };
 
@@ -175,6 +176,12 @@ private:
     FunctionMap call_graph_reverse_;
 
     std::unordered_map<FunctionPtr, FunctionInfo> infos_;
+
+    void build_call_graph(const FunctionPtr &func);
+
+    void build_func_attribute(const FunctionPtr &func);
+
+    void transmit_attribute(const std::vector<FunctionPtr> &topo);
 };
 
 class Loop {

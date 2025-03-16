@@ -289,7 +289,7 @@ void ConstexprFuncInterpreter::interpret_instruction(const std::shared_ptr<Instr
     if (const auto it = handlers.find(instruction->get_op()); it != handlers.end()) {
         it->second(this, instruction);
     } else {
-        log_error("Unhandled instruction type: %d" + static_cast<int>(instruction->get_op()));
+        log_error("Unhandled instruction type: %d", static_cast<int>(instruction->get_op()));
     }
 }
 

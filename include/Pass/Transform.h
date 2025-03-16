@@ -114,6 +114,9 @@ DEFINE_DEFAULT_TRANSFORM_CLASS(GlobalCodeMotion);
 // 全局值编号
 // 实现全局的消除公共表达式
 DEFINE_DEFAULT_TRANSFORM_CLASS(GlobalValueNumbering);
+
+// 删除未被调用的函数
+DEFINE_DEFAULT_TRANSFORM_CLASS(DeadFuncEliminate);
 }
 
 #endif //TRANSFORM_H
