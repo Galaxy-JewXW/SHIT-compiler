@@ -159,11 +159,7 @@ public:
         return it->second;
     }
 
-    const FunctionMap &call_graph() const { return call_graph_; }
-
-    const FunctionMap &call_graph_reverse() const { return call_graph_reverse_; }
-
-    std::shared_ptr<FunctionInfo> func_info(const FunctionPtr &func) const {
+    FunctionInfo func_info(const FunctionPtr &func) const {
         const auto it = infos_.find(func);
         if (it == infos_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
         return it->second;
@@ -178,11 +174,10 @@ private:
     // 反向函数调用图：function -> { function被调用的函数集合 }
     FunctionMap call_graph_reverse_;
 
-    std::unordered_map<FunctionPtr, std::shared_ptr<FunctionInfo>> infos_;
+    std::unordered_map<FunctionPtr, FunctionInfo> infos_;
 };
 
 class Loop {
-private:
     using FunctionPtr = std::shared_ptr<Mir::Function>;
     using BlockPtr = std::shared_ptr<Mir::Block>;
     BlockPtr header_;
@@ -194,39 +189,39 @@ private:
     std::vector<BlockPtr> exits_;
 
 public:
-
-    Loop(BlockPtr header,  const std::vector<BlockPtr> &blocks,
-        const std::vector<BlockPtr> &latch_blocks, const std::vector<BlockPtr> &exitings,
-        const std::vector<BlockPtr> &exits)
+    Loop(BlockPtr header, const std::vector<BlockPtr> &blocks,
+         const std::vector<BlockPtr> &latch_blocks, const std::vector<BlockPtr> &exitings,
+         const std::vector<BlockPtr> &exits)
         : header_{std::move(header)}, blocks_{blocks}, latch_blocks_{latch_blocks},
           exitings_{exitings}, exits_{exits} {}
 
     [[nodiscard]] BlockPtr get_header() const { return header_; }
     [[nodiscard]] BlockPtr get_preheader() const { return preheader_; }
     [[nodiscard]] BlockPtr get_latch() const { return latch_; }
-    [[nodiscard]] std::vector<BlockPtr> &get_blocks()  { return blocks_; }
-    [[nodiscard]] std::vector<BlockPtr> &get_latch_blocks()  { return latch_blocks_; }
-    [[nodiscard]] std::vector<BlockPtr> &get_exitings()  { return exitings_; }
-    [[nodiscard]] std::vector<BlockPtr> &get_exits()  { return exits_; }
+    [[nodiscard]] std::vector<BlockPtr> &get_blocks() { return blocks_; }
+    [[nodiscard]] std::vector<BlockPtr> &get_latch_blocks() { return latch_blocks_; }
+    [[nodiscard]] std::vector<BlockPtr> &get_exitings() { return exitings_; }
+    [[nodiscard]] std::vector<BlockPtr> &get_exits() { return exits_; }
 
-    std::shared_ptr<Mir::Block> find_block(const std::shared_ptr<Mir::Block>& block);
+    std::shared_ptr<Mir::Block> find_block(const std::shared_ptr<Mir::Block> &block);
 
-    bool contain_block(const std::shared_ptr<Mir::Block>& block);
+    bool contain_block(const std::shared_ptr<Mir::Block> &block);
 
     void set_preheader(BlockPtr preheader) { preheader_ = std::move(preheader); }
     void set_latch(BlockPtr latch) { latch_ = std::move(latch); }
 
-    void add_block(const std::shared_ptr<Mir::Block> &block) { blocks_.push_back(block);}
+    void add_block(const std::shared_ptr<Mir::Block> &block) { blocks_.push_back(block); }
 };
 
-class LoopNodeTreeNode : public std::enable_shared_from_this<LoopNodeTreeNode>{
+class LoopNodeTreeNode : public std::enable_shared_from_this<LoopNodeTreeNode> {
 public:
     explicit LoopNodeTreeNode(std::shared_ptr<Loop> loop): loop_{std::move(loop)} {}
+
     void add_child(std::shared_ptr<LoopNodeTreeNode> child) {
         children_.push_back(std::move(child));
     }
 
-    void remove_child(const std::shared_ptr<LoopNodeTreeNode>& child) {
+    void remove_child(const std::shared_ptr<LoopNodeTreeNode> &child) {
         auto it = std::find(children_.begin(), children_.end(), child);
         if (it != children_.end()) {
             children_.erase(it);
@@ -237,7 +232,7 @@ public:
         parent_ = std::move(parent);
     }
 
-    std::vector<std::shared_ptr<LoopNodeTreeNode>>& get_children() {
+    std::vector<std::shared_ptr<LoopNodeTreeNode>> &get_children() {
         return children_;
     }
 
@@ -246,25 +241,25 @@ public:
     }
 
     std::shared_ptr<LoopNodeTreeNode> get_ancestor() {
-        if (this->get_parent() == nullptr) { return shared_from_this();}
-        else { return this->get_parent()->get_ancestor(); }
+        if (this->get_parent() == nullptr) { return shared_from_this(); } else {
+            return this->get_parent()->get_ancestor();
+        }
     }
 
     std::shared_ptr<Loop> get_loop() {
         return loop_;
     }
 
-    void add_block4ancestors(const std::shared_ptr<Mir::Block>& block) ;
+    void add_block4ancestors(const std::shared_ptr<Mir::Block> &block);
 
     std::shared_ptr<LoopNodeTreeNode> find_loop(const std::shared_ptr<Loop> &loop);
 
-    std::shared_ptr<LoopNodeTreeNode> find_block_in_loop(const std::shared_ptr<Mir::Block>& block);
+    std::shared_ptr<LoopNodeTreeNode> find_block_in_loop(const std::shared_ptr<Mir::Block> &block);
 
 private:
     std::shared_ptr<Loop> loop_;
     std::shared_ptr<LoopNodeTreeNode> parent_;
-    std::vector<std::shared_ptr<LoopNodeTreeNode >> children_;
-
+    std::vector<std::shared_ptr<LoopNodeTreeNode>> children_;
 };
 
 
@@ -292,21 +287,20 @@ public:
         return it->second;
     }
 
-    std::shared_ptr<LoopNodeTreeNode> find_loop_in_forest(const FunctionPtr &func, const std::shared_ptr<Loop>& loop);
+    std::shared_ptr<LoopNodeTreeNode> find_loop_in_forest(const FunctionPtr &func, const std::shared_ptr<Loop> &loop);
 
-    int get_block_depth(const FunctionPtr &func, const std::shared_ptr<Mir::Block>& block);
+    int get_block_depth(const FunctionPtr &func, const std::shared_ptr<Mir::Block> &block);
 
 private:
     using FunctLoopsMap = std::unordered_map<std::shared_ptr<Mir::Function>, std::vector<std::shared_ptr<Loop>>>;
     FunctLoopsMap loops_;
-    using FunctLoopForestMap = std::unordered_map<std::shared_ptr<Mir::Function>, std::vector<std::shared_ptr<LoopNodeTreeNode>>>;
+    using FunctLoopForestMap = std::unordered_map<std::shared_ptr<Mir::Function>, std::vector<std::shared_ptr<
+        LoopNodeTreeNode>>>;
     FunctLoopForestMap loop_forest_;
 
 
-
-    std::shared_ptr<LoopNodeTreeNode> find_block_in_forest(const FunctionPtr &func, const std::shared_ptr<Mir::Block>& block);
-
-
+    std::shared_ptr<LoopNodeTreeNode> find_block_in_forest(const FunctionPtr &func,
+                                                           const std::shared_ptr<Mir::Block> &block);
 };
 }
 
