@@ -327,7 +327,7 @@ static bool reduce_mul(const std::shared_ptr<Mul> &mul, std::vector<std::shared_
     const auto current_block = mul->get_block();
     const auto lhs = mul->get_lhs();
     if (const auto rhs = mul->get_rhs(); rhs->is_constant()) [[unlikely]] {
-        const auto constant_rhs = std::static_pointer_cast<ConstInt>(rhs);
+        const auto constant_rhs = rhs->as<ConstInt>();
         const auto zero = std::make_shared<ConstInt>(0);
         // a * 0 = 0
         if (constant_rhs->is_zero()) {
@@ -352,6 +352,16 @@ static bool reduce_mul(const std::shared_ptr<Mul> &mul, std::vector<std::shared_
                 c1 != nullptr && c1->is_zero()) {
                 const auto c = std::make_shared<ConstInt>(-constant_rhs_v);
                 const auto new_mul = Mul::create(Builder::gen_variable_name(), sub_lhs->get_rhs(), c, nullptr);
+                replace_instruction(mul, new_mul, current_block, instructions, idx);
+                return true;
+            }
+        }
+        // (a * c1) * c2 = a * (c1 * c2)
+        if (const auto mul_lhs = std::dynamic_pointer_cast<Mul>(lhs)) {
+            const auto &c2 = constant_rhs;
+            if (const auto c1 = mul_lhs->get_rhs(); c1->is_constant()) {
+                const auto c = std::make_shared<ConstInt>(*c1->as<ConstInt>() * *c2);
+                const auto new_mul = Mul::create(Builder::gen_variable_name(), mul_lhs->get_lhs(), c, nullptr);
                 replace_instruction(mul, new_mul, current_block, instructions, idx);
                 return true;
             }

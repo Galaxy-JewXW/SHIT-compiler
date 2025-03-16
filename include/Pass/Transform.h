@@ -1,16 +1,9 @@
 #ifndef TRANSFORM_H
 #define TRANSFORM_H
+
+#include "Analysis.h"
 #include "Pass.h"
 #include "Mir/Instruction.h"
-#include "Analysis.h"
-
-#define DEFINE_DEFAULT_TRANSFORM_CLASS(ClassName) \
-class ClassName final : public Transform { \
-public: \
-explicit ClassName() : Transform(#ClassName) {} \
-protected: \
-void transform(std::shared_ptr<Mir::Module> module) override; \
-}
 
 namespace Pass {
 // 以某种方式改变和优化IR，并保证改变后的IR仍然合法有效
@@ -89,7 +82,13 @@ private:
 };
 
 // 常数折叠：编译期计算常量表达式
-DEFINE_DEFAULT_TRANSFORM_CLASS(ConstantFolding);
+class ConstantFolding final : public Transform {
+public:
+    explicit ConstantFolding() : Transform("ConstantFolding") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+};
 
 /**
  * 简化控制流：
@@ -98,25 +97,79 @@ DEFINE_DEFAULT_TRANSFORM_CLASS(ConstantFolding);
  * 3. 消除只有一个前驱块的phi节点
  * 4. 消除只包含单个非条件跳转的基本块
  */
-DEFINE_DEFAULT_TRANSFORM_CLASS(SimplifyCFG);
+class SimplifyCFG final : public Transform {
+public:
+    explicit SimplifyCFG() : Transform("SimplifyCFG") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+};
 
 // 标准化计算指令 "Binary"
 // 为之后的代数变形/GVN做准备
-DEFINE_DEFAULT_TRANSFORM_CLASS(StandardizeBinary);
+class StandardizeBinary final : public Transform {
+public:
+    explicit StandardizeBinary() : Transform("StandardizeBinary") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+};
 
 // 对指令进行代数优化恒等式变形
-DEFINE_DEFAULT_TRANSFORM_CLASS(AlgebraicSimplify);
+class AlgebraicSimplify final : public Transform {
+public:
+    explicit AlgebraicSimplify() : Transform("AlgebraicSimplify") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+};
 
 // 全局代码移动
 // 根据Value之间的依赖关系，将代码的位置重新安排，从而使得一些不必要（不会影响结果）的代码尽可能少执行
-DEFINE_DEFAULT_TRANSFORM_CLASS(GlobalCodeMotion);
+class GlobalCodeMotion final : public Transform {
+public:
+    explicit GlobalCodeMotion() : Transform("GlobalCodeMotion") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+};
 
 // 全局值编号
 // 实现全局的消除公共表达式
-DEFINE_DEFAULT_TRANSFORM_CLASS(GlobalValueNumbering);
+class GlobalValueNumbering final : public Transform {
+public:
+    explicit GlobalValueNumbering() : Transform("GlobalValueNumbering") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+};
 
 // 删除未被调用的函数
-DEFINE_DEFAULT_TRANSFORM_CLASS(DeadFuncEliminate);
+class DeadFuncEliminate final : public Transform {
+public:
+    explicit DeadFuncEliminate() : Transform("DeadFuncEliminate") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+};
+
+// 删除未被使用的指令
+class [[deprecated("Bad performance, use DCE instead.")]] UnusedInstEliminate final : public Transform {
+public:
+    explicit UnusedInstEliminate() : Transform("UnusedInstEliminate") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+};
+
+// 执行在编译期内能识别出来的constexpr函数
+class ConstexprFuncEval final : public Transform {
+public:
+    explicit ConstexprFuncEval() : Transform("ConstexprFuncEval") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+};
 }
 
 #endif //TRANSFORM_H

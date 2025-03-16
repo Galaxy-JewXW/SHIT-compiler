@@ -9,11 +9,11 @@ static size_t type_size(const std::shared_ptr<Mir::Type::Type> &type) {
         return 4;
     }
     if (type->is_integer()) {
-        return (7 + std::static_pointer_cast<Mir::Type::Integer>(type)->operator->()) / 8;
+        return (7 + type->as<Mir::Type::Integer>()->bits()) / 8;
     }
     if (type->is_array()) {
-        return type_size(std::static_pointer_cast<Mir::Type::Array>(type)->get_atomic_type()) *
-               std::static_pointer_cast<Mir::Type::Array>(type)->get_flattened_size();
+        return type_size(type->as<Mir::Type::Array>()->get_atomic_type()) *
+               type->as<Mir::Type::Array>()->get_flattened_size();
     }
     return 0;
 }
@@ -58,11 +58,11 @@ void ConstexprFuncInterpreter::interpret_store(const std::shared_ptr<Store> &sto
 void ConstexprFuncInterpreter::interpret_gep(const std::shared_ptr<GetElementPtr> &gep) {
     const auto base_addr = get_runtime_value(gep->get_addr());
     const auto index = get_runtime_value(gep->get_index());
-    const auto contain_type = std::static_pointer_cast<Type::Pointer>(gep->get_addr()->get_type())->get_contain_type();
+    const auto contain_type = gep->get_addr()->get_type()->as<Type::Pointer>()->get_contain_type();
     if (const auto op_size = gep->get_operands().size(); op_size == 2) {
         // 形如 %1 = getelementptr inbounds [9 x [3 x i32]], [9 x [3 x i32]]* %0, i32 1
         const auto element_size = type_size(contain_type);
-        value_map[gep] = base_addr + index * static_cast<eval_t>(element_size);
+        value_map[gep] = base_addr + index * static_cast<eval_t>(element_size) / 4;
     } else if (op_size == 3) {
         // 形如 %2 = getelementptr inbounds [9 x [3 x i32]], [9 x [3 x i32]]* %1, i32 0, i32 7
         if (!contain_type->is_array()) {
@@ -71,7 +71,7 @@ void ConstexprFuncInterpreter::interpret_gep(const std::shared_ptr<GetElementPtr
         const auto array_type = std::static_pointer_cast<Type::Array>(contain_type);
         const auto element_type = array_type->get_element_type();
         const auto element_size = type_size(element_type);
-        value_map[gep] = base_addr + index * static_cast<eval_t>(element_size);
+        value_map[gep] = base_addr + index * static_cast<eval_t>(element_size) / 4;
     } else {
         log_fatal("Unhandled getelementptr instruction: %s", gep->to_string().c_str());
     }
@@ -157,7 +157,10 @@ void ConstexprFuncInterpreter::interpret_call(const std::shared_ptr<Call> &call)
     for (size_t i = 0; i < call->get_params().size(); ++i) {
         real_args.push_back(get_runtime_value(call->get_params()[i]));
     }
-    const auto called_func = std::static_pointer_cast<Function>(call->get_function());
+    const auto called_func = call->get_function()->as<Function>();
+    if (called_func->get_name() == "llvm.memset.p0i8.i32") {
+        return;
+    }
     if (called_func->is_runtime_func()) {
         log_error("Unhandled runtime function: %s", called_func->get_name().c_str());
     }
@@ -305,20 +308,25 @@ eval_t ConstexprFuncInterpreter::interpret_function(const std::shared_ptr<Functi
     prev_block = nullptr;
     current_block = func->get_blocks().front();
     while (current_block != nullptr) {
-        for (size_t i = 0; i < current_block->get_instructions().size(); ++i) {
-            const auto &instruction = current_block->get_instructions()[i];
-            if (instruction->get_op() == Operator::PHI) {
-                interpret_phi(std::static_pointer_cast<Phi>(instruction));
-                if (current_block->get_instructions()[i + 1]->get_op() == Operator::PHI) [[unlikely]] {
+        const auto original_block = current_block;
+        const auto &instructions = original_block->get_instructions();
+        for (size_t i = 0; i < instructions.size(); ++i) {
+            if (const auto &instruction = instructions[i]; instruction->get_op() == Operator::PHI) {
+                interpret_phi(instruction->as<Phi>());
+                // 处理连续的phi指令
+                if (i + 1 < instructions.size() && instructions[i + 1]->get_op() == Operator::PHI)
                     continue;
-                }
-                for (const auto &[phi, eval_value]: phi_cache) {
+                // 更新所有缓存的phi值
+                for (const auto &[phi, eval_value]: phi_cache)
                     value_map[phi] = eval_value;
-                }
                 phi_cache.clear();
-                continue;
+            } else {
+                interpret_instruction(instruction);
             }
-            interpret_instruction(instruction);
+            // 如果当前块已改变，终止处理后续指令
+            if (current_block != original_block) {
+                break;
+            }
         }
     }
     return func_return_value;

@@ -14,6 +14,8 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         Pass::EmitModule<true>,
         Pass::GlobalValueNumbering,
         Pass::LoopSimplyForm,
-        Pass::LCSSA
+        Pass::LCSSA,
+        Pass::UnusedInstEliminate,
+        Pass::ConstexprFuncEval
     >(module);
 }
