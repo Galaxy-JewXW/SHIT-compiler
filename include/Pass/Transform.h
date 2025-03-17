@@ -144,10 +144,10 @@ protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 };
 
-// 删除未被调用的函数
-class DeadFuncEliminate final : public Transform {
+// 执行在编译期内能识别出来的constexpr函数
+class ConstexprFuncEval final : public Transform {
 public:
-    explicit DeadFuncEliminate() : Transform("DeadFuncEliminate") {}
+    explicit ConstexprFuncEval() : Transform("ConstexprFuncEval") {}
 
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
@@ -162,13 +162,28 @@ protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 };
 
-// 执行在编译期内能识别出来的constexpr函数
-class ConstexprFuncEval final : public Transform {
+// 删除未被调用的函数
+class DeadFuncEliminate final : public Transform {
 public:
-    explicit ConstexprFuncEval() : Transform("ConstexprFuncEval") {}
+    explicit DeadFuncEliminate() : Transform("DeadFuncEliminate") {}
 
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
+};
+
+class DeadCodeEliminate final : public Transform {
+public:
+    explicit DeadCodeEliminate() : Transform("DeadCodeEliminate") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+private:
+    std::unordered_set<std::shared_ptr<Mir::Instruction>> useful_instructions_;
+
+    void init_useful_instruction(const std::shared_ptr<Mir::Function> &function);
+
+    void update_useful_instruction(const std::shared_ptr<Mir::Instruction> &instruction);
 };
 }
 
