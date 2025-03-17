@@ -10,7 +10,7 @@ namespace Pass {
 // 删除无用指令
 // 如果指令User为空，且指令本身不带有副作用，则认为其是无用的
 // TODO: 效果较差，无法删除冗余数组的定义，需要考虑更好的判断方法
-static void remove_unused_instructions(const std::shared_ptr<Module> &module) {
+static bool remove_unused_instructions(const std::shared_ptr<Module> &module) {
     auto is_dead_instruction = [](const InstructionPtr &instruction) -> bool {
         if (instruction->users().size() > 0) { return false; }
         // instruction无返回值
@@ -28,24 +28,30 @@ static void remove_unused_instructions(const std::shared_ptr<Module> &module) {
         }
         return true;
     };
+    bool changed = false;
     for (const auto &func: *module) {
         for (const auto &block: func->get_blocks()) {
             for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
                 if (is_dead_instruction(*it)) {
                     (*it)->clear_operands();
                     it = block->get_instructions().erase(it);
+                    changed = true;
                 } else {
                     ++it;
                 }
             }
         }
     }
+    return changed;
 }
 
 void UnusedInstEliminate::transform(const std::shared_ptr<Module> module) {
     func_analysis = create<FunctionAnalysis>();
     func_analysis->run_on(module);
-    remove_unused_instructions(module);
+    while (remove_unused_instructions(module)) {
+        func_analysis = create<FunctionAnalysis>();
+        func_analysis->run_on(module);
+    }
     func_analysis = nullptr;
 }
 }
