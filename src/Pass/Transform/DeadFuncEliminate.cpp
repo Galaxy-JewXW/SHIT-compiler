@@ -27,7 +27,7 @@ void DeadFuncEliminate::transform(const std::shared_ptr<Module> module) {
         }
     };
     dfs(main_func, reachable_functions);
-    for (auto it = module->all_functions().begin(); it != module->all_functions().end();) {
+    for (auto it = module->get_functions().begin(); it != module->get_functions().end();) {
         if (reachable_functions.find(*it) == reachable_functions.end()) {
             const auto func = *it;
             for (const auto &block: func->get_blocks()) {
@@ -39,7 +39,7 @@ void DeadFuncEliminate::transform(const std::shared_ptr<Module> module) {
                 block->set_deleted();
                 block->get_instructions().clear();
             }
-            it = module->all_functions().erase(it);
+            it = module->get_functions().erase(it);
         } else {
             ++it;
         }

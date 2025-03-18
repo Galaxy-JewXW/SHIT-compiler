@@ -41,7 +41,9 @@ public:
         }
     }
 
-    [[nodiscard]] std::vector<std::shared_ptr<Function>> &all_functions() { return functions; }
+    [[nodiscard]] std::vector<std::shared_ptr<Function>> &get_functions() { return functions; }
+
+    [[nodiscard]] std::vector<std::shared_ptr<GlobalVariable>> &get_global_variables() { return global_variables; }
 
     void add_function(const std::shared_ptr<Function> &function) { functions.emplace_back(function); }
 

@@ -540,9 +540,9 @@ void Pass::AlgebraicSimplify::transform(const std::shared_ptr<Module> module) {
                 changed |= run_on_block(block);
             }
         }
-        create<UnusedInstEliminate>()->run_on(module);
+        create<DeadInstEliminate>()->run_on(module);
     } while (changed);
     const auto fold = create<ConstantFolding>();
     fold->run_on(module);
-    create<UnusedInstEliminate>()->run_on(module);
+    create<DeadInstEliminate>()->run_on(module);
 }

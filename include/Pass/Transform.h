@@ -154,9 +154,9 @@ protected:
 };
 
 // 删除未被使用的指令
-class [[deprecated("Bad performance, use DCE instead.")]] UnusedInstEliminate final : public Transform {
+class DeadInstEliminate final : public Transform {
 public:
-    explicit UnusedInstEliminate() : Transform("UnusedInstEliminate") {}
+    explicit DeadInstEliminate() : Transform("DeadInstEliminate") {}
 
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
@@ -171,6 +171,7 @@ protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 };
 
+// 激进的死代码删除
 class DeadCodeEliminate final : public Transform {
 public:
     explicit DeadCodeEliminate() : Transform("DeadCodeEliminate") {}
@@ -181,9 +182,15 @@ protected:
 private:
     std::unordered_set<std::shared_ptr<Mir::Instruction>> useful_instructions_;
 
+    std::shared_ptr<FunctionAnalysis> function_analysis_;
+
+    // 删除指令
     void init_useful_instruction(const std::shared_ptr<Mir::Function> &function);
 
     void update_useful_instruction(const std::shared_ptr<Mir::Instruction> &instruction);
+
+    // 删除全局变量
+    static void dead_global_variable_eliminate(const std::shared_ptr<Mir::Module> &module);
 };
 }
 
