@@ -70,8 +70,23 @@ void DeadCodeEliminate::dead_global_variable_eliminate(const std::shared_ptr<Mod
 void DeadCodeEliminate::transform(const std::shared_ptr<Module> module) {
     function_analysis_ = create<FunctionAnalysis>();
     function_analysis_->run_on(module);
+    dead_global_variable_eliminate(module);
     for (const auto &func: *module) {
         useful_instructions_.clear();
+        for (const auto &gv : module->get_global_variables()) {
+            for (const auto &use : gv->users()) {
+                const auto inst = std::dynamic_pointer_cast<Instruction>(use);
+                if (inst == nullptr) {
+                    continue;
+                }
+                if (const auto op = inst->get_op();
+                    op == Operator::STORE || op == Operator::GEP || op == Operator::CALL) {
+                    useful_instructions_.insert(inst);
+                } else if (inst->users().size() > 0) {
+                    useful_instructions_.insert(inst);
+                }
+            }
+        }
         init_useful_instruction(func);
         bool changed = false;
         do {
