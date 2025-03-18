@@ -166,6 +166,8 @@ public:
         return it->second;
     }
 
+    [[nodiscard]] const std::vector<FunctionPtr> &topo() const { return topo_; }
+
 protected:
     void analyze(std::shared_ptr<const Mir::Module> module) override;
 
@@ -176,6 +178,8 @@ private:
     FunctionMap call_graph_reverse_;
 
     std::unordered_map<FunctionPtr, FunctionInfo> infos_;
+
+    std::vector<FunctionPtr> topo_;
 
     void build_call_graph(const FunctionPtr &func);
 

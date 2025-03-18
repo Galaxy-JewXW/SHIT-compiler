@@ -417,8 +417,8 @@ std::shared_ptr<Value> Builder::visit_functionCall(const AST::UnaryExp::call &ca
     }
     const auto &arguments = func->get_arguments();
     if (params.size() != arguments.size()) {
-        log_error("Function %s has %zu arguments, but %zu parameters are provided", ident.content.c_str(),
-                  arguments.size(), params.size());
+        log_error("Function %s has %zu arguments, but %zu parameters are provided at line %d", ident.content.c_str(),
+                  arguments.size(), params.size(), ident.line);
     }
     for (size_t i = 0; i < params.size(); ++i) {
         if (params[i]->is_const_string()) { log_fatal("Parameter should not be a const string"); }

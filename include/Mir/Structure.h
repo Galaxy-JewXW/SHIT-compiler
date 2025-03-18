@@ -138,7 +138,7 @@ public:
 
     [[nodiscard]] const std::shared_ptr<Type::Type> &get_return_type() const { return return_type; }
 
-    [[nodiscard]] std::vector<std::shared_ptr<Argument>> get_arguments() const { return arguments; }
+    [[nodiscard]] std::vector<std::shared_ptr<Argument>> &get_arguments() { return arguments; }
 
     void add_argument(const std::shared_ptr<Argument> &argument) { arguments.emplace_back(argument); }
 

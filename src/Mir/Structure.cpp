@@ -9,8 +9,9 @@ void Module::update_id() {
 
 void Function::update_id() {
     Builder::reset_count();
-    for (const auto &arg: arguments) {
-        arg->set_name(Builder::gen_variable_name());
+    for (size_t i = 0; i < arguments.size(); ++i) {
+        arguments[i]->set_index(static_cast<int>(i));
+        arguments[i]->set_name(Builder::gen_variable_name());
     }
     for (const auto &block: blocks) {
         block->set_name(Builder::gen_block_name());

@@ -185,8 +185,8 @@ void FunctionAnalysis::analyze(const std::shared_ptr<const Mir::Module> module) 
     for (const auto &func: *module) {
         build_func_attribute(func);
     }
-    const auto topo = topo_order(module->get_main_function(), call_graph_);
-    transmit_attribute(topo);
+    topo_ = topo_order(module->get_main_function(), call_graph_);
+    transmit_attribute(topo_);
     for (const auto &func: *module) {
         print_function_analysis(func, call_graph_, call_graph_reverse_, infos_);
     }

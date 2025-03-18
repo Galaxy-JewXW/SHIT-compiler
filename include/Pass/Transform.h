@@ -192,6 +192,20 @@ private:
     // 删除全局变量
     static void dead_global_variable_eliminate(const std::shared_ptr<Mir::Module> &module);
 };
+
+// 函数无用形参删除
+class DeadFuncArgEliminate final : public Transform {
+public:
+    explicit DeadFuncArgEliminate() : Transform("DeadFuncArgEliminate") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+private:
+    std::shared_ptr<FunctionAnalysis> function_analysis_;
+
+    void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
+};
 }
 
 #endif //TRANSFORM_H
