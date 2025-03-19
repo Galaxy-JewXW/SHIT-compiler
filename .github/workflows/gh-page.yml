@@ -1,28 +1,32 @@
-name: Deploy MkDocs to GitHub Pages
+name: deploy docs
 on:
   push:
     branches:
-      - master
+      - docs
+permissions:
+  contents: write
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2  # 检出代码
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.11'  # 设置 Python 版本
-      - name: Install dependencies
+      - uses: actions/checkout@v4
+      - name: Configure Git Credentials
         run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+      - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV
+      - uses: actions/cache@v4
+        with:
+          key: mkdocs-material-${{ env.cache_id }}
+          path: .cache
+          restore-keys: |
+            mkdocs-material-
+      - run: |
           pip install mkdocs  # 安装 mkdocs
           pip install mkdocs-material  # 安装 mkdocs-material 主题
           pip install mkdocs-awesome-pages-plugin
           pip install mkdocs-macros-plugin
-      - name: Build the MkDocs site
-        run: mkdocs build  # 构建 MkDocs 网站
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site  # mkdocs 构建输出目录为 site
+      - run: mkdocs gh-deploy --force
