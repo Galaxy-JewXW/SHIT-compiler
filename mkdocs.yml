@@ -1,0 +1,41 @@
+site_name: SHIT-compiler 文档页
+repo_url: https://github.com/Galaxy-JewXW/SHIT-compiler
+repo_name: SHIT-compiler
+theme:
+  name: material
+  language: zh
+  palette:
+    primary: teal
+  features:
+    - navigation.instant            # 即时加载
+    - navigation.instant.prefetch   # 即时预取
+    - navigation.instant.progress   # 进度指示器
+    - navigation.instant.preview    # 全局启用即时预览
+    - navigation.tracking           # 锚跟踪（类似点击后）
+    - navigation.tabs               # 启用选项卡（最顶层）
+    - navigation.tabs.sticky        # 粘性导航选项卡（保持可见）
+    - navigation.tabs.sections      # 分段
+    - navigation.expand             # 展开所有
+    - navigation.path               # 导航路径（面包屑）（没效果）
+    - navigation.indexes            # 节索引页
+    - toc.follow                    # 锚跟随
+    - navigation.top                # 返回顶部按钮
+    - navigation.footer             # 启用页脚（上一页、下一页）
+    - search.suggest                # 搜索建议
+    - search.highlight              # 搜索高亮显示
+    - search.share                  # 搜索分享
+
+plugins:
+  - search
+  - offline
+  - awesome-pages                   # 启用 mkdocs-awesome-plugin
+  - macros                          # 启用 mkdocs-macros-plugin
+
+copyright: Copyright &copy; 2025 SHIT-compiler team. All rights reserved.
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences

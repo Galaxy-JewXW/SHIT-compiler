@@ -1,0 +1,593 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="BackendCodeEditorMiscSettings">
+    <option name="/Default/RiderDebugger/RiderRestoreDecompile/RestoreDecompileSetting/@EntryValue" value="false" type="bool" />
+    <option name="/Default/Housekeeping/GlobalSettingsUpgraded/IsUpgraded/@EntryValue" value="true" type="bool" />
+    <option name="/Default/Housekeeping/FeatureSuggestion/FeatureSuggestionManager/DisabledSuggesters/=SwitchToGoToActionSuggester/@EntryIndexedValue" value="true" type="bool" />
+    <option name="/Default/Housekeeping/OptionsDialog/SelectedPageId/@EntryValue" value="CppFormatterOtherPage" type="string" />
+    <option name="/Default/Environment/Hierarchy/GeneratedFilesCacheKey/Timestamp/@EntryValue" value="3" type="long" />
+    <option name="/Default/Housekeeping/FeatureSuggestion/FeatureSuggestionManager/DisabledSuggesters/=SwitchToGoToActionSuggester/@EntryIndexRemoved" />
+  </component>
+  <component name="CMakePresetLoader"><![CDATA[{
+  "useNewFormat": true
+}]]></component>
+  <component name="CMakeRunConfigurationManager">
+    <generated />
+  </component>
+  <component name="CMakeSettings" AUTO_RELOAD="true">
+    <configurations>
+      <configuration PROFILE_NAME="Debug" ENABLED="true" CONFIG_NAME="Debug" />
+    </configurations>
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="a0b782c1-8a45-452f-a301-2672306471fb" name="更改" comment="add index">
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="CMakeBuildProfile:Debug" />
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="workflow" />
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="NamedScopeManager">
+    <scope name="files" pattern="(file[SHIT-compiler]:src//*||file[SHIT-compiler]:include//*)&amp;&amp;!file[SHIT-compiler]:build//*" />
+  </component>
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="默认任务">
+      <changelist id="a0b782c1-8a45-452f-a301-2672306471fb" name="更改" comment="" />
+      <created>1740561356119</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1740561356119</updated>
+      <workItem from="1740561357989" duration="72000" />
+      <workItem from="1740561431074" duration="1065000" />
+      <workItem from="1740570326141" duration="64000" />
+      <workItem from="1740573958013" duration="92000" />
+      <workItem from="1740574788850" duration="1146000" />
+      <workItem from="1740578473278" duration="54000" />
+      <workItem from="1740614019822" duration="119000" />
+      <workItem from="1740665004672" duration="2598000" />
+      <workItem from="1740720590636" duration="1838000" />
+      <workItem from="1740724008835" duration="4088000" />
+      <workItem from="1740753744507" duration="972000" />
+      <workItem from="1740757363607" duration="1472000" />
+      <workItem from="1740759605398" duration="671000" />
+      <workItem from="1740798260767" duration="2599000" />
+      <workItem from="1740809718073" duration="31000" />
+      <workItem from="1740809805301" duration="1325000" />
+      <workItem from="1740847188911" duration="62000" />
+      <workItem from="1740847467035" duration="120000" />
+      <workItem from="1740995717312" duration="193000" />
+      <workItem from="1741098325342" duration="156000" />
+      <workItem from="1741100960299" duration="73000" />
+      <workItem from="1741421367431" duration="2429000" />
+      <workItem from="1741425850762" duration="1810000" />
+      <workItem from="1741446993573" duration="255000" />
+      <workItem from="1741493653491" duration="3110000" />
+      <workItem from="1741505099714" duration="327000" />
+      <workItem from="1741505662930" duration="8984000" />
+      <workItem from="1741527614910" duration="2131000" />
+      <workItem from="1741531267761" duration="8038000" />
+      <workItem from="1741539346387" duration="4336000" />
+      <workItem from="1741579694950" duration="14208000" />
+      <workItem from="1741605748141" duration="364000" />
+      <workItem from="1741606461307" duration="226000" />
+      <workItem from="1741606705918" duration="89000" />
+      <workItem from="1741606806953" duration="114000" />
+      <workItem from="1741606939580" duration="126000" />
+      <workItem from="1741658178987" duration="13123000" />
+      <workItem from="1741674072658" duration="5617000" />
+      <workItem from="1741690118344" duration="159000" />
+      <workItem from="1741708358557" duration="1042000" />
+      <workItem from="1741709966843" duration="134000" />
+      <workItem from="1741751005346" duration="841000" />
+      <workItem from="1741752276270" duration="154000" />
+      <workItem from="1741752447724" duration="2715000" />
+      <workItem from="1741776562943" duration="12850000" />
+      <workItem from="1741790755003" duration="140000" />
+      <workItem from="1741794353701" duration="2105000" />
+      <workItem from="1741852132792" duration="7679000" />
+      <workItem from="1741880943592" duration="4627000" />
+      <workItem from="1741920733567" duration="901000" />
+      <workItem from="1741921647609" duration="855000" />
+      <workItem from="1741922524690" duration="1354000" />
+      <workItem from="1741923988740" duration="80000" />
+      <workItem from="1741928894845" duration="1995000" />
+      <workItem from="1741934845074" duration="836000" />
+      <workItem from="1741936163825" duration="1967000" />
+      <workItem from="1741958118515" duration="115000" />
+      <workItem from="1741958884267" duration="282000" />
+      <workItem from="1741971278371" duration="675000" />
+      <workItem from="1741977592721" duration="1563000" />
+      <workItem from="1742054630515" duration="680000" />
+      <workItem from="1742095245956" duration="16542000" />
+      <workItem from="1742135784852" duration="220000" />
+      <workItem from="1742137025562" duration="97000" />
+      <workItem from="1742137139687" duration="343000" />
+      <workItem from="1742138267904" duration="4478000" />
+      <workItem from="1742142777498" duration="56000" />
+      <workItem from="1742181922969" duration="845000" />
+      <workItem from="1742185659277" duration="254000" />
+      <workItem from="1742187335751" duration="1765000" />
+      <workItem from="1742197847323" duration="914000" />
+      <workItem from="1742201981050" duration="1947000" />
+      <workItem from="1742221296232" duration="1654000" />
+      <workItem from="1742224936948" duration="2771000" />
+      <workItem from="1742228660065" duration="126000" />
+      <workItem from="1742262866791" duration="309000" />
+      <workItem from="1742263187587" duration="6897000" />
+      <workItem from="1742270115610" duration="86000" />
+      <workItem from="1742270532035" duration="10692000" />
+      <workItem from="1742285320953" duration="495000" />
+      <workItem from="1742295159565" duration="766000" />
+      <workItem from="1742307309050" duration="954000" />
+      <workItem from="1742308868137" duration="531000" />
+      <workItem from="1742309452109" duration="75000" />
+      <workItem from="1742346009303" duration="574000" />
+      <workItem from="1742346592474" duration="11472000" />
+      <workItem from="1742367093494" duration="313000" />
+      <workItem from="1742380999834" duration="583000" />
+      <workItem from="1742385147999" duration="498000" />
+      <workItem from="1742388294145" duration="2148000" />
+    </task>
+    <task id="LOCAL-00022" summary="fix CI second">
+      <option name="closed" value="true" />
+      <created>1741537995089</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1741537995089</updated>
+    </task>
+    <task id="LOCAL-00023" summary="fix CI second">
+      <option name="closed" value="true" />
+      <created>1741538249663</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1741538249663</updated>
+    </task>
+    <task id="LOCAL-00024" summary="fix CI second">
+      <option name="closed" value="true" />
+      <created>1741538523452</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1741538523452</updated>
+    </task>
+    <task id="LOCAL-00025" summary="fix CI">
+      <option name="closed" value="true" />
+      <created>1741538804951</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1741538804951</updated>
+    </task>
+    <task id="LOCAL-00026" summary="fix CI">
+      <option name="closed" value="true" />
+      <created>1741539158323</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1741539158323</updated>
+    </task>
+    <task id="LOCAL-00027" summary="fix CI">
+      <option name="closed" value="true" />
+      <created>1741539785632</created>
+      <option name="number" value="00027" />
+      <option name="presentableId" value="LOCAL-00027" />
+      <option name="project" value="LOCAL" />
+      <updated>1741539785632</updated>
+    </task>
+    <task id="LOCAL-00028" summary="fix CI">
+      <option name="closed" value="true" />
+      <created>1741540290874</created>
+      <option name="number" value="00028" />
+      <option name="presentableId" value="LOCAL-00028" />
+      <option name="project" value="LOCAL" />
+      <updated>1741540290874</updated>
+    </task>
+    <task id="LOCAL-00029" summary="fix CI">
+      <option name="closed" value="true" />
+      <created>1741540361260</created>
+      <option name="number" value="00029" />
+      <option name="presentableId" value="LOCAL-00029" />
+      <option name="project" value="LOCAL" />
+      <updated>1741540361260</updated>
+    </task>
+    <task id="LOCAL-00030" summary="fix CI">
+      <option name="closed" value="true" />
+      <created>1741542353099</created>
+      <option name="number" value="00030" />
+      <option name="presentableId" value="LOCAL-00030" />
+      <option name="project" value="LOCAL" />
+      <updated>1741542353099</updated>
+    </task>
+    <task id="LOCAL-00031" summary="fix CI">
+      <option name="closed" value="true" />
+      <created>1741542470682</created>
+      <option name="number" value="00031" />
+      <option name="presentableId" value="LOCAL-00031" />
+      <option name="project" value="LOCAL" />
+      <updated>1741542470682</updated>
+    </task>
+    <task id="LOCAL-00032" summary="fix CI">
+      <option name="closed" value="true" />
+      <created>1741542574513</created>
+      <option name="number" value="00032" />
+      <option name="presentableId" value="LOCAL-00032" />
+      <option name="project" value="LOCAL" />
+      <updated>1741542574513</updated>
+    </task>
+    <task id="LOCAL-00033" summary="fix llvm memset and Builder">
+      <option name="closed" value="true" />
+      <created>1741580418613</created>
+      <option name="number" value="00033" />
+      <option name="presentableId" value="LOCAL-00033" />
+      <option name="project" value="LOCAL" />
+      <updated>1741580418613</updated>
+    </task>
+    <task id="LOCAL-00034" summary="fix llvm memset and Builder">
+      <option name="closed" value="true" />
+      <created>1741581146877</created>
+      <option name="number" value="00034" />
+      <option name="presentableId" value="LOCAL-00034" />
+      <option name="project" value="LOCAL" />
+      <updated>1741581146877</updated>
+    </task>
+    <task id="LOCAL-00035" summary="fix llvm memset and Builder">
+      <option name="closed" value="true" />
+      <created>1741581649308</created>
+      <option name="number" value="00035" />
+      <option name="presentableId" value="LOCAL-00035" />
+      <option name="project" value="LOCAL" />
+      <updated>1741581649308</updated>
+    </task>
+    <task id="LOCAL-00036" summary="fix llvm memset and Builder">
+      <option name="closed" value="true" />
+      <created>1741583812806</created>
+      <option name="number" value="00036" />
+      <option name="presentableId" value="LOCAL-00036" />
+      <option name="project" value="LOCAL" />
+      <updated>1741583812806</updated>
+    </task>
+    <task id="LOCAL-00037" summary="fix llvm memset and Builder">
+      <option name="closed" value="true" />
+      <created>1741584464142</created>
+      <option name="number" value="00037" />
+      <option name="presentableId" value="LOCAL-00037" />
+      <option name="project" value="LOCAL" />
+      <updated>1741584464142</updated>
+    </task>
+    <task id="LOCAL-00038" summary="fix LVal and gep">
+      <option name="closed" value="true" />
+      <created>1741598773546</created>
+      <option name="number" value="00038" />
+      <option name="presentableId" value="LOCAL-00038" />
+      <option name="project" value="LOCAL" />
+      <updated>1741598773546</updated>
+    </task>
+    <task id="LOCAL-00039" summary="fix LVal and gep">
+      <option name="closed" value="true" />
+      <created>1741599327232</created>
+      <option name="number" value="00039" />
+      <option name="presentableId" value="LOCAL-00039" />
+      <option name="project" value="LOCAL" />
+      <updated>1741599327232</updated>
+    </task>
+    <task id="LOCAL-00040" summary="更改create签名">
+      <option name="closed" value="true" />
+      <created>1741605946662</created>
+      <option name="number" value="00040" />
+      <option name="presentableId" value="LOCAL-00040" />
+      <option name="project" value="LOCAL" />
+      <updated>1741605946662</updated>
+    </task>
+    <task id="LOCAL-00041" summary=":sparkles: feat(Pass): 实现全局代码移动&#10;&#10;- 添加 GlobalCodeMotion.cpp 文件并实现相关优化逻辑&#10;- 修复了 nullptr 检查和一些潜在的错误">
+      <option name="closed" value="true" />
+      <created>1741678516275</created>
+      <option name="number" value="00041" />
+      <option name="presentableId" value="LOCAL-00041" />
+      <option name="project" value="LOCAL" />
+      <updated>1741678516275</updated>
+    </task>
+    <task id="LOCAL-00042" summary=":sparkles: feat(Phi): 添加find_optional_block方法">
+      <option name="closed" value="true" />
+      <created>1741678951523</created>
+      <option name="number" value="00042" />
+      <option name="presentableId" value="LOCAL-00042" />
+      <option name="project" value="LOCAL" />
+      <updated>1741678951523</updated>
+    </task>
+    <task id="LOCAL-00043" summary="fix gcm">
+      <option name="closed" value="true" />
+      <created>1741751709367</created>
+      <option name="number" value="00043" />
+      <option name="presentableId" value="LOCAL-00043" />
+      <option name="project" value="LOCAL" />
+      <updated>1741751709367</updated>
+    </task>
+    <task id="LOCAL-00044" summary="add gvn">
+      <option name="closed" value="true" />
+      <created>1741764207751</created>
+      <option name="number" value="00044" />
+      <option name="presentableId" value="LOCAL-00044" />
+      <option name="project" value="LOCAL" />
+      <updated>1741764207752</updated>
+    </task>
+    <task id="LOCAL-00045" summary=":sparkles: feat(transform): 添加全局值编号 (GVN) 优化&#10;&#10;- 修复GCM中lca为entry导致无法获得支配树父节点的bug">
+      <option name="closed" value="true" />
+      <created>1741790125367</created>
+      <option name="number" value="00045" />
+      <option name="presentableId" value="LOCAL-00045" />
+      <option name="project" value="LOCAL" />
+      <updated>1741790125368</updated>
+    </task>
+    <task id="LOCAL-00046" summary=":sparkles: feat(transform): 添加全局值编号 (GVN) 优化&#10;&#10;- 修复GCM中lca为entry导致无法获得支配树父节点的bug">
+      <option name="closed" value="true" />
+      <created>1741790322889</created>
+      <option name="number" value="00046" />
+      <option name="presentableId" value="LOCAL-00046" />
+      <option name="project" value="LOCAL" />
+      <updated>1741790322889</updated>
+    </task>
+    <task id="LOCAL-00047" summary=":zap: refactor(SimplifyCFG): 改进 SimplifyCFG 优化，增加将条件分支替换为无条件跳转的逻辑">
+      <option name="closed" value="true" />
+      <created>1741795844518</created>
+      <option name="number" value="00047" />
+      <option name="presentableId" value="LOCAL-00047" />
+      <option name="project" value="LOCAL" />
+      <updated>1741795844518</updated>
+    </task>
+    <task id="LOCAL-00048" summary="feat(Interpreter): 实现constexpr函数的解释执行runtime">
+      <option name="closed" value="true" />
+      <created>1741878419591</created>
+      <option name="number" value="00048" />
+      <option name="presentableId" value="LOCAL-00048" />
+      <option name="project" value="LOCAL" />
+      <updated>1741878419591</updated>
+    </task>
+    <task id="LOCAL-00049" summary="refactor: 函数分析">
+      <option name="closed" value="true" />
+      <created>1741883236227</created>
+      <option name="number" value="00049" />
+      <option name="presentableId" value="LOCAL-00049" />
+      <option name="project" value="LOCAL" />
+      <updated>1741883236227</updated>
+    </task>
+    <task id="LOCAL-00050" summary="refactor: 函数分析">
+      <option name="closed" value="true" />
+      <created>1741884244106</created>
+      <option name="number" value="00050" />
+      <option name="presentableId" value="LOCAL-00050" />
+      <option name="project" value="LOCAL" />
+      <updated>1741884244106</updated>
+    </task>
+    <task id="LOCAL-00051" summary="修复 LCSSA bug">
+      <option name="closed" value="true" />
+      <created>1741921729545</created>
+      <option name="number" value="00051" />
+      <option name="presentableId" value="LOCAL-00051" />
+      <option name="project" value="LOCAL" />
+      <updated>1741921729545</updated>
+    </task>
+    <task id="LOCAL-00052" summary="fix getelementptr">
+      <option name="closed" value="true" />
+      <created>1742097739965</created>
+      <option name="number" value="00052" />
+      <option name="presentableId" value="LOCAL-00052" />
+      <option name="project" value="LOCAL" />
+      <updated>1742097739966</updated>
+    </task>
+    <task id="LOCAL-00053" summary="fix getelementptr">
+      <option name="closed" value="true" />
+      <created>1742097963928</created>
+      <option name="number" value="00053" />
+      <option name="presentableId" value="LOCAL-00053" />
+      <option name="project" value="LOCAL" />
+      <updated>1742097963928</updated>
+    </task>
+    <task id="LOCAL-00054" summary="fix getelementptr">
+      <option name="closed" value="true" />
+      <created>1742098983479</created>
+      <option name="number" value="00054" />
+      <option name="presentableId" value="LOCAL-00054" />
+      <option name="project" value="LOCAL" />
+      <updated>1742098983479</updated>
+    </task>
+    <task id="LOCAL-00055" summary="fix getelementptr">
+      <option name="closed" value="true" />
+      <created>1742099166925</created>
+      <option name="number" value="00055" />
+      <option name="presentableId" value="LOCAL-00055" />
+      <option name="project" value="LOCAL" />
+      <updated>1742099166925</updated>
+    </task>
+    <task id="LOCAL-00056" summary="fix getelementptr">
+      <option name="closed" value="true" />
+      <created>1742124794476</created>
+      <option name="number" value="00056" />
+      <option name="presentableId" value="LOCAL-00056" />
+      <option name="project" value="LOCAL" />
+      <updated>1742124794476</updated>
+    </task>
+    <task id="LOCAL-00057" summary="fix style">
+      <option name="closed" value="true" />
+      <created>1742125002426</created>
+      <option name="number" value="00057" />
+      <option name="presentableId" value="LOCAL-00057" />
+      <option name="project" value="LOCAL" />
+      <updated>1742125002426</updated>
+    </task>
+    <task id="LOCAL-00058" summary=":sparkles: feat(Function): 完成函数分析">
+      <option name="closed" value="true" />
+      <created>1742135841470</created>
+      <option name="number" value="00058" />
+      <option name="presentableId" value="LOCAL-00058" />
+      <option name="project" value="LOCAL" />
+      <updated>1742135841470</updated>
+    </task>
+    <task id="LOCAL-00059" summary=":recycle: feat(Pass): 添加常量函数求值和未使用指令消除功能&#10;&#10;- 新增 ConstexprFuncEval 转换，用于在编译时执行可识别的 constexpr函数&#10;- 新增 UnusedInstEliminate 转换，用于删除未被使用的指令&#10;- UnusedInstEliminate.cpp是临时pass，待重写">
+      <option name="closed" value="true" />
+      <created>1742142633350</created>
+      <option name="number" value="00059" />
+      <option name="presentableId" value="LOCAL-00059" />
+      <option name="project" value="LOCAL" />
+      <updated>1742142633350</updated>
+    </task>
+    <task id="LOCAL-00060" summary=":recycle: feat(Pass): 添加常量函数求值和未使用指令消除功能&#10;&#10;- 新增 ConstexprFuncEval 转换，用于在编译时执行可识别的 constexpr函数&#10;- 新增 UnusedInstEliminate 转换，用于删除未被使用的指令&#10;- UnusedInstEliminate.cpp是临时pass，待重写">
+      <option name="closed" value="true" />
+      <created>1742187971223</created>
+      <option name="number" value="00060" />
+      <option name="presentableId" value="LOCAL-00060" />
+      <option name="project" value="LOCAL" />
+      <updated>1742187971223</updated>
+    </task>
+    <task id="LOCAL-00061" summary="feat(DCE): 准备写DCE">
+      <option name="closed" value="true" />
+      <created>1742226874686</created>
+      <option name="number" value="00061" />
+      <option name="presentableId" value="LOCAL-00061" />
+      <option name="project" value="LOCAL" />
+      <updated>1742226874686</updated>
+    </task>
+    <task id="LOCAL-00062" summary="feat(DCE): 准备写DCE">
+      <option name="closed" value="true" />
+      <created>1742227067276</created>
+      <option name="number" value="00062" />
+      <option name="presentableId" value="LOCAL-00062" />
+      <option name="project" value="LOCAL" />
+      <updated>1742227067276</updated>
+    </task>
+    <task id="LOCAL-00063" summary="feat(DCE): 实现较为激进的全局代码删除">
+      <option name="closed" value="true" />
+      <created>1742267264866</created>
+      <option name="number" value="00063" />
+      <option name="presentableId" value="LOCAL-00063" />
+      <option name="project" value="LOCAL" />
+      <updated>1742267264867</updated>
+    </task>
+    <task id="LOCAL-00064" summary="feat(DCE): 实现较为激进的全局代码删除">
+      <option name="closed" value="true" />
+      <created>1742267681627</created>
+      <option name="number" value="00064" />
+      <option name="presentableId" value="LOCAL-00064" />
+      <option name="project" value="LOCAL" />
+      <updated>1742267681627</updated>
+    </task>
+    <task id="LOCAL-00065" summary=":art: refactor(DCE): 更改源代码结构&#10;&#10;[skip ci]">
+      <option name="closed" value="true" />
+      <created>1742268120010</created>
+      <option name="number" value="00065" />
+      <option name="presentableId" value="LOCAL-00065" />
+      <option name="project" value="LOCAL" />
+      <updated>1742268120010</updated>
+    </task>
+    <task id="LOCAL-00066" summary="fix(DCE): 修复DCE误删除的bug">
+      <option name="closed" value="true" />
+      <created>1742269617129</created>
+      <option name="number" value="00066" />
+      <option name="presentableId" value="LOCAL-00066" />
+      <option name="project" value="LOCAL" />
+      <updated>1742269617129</updated>
+    </task>
+    <task id="LOCAL-00067" summary="fix(DCE): 完成无用函数形参删除">
+      <option name="closed" value="true" />
+      <created>1742284554124</created>
+      <option name="number" value="00067" />
+      <option name="presentableId" value="LOCAL-00067" />
+      <option name="project" value="LOCAL" />
+      <updated>1742284554124</updated>
+    </task>
+    <task id="LOCAL-00068" summary="feat(Pass): 实现全局变量下沉优化">
+      <option name="closed" value="true" />
+      <created>1742359893581</created>
+      <option name="number" value="00068" />
+      <option name="presentableId" value="LOCAL-00068" />
+      <option name="project" value="LOCAL" />
+      <updated>1742359893581</updated>
+    </task>
+    <task id="LOCAL-00069" summary="refactor(GVN): 向GVN中集成了常量折叠，不作为单独一个pass">
+      <option name="closed" value="true" />
+      <created>1742361690812</created>
+      <option name="number" value="00069" />
+      <option name="presentableId" value="LOCAL-00069" />
+      <option name="project" value="LOCAL" />
+      <updated>1742361690812</updated>
+    </task>
+    <task id="LOCAL-00070" summary="add index">
+      <option name="closed" value="true" />
+      <created>1742390177992</created>
+      <option name="number" value="00070" />
+      <option name="presentableId" value="LOCAL-00070" />
+      <option name="project" value="LOCAL" />
+      <updated>1742390177993</updated>
+    </task>
+    <option name="localTasksCounter" value="71" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="VCPKGProject">
+    <isAutomaticCheckingOnLaunch value="false" />
+    <isAutomaticFoundErrors value="true" />
+    <isAutomaticReloadCMake value="true" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="fix CI" />
+    <MESSAGE value="fix llvm memset and Builder" />
+    <MESSAGE value="fix LVal and gep" />
+    <MESSAGE value="更改create签名" />
+    <MESSAGE value=":sparkles: feat(Pass): 实现全局代码移动&#10;&#10;- 添加 GlobalCodeMotion.cpp 文件并实现相关优化逻辑&#10;- 修复了 nullptr 检查和一些潜在的错误" />
+    <MESSAGE value=":sparkles: feat(Phi): 添加find_optional_block方法" />
+    <MESSAGE value="fix gcm" />
+    <MESSAGE value="add gvn" />
+    <MESSAGE value=":sparkles: feat(transform): 添加全局值编号 (GVN) 优化&#10;&#10;- 修复GCM中lca为entry导致无法获得支配树父节点的bug" />
+    <MESSAGE value=":zap: refactor(SimplifyCFG): 改进 SimplifyCFG 优化，增加将条件分支替换为无条件跳转的逻辑" />
+    <MESSAGE value="feat(Interpreter): 实现constexpr函数的解释执行runtime" />
+    <MESSAGE value="refactor: 函数分析" />
+    <MESSAGE value="修复 LCSSA bug" />
+    <MESSAGE value="fix getelementptr" />
+    <MESSAGE value="fix style" />
+    <MESSAGE value=":sparkles: feat(Function): 完成函数分析" />
+    <MESSAGE value=":recycle: feat(Pass): 添加常量函数求值和未使用指令消除功能&#10;&#10;- 新增 ConstexprFuncEval 转换，用于在编译时执行可识别的 constexpr函数&#10;- 新增 UnusedInstEliminate 转换，用于删除未被使用的指令&#10;- UnusedInstEliminate.cpp是临时pass，待重写" />
+    <MESSAGE value="feat(DCE): 准备写DCE" />
+    <MESSAGE value="feat(DCE): 实现较为激进的全局代码删除" />
+    <MESSAGE value=":art: refactor(DCE): 更改源代码结构&#10;&#10;[skip ci]" />
+    <MESSAGE value="fix(DCE): 修复DCE误删除的bug" />
+    <MESSAGE value="fix(DCE): 完成无用函数形参删除" />
+    <MESSAGE value="feat(Pass): 实现全局变量下沉优化" />
+    <MESSAGE value="refactor(GVN): 向GVN中集成了常量折叠，不作为单独一个pass" />
+    <MESSAGE value="add index" />
+    <option name="LAST_COMMIT_MESSAGE" value="add index" />
+  </component>
+</project>
