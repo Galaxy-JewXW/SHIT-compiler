@@ -81,15 +81,6 @@ private:
     std::shared_ptr<ControlFlowGraph> cfg_info_;
 };
 
-// 常数折叠：编译期计算常量表达式
-class ConstantFolding final : public Transform {
-public:
-    explicit ConstantFolding() : Transform("ConstantFolding") {}
-
-protected:
-    void transform(std::shared_ptr<Mir::Module> module) override;
-};
-
 /**
  * 简化控制流：
  * 1. 删除没有前驱块（即无法到达）的基本块
@@ -142,6 +133,15 @@ public:
 
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
+
+    void run_on_func(const std::shared_ptr<Mir::Function> &func);
+
+    void run_on_block(const std::shared_ptr<Mir::Function> &func,
+                      const std::shared_ptr<Mir::Block> &block,
+                      std::unordered_map<std::string, std::shared_ptr<Mir::Instruction>> &value_hashmap);
+
+private:
+    std::shared_ptr<ControlFlowGraph> cfg;
 };
 
 // 执行在编译期内能识别出来的constexpr函数

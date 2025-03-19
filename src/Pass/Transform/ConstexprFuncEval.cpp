@@ -82,7 +82,7 @@ void ConstexprFuncEval::transform(const std::shared_ptr<Module> module) {
             changed |= run_on_func(func);
         }
         if (changed) {
-            create<ConstantFolding>()->run_on(module);
+            create<GlobalValueNumbering>()->run_on(module);
             create<DeadInstEliminate>()->run_on(module);
         }
     } while (changed);

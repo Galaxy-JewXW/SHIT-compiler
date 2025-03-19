@@ -529,9 +529,6 @@ void Pass::AlgebraicSimplify::transform(const std::shared_ptr<Module> module) {
     bool changed = false;
     do {
         changed = false;
-        // 常量折叠
-        const auto fold = create<ConstantFolding>();
-        fold->run_on(module);
         // 对于每一条满足交换律的IntBinary，满足常数均位于运算符右侧
         const auto standardize_binary = create<StandardizeBinary>();
         standardize_binary->run_on(module);
@@ -542,7 +539,5 @@ void Pass::AlgebraicSimplify::transform(const std::shared_ptr<Module> module) {
         }
         create<DeadInstEliminate>()->run_on(module);
     } while (changed);
-    const auto fold = create<ConstantFolding>();
-    fold->run_on(module);
     create<DeadInstEliminate>()->run_on(module);
 }

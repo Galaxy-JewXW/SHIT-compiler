@@ -95,7 +95,7 @@ namespace {
         }
         if (!can_replaced.empty()) {
             Pass::create<Mem2Reg>()->run_on(module);
-            Pass::create<ConstantFolding>()->run_on(module);
+            Pass::create<GlobalValueNumbering>()->run_on(module);
         }
     }
 }
