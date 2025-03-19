@@ -82,6 +82,8 @@ public:
 
     [[nodiscard]] bool is_constant_gv() const { return is_constant; }
 
+    [[nodiscard]] std::shared_ptr<Init::Init> get_init_value() const { return init_value; }
+
     [[nodiscard]] std::string to_string() const override;
 };
 

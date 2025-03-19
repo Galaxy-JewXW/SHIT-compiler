@@ -206,6 +206,14 @@ private:
 
     void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
 };
+
+class GlobalVariableLocalize final : public Transform {
+public:
+    explicit GlobalVariableLocalize() : Transform("GlobalVariableLocalize") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+};
 }
 
 #endif //TRANSFORM_H
