@@ -1,7 +1,10 @@
 *.xml
 *.iml
 *.sy
+*.ll
 
 .idea/
 cmake-build-debug/
 bin/
+build/
+tests/
