@@ -3,7 +3,7 @@
 int main(int argc, char *argv[]) {
 #ifdef SHIT_DEBUG
     log_set_level(LOG_TRACE);
-    compiler_options options = debug_compile_options;
+    compiler_options options = parse_args(argc, argv, debug_compile_options);
 #else
     log_set_level(LOG_INFO);
     compiler_options options = parse_args(argc, argv);
@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (options.flag_S) {
-        // TODO
+        emit_riscv(std::make_shared<Assembler::riscv_assembler>(), options._emit_options);
     }
 
     return 0;

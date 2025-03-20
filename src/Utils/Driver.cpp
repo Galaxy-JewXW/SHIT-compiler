@@ -1,11 +1,18 @@
 #include "Compiler.h"
 
-compiler_options debug_compile_options = {
+extern const Optimize_level default_opt_level;
+
+const compiler_options debug_compile_options = {
     .input_file = "../testcase.sy",
     .flag_S = true,
     .output_file = "../testcase.s",
-    ._emit_options = {.emit_tokens = false, .emit_ast = false, .emit_llvm = true},
-    .opt_level = Optimize_level::O1
+    ._emit_options = {
+        .emit_tokens = false,
+        .emit_ast = false,
+        .emit_llvm = true,
+        .emit_riscv = true,
+    },
+    .opt_level = default_opt_level,
 };
 
 std::string opt_level_to_string(const Optimize_level level) {
@@ -21,7 +28,8 @@ void compiler_options::print() const {
     std::stringstream ss;
     ss << "Options: "
             << "-input=" << input_file
-            << ", -S=" << (flag_S ? "true" : "false");
+            << ", -S=" << (flag_S ? "true" : "false")
+            << ", -assembly=" << (_emit_options.emit_riscv ? "rsicv" : "none");
     if (!output_file.empty()) {
         ss << ", -output=" << output_file;
     }
@@ -108,6 +116,9 @@ compiler_options parse_args(const int argc, char *argv[]) {
                 } else {
                     i++;
                 }
+            } else if (arg == "-emit-riscv") {
+                options._emit_options.emit_riscv = true;
+                i++;
             } else {
                 usage(argv[0]);
                 log_fatal("Unknown option: %s", arg.c_str());
@@ -137,6 +148,42 @@ compiler_options parse_args(const int argc, char *argv[]) {
     return options;
 }
 
+compiler_options parse_args(const int argc, char *argv[], compiler_options options) {
+    if (argc < 2) {
+        return options;
+    }
+    const compiler_options options_ = parse_args(argc, argv);
+    options.input_file = options_.input_file;
+    if (options_.flag_S) {
+        options.flag_S = true;
+        if (options_.output_file.empty()) {
+            const size_t last_dot = options.input_file.find_last_of('.');
+            options.output_file = options.input_file.substr(0, last_dot) + ".s";
+        } else {
+            options.output_file = options_.output_file;
+        }
+    }
+    if (options_.opt_level != default_opt_level) {
+        options.opt_level = options_.opt_level;
+    }
+    if (options_._emit_options.emit_tokens) {
+        options._emit_options.emit_tokens = true;
+        options._emit_options.tokens_file = options_._emit_options.tokens_file;
+    }
+    if (options_._emit_options.emit_ast) {
+        options._emit_options.emit_ast = true;
+        options._emit_options.ast_file = options_._emit_options.ast_file;
+    }
+    if (options_._emit_options.emit_llvm) {
+        options._emit_options.emit_llvm = true;
+        options._emit_options.llvm_file = options_._emit_options.llvm_file;
+    }
+    if (options_._emit_options.emit_riscv) {
+        options._emit_options.emit_riscv = true;
+    }
+    return options;
+}
+
 void emit_tokens(const std::vector<Token::Token> &tokens, const emit_options &options) {
     if (!options.emit_tokens) return;
     log_info("Emitting tokens...");
@@ -161,4 +208,11 @@ void emit_llvm(const std::shared_ptr<Mir::Module> &module, const emit_options &o
     log_info("Emitting LLVM IR...");
     module->update_id();
     emit_output(options.llvm_file, module->to_string());
+}
+
+void emit_riscv(const std::shared_ptr<Assembler::riscv_assembler> &assembler, const emit_options &options) {
+    //TODO - Emitting RISC-V assembly
+    if (!options.emit_riscv) return;
+    log_info("Emitting RISC-V assembly...");
+    log_warn("Not implemented yet");
 }

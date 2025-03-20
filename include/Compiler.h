@@ -15,8 +15,11 @@
 #include "Pass/Transform.h"
 #include "Pass/Util.h"
 #include "Utils/Log.h"
+#include "Backend/Assembler.h"
 
 enum class Optimize_level { O0, O1, O2 };
+
+const Optimize_level default_opt_level = Optimize_level::O0;
 
 struct emit_options {
     bool emit_tokens = false;
@@ -25,6 +28,7 @@ struct emit_options {
     std::string ast_file;
     bool emit_llvm = false;
     std::string llvm_file;
+    bool emit_riscv = false;
 };
 
 struct compiler_options {
@@ -32,13 +36,13 @@ struct compiler_options {
     bool flag_S = false;
     std::string output_file;
     emit_options _emit_options;
-    Optimize_level opt_level = Optimize_level::O0;
+    Optimize_level opt_level = default_opt_level;
 
     void print() const;
 };
 
 // cmake设置为Debug时的编译选项
-extern compiler_options debug_compile_options;
+extern const compiler_options debug_compile_options;
 
 template<typename T>
 void emit_output(const std::string &filename, const T &content) {
@@ -63,9 +67,13 @@ void emit_ast(const std::shared_ptr<AST::CompUnit> &ast, const emit_options &opt
 
 void emit_llvm(const std::shared_ptr<Mir::Module> &module, const emit_options &options);
 
+void emit_riscv(const std::shared_ptr<Assembler::riscv_assembler> &assembler, const emit_options &options);
+
 void usage(const char *prog_name);
 
 compiler_options parse_args(int argc, char *argv[]);
+
+compiler_options parse_args(const int argc, char *argv[], compiler_options options);
 
 int main(int, char *[]);
 
