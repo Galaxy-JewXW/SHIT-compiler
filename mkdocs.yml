@@ -25,17 +25,34 @@ theme:
     - search.highlight              # 搜索高亮显示
     - search.share                  # 搜索分享
 
+nav:
+  - 概述:
+    - '使用方法': '概述/使用方法.md'
+  - 前端:
+    - '总览': '前端/总览.md'
+  - 中端:
+    - '总览': '中端/总览.md'
+  - 后端:
+    - '总览': '后端/总览.md'
+  - 参考资料:
+    - '往届比赛作品': '参考资料/往届比赛作品.md'
+
 plugins:
   - search
   - offline
-  - awesome-pages                   # 启用 mkdocs-awesome-plugin
   - macros                          # 启用 mkdocs-macros-plugin
 
 copyright: Copyright &copy; 2025 SHIT-compiler team. All rights reserved.
 
 markdown_extensions:
   - pymdownx.highlight:
-      anchor_linenums: true
+      linenums: true
+      linenums_style: pymdownx.inline
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.superfences
+  - attr_list
+  - def_list
+  - pymdownx.tasklist:
+      custom_checkbox: true
+      clickable_checkbox: true
