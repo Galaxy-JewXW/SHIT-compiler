@@ -282,6 +282,25 @@ static bool reduce_sub(const std::shared_ptr<Sub> &sub, std::vector<std::shared_
             }
         }
     }
+    // a * b - a = a * (b - 1)
+    // b * a - a = a * (b - 1)
+    if (const auto mul_lhs = std::dynamic_pointer_cast<Mul>(lhs)) {
+        const auto a = mul_lhs->get_lhs(), b = mul_lhs->get_rhs();
+        if (a == rhs) {
+            const auto new_sub = Sub::create(Builder::gen_variable_name(), b, std::make_shared<ConstInt>(1), nullptr);
+            insert_instruction(new_sub, current_block, instructions, idx);
+            const auto new_mul = Mul::create(Builder::gen_variable_name(), new_sub, a, nullptr);
+            replace_instruction(sub, new_mul, current_block, instructions, idx);
+            return true;
+        }
+        if (b == rhs) {
+            const auto new_sub = Sub::create(Builder::gen_variable_name(), a, std::make_shared<ConstInt>(1), nullptr);
+            insert_instruction(new_sub, current_block, instructions, idx);
+            const auto new_mul = Mul::create(Builder::gen_variable_name(), new_sub, b, nullptr);
+            replace_instruction(sub, new_mul, current_block, instructions, idx);
+            return true;
+        }
+    }
     // b * a - c * a = (b - c) * a
     // a * b - c * a = (b - c) * a
     // a * b - a * c = (b - c) * a

@@ -22,27 +22,13 @@ public:
     Value(std::string name, const std::shared_ptr<Type::Type> &type)
         : name_{std::move(name)}, type_(type) {}
 
-    Value(const Value &other)
-        : Value(other.name_, other.type_) {
-        std::for_each(other.users_.begin(), other.users_.end(), [this](const auto &user_wp) {
-            if (auto user_sp = user_wp.lock()) {
-                add_user(user_sp);
-            }
-        });
-    }
+    Value(const Value &other) = delete;
 
-    Value &operator=(const Value &other) {
-        if (this != &other) {
-            name_ = other.name_;
-            type_ = other.type_;
-            std::for_each(other.users_.begin(), other.users_.end(), [this](const auto &user_wp) {
-                if (auto user_sp = user_wp.lock()) {
-                    add_user(user_sp);
-                }
-            });
-        }
-        return *this;
-    }
+    Value &operator=(const Value &other) = delete;
+
+    Value(Value &&other) = delete;
+
+    Value &operator=(Value &&other) = delete;
 
     virtual ~Value() = default;
 
@@ -115,23 +101,13 @@ public:
     User(const std::string &name, const std::shared_ptr<Type::Type> &type)
         : Value{name, type} {}
 
-    User(const User &other)
-        : Value(other) {
-        std::for_each(other.operands_.begin(), other.operands_.end(), [this](const auto &operand) {
-            if (operand) { add_operand(operand); }
-        });
-    }
+    User(const User &other) = delete;
 
-    User &operator=(const User &other) {
-        if (this != &other) {
-            Value::operator=(other);
-            clear_operands();
-            std::for_each(other.operands_.begin(), other.operands_.end(), [this](const auto &operand) {
-                if (operand) { add_operand(operand); }
-            });
-        }
-        return *this;
-    }
+    User &operator=(const User &other) = delete;
+
+    User(User &&other) = delete;
+
+    User &operator=(User &&other) = delete;
 
     ~User() override {
         for (const auto &operand: operands_) {

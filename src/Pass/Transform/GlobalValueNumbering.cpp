@@ -194,8 +194,8 @@ bool evaluate_cmp(const std::shared_ptr<Cmp> &inst, int &res) {
         }
     }
     // 解引用静态指针获得常量值，根据比较操作符进行计算
-    const auto lhs_val = *std::static_pointer_cast<ConstType>(lhs),
-               rhs_val = *std::static_pointer_cast<ConstType>(rhs);
+    const auto lhs_val = **lhs->template as<ConstType>(),
+               rhs_val = **rhs->template as<ConstType>();
     switch (inst->op) {
         case Cmp::Op::EQ: res = lhs_val == rhs_val;
             break;
