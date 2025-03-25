@@ -2,7 +2,7 @@
 
 > 作者：zxw
 > 
-> 最近一次更新于2025/3/24
+> 最近一次更新于2025/3/25
 
 正如总览中所介绍的，在LLVM中，“一切皆Value”，所有的语法成分均为`Value`的子类。
 
@@ -30,27 +30,13 @@ public:
     Value(std::string name, const std::shared_ptr<Type::Type> &type)
         : name_{std::move(name)}, type_(type) {}
 
-    Value(const Value &other)
-        : Value(other.name_, other.type_) {
-        std::for_each(other.users_.begin(), other.users_.end(), [this](const auto &user_wp) {
-            if (auto user_sp = user_wp.lock()) {
-                add_user(user_sp);
-            }
-        });
-    }
+    Value(const Value &other) = delete;
 
-    Value &operator=(const Value &other) {
-        if (this != &other) {
-            name_ = other.name_;
-            type_ = other.type_;
-            std::for_each(other.users_.begin(), other.users_.end(), [this](const auto &user_wp) {
-                if (auto user_sp = user_wp.lock()) {
-                    add_user(user_sp);
-                }
-            });
-        }
-        return *this;
-    }
+    Value &operator=(const Value &other) = delete;
+
+    Value(Value &&other) = delete;
+
+    Value &operator=(Value &&other) = delete;
 
     virtual ~Value() = default;
 
@@ -132,10 +118,192 @@ Value持有以下的数据：
 
 ### 接口
 
-#### 拷贝构造函数和赋值构造函数
+#### 拷贝构造和赋值构造
 
-Value类实现了拷贝构造函数和赋值构造函数，方便对Value进行深拷贝操作。
+Value类禁止了通过拷贝构造或赋值构造来构造新的Value对象。
 
-#### 获取修改标识符
+#### 标识符（名称）
 
-可通过`get_name`与`set_name`方法获取或修改Value对象的标识符。
+获取Value对象的标识符：
+
+`[[nodiscard]] const std::string &get_name() const { return name_; }`。
+
+修改Value对象的标识符：
+
+`void set_name(const std::string &name) { this->name_ = name; }`
+
+#### 类型
+
+获取Value对象的类型：
+
+`[[nodiscard]] std::shared_ptr<Type::Type> get_type() const { return type_; }`。
+
+#### 使用该Value的User
+
+- 获取当前使用该Value对象的User列表：
+
+    `std::vector<std::weak_ptr<User>> &weak_users() { return users_; }`
+
+    注意：该函数返回的是一个weak_ptr列表，**需要另外判断每个weak_ptr是否有效。**
+
+    **如果需要安全遍历该value的user，建议使用迭代器。**
+
+- 添加使用Value对象的User，执行完成后user与value形成`user-use-value`关系：
+
+    `void add_user(const std::shared_ptr<User> &user)`。
+
+    如果user已经在value的users列表里，**则不会重复添加。**
+
+    **该函数只维护了Value的被use关系，不会维护User的use关系。**
+
+- 删除使用Value对象的User，执行完成后user不再使用value：
+
+    `void delete_user(const std::shared_ptr<User> &user)`。
+
+    **该函数只维护了Value的被use关系，不会维护User的use关系。**
+
+- 清理失效User对象：
+
+    `void cleanup_users()`
+
+    使用`add_user`，`delete_user`与`replace_by_new_value`函数或使用迭代器时，会先行自动调用`cleanup_users`函数。
+    
+    > Value对应的User被销毁后，在users_中可能依然存有对该user的指针。因此需要在增删user时清理users_，防止出现访存异常。
+
+- 安全遍历value对象的user列表：
+
+    `value.users()`
+
+    该函数会执行`cleanup_users`函数，清除已被free的User对象。
+
+#### 常值
+判断某个Value是否为常值（字面量）：
+
+`[[nodiscard]] virtual bool is_constant();`
+
+#### 全局替换
+
+将所有使用该User的Value（old_value）替换为另一个Value（new_value）：
+
+`void replace_by_new_value(const std::shared_ptr<Value> &new_value);`
+
+该函数首先会检查`old_value`与`new_value`是否为同一类型。如果满足该条件，函数会调用`User`类中的`modify_operand`函数，会自动维护old_value与new_value与相关user的使用关系。
+
+**建议后续优化中如果出现value替换的场景，优先使用本函数。**
+
+#### 类型转换
+
+对指向Value对象的shared_ptr进行静态类型转换：
+
+`template<typename T> std::shared_ptr<T> as()`
+
+**注意：该函数在知道对象的真实类型时才可使用**，如当该Value一定是Instruction时，可使用`value.as<Mir::Instruction>()`来减少动态转换带来的开销。其他情况下请使用`std::dynamic_pointer_cast<typename T>`。
+
+## User
+在SHIT-complier中，User类的定义如下：
+
+```cpp
+class User : public Value {
+protected:
+    std::vector<std::shared_ptr<Value>> operands_;
+
+public:
+    User(const std::string &name, const std::shared_ptr<Type::Type> &type)
+        : Value{name, type} {}
+
+    User(const User &other) = delete;
+
+    User &operator=(const User &other) = delete;
+
+    User(User &&other) = delete;
+
+    User &operator=(User &&other) = delete;
+
+    ~User() override {
+        for (const auto &operand: operands_) {
+            operand->delete_user(std::shared_ptr<User>(this, [](User *) {}));
+        }
+        operands_.clear();
+    }
+
+    const std::vector<std::shared_ptr<Value>> &get_operands() const { return operands_; }
+
+    void add_operand(const std::shared_ptr<Value> &value);
+
+    void clear_operands();
+
+    virtual void modify_operand(const std::shared_ptr<Value> &old_value, const std::shared_ptr<Value> &new_value);
+
+    auto begin() { return operands_.begin(); }
+    auto end() { return operands_.end(); }
+    auto begin() const { return operands_.begin(); }
+    auto end() const { return operands_.end(); }
+
+    void remove_operand(const std::shared_ptr<Value> &value);
+};
+```
+
+### 数据结构
+- `operands_`：User对象使用的Value对象列表。
+
+> 这里使用`std::vector<std::shared_ptr<Value>>`，是因为User持有Value，User控制着Value的生命周期。
+
+### 接口
+
+**与Value类一样，User类不支持拷贝构造和赋值构造**
+
+除先前Value类所拥有的接口之外，User类具有以下的额外接口：
+
+#### User使用的Value（操作数）
+
+- 获取操作数列表
+
+    `const std::vector<std::shared_ptr<Value>> &get_operands() const { return operands_; }`
+
+- 添加操作数
+
+    `void add_operand(const std::shared_ptr<Value> &value);`
+
+    **该函数同时维护了维护了Value的被use关系和User的use关系。**
+
+- 删除操作数
+
+    `void remove_operand(const std::shared_ptr<Value> &value)`
+
+    **该函数同时维护了维护了Value的被use关系和User的use关系。**
+
+- 修改操作数
+
+    `virtual void modify_operand(const std::shared_ptr<Value> &old_value, const std::shared_ptr<Value> &new_value)`
+
+    **该函数同时维护了维护了Value的被use关系和User的use关系。**
+
+    **Phi指令对该函数进行了重写。**
+
+- 清除操作数
+
+    `void clear_operands()`
+
+    **该函数同时维护了维护了Value的被use关系和User的use关系。**
+
+    析构时`~User()`同时会执行`clear_operands`，但是由于可能该User无人使用但尚未析构，建议某一User不再被使用时可以执行`clear_operands`函数。
+
+- 迭代器
+
+    User类通过以下函数实现迭代器：
+
+    ```cpp
+    auto begin() { return operands_.begin(); }
+    auto end() { return operands_.end(); }
+    auto begin() const { return operands_.begin(); }
+    auto end() const { return operands_.end(); }
+    ```
+
+    通过迭代器可以方便的遍历User对象的操作数列表，示例如下：
+
+    ```cpp
+    const std::shared_ptr<Instruction> inst = foo; // Instruction为User的子类
+    for (const auto &operand: *inst) { // 将inst进行解引用，获得实际对象，再使用迭代器
+        // 执行操作
+    }
+    ```
