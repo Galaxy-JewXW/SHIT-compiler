@@ -278,11 +278,9 @@ static void run_on_func(const FunctionPtr &func) {
 namespace Pass {
 void GlobalCodeMotion::transform(const std::shared_ptr<Module> module) {
     // 计算支配树和支配关系
-    cfg = create<ControlFlowGraph>();
-    cfg->run_on(module);
+    cfg = get_analysis_result<ControlFlowGraph>(module);
     // 利用循环分析计算循环深度
-    loop_analysis = create<LoopAnalysis>();
-    loop_analysis->run_on(module);
+    loop_analysis = get_analysis_result<LoopAnalysis>(module);
 
     visited_instructions.clear();
     current_function = nullptr;

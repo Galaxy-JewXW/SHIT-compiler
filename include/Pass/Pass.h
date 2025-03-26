@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <utility>
+
 #include "Mir/Structure.h"
 #include "Utils/Log.h"
 

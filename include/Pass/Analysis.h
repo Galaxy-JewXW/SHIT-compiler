@@ -18,10 +18,22 @@ public:
         analyze(const_module);
     }
 
+    void run_on(const std::shared_ptr<const Mir::Module> &module) {
+        analyze(module);
+    }
+
 protected:
     // 子类必须实现的纯虚函数（只读版本）
     virtual void analyze(std::shared_ptr<const Mir::Module> module) = 0;
 };
+
+template<typename T>
+std::shared_ptr<T> get_analysis_result(const std::shared_ptr<Mir::Module> module) {
+    static_assert(std::is_base_of_v<Analysis, T>, "T must be a subclass of Analysis");
+    const auto analysis = Pass::create<T>();
+    analysis->run_on(module);
+    return analysis;
+}
 
 // ControlFlowGraph构建控制流图
 // 每个Function对应一套独立的CFG信息，键为FunctionPtr，代表不同的函数

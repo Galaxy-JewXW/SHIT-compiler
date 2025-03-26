@@ -284,8 +284,7 @@ void GlobalValueNumbering::run_on_func(const FunctionPtr &func) {
 }
 
 void GlobalValueNumbering::transform(const std::shared_ptr<Module> module) {
-    cfg = create<ControlFlowGraph>();
-    cfg->run_on(module);
+    cfg = get_analysis_result<ControlFlowGraph>(module);
     // 不同的遍历顺序可能导致化简的结果不同
     // 跑多次GVN直到一个不动点
     for (const auto &func: *module) {
@@ -297,7 +296,6 @@ void GlobalValueNumbering::transform(const std::shared_ptr<Module> module) {
     cfg = nullptr;
     // GVN后可能出现一条指令被替换成其另一条指令，但是那条指令并不支配这条指令的users的问题
     // 可以通过 GCM 解决。在 GCM 中考虑value之间的依赖，会根据依赖将那条指令移动到正确的位置
-    const auto &gcm = create<GlobalCodeMotion>();
-    gcm->run_on(module);
+    create<GlobalCodeMotion>()->run_on(module);
 }
 }
