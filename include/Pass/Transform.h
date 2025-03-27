@@ -94,6 +94,24 @@ public:
 
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
+
+    void dfs(const std::shared_ptr<Mir::Block> &current_block);
+
+    void remove_unreachable_blocks_for_phi(const std::shared_ptr<Mir::Phi> &phi,
+                                           const std::shared_ptr<Mir::Function> &func) const;
+
+    bool try_merge_blocks(const std::shared_ptr<Mir::Function> &func) const;
+
+    bool try_simplify_single_jump(const std::shared_ptr<Mir::Function> &func) const;
+
+    void remove_unreachable_blocks(const std::shared_ptr<Mir::Function> &func);
+
+    void remove_phi(const std::shared_ptr<Mir::Function> &func) const;
+
+private:
+    std::unordered_set<std::shared_ptr<Mir::Block>> visited;
+
+    std::shared_ptr<ControlFlowGraph> cfg_info;
 };
 
 // 标准化计算指令 "Binary"
@@ -123,6 +141,28 @@ public:
 
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
+
+    bool is_pinned(const std::shared_ptr<Mir::Instruction> &instruction) const;
+
+    void run_on_func(const std::shared_ptr<Mir::Function> &func);
+
+    void schedule_early(const std::shared_ptr<Mir::Instruction> &instruction);
+
+    void schedule_late(const std::shared_ptr<Mir::Instruction> &instruction);
+
+    int dom_tree_depth(const std::shared_ptr<Mir::Block> &block) const;
+
+    int loop_depth(const std::shared_ptr<Mir::Block> &block) const;
+
+    std::shared_ptr<Mir::Block> find_lca(const std::shared_ptr<Mir::Block> &block1,
+                                         const std::shared_ptr<Mir::Block> &block2) const;
+
+private:
+    std::shared_ptr<ControlFlowGraph> cfg = nullptr;
+    std::shared_ptr<LoopAnalysis> loop_analysis = nullptr;
+    std::shared_ptr<FunctionAnalysis> function_analysis = nullptr;
+    std::shared_ptr<Mir::Function> current_function = nullptr;
+    std::unordered_set<std::shared_ptr<Mir::Instruction>> visited_instructions;
 };
 
 // 全局值编号

@@ -5,12 +5,66 @@
 
 using namespace Mir;
 
-static std::unordered_set<std::shared_ptr<Block>> visited{};
+namespace {
+bool all_operands_equal(const std::shared_ptr<Phi> &phi) {
+    const auto &values = phi->get_optional_values();
+    if (values.empty()) {
+        log_fatal("Phi has no optional values");
+    }
+    if (values.size() == 1)
+        return true;
+    const auto &first_val = values.begin()->second;
+    return std::all_of(values.begin(), values.end(),
+                       [&](const auto &entry) { return entry.second->get_name() == first_val->get_name(); });
+}
 
-static std::shared_ptr<Pass::ControlFlowGraph> cfg_info = nullptr;
+void perform_merge(const std::shared_ptr<Block> &block, const std::shared_ptr<Block> &child) {
+    // child的唯一前驱是block，child向block合并
+    const auto last_instruction = block->get_instructions().back();
+    last_instruction->clear_operands();
+    block->get_instructions().pop_back();
+    // 将child的所有指令移动到block中
+    for (auto it = child->get_instructions().begin(); it != child->get_instructions().end();) {
+        auto instruction = *it;
+        if (const auto op = instruction->get_op(); op == Operator::PHI) {
+            const auto phi = std::static_pointer_cast<Phi>(instruction);
+            if (phi->get_optional_values().find(block) != phi->get_optional_values().end()) {
+                auto optional_value = phi->get_optional_values().at(block);
+                phi->replace_by_new_value(optional_value);
+            }
+            phi->clear_operands();
+        } else {
+            instruction->set_block(block);
+        }
+        it = child->get_instructions().erase(it);
+    }
+    child->replace_by_new_value(block);
+    child->set_deleted();
+}
+
+// 上述优化出现将br指令改造为形如br i1 %2, label %block_1, label %block_1的形式
+// 可将其转化为无条件的br，暴露更多的优化机会
+void replace_branch_with_jump(const std::shared_ptr<Function> &func) {
+    for (const auto &block: func->get_blocks()) {
+        auto &last_instruction = block->get_instructions().back();
+        if (last_instruction->get_op() != Operator::BRANCH) {
+            continue;
+        }
+        const auto &last_br = std::static_pointer_cast<Branch>(last_instruction);
+        if (last_br->get_true_block() != last_br->get_false_block()) {
+            continue;
+        }
+        const auto jump = Jump::create(last_br->get_true_block(), nullptr);
+        jump->set_block(block, false);
+        last_instruction->replace_by_new_value(jump);
+        last_instruction->clear_operands();
+        last_instruction = jump;
+    }
+}
+}
 
 namespace Pass {
-static void dfs(const std::shared_ptr<Block> &current_block) {
+void SimplifyCFG::dfs(const std::shared_ptr<Block> &current_block) {
     if (visited.find(current_block) != visited.end()) return;
     visited.insert(current_block);
     if (current_block->get_instructions().empty()) { log_error("Empty Block"); }
@@ -47,7 +101,8 @@ static void dfs(const std::shared_ptr<Block> &current_block) {
 }
 
 // 删除phi中无法到达的键值对（block已被删除或block并非phi的直接前继节点）
-static void remove_unreachable_blocks_for_phi(const std::shared_ptr<Phi> &phi, const std::shared_ptr<Function> &func) {
+void SimplifyCFG::remove_unreachable_blocks_for_phi(const std::shared_ptr<Phi> &phi,
+                                                    const std::shared_ptr<Function> &func) const {
     const auto &current_block = phi->get_block();
     auto block_is_unreachable = [&](const std::shared_ptr<Block> &block) -> bool {
         if (block->is_deleted()) {
@@ -72,44 +127,8 @@ static void remove_unreachable_blocks_for_phi(const std::shared_ptr<Phi> &phi, c
     }
 }
 
-static bool all_operands_equal(const std::shared_ptr<Phi> &phi) {
-    const auto &values = phi->get_optional_values();
-    if (values.empty()) {
-        log_fatal("Phi has no optional values");
-    }
-    if (values.size() == 1)
-        return true;
-    const auto &first_val = values.begin()->second;
-    return std::all_of(values.begin(), values.end(),
-                       [&](const auto &entry) { return entry.second->get_name() == first_val->get_name(); });
-}
-
-static void perform_merge(const std::shared_ptr<Block> &block, const std::shared_ptr<Block> &child) {
-    // child的唯一前驱是block，child向block合并
-    const auto last_instruction = block->get_instructions().back();
-    last_instruction->clear_operands();
-    block->get_instructions().pop_back();
-    // 将child的所有指令移动到block中
-    for (auto it = child->get_instructions().begin(); it != child->get_instructions().end();) {
-        auto instruction = *it;
-        if (const auto op = instruction->get_op(); op == Operator::PHI) {
-            const auto phi = std::static_pointer_cast<Phi>(instruction);
-            if (phi->get_optional_values().find(block) != phi->get_optional_values().end()) {
-                auto optional_value = phi->get_optional_values().at(block);
-                phi->replace_by_new_value(optional_value);
-            }
-            phi->clear_operands();
-        } else {
-            instruction->set_block(block);
-        }
-        it = child->get_instructions().erase(it);
-    }
-    child->replace_by_new_value(block);
-    child->set_deleted();
-}
-
 // 如果一个块有唯一的前驱，是前驱的唯一后继，则将当前块合并到前驱块
-static bool try_merge_blocks(const std::shared_ptr<Function> &func) {
+bool SimplifyCFG::try_merge_blocks(const std::shared_ptr<Function> &func) const {
     bool changed = false;
     auto &blocks = func->get_blocks();
     for (const auto &block: blocks) {
@@ -146,7 +165,7 @@ static bool try_merge_blocks(const std::shared_ptr<Function> &func) {
 }
 
 // 消除只包含单个非条件跳转的基本块
-static bool try_simplify_single_jump(const std::shared_ptr<Function> &func) {
+bool SimplifyCFG::try_simplify_single_jump(const std::shared_ptr<Function> &func) const {
     bool changed = false;
     auto is_single_jump_block = [&](const std::shared_ptr<Block> &block) -> std::shared_ptr<Block> {
         if (block->get_instructions().size() != 1)
@@ -210,13 +229,13 @@ static bool try_simplify_single_jump(const std::shared_ptr<Function> &func) {
     return changed;
 }
 
-static void remove_unreachable_blocks(const std::shared_ptr<Function> &func) {
+void SimplifyCFG::remove_unreachable_blocks(const std::shared_ptr<Function> &func) {
     // 遍历控制流删除无法到达的block
     visited.clear();
     const auto entry_block = func->get_blocks().front();
     dfs(entry_block);
     auto &blocks = func->get_blocks();
-    blocks.erase(std::remove_if(blocks.begin(), blocks.end(), [](const std::shared_ptr<Block> &block) {
+    blocks.erase(std::remove_if(blocks.begin(), blocks.end(), [&](const std::shared_ptr<Block> &block) {
         if (visited.find(block) != visited.end()) {
             return false;
         }
@@ -230,7 +249,7 @@ static void remove_unreachable_blocks(const std::shared_ptr<Function> &func) {
     }), blocks.end());
 }
 
-static void remove_phi(const std::shared_ptr<Function> &func) {
+void SimplifyCFG::remove_phi(const std::shared_ptr<Function> &func) const {
     // 对于无法到达的block，清理有关的phi节点
     // 如果phi节点的每个可选值都是相同的，则替换为第一个可选值，并删除phi节点
     // 如果没有指令使用phi节点，则删除phi节点
@@ -252,32 +271,11 @@ static void remove_phi(const std::shared_ptr<Function> &func) {
     }
 }
 
-// 上述优化出现将br指令改造为形如br i1 %2, label %block_1, label %block_1的形式
-// 可将其转化为无条件的br，暴露更多的优化机会
-static void replace_branch_with_jump(const std::shared_ptr<Function> &func) {
-    for (const auto &block: func->get_blocks()) {
-        auto &last_instruction = block->get_instructions().back();
-        if (last_instruction->get_op() != Operator::BRANCH) {
-            continue;
-        }
-        const auto &last_br = std::static_pointer_cast<Branch>(last_instruction);
-        if (last_br->get_true_block() != last_br->get_false_block()) {
-            continue;
-        }
-        const auto jump = Jump::create(last_br->get_true_block(), nullptr);
-        jump->set_block(block, false);
-        last_instruction->replace_by_new_value(jump);
-        last_instruction->clear_operands();
-        last_instruction = jump;
-    }
-}
-
 void SimplifyCFG::transform(const std::shared_ptr<Module> module) {
     for (const auto &func: *module) {
         remove_unreachable_blocks(func);
     }
-    cfg_info = create<ControlFlowGraph>();
-    cfg_info->run_on(module);
+    cfg_info = get_analysis_result<ControlFlowGraph>(module);
     for (const auto &func: *module) {
         remove_phi(func);
         while (try_merge_blocks(func)) {

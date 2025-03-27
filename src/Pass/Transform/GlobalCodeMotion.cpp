@@ -8,14 +8,9 @@ using FunctionPtr = std::shared_ptr<Function>;
 using BlockPtr = std::shared_ptr<Block>;
 using InstructionPtr = std::shared_ptr<Instruction>;
 
-static std::shared_ptr<Pass::ControlFlowGraph> cfg = nullptr;
-static std::shared_ptr<Pass::LoopAnalysis> loop_analysis = nullptr;
-
-static FunctionPtr current_function = nullptr;
-static std::unordered_set<InstructionPtr> visited_instructions{};
-
+namespace {
 // 将指令从其所在的block中移除，并移动到target_block的倒数第二位（在该block的terminator之前）
-static void move_instruction(const InstructionPtr &instruction, const BlockPtr &target_block) {
+void move_instruction(const InstructionPtr &instruction, const BlockPtr &target_block) {
     if (instruction == nullptr || target_block == nullptr) {
         log_fatal("nullptr instruction or block");
     }
@@ -36,7 +31,7 @@ static void move_instruction(const InstructionPtr &instruction, const BlockPtr &
 }
 
 // 将指令从其所在的block中移除，并移动到target之前
-static void move_instruction_before(const InstructionPtr &instruction, const InstructionPtr &target) {
+void move_instruction_before(const InstructionPtr &instruction, const InstructionPtr &target) {
     if (instruction == nullptr || target == nullptr) {
         log_fatal("nullptr instruction or target");
     }
@@ -95,25 +90,11 @@ static void move_instruction_before(const InstructionPtr &instruction, const Ins
         target_instructions.insert(it, instruction);
     }
 }
-
-// 有些指令是无法被灵活调度的，它们受到控制依赖的牵制，无法被调度到其他基本块。
-static bool is_pinned(const InstructionPtr &instruction) {
-    switch (instruction->get_op()) {
-        case Operator::BRANCH:
-        case Operator::JUMP:
-        case Operator::RET:
-        case Operator::PHI:
-        case Operator::STORE:
-        case Operator::LOAD:
-        case Operator::CALL: // TODO：考虑某些情况下，CALL是可被调度的
-            return true;
-        default:
-            return false;
-    }
 }
 
+namespace Pass {
 // 计算给定基本块在支配树深度
-static int dom_tree_depth(const BlockPtr &block) {
+int GlobalCodeMotion::dom_tree_depth(const BlockPtr &block) const {
     if (block == nullptr) {
         log_error("BlockPtr cannot be nullptr");
     }
@@ -127,7 +108,7 @@ static int dom_tree_depth(const BlockPtr &block) {
     return depth;
 }
 
-static int loop_depth(const BlockPtr &block) {
+int GlobalCodeMotion::loop_depth(const BlockPtr &block) const {
     if (block == nullptr) {
         log_error("BlockPtr cannot be nullptr");
     }
@@ -135,7 +116,7 @@ static int loop_depth(const BlockPtr &block) {
 }
 
 // 计算两个基本块在支配树上的最近公共祖先
-static BlockPtr find_lca(const BlockPtr &block1, const BlockPtr &block2) {
+BlockPtr GlobalCodeMotion::find_lca(const BlockPtr &block1, const BlockPtr &block2) const {
     if (block1 == nullptr) {
         return block2;
     }
@@ -157,9 +138,32 @@ static BlockPtr find_lca(const BlockPtr &block1, const BlockPtr &block2) {
     return p;
 }
 
+// 有些指令是无法被灵活调度的，它们受到控制依赖的牵制，无法被调度到其他基本块。
+bool GlobalCodeMotion::is_pinned(const InstructionPtr &instruction) const {
+    switch (instruction->get_op()) {
+        case Operator::BRANCH:
+        case Operator::JUMP:
+        case Operator::RET:
+        case Operator::PHI:
+        case Operator::STORE:
+        case Operator::LOAD:
+            return true;
+        case Operator::CALL: {
+            const auto called_func = instruction->as<Call>()->get_function()->as<Function>();
+            if (called_func->is_runtime_func()) {
+                return true;
+            }
+            const auto info = function_analysis->func_info(called_func);
+            return !info.no_state || info.io_read || info.io_write;
+        }
+        default:
+            return false;
+    }
+}
+
 // 尽可能的把指令前移，确定每个指令能被调度到的最早的基本块，同时不影响指令间的依赖关系。
 // 当我们把指令向前提时，限制它前移的是它的输入，即每条指令最早要在它的所有输入定义后的位置。
-static void schedule_early(const InstructionPtr &instruction) {
+void GlobalCodeMotion::schedule_early(const InstructionPtr &instruction) {
     if (is_pinned(instruction)) {
         return;
     }
@@ -183,7 +187,7 @@ static void schedule_early(const InstructionPtr &instruction) {
 
 // 尽可能的把指令后移，确定每个指令能被调度到的最晚的基本块。
 // 每个指令也会被使用它们的指令限制，限制其不能无限向后移。
-static void schedule_late(const InstructionPtr &instruction) {
+void GlobalCodeMotion::schedule_late(const InstructionPtr &instruction) {
     if (is_pinned(instruction)) {
         return;
     }
@@ -247,7 +251,7 @@ static void schedule_late(const InstructionPtr &instruction) {
     }
 }
 
-static void run_on_func(const FunctionPtr &func) {
+void GlobalCodeMotion::run_on_func(const FunctionPtr &func) {
     current_function = func;
     visited_instructions.clear();
     std::vector<BlockPtr> post_order_blocks = cfg->post_order_blocks(func);
@@ -275,13 +279,13 @@ static void run_on_func(const FunctionPtr &func) {
     }
 }
 
-namespace Pass {
 void GlobalCodeMotion::transform(const std::shared_ptr<Module> module) {
     // 计算支配树和支配关系
     cfg = get_analysis_result<ControlFlowGraph>(module);
     // 利用循环分析计算循环深度
     loop_analysis = get_analysis_result<LoopAnalysis>(module);
 
+    function_analysis = get_analysis_result<FunctionAnalysis>(module);
     visited_instructions.clear();
     current_function = nullptr;
     for (const auto &func: *module) {

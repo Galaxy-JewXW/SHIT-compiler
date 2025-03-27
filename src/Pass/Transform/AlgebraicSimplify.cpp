@@ -3,10 +3,11 @@
 
 using namespace Mir;
 
+namespace {
 // 替换指令
-static void replace_instruction(const std::shared_ptr<Binary> &from, const std::shared_ptr<Value> &to,
-                                const std::shared_ptr<Block> &current_block,
-                                std::vector<std::shared_ptr<Instruction>> &instructions, const size_t &idx) {
+void replace_instruction(const std::shared_ptr<Binary> &from, const std::shared_ptr<Value> &to,
+                         const std::shared_ptr<Block> &current_block,
+                         std::vector<std::shared_ptr<Instruction>> &instructions, const size_t &idx) {
     from->replace_by_new_value(to);
     from->clear_operands();
     if (const auto &target_inst = std::dynamic_pointer_cast<Instruction>(to)) {
@@ -17,16 +18,16 @@ static void replace_instruction(const std::shared_ptr<Binary> &from, const std::
 }
 
 // 在idx的位置插入指令
-static void insert_instruction(const std::shared_ptr<Instruction> &instruction,
-                               const std::shared_ptr<Block> &current_block,
-                               std::vector<std::shared_ptr<Instruction>> &instructions, size_t &idx) {
+void insert_instruction(const std::shared_ptr<Instruction> &instruction,
+                        const std::shared_ptr<Block> &current_block,
+                        std::vector<std::shared_ptr<Instruction>> &instructions, size_t &idx) {
     instruction->set_block(current_block, false);
     instructions.insert(instructions.begin() + static_cast<long>(idx), instruction);
     ++idx;
 }
 
-static bool reduce_add(const std::shared_ptr<Add> &add, std::vector<std::shared_ptr<Instruction>> &instructions,
-                       size_t &idx) {
+bool reduce_add(const std::shared_ptr<Add> &add, std::vector<std::shared_ptr<Instruction>> &instructions,
+                size_t &idx) {
     const auto current_block = add->get_block();
     const auto lhs = add->get_lhs(), rhs = add->get_rhs();
     // a + a = 2 * a
@@ -167,8 +168,8 @@ static bool reduce_add(const std::shared_ptr<Add> &add, std::vector<std::shared_
     return false;
 }
 
-static bool reduce_sub(const std::shared_ptr<Sub> &sub, std::vector<std::shared_ptr<Instruction>> &instructions,
-                       size_t &idx) {
+bool reduce_sub(const std::shared_ptr<Sub> &sub, std::vector<std::shared_ptr<Instruction>> &instructions,
+                size_t &idx) {
     const auto current_block = sub->get_block();
     const auto lhs = sub->get_lhs(), rhs = sub->get_rhs();
     // a - a = 0
@@ -341,8 +342,8 @@ static bool reduce_sub(const std::shared_ptr<Sub> &sub, std::vector<std::shared_
     return false;
 }
 
-static bool reduce_mul(const std::shared_ptr<Mul> &mul, std::vector<std::shared_ptr<Instruction>> &instructions,
-                       const size_t &idx) {
+bool reduce_mul(const std::shared_ptr<Mul> &mul, std::vector<std::shared_ptr<Instruction>> &instructions,
+                const size_t &idx) {
     const auto current_block = mul->get_block();
     const auto lhs = mul->get_lhs();
     if (const auto rhs = mul->get_rhs(); rhs->is_constant()) [[unlikely]] {
@@ -389,8 +390,8 @@ static bool reduce_mul(const std::shared_ptr<Mul> &mul, std::vector<std::shared_
     return false;
 }
 
-static bool reduce_div(const std::shared_ptr<Div> &div, std::vector<std::shared_ptr<Instruction>> &instructions,
-                       const size_t &idx) {
+bool reduce_div(const std::shared_ptr<Div> &div, std::vector<std::shared_ptr<Instruction>> &instructions,
+                const size_t &idx) {
     const auto current_block = div->get_block();
     const auto lhs = div->get_lhs(), rhs = div->get_rhs();
     // a / a = 1
@@ -477,8 +478,8 @@ static bool reduce_div(const std::shared_ptr<Div> &div, std::vector<std::shared_
     return false;
 }
 
-static bool reduce_mod(const std::shared_ptr<Mod> &mod, std::vector<std::shared_ptr<Instruction>> &instructions,
-                       const size_t &idx) {
+bool reduce_mod(const std::shared_ptr<Mod> &mod, std::vector<std::shared_ptr<Instruction>> &instructions,
+                const size_t &idx) {
     const auto current_block = mod->get_block();
     const auto lhs = mod->get_lhs(), rhs = mod->get_rhs();
     // a % a = 0
@@ -516,7 +517,7 @@ static bool reduce_mod(const std::shared_ptr<Mod> &mod, std::vector<std::shared_
     return false;
 }
 
-[[nodiscard]] static bool run_on_block(const std::shared_ptr<Block> &block) {
+[[nodiscard]] bool run_on_block(const std::shared_ptr<Block> &block) {
     auto &instructions = block->get_instructions();
     bool changed = false;
     for (size_t i = 0; i < instructions.size(); ++i) {
@@ -542,6 +543,7 @@ static bool reduce_mod(const std::shared_ptr<Mod> &mod, std::vector<std::shared_
         }
     }
     return changed;
+}
 }
 
 void Pass::AlgebraicSimplify::transform(const std::shared_ptr<Module> module) {
