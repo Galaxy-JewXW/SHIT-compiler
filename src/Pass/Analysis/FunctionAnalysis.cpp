@@ -7,47 +7,47 @@ using FunctionPtr = std::shared_ptr<Mir::Function>;
 using FunctionMap = std::unordered_map<FunctionPtr, std::unordered_set<FunctionPtr>>;
 using FunctionSet = std::unordered_set<FunctionPtr>;
 
-namespace Pass {
 namespace {
-    // 是否使用了全局变量的地址
-    bool use_global_addr(const std::shared_ptr<Mir::Value> &base_addr) {
-        if (std::dynamic_pointer_cast<Mir::GlobalVariable>(base_addr)) {
-            return true;
-        }
-        if (const auto gep = std::dynamic_pointer_cast<Mir::GetElementPtr>(base_addr);
-            gep != nullptr && use_global_addr(gep->get_addr())) {
-            return true;
-        }
-        return false;
+// 是否使用了全局变量的地址
+bool use_global_addr(const std::shared_ptr<Mir::Value> &base_addr) {
+    if (std::dynamic_pointer_cast<Mir::GlobalVariable>(base_addr)) {
+        return true;
     }
-
-    // 是否对传入的指针（数组参数）进行写操作
-    bool has_side_effect(std::shared_ptr<Mir::Value> addr) {
-        while (const auto gep = std::dynamic_pointer_cast<Mir::GetElementPtr>(addr)) {
-            addr = gep->get_addr();
-        }
-        return std::dynamic_pointer_cast<Mir::Argument>(addr) != nullptr;
+    if (const auto gep = std::dynamic_pointer_cast<Mir::GetElementPtr>(base_addr);
+        gep != nullptr && use_global_addr(gep->get_addr())) {
+        return true;
     }
-
-    std::vector<FunctionPtr> topo_order(const FunctionPtr &main, const FunctionMap &call_graph) {
-        std::unordered_set<FunctionPtr> visited;
-        std::vector<FunctionPtr> order;
-        std::function<void(const FunctionPtr &)> dfs = [&](const FunctionPtr &func) {
-            visited.insert(func);
-            if (call_graph.find(func) != call_graph.end()) {
-                for (const auto &called: call_graph.at(func)) {
-                    if (visited.find(called) == visited.end()) {
-                        dfs(called);
-                    }
-                }
-            }
-            order.push_back(func);
-        };
-        dfs(main);
-        return order;
-    }
+    return false;
 }
 
+// 是否对传入的指针（数组参数）进行写操作
+bool has_side_effect(std::shared_ptr<Mir::Value> addr) {
+    while (const auto gep = std::dynamic_pointer_cast<Mir::GetElementPtr>(addr)) {
+        addr = gep->get_addr();
+    }
+    return std::dynamic_pointer_cast<Mir::Argument>(addr) != nullptr;
+}
+
+std::vector<FunctionPtr> topo_order(const FunctionPtr &main, const FunctionMap &call_graph) {
+    std::unordered_set<FunctionPtr> visited;
+    std::vector<FunctionPtr> order;
+    std::function<void(const FunctionPtr &)> dfs = [&](const FunctionPtr &func) {
+        visited.insert(func);
+        if (call_graph.find(func) != call_graph.end()) {
+            for (const auto &called: call_graph.at(func)) {
+                if (visited.find(called) == visited.end()) {
+                    dfs(called);
+                }
+            }
+        }
+        order.push_back(func);
+    };
+    dfs(main);
+    return order;
+}
+}
+
+namespace Pass {
 void FunctionAnalysis::build_call_graph(const FunctionPtr &func) {
     for (const auto &block: func->get_blocks()) {
         for (const auto &inst: block->get_instructions()) {
