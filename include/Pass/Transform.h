@@ -172,9 +172,9 @@ public:
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
-    void run_on_func(const std::shared_ptr<Mir::Function> &func);
+    bool run_on_func(const std::shared_ptr<Mir::Function> &func);
 
-    void run_on_block(const std::shared_ptr<Mir::Function> &func,
+    bool run_on_block(const std::shared_ptr<Mir::Function> &func,
                       const std::shared_ptr<Mir::Block> &block,
                       std::unordered_map<std::string, std::shared_ptr<Mir::Instruction>> &value_hashmap);
 

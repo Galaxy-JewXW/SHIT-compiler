@@ -87,7 +87,6 @@ void FunctionAnalysis::build_func_attribute(const FunctionPtr &func) {
                     called_func->is_runtime_func()) {
                     if (const auto name = called_func->get_name();
                         name.find("get") != std::string::npos) {
-                        // NOLINT(*-branch-clone)
                         io_read = true;
                     } else if (name.find("put") != std::string::npos) {
                         io_write = true;

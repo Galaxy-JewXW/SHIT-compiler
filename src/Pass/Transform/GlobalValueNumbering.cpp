@@ -248,15 +248,16 @@ bool try_fold(const std::shared_ptr<Instruction> &instruction) {
 }
 }
 
-
 namespace Pass {
-void GlobalValueNumbering::run_on_block(const FunctionPtr &func,
+bool GlobalValueNumbering::run_on_block(const FunctionPtr &func,
                                         const BlockPtr &block,
                                         std::unordered_map<std::string, InstructionPtr> &value_hashmap) {
+    bool changed = false;
     for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
         if (try_fold(*it)) {
             (*it)->clear_operands();
             it = block->get_instructions().erase(it);
+            changed = true;
         }
         const auto &instruction_hash = get_instruction_hash(*it);
         if (instruction_hash.empty()) {
@@ -267,35 +268,40 @@ void GlobalValueNumbering::run_on_block(const FunctionPtr &func,
             (*it)->replace_by_new_value(value_hashmap[instruction_hash]);
             (*it)->clear_operands();
             it = block->get_instructions().erase(it);
+            changed = true;
         } else {
             value_hashmap[instruction_hash] = *it;
             ++it;
         }
     }
     for (const auto &child: cfg->dominance_children(func).at(block)) {
-        run_on_block(func, child, value_hashmap);
+        changed |= run_on_block(func, child, value_hashmap);
     }
+    return changed;
 }
 
-void GlobalValueNumbering::run_on_func(const FunctionPtr &func) {
+bool GlobalValueNumbering::run_on_func(const FunctionPtr &func) {
     const auto &entry_block = func->get_blocks().front();
     std::unordered_map<std::string, InstructionPtr> value_hashmap;
-    run_on_block(func, entry_block, value_hashmap);
+    return run_on_block(func, entry_block, value_hashmap);
 }
 
 void GlobalValueNumbering::transform(const std::shared_ptr<Module> module) {
     cfg = get_analysis_result<ControlFlowGraph>(module);
+    create<AlgebraicSimplify>()->run_on(module);
     // 不同的遍历顺序可能导致化简的结果不同
     // 跑多次GVN直到一个不动点
-    for (const auto &func: *module) {
-        run_on_func(func);
-    }
-    for (const auto &func: *module) {
-        run_on_func(func);
-    }
+    bool changed = false;
+    do {
+        changed = false;
+        for (const auto &func: *module) {
+            changed |= run_on_func(func);
+        }
+    } while (changed);
     cfg = nullptr;
     // GVN后可能出现一条指令被替换成其另一条指令，但是那条指令并不支配这条指令的users的问题
     // 可以通过 GCM 解决。在 GCM 中考虑value之间的依赖，会根据依赖将那条指令移动到正确的位置
     create<GlobalCodeMotion>()->run_on(module);
+    create<AlgebraicSimplify>()->run_on(module);
 }
 }
