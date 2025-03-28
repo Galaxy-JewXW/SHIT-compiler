@@ -1,18 +1,18 @@
 #include "Pass/Transform.h"
 using namespace Mir;
 
-namespace Pass {
 namespace {
-    void add_all_operands(const std::shared_ptr<Instruction> &instruction,
-                          std::unordered_set<std::shared_ptr<Instruction>> &set) {
-        for (const auto &operand: *instruction) {
-            if (const auto inst = std::dynamic_pointer_cast<Instruction>(operand)) {
-                set.insert(inst);
-            }
+void add_all_operands(const std::shared_ptr<Instruction> &instruction,
+                      std::unordered_set<std::shared_ptr<Instruction>> &set) {
+    for (const auto &operand: *instruction) {
+        if (const auto inst = std::dynamic_pointer_cast<Instruction>(operand)) {
+            set.insert(inst);
         }
     }
 }
+}
 
+namespace Pass {
 void DeadCodeEliminate::init_useful_instruction(const std::shared_ptr<Function> &function) {
     const auto is_useful_call = [&](const std::shared_ptr<Function> &func) {
         if (func->is_runtime_func()) {
@@ -73,8 +73,8 @@ void DeadCodeEliminate::transform(const std::shared_ptr<Module> module) {
     dead_global_variable_eliminate(module);
     for (const auto &func: *module) {
         useful_instructions_.clear();
-        for (const auto &gv : module->get_global_variables()) {
-            for (const auto &use : gv->users()) {
+        for (const auto &gv: module->get_global_variables()) {
+            for (const auto &use: gv->users()) {
                 const auto inst = std::dynamic_pointer_cast<Instruction>(use);
                 if (inst == nullptr) {
                     continue;

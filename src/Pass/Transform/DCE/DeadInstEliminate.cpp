@@ -2,16 +2,14 @@
 #include "Pass/Transform.h"
 
 using namespace Mir;
-
-static std::shared_ptr<Pass::FunctionAnalysis> func_analysis = nullptr;
 using InstructionPtr = std::shared_ptr<Instruction>;
 
 namespace Pass {
 // 删除无用指令
 // 如果指令User为空，且指令本身不带有副作用，则认为其是无用的
 // 效果较差，无法删除冗余数组的定义，可使用DCE取得更好的效果
-static bool remove_unused_instructions(const std::shared_ptr<Module> &module) {
-    auto is_dead_instruction = [](const InstructionPtr &instruction) -> bool {
+bool DeadInstEliminate::remove_unused_instructions(const std::shared_ptr<Module> &module) const {
+    auto is_dead_instruction = [&](const InstructionPtr &instruction) -> bool {
         if (instruction->users().size() > 0) { return false; }
         // instruction无返回值
         if (instruction->get_name().empty()) { return false; }

@@ -21,6 +21,7 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         Pass::ConstexprFuncEval,
         Pass::GlobalVariableLocalize,
         Pass::DeadFuncEliminate,
-        Pass::DeadCodeEliminate
+        Pass::DeadCodeEliminate,
+        Pass::DeadReturnEliminate
     >(module);
 }

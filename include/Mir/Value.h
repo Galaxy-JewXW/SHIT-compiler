@@ -36,6 +36,8 @@ public:
 
     void set_name(const std::string &name) { this->name_ = name; }
 
+    void set_type(const std::shared_ptr<Type::Type> &type) { this->type_ = type; }
+
     [[nodiscard]] std::shared_ptr<Type::Type> get_type() const { return type_; }
 
     // Value对应的User被销毁后，在users_中可能依然存有对该user的指针

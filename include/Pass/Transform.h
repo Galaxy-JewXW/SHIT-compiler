@@ -20,8 +20,6 @@ protected:
 };
 
 // 自动地将 alloca 变量提升为寄存器变量，将IR转化为SSA形式
-class ControlFlowGraph;
-
 class Mem2Reg final : public Transform {
 public:
     explicit Mem2Reg() : Transform("Mem2Reg") {}
@@ -200,6 +198,11 @@ public:
 
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
+
+    [[nodiscard]] bool remove_unused_instructions(const std::shared_ptr<Mir::Module> &module) const;
+
+private:
+    std::shared_ptr<FunctionAnalysis> func_analysis = nullptr;
 };
 
 // 删除未被调用的函数
@@ -245,6 +248,20 @@ private:
     std::shared_ptr<FunctionAnalysis> function_analysis_;
 
     void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
+};
+
+// 如果该函数的返回值并未被使用，则删除该函数的返回值
+class DeadReturnEliminate final : public Transform {
+public:
+    explicit DeadReturnEliminate() : Transform("DeadReturnEliminate") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+private:
+    std::shared_ptr<FunctionAnalysis> function_analysis_;
+
+    static void run_on_func(const std::shared_ptr<Mir::Function> &func);
 };
 
 class GlobalVariableLocalize final : public Transform {

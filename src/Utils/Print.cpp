@@ -497,7 +497,7 @@ namespace Mir {
         if (name_ == "putf")
             return "declare void @putf(i8*, ...)";
         std::ostringstream oss;
-        oss << "declare " << return_type->to_string() << " @" << name_ << "(";
+        oss << "declare " << type_->to_string() << " @" << name_ << "(";
         for (size_t i = 0; i < arguments.size(); ++i) {
             oss << arguments[i]->get_type()->to_string();
             if (i != arguments.size() - 1) {
@@ -522,7 +522,7 @@ namespace Mir {
         }
     }
     std::ostringstream function_info;
-    function_info << "define dso_local " << return_type->to_string() << " @" << name_
+    function_info << "define dso_local " << type_->to_string() << " @" << name_
             << "(" << param_info.str() << ") {\n"
             << block_info.str()
             << "\n}";
