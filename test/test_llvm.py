@@ -11,7 +11,7 @@ testdata_dir = os.path.join(base_dir, "test_data")
 testdata_zip = os.path.join(testdata_dir, "testdata.zip")
 
 BUILD_TYPE = "Release"
-OPT_LEVEL = 0
+OPT_LEVEL = 1
 TARGET_LANG = "llvm"
 
 try:
@@ -98,12 +98,13 @@ try:
             sy_path = os.path.join(subdir, sy_file)
             base_name = os.path.splitext(sy_file)[0]
             ll_path = os.path.join(subdir, f"{base_name}.ll")
+            log_path = os.path.join(subdir, f"{base_name}.log")
             
             # 构建编译命令
             compile_cmd = (
                 f"{compiler_path} {sy_path} "
                 f"-O{OPT_LEVEL} "
-                f"-emit-llvm {ll_path}"
+                f"-emit-llvm {ll_path} > {log_path}"
             )
             
             # 执行编译命令
@@ -111,8 +112,10 @@ try:
             exit_code = os.system(compile_cmd)
             
             if exit_code != 0:
-                print(f"Fail on compile {sy_file}")
+                print(f"Fail on compile: {subdir} {sy_file}")
                 raise RuntimeError("Fail on compile")
+    
+    print("=== All testcases successfully compiled ===")
 
 except Exception as e:
     print(f"Test Error: {str(e)}")

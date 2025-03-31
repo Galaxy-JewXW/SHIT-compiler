@@ -425,7 +425,10 @@ std::shared_ptr<Value> Builder::visit_functionCall(const AST::UnaryExp::call &ca
         if (const auto f_type = arguments[i]->get_type(); f_type->is_int32() || f_type->is_float()) {
             r_params.emplace_back(type_cast(visit_exp(params[i]), f_type, cur_block));
         } else {
-            const auto p = visit_exp(params[i]);
+            std::shared_ptr<Value> p = visit_exp(params[i]);
+            if (*p->get_type() != *f_type) {
+                p = BitCast::create(gen_variable_name(), p, f_type, cur_block);
+            }
             r_params.emplace_back(p);
         }
     }
