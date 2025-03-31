@@ -50,7 +50,25 @@ void replace_branch_with_jump(const std::shared_ptr<Function> &func) {
         if (last_instruction->get_op() != Operator::BRANCH) {
             continue;
         }
-        const auto &last_br = std::static_pointer_cast<Branch>(last_instruction);
+        const auto last_br = last_instruction->as<Branch>();
+        if (const auto cond = last_br->get_cond(); cond->is_constant()) {
+            const auto current_block = last_br->get_block();
+            const auto cond_value = cond->is<ConstBool>();
+            if (cond_value == nullptr) { log_error("Cond is not a ConstBool object"); }
+            if (std::any_cast<int>(cond_value->get_constant_value())) {
+                const auto jump_true = Jump::create(last_br->get_true_block(), nullptr);
+                jump_true->set_block(current_block, false);
+                last_br->replace_by_new_value(jump_true);
+                current_block->get_instructions().back() = jump_true;
+            } else {
+                const auto jump_false = Jump::create(last_br->get_false_block(), nullptr);
+                jump_false->set_block(current_block, false);
+                last_br->replace_by_new_value(jump_false);
+                current_block->get_instructions().back() = jump_false;
+            }
+            last_br->clear_operands();
+            continue;
+        }
         if (last_br->get_true_block() != last_br->get_false_block()) {
             continue;
         }
@@ -273,16 +291,13 @@ void SimplifyCFG::remove_phi(const std::shared_ptr<Function> &func) const {
 
 void SimplifyCFG::transform(const std::shared_ptr<Module> module) {
     for (const auto &func: *module) {
+        replace_branch_with_jump(func);
         remove_unreachable_blocks(func);
     }
     cfg_info = get_analysis_result<ControlFlowGraph>(module);
     for (const auto &func: *module) {
         remove_phi(func);
         while (try_merge_blocks(func)) {
-            replace_branch_with_jump(func);
-            cfg_info->run_on(module);
-        }
-        while (try_simplify_single_jump(func)) {
             replace_branch_with_jump(func);
             cfg_info->run_on(module);
         }

@@ -1,5 +1,7 @@
 #include "Pass/Transform.h"
 
+#include "Mir/Builder.h"
+
 using namespace Mir;
 using FunctionPtr = std::shared_ptr<Function>;
 using BlockPtr = std::shared_ptr<Block>;
@@ -131,8 +133,8 @@ bool evaluate_binary(const std::shared_ptr<Binary> &inst, typename binary_traits
         }
     }
     // 从常量指令中提取数值，根据操作符进行计算
-    const T lhs_val = std::any_cast<T>(std::static_pointer_cast<ConstType>(lhs)->get_constant_value()),
-            rhs_val = std::any_cast<T>(std::static_pointer_cast<ConstType>(rhs)->get_constant_value());
+    const auto lhs_val = **lhs->template as<ConstType>(),
+               rhs_val = **rhs->template as<ConstType>();
     switch (inst->op) {
         case Binary::Op::ADD: res = lhs_val + rhs_val;
             break;
@@ -215,34 +217,71 @@ bool evaluate_cmp(const std::shared_ptr<Cmp> &inst, int &res) {
 }
 
 bool try_fold(const std::shared_ptr<Instruction> &instruction) {
-    if (const Operator op = instruction->get_op(); op == Operator::INTBINARY) {
-        const auto int_binary = std::static_pointer_cast<IntBinary>(instruction);
-        if (int res_val; evaluate_binary(int_binary, res_val)) {
-            const auto const_int = std::make_shared<ConstInt>(res_val);
-            int_binary->replace_by_new_value(const_int);
-            return true;
+    switch (instruction->get_op()) {
+        case Operator::INTBINARY: {
+            const auto int_binary = instruction->as<IntBinary>();
+            if (int res_val; evaluate_binary(int_binary, res_val)) {
+                const auto const_int = std::make_shared<ConstInt>(res_val);
+                int_binary->replace_by_new_value(const_int);
+                return true;
+            }
+            break;
         }
-    } else if (op == Operator::FLOATBINARY) {
-        const auto float_binary = std::static_pointer_cast<FloatBinary>(instruction);
-        if (double res_val; evaluate_binary(float_binary, res_val)) {
-            const auto const_float = std::make_shared<ConstFloat>(res_val);
-            float_binary->replace_by_new_value(const_float);
-            return true;
+        case Operator::FLOATBINARY: {
+            const auto float_binary = instruction->as<FloatBinary>();
+            if (double res_val; evaluate_binary(float_binary, res_val)) {
+                const auto const_float = std::make_shared<ConstFloat>(res_val);
+                float_binary->replace_by_new_value(const_float);
+                return true;
+            }
+            break;
         }
-    } else if (op == Operator::ICMP) {
-        const auto icmp = std::static_pointer_cast<Icmp>(instruction);
-        if (int res_val; evaluate_cmp(icmp, res_val)) {
-            const auto const_bool = std::make_shared<ConstBool>(res_val);
-            icmp->replace_by_new_value(const_bool);
-            return true;
+        case Operator::ICMP: {
+            const auto icmp = instruction->as<Icmp>();
+            if (int res_val; evaluate_cmp(icmp, res_val)) {
+                const auto const_bool = std::make_shared<ConstBool>(res_val);
+                icmp->replace_by_new_value(const_bool);
+                return true;
+            }
+            break;
         }
-    } else if (op == Operator::FCMP) {
-        const auto fcmp = std::static_pointer_cast<Fcmp>(instruction);
-        if (int res_val; evaluate_cmp(fcmp, res_val)) {
-            const auto const_bool = std::make_shared<ConstBool>(res_val);
-            fcmp->replace_by_new_value(const_bool);
-            return true;
+        case Operator::FCMP: {
+            const auto fcmp = instruction->as<Fcmp>();
+            if (int res_val; evaluate_cmp(fcmp, res_val)) {
+                const auto const_bool = std::make_shared<ConstBool>(res_val);
+                fcmp->replace_by_new_value(const_bool);
+                return true;
+            }
+            break;
         }
+        case Operator::ZEXT: {
+            const auto zext = instruction->as<Zext>();
+            if (const auto const_val = zext->get_value(); const_val->is_constant()) {
+                const auto const_int = type_cast(const_val, zext->get_type(), nullptr);
+                zext->replace_by_new_value(const_int);
+                return true;
+            }
+            break;
+        }
+        case Operator::SITOFP: {
+            const auto sitofp = instruction->as<Sitofp>();
+            if (const auto const_val = sitofp->get_value(); const_val->is_constant()) {
+                const auto const_float = type_cast(const_val, sitofp->get_type(), nullptr);
+                sitofp->replace_by_new_value(const_float);
+                return true;
+            }
+            break;
+        }
+        case Operator::FPTOSI: {
+            const auto fptosi = instruction->as<Fptosi>();
+            if (const auto const_val = fptosi->get_value(); const_val->is_constant()) {
+                const auto const_int = type_cast(const_val, fptosi->get_type(), nullptr);
+                fptosi->replace_by_new_value(const_int);
+                return true;
+            }
+            break;
+        }
+        default: break;
     }
     return false;
 }
@@ -292,6 +331,12 @@ void GlobalValueNumbering::transform(const std::shared_ptr<Module> module) {
     // 不同的遍历顺序可能导致化简的结果不同
     // 跑多次GVN直到一个不动点
     bool changed = false;
+    do {
+        changed = false;
+        for (const auto &func: *module) {
+            changed |= run_on_func(func);
+        }
+    } while (changed);
     do {
         changed = false;
         for (const auto &func: *module) {

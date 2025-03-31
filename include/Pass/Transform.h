@@ -84,7 +84,7 @@ private:
  * 1. 删除没有前驱块（即无法到达）的基本块
  * 2. 如果某一个基本块只有一个前驱，且前驱的后继只有当前基本块，则将当前基本块与其前驱合并
  * 3. 消除只有一个前驱块的phi节点
- * 4. 消除只包含单个非条件跳转的基本块
+ * 4. (弃用)消除只包含单个非条件跳转的基本块
  */
 class SimplifyCFG final : public Transform {
 public:
@@ -100,7 +100,7 @@ protected:
 
     bool try_merge_blocks(const std::shared_ptr<Mir::Function> &func) const;
 
-    bool try_simplify_single_jump(const std::shared_ptr<Mir::Function> &func) const;
+    [[deprecated]] bool try_simplify_single_jump(const std::shared_ptr<Mir::Function> &func) const;
 
     void remove_unreachable_blocks(const std::shared_ptr<Mir::Function> &func);
 
