@@ -7,8 +7,9 @@
 using FunctionPtr = std::shared_ptr<Mir::Function>;
 using BlockPtr = std::shared_ptr<Mir::Block>;
 
+namespace {
 // 输出基本块集合的辅助方法
-static std::string format_blocks(const std::unordered_set<BlockPtr> &blocks) {
+std::string format_blocks(const std::unordered_set<BlockPtr> &blocks) {
     if (blocks.empty()) return "∅";
     std::vector<std::string> names;
     names.reserve(blocks.size());
@@ -20,9 +21,9 @@ static std::string format_blocks(const std::unordered_set<BlockPtr> &blocks) {
 }
 
 // 构建函数中每个基本块的前驱和后继映射
-static void build_predecessors_successors(const FunctionPtr &func,
-                                          std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &pred_map,
-                                          std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &succ_map) {
+void build_predecessors_successors(const FunctionPtr &func,
+                                   std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &pred_map,
+                                   std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &succ_map) {
     for (const auto &block: func->get_blocks()) {
         const auto last_instruction = block->get_instructions().back();
         const auto terminator = std::dynamic_pointer_cast<Mir::Terminator>(last_instruction);
@@ -60,10 +61,10 @@ static void build_predecessors_successors(const FunctionPtr &func,
 }
 
 // 构建每个基本块的支配集（dominator）以及被支配集（dominated）
-static void build_dominators_dominated(const FunctionPtr &func,
-                                       const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &pred_map,
-                                       std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &dominator,
-                                       std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &dominated) {
+void build_dominators_dominated(const FunctionPtr &func,
+                                const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &pred_map,
+                                std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &dominator,
+                                std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &dominated) {
     const auto &blocks = func->get_blocks();
     const std::unordered_set all_blocks(blocks.begin(), blocks.end());
     for (const auto &block: blocks) {
@@ -117,9 +118,9 @@ static void build_dominators_dominated(const FunctionPtr &func,
     log_debug("%s", oss.str().c_str());
 }
 
-static void build_immediate_dominators(const FunctionPtr &func,
-                                       const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &dominator,
-                                       std::unordered_map<BlockPtr, BlockPtr> &imm_dom_map) {
+void build_immediate_dominators(const FunctionPtr &func,
+                                const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &dominator,
+                                std::unordered_map<BlockPtr, BlockPtr> &imm_dom_map) {
     const auto &blocks = func->get_blocks();
     if (blocks.empty()) return;
     const BlockPtr entry_block = blocks.front();
@@ -157,10 +158,10 @@ static void build_immediate_dominators(const FunctionPtr &func,
 }
 
 // 构建支配子树中的直接子节点映射
-static void build_dominance_children(const FunctionPtr &func,
-                                     const std::unordered_map<BlockPtr, BlockPtr> &imm_dom_map,
-                                     std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &
-                                     dominance_children_map) {
+void build_dominance_children(const FunctionPtr &func,
+                              const std::unordered_map<BlockPtr, BlockPtr> &imm_dom_map,
+                              std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &
+                              dominance_children_map) {
     dominance_children_map.clear();
     for (const auto &block: func->get_blocks()) {
         dominance_children_map[block];
@@ -180,10 +181,10 @@ static void build_dominance_children(const FunctionPtr &func,
 }
 
 // 构建支配边界
-static void build_dominance_frontier(const FunctionPtr &func,
-                                     const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &pred_map,
-                                     const std::unordered_map<BlockPtr, BlockPtr> &imm_dom_map,
-                                     std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &dominance_frontier) {
+void build_dominance_frontier(const FunctionPtr &func,
+                              const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &pred_map,
+                              const std::unordered_map<BlockPtr, BlockPtr> &imm_dom_map,
+                              std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &dominance_frontier) {
     dominance_frontier.clear();
     const BlockPtr entry_block = func->get_blocks().front();
     for (const auto &x_block: func->get_blocks()) {
@@ -227,9 +228,9 @@ static void build_dominance_frontier(const FunctionPtr &func,
     log_debug("%s", oss.str().c_str());
 }
 
-static void build_post_order(const FunctionPtr &func,
-                             const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &dominance_children_map,
-                             std::vector<BlockPtr> &post_order) {
+void build_post_order(const FunctionPtr &func,
+                      const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &dominance_children_map,
+                      std::vector<BlockPtr> &post_order) {
     std::unordered_set<BlockPtr> visited;
     std::function<void(const BlockPtr &)> dfs = [&](const BlockPtr &block) {
         if (visited.count(block)) {
@@ -242,6 +243,7 @@ static void build_post_order(const FunctionPtr &func,
         post_order.push_back(block);
     };
     dfs(func->get_blocks().front());
+}
 }
 
 void Pass::ControlFlowGraph::analyze(const std::shared_ptr<const Mir::Module> module) {

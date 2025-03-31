@@ -7,14 +7,20 @@
 void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
     apply<
         Pass::Mem2Reg,
-        Pass::ConstantFolding,
-        Pass::EmitModule<>,
-        Pass::AlgebraicSimplify,
-        Pass::EmitModule<>,
+        Pass::GlobalValueNumbering,
         Pass::SimplifyCFG,
+        Pass::DeadFuncEliminate,
         Pass::EmitModule<true>,
         Pass::GlobalValueNumbering,
         Pass::LoopSimplyForm,
-        Pass::LCSSA
+        Pass::LCSSA,
+        Pass::DeadInstEliminate,
+        Pass::DeadCodeEliminate,
+        Pass::DeadFuncArgEliminate,
+        Pass::ConstexprFuncEval,
+        Pass::GlobalVariableLocalize,
+        Pass::DeadFuncEliminate,
+        Pass::DeadCodeEliminate,
+        Pass::DeadReturnEliminate
     >(module);
 }

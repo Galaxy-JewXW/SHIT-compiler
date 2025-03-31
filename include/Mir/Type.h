@@ -6,7 +6,7 @@
 
 
 namespace Mir::Type {
-class Type {
+class Type : public std::enable_shared_from_this<Type> {
 public:
     virtual ~Type() = default;
 
@@ -26,27 +26,32 @@ public:
     bool operator==(const Type &other) const { return _equal(other); }
 
     bool operator!=(const Type &other) const { return !(*this == other); }
+
+    template<typename T>
+    std::shared_ptr<T> as() {
+        return std::static_pointer_cast<T>(shared_from_this());
+    }
 };
 
 class Integer final : public Type {
-    int bits;
+    int bits_;
 
 public:
     static const std::shared_ptr<Integer> i1;
     static const std::shared_ptr<Integer> i8;
     static const std::shared_ptr<Integer> i32;
     static const std::shared_ptr<Integer> i64;
-    explicit Integer(const int bits) : bits{bits} {}
+    explicit Integer(const int bits) : bits_{bits} {}
     [[nodiscard]] bool is_integer() const override { return true; }
-    [[nodiscard]] bool is_int32() const override { return bits == 32; }
-    [[nodiscard]] bool is_int1() const override { return bits == 1; }
-    [[nodiscard]] std::string to_string() const override { return "i" + std::to_string(bits); }
+    [[nodiscard]] bool is_int32() const override { return bits_ == 32; }
+    [[nodiscard]] bool is_int1() const override { return bits_ == 1; }
+    [[nodiscard]] std::string to_string() const override { return "i" + std::to_string(bits_); }
 
-    [[nodiscard]] int operator->() const { return bits; }
+    [[nodiscard]] int bits() const { return bits_; }
 
     [[nodiscard]] bool _equal(const Type &other) const override {
         const auto p = dynamic_cast<const Integer *>(&other);
-        return p && bits == p->bits;
+        return p && bits_ == p->bits_;
     }
 };
 

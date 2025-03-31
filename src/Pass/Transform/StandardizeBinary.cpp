@@ -3,9 +3,9 @@
 
 using namespace Mir;
 
-namespace Pass {
+namespace {
 // 判断一个指令是否满足交换律，即调换两个操作数的顺序不会改变操作结果
-static void try_exchange_operands(const std::shared_ptr<Instruction> &instruction) {
+void try_exchange_operands(const std::shared_ptr<Instruction> &instruction) {
     if (const auto op = instruction->get_op(); op == Operator::INTBINARY) {
         if (const auto int_binary = std::static_pointer_cast<IntBinary>(instruction);
             int_binary->op == IntBinary::Op::ADD || int_binary->op == IntBinary::Op::MUL) {
@@ -35,8 +35,8 @@ static void try_exchange_operands(const std::shared_ptr<Instruction> &instructio
     }
 }
 
-[[maybe_unused]] static void reverse_sign(std::vector<std::shared_ptr<Instruction>> &instructions, size_t &idx,
-                         const std::shared_ptr<Block> &current_block) {
+void reverse_sign(std::vector<std::shared_ptr<Instruction>> &instructions, const size_t &idx,
+                  const std::shared_ptr<Block> &current_block) {
     auto replace_instruction = [&](const std::shared_ptr<Instruction> &from, const std::shared_ptr<Value> &to) {
         from->replace_by_new_value(to);
         from->clear_operands();
@@ -64,7 +64,7 @@ static void try_exchange_operands(const std::shared_ptr<Instruction> &instructio
     }
 }
 
-static void run_on_block(const std::shared_ptr<Block> &block) {
+void run_on_block(const std::shared_ptr<Block> &block) {
     for (const auto &instruction: block->get_instructions()) {
         try_exchange_operands(instruction);
     }
@@ -76,7 +76,9 @@ static void run_on_block(const std::shared_ptr<Block> &block) {
         reverse_sign(instructions, i, block);
     }
 }
+}
 
+namespace Pass {
 void StandardizeBinary::transform(const std::shared_ptr<Module> module) {
     for (const auto &function: *module) {
         for (const auto &block: function->get_blocks()) {

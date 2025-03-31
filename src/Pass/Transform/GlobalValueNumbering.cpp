@@ -5,10 +5,9 @@ using FunctionPtr = std::shared_ptr<Function>;
 using BlockPtr = std::shared_ptr<Block>;
 using InstructionPtr = std::shared_ptr<Instruction>;
 
-static std::shared_ptr<Pass::ControlFlowGraph> cfg = nullptr;
-
+namespace {
 // TODO：为什么Fptosi, Sitofp不能做GVN优化？
-static std::string get_hash(const std::shared_ptr<GetElementPtr> &instruction) {
+std::string get_hash(const std::shared_ptr<GetElementPtr> &instruction) {
     std::ostringstream oss;
     oss << "gep";
     for (const auto &operand: instruction->get_operands()) {
@@ -17,17 +16,17 @@ static std::string get_hash(const std::shared_ptr<GetElementPtr> &instruction) {
     return oss.str();
 }
 
-static std::string get_hash(const std::shared_ptr<Fcmp> &instruction) {
+std::string get_hash(const std::shared_ptr<Fcmp> &instruction) {
     return "fcmp " + std::to_string(static_cast<int>(instruction->op)) + " " +
            instruction->get_lhs()->get_name() + " " + instruction->get_rhs()->get_name();
 }
 
-static std::string get_hash(const std::shared_ptr<Icmp> &instruction) {
+std::string get_hash(const std::shared_ptr<Icmp> &instruction) {
     return "icmp " + std::to_string(static_cast<int>(instruction->op)) + " " +
            instruction->get_lhs()->get_name() + " " + instruction->get_rhs()->get_name();
 }
 
-static std::string get_hash(const std::shared_ptr<IntBinary> &instruction) {
+std::string get_hash(const std::shared_ptr<IntBinary> &instruction) {
     switch (instruction->op) {
         case IntBinary::Op::ADD:
         case IntBinary::Op::MUL: {
@@ -48,7 +47,7 @@ static std::string get_hash(const std::shared_ptr<IntBinary> &instruction) {
     }
 }
 
-static std::string get_hash(const std::shared_ptr<FloatBinary> &instruction) {
+std::string get_hash(const std::shared_ptr<FloatBinary> &instruction) {
     switch (instruction->op) {
         case FloatBinary::Op::ADD:
         case FloatBinary::Op::MUL: {
@@ -69,12 +68,12 @@ static std::string get_hash(const std::shared_ptr<FloatBinary> &instruction) {
     }
 }
 
-static std::string get_hash(const std::shared_ptr<Zext> &instruction) {
+std::string get_hash(const std::shared_ptr<Zext> &instruction) {
     return "zext " + instruction->get_value()->get_name() + " "
            + instruction->get_value()->get_type()->to_string() + " " + instruction->get_type()->to_string();
 }
 
-static std::string get_instruction_hash(const InstructionPtr &instruction) {
+std::string get_instruction_hash(const InstructionPtr &instruction) {
     switch (instruction->get_op()) {
         case Operator::GEP:
             return get_hash(std::static_pointer_cast<GetElementPtr>(instruction));
@@ -93,10 +92,173 @@ static std::string get_instruction_hash(const InstructionPtr &instruction) {
     }
 }
 
-static void run_on_block(const FunctionPtr &func,
-                         const BlockPtr &block,
-                         std::unordered_map<std::string, InstructionPtr> &value_hashmap) {
+template<typename T>
+struct always_false : std::false_type {};
+
+// 声明模板
+template<typename Binary>
+struct binary_traits;
+
+// 对IntBinary指令进行特化
+template<>
+struct binary_traits<IntBinary> {
+    using value_type = int;
+    using constant_type = ConstInt;
+};
+
+// 对FloatBinary指令进行特化
+template<>
+struct binary_traits<FloatBinary> {
+    using value_type = double;
+    using constant_type = ConstFloat;
+};
+
+template<typename Binary>
+bool evaluate_binary(const std::shared_ptr<Binary> &inst, typename binary_traits<Binary>::value_type &res) {
+    // 自动推导操作数的值类型和常量类型
+    using T = typename binary_traits<Binary>::value_type;
+    using ConstType = typename binary_traits<Binary>::constant_type;
+    // 如果任一操作数不是常量，则无法进行常量折叠，返回false
+    const auto lhs = inst->get_lhs(), rhs = inst->get_rhs();
+    if (!lhs->is_constant() || !rhs->is_constant()) return false;
+    if constexpr (std::is_same_v<T, int>) {
+        if (!lhs->get_type()->is_int32() || !rhs->get_type()->is_int32()) {
+            log_error("Illegal operator type for %s", inst->to_string().c_str());
+        }
+    } else if constexpr (std::is_same_v<T, double>) {
+        if (!lhs->get_type()->is_float() || !rhs->get_type()->is_float()) {
+            log_error("Illegal operator type for %s", inst->to_string().c_str());
+        }
+    }
+    // 从常量指令中提取数值，根据操作符进行计算
+    const T lhs_val = std::any_cast<T>(std::static_pointer_cast<ConstType>(lhs)->get_constant_value()),
+            rhs_val = std::any_cast<T>(std::static_pointer_cast<ConstType>(rhs)->get_constant_value());
+    switch (inst->op) {
+        case Binary::Op::ADD: res = lhs_val + rhs_val;
+            break;
+        case Binary::Op::SUB: res = lhs_val - rhs_val;
+            break;
+        case Binary::Op::MUL: res = lhs_val * rhs_val;
+            break;
+        case Binary::Op::DIV: res = lhs_val / rhs_val;
+            break;
+        case Binary::Op::MOD: {
+            if constexpr (std::is_same_v<T, double>) {
+                res = std::fmod(lhs_val, rhs_val);
+            } else {
+                res = lhs_val % rhs_val;
+            }
+            break;
+        }
+        default: log_error("Unsupported operator in %s", inst->to_string().c_str());
+    }
+    return true;
+}
+
+template<typename Cmp>
+struct cmp_traits {
+    static_assert(always_false<Cmp>::value, "Unsupported Cmp type for evaluate_cmp");
+};
+
+// 对Icmp进行特化
+template<>
+struct cmp_traits<Icmp> {
+    using value_type = int;
+    using constant_type = ConstInt;
+};
+
+// 对Fcmp进行特化
+template<>
+struct cmp_traits<Fcmp> {
+    using value_type = double;
+    using constant_type = ConstFloat;
+};
+
+// 修改后的evaluate_cmp函数，只需传入指令类型Cmp，其余类型自动推导
+template<typename Cmp>
+bool evaluate_cmp(const std::shared_ptr<Cmp> &inst, int &res) {
+    // 自动推导比较操作的数值类型和对应的常量类型
+    using T = typename cmp_traits<Cmp>::value_type;
+    using ConstType = typename cmp_traits<Cmp>::constant_type;
+    // 如果任一操作数不是常量，则无法进行折叠，返回false
+    const auto lhs = inst->get_lhs(), rhs = inst->get_rhs();
+    if (!lhs->is_constant() || !rhs->is_constant()) return false;
+    // 检查左右操作数的类型是否合法
+    if constexpr (std::is_same_v<T, int>) {
+        if (!lhs->get_type()->is_int32() || !rhs->get_type()->is_int32()) {
+            log_error("Illegal operator type for %s", inst->to_string().c_str());
+        }
+    } else if constexpr (std::is_same_v<T, double>) {
+        if (!lhs->get_type()->is_float() || !rhs->get_type()->is_float()) {
+            log_error("Illegal operator type for %s", inst->to_string().c_str());
+        }
+    }
+    // 解引用静态指针获得常量值，根据比较操作符进行计算
+    const auto lhs_val = **lhs->template as<ConstType>(),
+               rhs_val = **rhs->template as<ConstType>();
+    switch (inst->op) {
+        case Cmp::Op::EQ: res = lhs_val == rhs_val;
+            break;
+        case Cmp::Op::NE: res = lhs_val != rhs_val;
+            break;
+        case Cmp::Op::GT: res = lhs_val > rhs_val;
+            break;
+        case Cmp::Op::GE: res = lhs_val >= rhs_val;
+            break;
+        case Cmp::Op::LT: res = lhs_val < rhs_val;
+            break;
+        case Cmp::Op::LE: res = lhs_val <= rhs_val;
+            break;
+        default: log_error("Unsupported operator in %s", inst->to_string().c_str());
+    }
+    return true;
+}
+
+bool try_fold(const std::shared_ptr<Instruction> &instruction) {
+    if (const Operator op = instruction->get_op(); op == Operator::INTBINARY) {
+        const auto int_binary = std::static_pointer_cast<IntBinary>(instruction);
+        if (int res_val; evaluate_binary(int_binary, res_val)) {
+            const auto const_int = std::make_shared<ConstInt>(res_val);
+            int_binary->replace_by_new_value(const_int);
+            return true;
+        }
+    } else if (op == Operator::FLOATBINARY) {
+        const auto float_binary = std::static_pointer_cast<FloatBinary>(instruction);
+        if (double res_val; evaluate_binary(float_binary, res_val)) {
+            const auto const_float = std::make_shared<ConstFloat>(res_val);
+            float_binary->replace_by_new_value(const_float);
+            return true;
+        }
+    } else if (op == Operator::ICMP) {
+        const auto icmp = std::static_pointer_cast<Icmp>(instruction);
+        if (int res_val; evaluate_cmp(icmp, res_val)) {
+            const auto const_bool = std::make_shared<ConstBool>(res_val);
+            icmp->replace_by_new_value(const_bool);
+            return true;
+        }
+    } else if (op == Operator::FCMP) {
+        const auto fcmp = std::static_pointer_cast<Fcmp>(instruction);
+        if (int res_val; evaluate_cmp(fcmp, res_val)) {
+            const auto const_bool = std::make_shared<ConstBool>(res_val);
+            fcmp->replace_by_new_value(const_bool);
+            return true;
+        }
+    }
+    return false;
+}
+}
+
+namespace Pass {
+bool GlobalValueNumbering::run_on_block(const FunctionPtr &func,
+                                        const BlockPtr &block,
+                                        std::unordered_map<std::string, InstructionPtr> &value_hashmap) {
+    bool changed = false;
     for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
+        if (try_fold(*it)) {
+            (*it)->clear_operands();
+            it = block->get_instructions().erase(it);
+            changed = true;
+        }
         const auto &instruction_hash = get_instruction_hash(*it);
         if (instruction_hash.empty()) {
             ++it;
@@ -106,40 +268,40 @@ static void run_on_block(const FunctionPtr &func,
             (*it)->replace_by_new_value(value_hashmap[instruction_hash]);
             (*it)->clear_operands();
             it = block->get_instructions().erase(it);
+            changed = true;
         } else {
             value_hashmap[instruction_hash] = *it;
             ++it;
         }
     }
     for (const auto &child: cfg->dominance_children(func).at(block)) {
-        run_on_block(func, child, value_hashmap);
+        changed |= run_on_block(func, child, value_hashmap);
     }
+    return changed;
 }
 
-static void run_on_func(const FunctionPtr &func) {
+bool GlobalValueNumbering::run_on_func(const FunctionPtr &func) {
     const auto &entry_block = func->get_blocks().front();
     std::unordered_map<std::string, InstructionPtr> value_hashmap;
-    run_on_block(func, entry_block, value_hashmap);
+    return run_on_block(func, entry_block, value_hashmap);
 }
 
-namespace Pass {
 void GlobalValueNumbering::transform(const std::shared_ptr<Module> module) {
-    const auto constant_fold = create<ConstantFolding>();
-    constant_fold->run_on(module);
-    cfg = create<ControlFlowGraph>();
-    cfg->run_on(module);
+    cfg = get_analysis_result<ControlFlowGraph>(module);
+    create<AlgebraicSimplify>()->run_on(module);
     // 不同的遍历顺序可能导致化简的结果不同
     // 跑多次GVN直到一个不动点
-    for (const auto &func: *module) {
-        run_on_func(func);
-    }
-    for (const auto &func: *module) {
-        run_on_func(func);
-    }
+    bool changed = false;
+    do {
+        changed = false;
+        for (const auto &func: *module) {
+            changed |= run_on_func(func);
+        }
+    } while (changed);
     cfg = nullptr;
     // GVN后可能出现一条指令被替换成其另一条指令，但是那条指令并不支配这条指令的users的问题
     // 可以通过 GCM 解决。在 GCM 中考虑value之间的依赖，会根据依赖将那条指令移动到正确的位置
-    const auto &gcm = create<GlobalCodeMotion>();
-    gcm->run_on(module);
+    create<GlobalCodeMotion>()->run_on(module);
+    create<AlgebraicSimplify>()->run_on(module);
 }
 }

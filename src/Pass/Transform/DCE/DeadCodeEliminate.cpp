@@ -1,0 +1,113 @@
+#include "Pass/Transform.h"
+using namespace Mir;
+
+namespace {
+void add_all_operands(const std::shared_ptr<Instruction> &instruction,
+                      std::unordered_set<std::shared_ptr<Instruction>> &set) {
+    for (const auto &operand: *instruction) {
+        if (const auto inst = std::dynamic_pointer_cast<Instruction>(operand)) {
+            set.insert(inst);
+        }
+    }
+}
+}
+
+namespace Pass {
+void DeadCodeEliminate::init_useful_instruction(const std::shared_ptr<Function> &function) {
+    const auto is_useful_call = [&](const std::shared_ptr<Function> &func) {
+        if (func->is_runtime_func()) {
+            return func->get_name().find("memset") == std::string::npos;
+        }
+        if (const auto info = function_analysis_->func_info(func); info.io_read || info.io_write) {
+            return true;
+        }
+        return false;
+    };
+    for (const auto &block: function->get_blocks()) {
+        for (const auto &inst: block->get_instructions()) {
+            if (const auto terminator = std::dynamic_pointer_cast<Terminator>(inst)) {
+                useful_instructions_.insert(inst);
+            } else if (const auto call = std::dynamic_pointer_cast<Call>(inst)) {
+                if (const auto &called_function = call->get_function()->as<Function>();
+                    is_useful_call(called_function)) {
+                    useful_instructions_.insert(inst);
+                    add_all_operands(call, useful_instructions_);
+                }
+            }
+        }
+    }
+}
+
+void DeadCodeEliminate::update_useful_instruction(const std::shared_ptr<Instruction> &instruction) {
+    add_all_operands(instruction, useful_instructions_);
+    if (instruction->get_type()->is_pointer()) {
+        for (const auto &use: instruction->users()) {
+            const auto inst = std::dynamic_pointer_cast<Instruction>(use);
+            if (inst == nullptr) {
+                continue;
+            }
+            if (const auto op = inst->get_op();
+                op == Operator::STORE || op == Operator::GEP || op == Operator::CALL) {
+                useful_instructions_.insert(inst);
+            } else if (inst->users().size() > 0) {
+                useful_instructions_.insert(inst);
+            }
+        }
+    }
+}
+
+void DeadCodeEliminate::dead_global_variable_eliminate(const std::shared_ptr<Module> &module) {
+    for (auto it = module->get_global_variables().begin(); it != module->get_global_variables().end();) {
+        if (const auto &gv = *it; gv->users().size() == 0) {
+            it = module->get_global_variables().erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+
+void DeadCodeEliminate::transform(const std::shared_ptr<Module> module) {
+    function_analysis_ = create<FunctionAnalysis>();
+    function_analysis_->run_on(module);
+    dead_global_variable_eliminate(module);
+    for (const auto &func: *module) {
+        useful_instructions_.clear();
+        for (const auto &gv: module->get_global_variables()) {
+            for (const auto &use: gv->users()) {
+                const auto inst = std::dynamic_pointer_cast<Instruction>(use);
+                if (inst == nullptr) {
+                    continue;
+                }
+                if (const auto op = inst->get_op();
+                    op == Operator::STORE || op == Operator::GEP || op == Operator::CALL) {
+                    useful_instructions_.insert(inst);
+                } else if (inst->users().size() > 0) {
+                    useful_instructions_.insert(inst);
+                }
+            }
+        }
+        init_useful_instruction(func);
+        bool changed = false;
+        do {
+            const auto snap = useful_instructions_;
+            for (const auto &inst: snap) {
+                update_useful_instruction(inst);
+            }
+            changed = snap.size() != useful_instructions_.size();
+        } while (changed);
+        for (const auto &block: func->get_blocks()) {
+            for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
+                if (useful_instructions_.find(*it) == useful_instructions_.end()) {
+                    (*it)->clear_operands();
+                    it = block->get_instructions().erase(it);
+                } else {
+                    ++it;
+                }
+            }
+        }
+    }
+    dead_global_variable_eliminate(module);
+    function_analysis_ = nullptr;
+}
+}

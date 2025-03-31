@@ -24,7 +24,8 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
             auto predecessors = block_predecessors[loop->get_header()];
             std::vector<std::shared_ptr<Mir::Block>> entering;
             for (auto &predecessor: predecessors) {
-                if (block_dominators[predecessor].find(loop->get_header()) == block_dominators[loop->get_header()].end())
+                if (block_dominators[predecessor].find(loop->get_header()) == block_dominators[loop->get_header()].
+                    end())
                     entering.push_back(predecessor);
             }
 
@@ -102,7 +103,7 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
         }
 
         for (auto &loop: loops) {
-            for (auto &exit : loop->get_exits()) {
+            for (auto &exit: loop->get_exits()) {
                 if (block_dominators[exit].find(loop->get_header()) == block_dominators[exit].end()) {
                     auto new_exit_block = Mir::Block::create(Mir::Builder::gen_block_name(), func);
                     auto jump_instruction = Mir::Jump::create(exit, new_exit_block);

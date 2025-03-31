@@ -1,7 +1,7 @@
+#include <functional>
+
 #include "Mir/Interpreter.h"
-
-#include <Mir/Instruction.h>
-
+#include "Mir/Instruction.h"
 #include "Utils/Log.h"
 
 static size_t type_size(const std::shared_ptr<Mir::Type::Type> &type) {
@@ -9,11 +9,11 @@ static size_t type_size(const std::shared_ptr<Mir::Type::Type> &type) {
         return 4;
     }
     if (type->is_integer()) {
-        return (7 + std::static_pointer_cast<Mir::Type::Integer>(type)->operator->()) / 8;
+        return (7 + type->as<Mir::Type::Integer>()->bits()) / 8;
     }
     if (type->is_array()) {
-        return type_size(std::static_pointer_cast<Mir::Type::Array>(type)->get_atomic_type()) *
-               std::static_pointer_cast<Mir::Type::Array>(type)->get_flattened_size();
+        return type_size(type->as<Mir::Type::Array>()->get_atomic_type()) *
+               type->as<Mir::Type::Array>()->get_flattened_size();
     }
     return 0;
 }
@@ -22,13 +22,13 @@ namespace Mir {
 eval_t ConstexprFuncInterpreter::get_runtime_value(const std::shared_ptr<Value> &value) {
     if (value->is_constant()) {
         if (const auto constant_float = std::dynamic_pointer_cast<ConstFloat>(value)) {
-            return std::any_cast<double>(constant_float->get_constant_value());
+            return **constant_float;
         }
         if (const auto constant_int = std::dynamic_pointer_cast<ConstInt>(value)) {
-            return std::any_cast<int>(constant_int->get_constant_value());
+            return **constant_int;
         }
         if (const auto constant_bool = std::dynamic_pointer_cast<ConstBool>(value)) {
-            return std::any_cast<int>(constant_bool->get_constant_value());
+            return **constant_bool;
         }
     }
     if (value_map.find(value) != value_map.end()) {
@@ -58,11 +58,11 @@ void ConstexprFuncInterpreter::interpret_store(const std::shared_ptr<Store> &sto
 void ConstexprFuncInterpreter::interpret_gep(const std::shared_ptr<GetElementPtr> &gep) {
     const auto base_addr = get_runtime_value(gep->get_addr());
     const auto index = get_runtime_value(gep->get_index());
-    const auto contain_type = std::static_pointer_cast<Type::Pointer>(gep->get_addr()->get_type())->get_contain_type();
+    const auto contain_type = gep->get_addr()->get_type()->as<Type::Pointer>()->get_contain_type();
     if (const auto op_size = gep->get_operands().size(); op_size == 2) {
         // 形如 %1 = getelementptr inbounds [9 x [3 x i32]], [9 x [3 x i32]]* %0, i32 1
         const auto element_size = type_size(contain_type);
-        value_map[gep] = base_addr + index * static_cast<eval_t>(element_size);
+        value_map[gep] = base_addr + index * static_cast<eval_t>(element_size) / 4;
     } else if (op_size == 3) {
         // 形如 %2 = getelementptr inbounds [9 x [3 x i32]], [9 x [3 x i32]]* %1, i32 0, i32 7
         if (!contain_type->is_array()) {
@@ -71,7 +71,7 @@ void ConstexprFuncInterpreter::interpret_gep(const std::shared_ptr<GetElementPtr
         const auto array_type = std::static_pointer_cast<Type::Array>(contain_type);
         const auto element_type = array_type->get_element_type();
         const auto element_size = type_size(element_type);
-        value_map[gep] = base_addr + index * static_cast<eval_t>(element_size);
+        value_map[gep] = base_addr + index * static_cast<eval_t>(element_size) / 4;
     } else {
         log_fatal("Unhandled getelementptr instruction: %s", gep->to_string().c_str());
     }
@@ -157,11 +157,14 @@ void ConstexprFuncInterpreter::interpret_call(const std::shared_ptr<Call> &call)
     for (size_t i = 0; i < call->get_params().size(); ++i) {
         real_args.push_back(get_runtime_value(call->get_params()[i]));
     }
-    const auto called_func = std::static_pointer_cast<Function>(call->get_function());
+    const auto called_func = call->get_function()->as<Function>();
+    if (called_func->get_name() == "llvm.memset.p0i8.i32") {
+        return;
+    }
     if (called_func->is_runtime_func()) {
         log_error("Unhandled runtime function: %s", called_func->get_name().c_str());
     }
-    const auto sub_interpreter = std::make_shared<ConstexprFuncInterpreter>();
+    const auto sub_interpreter = std::make_unique<ConstexprFuncInterpreter>();
     const eval_t sub_return_value = sub_interpreter->interpret_function(called_func, real_args);
     if (!call->get_name().empty()) {
         value_map[call] = sub_return_value;
@@ -203,57 +206,93 @@ void ConstexprFuncInterpreter::interpret_phi(const std::shared_ptr<Phi> &phi) {
 }
 
 void ConstexprFuncInterpreter::interpret_instruction(const std::shared_ptr<Instruction> &instruction) {
-    switch (instruction->get_op()) {
-        case Operator::ALLOC:
-            interpret_alloc(std::static_pointer_cast<Alloc>(instruction));
-            break;
-        case Operator::LOAD:
-            interpret_load(std::static_pointer_cast<Load>(instruction));
-            break;
-        case Operator::STORE:
-            interpret_store(std::static_pointer_cast<Store>(instruction));
-            break;
-        case Operator::GEP:
-            interpret_gep(std::static_pointer_cast<GetElementPtr>(instruction));
-            break;
-        case Operator::BITCAST:
-            interpret_bitcast(std::static_pointer_cast<BitCast>(instruction));
-            break;
-        case Operator::FPTOSI:
-            interpret_fptosi(std::static_pointer_cast<Fptosi>(instruction));
-            break;
-        case Operator::SITOFP:
-            interpret_sitofp(std::static_pointer_cast<Sitofp>(instruction));
-            break;
-        case Operator::FCMP:
-            interpret_fcmp(std::static_pointer_cast<Fcmp>(instruction));
-            break;
-        case Operator::ICMP:
-            interpret_icmp(std::static_pointer_cast<Icmp>(instruction));
-            break;
-        case Operator::ZEXT:
-            interpret_zext(std::static_pointer_cast<Zext>(instruction));
-            break;
-        case Operator::BRANCH:
-            interpret_br(std::static_pointer_cast<Branch>(instruction));
-            break;
-        case Operator::JUMP:
-            interpret_jump(std::static_pointer_cast<Jump>(instruction));
-            break;
-        case Operator::RET:
-            interpret_ret(std::static_pointer_cast<Ret>(instruction));
-            break;
-        case Operator::CALL:
-            interpret_call(std::static_pointer_cast<Call>(instruction));
-            break;
-        case Operator::INTBINARY:
-            interpret_intbinary(std::static_pointer_cast<IntBinary>(instruction));
-            break;
-        case Operator::FLOATBINARY:
-            interpret_floatbinary(std::static_pointer_cast<FloatBinary>(instruction));
-            break;
-        default:
-            log_error("Unhandled instruction type");
+    using Handler = std::function<void(ConstexprFuncInterpreter *, std::shared_ptr<Instruction>)>;
+    static const std::unordered_map<Operator, Handler> handlers = {
+        {
+            Operator::ALLOC, [](auto *self, const auto &instr) {
+                self->interpret_alloc(std::static_pointer_cast<Alloc>(instr));
+            }
+        },
+        {
+            Operator::LOAD, [](auto *self, const auto &instr) {
+                self->interpret_load(std::static_pointer_cast<Load>(instr));
+            }
+        },
+        {
+            Operator::STORE, [](auto *self, const auto &instr) {
+                self->interpret_store(std::static_pointer_cast<Store>(instr));
+            }
+        },
+        {
+            Operator::GEP, [](auto *self, const auto &instr) {
+                self->interpret_gep(std::static_pointer_cast<GetElementPtr>(instr));
+            }
+        },
+        {
+            Operator::BITCAST, [](auto *self, const auto &instr) {
+                self->interpret_bitcast(std::static_pointer_cast<BitCast>(instr));
+            }
+        },
+        {
+            Operator::FPTOSI, [](auto *self, const auto &instr) {
+                self->interpret_fptosi(std::static_pointer_cast<Fptosi>(instr));
+            }
+        },
+        {
+            Operator::SITOFP, [](auto *self, const auto &instr) {
+                self->interpret_sitofp(std::static_pointer_cast<Sitofp>(instr));
+            }
+        },
+        {
+            Operator::FCMP, [](auto *self, const auto &instr) {
+                self->interpret_fcmp(std::static_pointer_cast<Fcmp>(instr));
+            }
+        },
+        {
+            Operator::ICMP, [](auto *self, const auto &instr) {
+                self->interpret_icmp(std::static_pointer_cast<Icmp>(instr));
+            }
+        },
+        {
+            Operator::ZEXT, [](auto *self, const auto &instr) {
+                self->interpret_zext(std::static_pointer_cast<Zext>(instr));
+            }
+        },
+        {
+            Operator::BRANCH, [](auto *self, const auto &instr) {
+                self->interpret_br(std::static_pointer_cast<Branch>(instr));
+            }
+        },
+        {
+            Operator::JUMP, [](auto *self, const auto &instr) {
+                self->interpret_jump(std::static_pointer_cast<Jump>(instr));
+            }
+        },
+        {
+            Operator::RET, [](auto *self, const auto &instr) {
+                self->interpret_ret(std::static_pointer_cast<Ret>(instr));
+            }
+        },
+        {
+            Operator::CALL, [](auto *self, const auto &instr) {
+                self->interpret_call(std::static_pointer_cast<Call>(instr));
+            }
+        },
+        {
+            Operator::INTBINARY, [](auto *self, const auto &instr) {
+                self->interpret_intbinary(std::static_pointer_cast<IntBinary>(instr));
+            }
+        },
+        {
+            Operator::FLOATBINARY, [](auto *self, const auto &instr) {
+                self->interpret_floatbinary(std::static_pointer_cast<FloatBinary>(instr));
+            }
+        }
+    };
+    if (const auto it = handlers.find(instruction->get_op()); it != handlers.end()) {
+        it->second(this, instruction);
+    } else {
+        log_error("Unhandled instruction type: %d", static_cast<int>(instruction->get_op()));
     }
 }
 
@@ -269,20 +308,25 @@ eval_t ConstexprFuncInterpreter::interpret_function(const std::shared_ptr<Functi
     prev_block = nullptr;
     current_block = func->get_blocks().front();
     while (current_block != nullptr) {
-        for (size_t i = 0; i < current_block->get_instructions().size(); ++i) {
-            const auto &instruction = current_block->get_instructions()[i];
-            if (instruction->get_op() == Operator::PHI) {
-                interpret_phi(std::static_pointer_cast<Phi>(instruction));
-                if (current_block->get_instructions()[i + 1]->get_op() == Operator::PHI) [[unlikely]] {
+        const auto original_block = current_block;
+        const auto &instructions = original_block->get_instructions();
+        for (size_t i = 0; i < instructions.size(); ++i) {
+            if (const auto &instruction = instructions[i]; instruction->get_op() == Operator::PHI) {
+                interpret_phi(instruction->as<Phi>());
+                // 处理连续的phi指令
+                if (i + 1 < instructions.size() && instructions[i + 1]->get_op() == Operator::PHI)
                     continue;
-                }
-                for (const auto &[phi, eval_value]: phi_cache) {
+                // 更新所有缓存的phi值
+                for (const auto &[phi, eval_value]: phi_cache)
                     value_map[phi] = eval_value;
-                }
                 phi_cache.clear();
-                continue;
+            } else {
+                interpret_instruction(instruction);
             }
-            interpret_instruction(instruction);
+            // 如果当前块已改变，终止处理后续指令
+            if (current_block != original_block) {
+                break;
+            }
         }
     }
     return func_return_value;

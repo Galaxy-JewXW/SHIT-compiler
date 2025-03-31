@@ -41,7 +41,9 @@ public:
         }
     }
 
-    [[nodiscard]] std::vector<std::shared_ptr<Function>> &all_functions() { return functions; }
+    [[nodiscard]] std::vector<std::shared_ptr<Function>> &get_functions() { return functions; }
+
+    [[nodiscard]] std::vector<std::shared_ptr<GlobalVariable>> &get_global_variables() { return global_variables; }
 
     void add_function(const std::shared_ptr<Function> &function) { functions.emplace_back(function); }
 
@@ -80,6 +82,8 @@ public:
 
     [[nodiscard]] bool is_constant_gv() const { return is_constant; }
 
+    [[nodiscard]] std::shared_ptr<Init::Init> get_init_value() const { return init_value; }
+
     [[nodiscard]] std::string to_string() const override;
 };
 
@@ -100,7 +104,6 @@ public:
 class Block;
 
 class Function final : public User {
-    const std::shared_ptr<Type::Type> return_type;
     std::vector<std::shared_ptr<Argument>> arguments;
     std::vector<std::shared_ptr<Block>> blocks;
     const bool is_runtime_function;
@@ -108,7 +111,7 @@ class Function final : public User {
 public:
     Function(const std::string &name, const std::shared_ptr<Type::Type> &return_type,
              const bool is_runtime_function = false)
-        : User(name, return_type), return_type{return_type}, is_runtime_function{is_runtime_function} {}
+        : User(name, return_type), is_runtime_function{is_runtime_function} {}
 
     template<typename... Types>
     static std::shared_ptr<Function> create(const std::string &name,
@@ -134,9 +137,9 @@ public:
         return is_runtime_function && sysy_runtime_functions.find(name_) != sysy_runtime_functions.end();
     }
 
-    [[nodiscard]] const std::shared_ptr<Type::Type> &get_return_type() const { return return_type; }
+    [[nodiscard]] std::shared_ptr<Type::Type> get_return_type() const { return type_; }
 
-    [[nodiscard]] std::vector<std::shared_ptr<Argument>> get_arguments() const { return arguments; }
+    [[nodiscard]] std::vector<std::shared_ptr<Argument>> &get_arguments() { return arguments; }
 
     void add_argument(const std::shared_ptr<Argument> &argument) { arguments.emplace_back(argument); }
 
