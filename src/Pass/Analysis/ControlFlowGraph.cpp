@@ -118,6 +118,7 @@ void build_dominators_dominated(const FunctionPtr &func,
     log_debug("%s", oss.str().c_str());
 }
 
+[[deprecated("Use Tarjan instead"), maybe_unused]]
 void build_immediate_dominators(const FunctionPtr &func,
                                 const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &dominator,
                                 std::unordered_map<BlockPtr, BlockPtr> &imm_dom_map) {
@@ -157,11 +158,109 @@ void build_immediate_dominators(const FunctionPtr &func,
     }
 }
 
+// Lengauer–Tarjan 算法求解有向图的支配树
+// 参见：https://oi-wiki.org/graph/dominator-tree/
+struct LengauerTarjan {
+    std::vector<BlockPtr> dfs_order;
+    std::unordered_map<BlockPtr, size_t> dfs_num;
+    std::unordered_map<BlockPtr, BlockPtr> parent, ancestor, semi, idom;
+    std::unordered_map<BlockPtr, BlockPtr> best;
+    std::unordered_map<BlockPtr, std::vector<BlockPtr>> bucket;
+    const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &succ_map;
+
+    explicit LengauerTarjan(const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &succ_map)
+        : succ_map(succ_map) {}
+
+    void dfs(const BlockPtr &v) {
+        dfs_num[v] = dfs_order.size();
+        dfs_order.push_back(v);
+        if (const auto it = succ_map.find(v); it != succ_map.end()) {
+            for (const auto &w: it->second) {
+                if (!dfs_num.count(w)) {
+                    parent[w] = v;
+                    dfs(w);
+                }
+            }
+        }
+    }
+
+    BlockPtr find(BlockPtr v) {
+        if (!ancestor.count(v) || ancestor[v] == nullptr) return v;
+        compress(v);
+        return best[v];
+    }
+
+    void compress(const BlockPtr &v) {
+        if (ancestor.count(v) && ancestor[v] != nullptr &&
+            ancestor.count(ancestor[v]) && ancestor[ancestor[v]] != nullptr) {
+            compress(ancestor[v]);
+            if (dfs_num[semi[best[ancestor[v]]]] < dfs_num[semi[best[v]]]) {
+                best[v] = best[ancestor[v]];
+            }
+            ancestor[v] = ancestor[ancestor[v]];
+        }
+    }
+
+    void compute(const FunctionPtr &func) {
+        const BlockPtr entry = func->get_blocks().front();
+        dfs_num.clear();
+        dfs_order.clear();
+        parent.clear();
+        ancestor.clear();
+        semi.clear();
+        idom.clear();
+        best.clear();
+        bucket.clear();
+
+        parent[entry] = nullptr;
+        dfs(entry);
+
+        for (const auto &v: dfs_order) {
+            ancestor[v] = nullptr;
+            best[v] = v;
+            semi[v] = v;
+        }
+
+        for (auto it = dfs_order.rbegin(); it != dfs_order.rend(); ++it) {
+            const BlockPtr &v = *it;
+            if (v == entry) {
+                continue;
+            }
+            for (const auto &pred: func->get_blocks()) {
+                if (succ_map.count(pred) && succ_map.at(pred).count(v)) {
+                    BlockPtr u = pred;
+                    BlockPtr s = u;
+                    if (dfs_num[u] > dfs_num[v]) {
+                        s = semi[find(u)];
+                    }
+                    if (dfs_num[s] < dfs_num[semi[v]]) {
+                        semi[v] = s;
+                    }
+                }
+            }
+            bucket[semi[v]].push_back(v);
+            ancestor[v] = parent[v];
+            if (parent[v] != nullptr) {
+                for (const auto &w: bucket[parent[v]]) {
+                    BlockPtr u = find(w);
+                    idom[w] = semi[u] == semi[w] ? parent[v] : u;
+                }
+                bucket[parent[v]].clear();
+            }
+        }
+        for (const auto &v: dfs_order) {
+            if (v != entry && idom[v] != semi[v]) {
+                idom[v] = idom[idom[v]];
+            }
+        }
+        idom[entry] = nullptr;
+    }
+};
+
 // 构建支配子树中的直接子节点映射
 void build_dominance_children(const FunctionPtr &func,
                               const std::unordered_map<BlockPtr, BlockPtr> &imm_dom_map,
-                              std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &
-                              dominance_children_map) {
+                              std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &dominance_children_map) {
     dominance_children_map.clear();
     for (const auto &block: func->get_blocks()) {
         dominance_children_map[block];
@@ -266,7 +365,13 @@ void Pass::ControlFlowGraph::analyze(const std::shared_ptr<const Mir::Module> mo
         auto &post_order_blocks = post_order_blocks_[func]; // func中所有block的后序遍历
         build_predecessors_successors(func, pred_map, succ_map);
         build_dominators_dominated(func, pred_map, dominator_map, dominated_map);
-        build_immediate_dominators(func, dominator_map, imm_dom_map);
+        // build_immediate_dominators(func, dominator_map, imm_dom_map);
+        LengauerTarjan lt(succ_map);
+        lt.compute(func);
+        for (const auto &block: func->get_blocks()) {
+            imm_dom_map[block] = lt.idom[block];
+        }
+        imm_dom_map.erase(func->get_blocks().front());
         build_dominance_children(func, imm_dom_map, dominance_children_map);
         build_dominance_frontier(func, pred_map, imm_dom_map, dominance_frontier_map);
         build_post_order(func, dominance_children_map, post_order_blocks);
