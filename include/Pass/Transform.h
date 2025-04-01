@@ -104,7 +104,7 @@ protected:
 
     void remove_unreachable_blocks(const std::shared_ptr<Mir::Function> &func);
 
-    void remove_phi(const std::shared_ptr<Mir::Function> &func) const;
+    bool remove_phi(const std::shared_ptr<Mir::Function> &func) const;
 
 private:
     std::unordered_set<std::shared_ptr<Mir::Block>> visited;
@@ -168,6 +168,8 @@ private:
 class GlobalValueNumbering final : public Transform {
 public:
     explicit GlobalValueNumbering() : Transform("GlobalValueNumbering") {}
+
+    static bool fold_instruction(const std::shared_ptr<Mir::Instruction> &instruction);
 
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;

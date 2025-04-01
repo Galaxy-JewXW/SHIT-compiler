@@ -183,7 +183,7 @@ bool SimplifyCFG::try_merge_blocks(const std::shared_ptr<Function> &func) const 
 }
 
 // 消除只包含单个非条件跳转的基本块
-bool SimplifyCFG::try_simplify_single_jump(const std::shared_ptr<Function> &func) const {
+[[deprecated]] bool SimplifyCFG::try_simplify_single_jump(const std::shared_ptr<Function> &func) const {
     bool changed = false;
     auto is_single_jump_block = [&](const std::shared_ptr<Block> &block) -> std::shared_ptr<Block> {
         if (block->get_instructions().size() != 1)
@@ -267,10 +267,11 @@ void SimplifyCFG::remove_unreachable_blocks(const std::shared_ptr<Function> &fun
     }), blocks.end());
 }
 
-void SimplifyCFG::remove_phi(const std::shared_ptr<Function> &func) const {
+bool SimplifyCFG::remove_phi(const std::shared_ptr<Function> &func) const {
     // 对于无法到达的block，清理有关的phi节点
     // 如果phi节点的每个可选值都是相同的，则替换为第一个可选值，并删除phi节点
     // 如果没有指令使用phi节点，则删除phi节点
+    bool changed = false;
     auto &blocks = func->get_blocks();
     for (const auto &block: blocks) {
         for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
@@ -282,11 +283,13 @@ void SimplifyCFG::remove_phi(const std::shared_ptr<Function> &func) const {
                 phi->replace_by_new_value(first_val);
                 phi->clear_operands();
                 it = block->get_instructions().erase(it);
+                changed = true;
             } else {
                 ++it;
             }
         }
     }
+    return changed;
 }
 
 void SimplifyCFG::transform(const std::shared_ptr<Module> module) {
@@ -295,17 +298,34 @@ void SimplifyCFG::transform(const std::shared_ptr<Module> module) {
         remove_unreachable_blocks(func);
     }
     cfg_info = get_analysis_result<ControlFlowGraph>(module);
+    bool changed = false;
+    do {
+        changed = false;
+        for (const auto &func: *module) {
+            cfg_info = get_analysis_result<ControlFlowGraph>(module);
+            changed |= remove_phi(func);
+            while (try_merge_blocks(func)) {
+                changed = true;
+                cfg_info->run_on(module);
+            }
+            changed |= remove_phi(func);
+            for (const auto &block: func->get_blocks()) {
+                for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
+                    if (GlobalValueNumbering::fold_instruction(*it)) {
+                        (*it)->clear_operands();
+                        it = block->get_instructions().erase(it);
+                        changed = true;
+                    } else {
+                        ++it;
+                    }
+                }
+            }
+            replace_branch_with_jump(func);
+            remove_unreachable_blocks(func);
+        }
+    } while (changed);
     for (const auto &func: *module) {
-        remove_phi(func);
-        while (try_merge_blocks(func)) {
-            replace_branch_with_jump(func);
-            cfg_info->run_on(module);
-        }
-        while (try_merge_blocks(func)) {
-            replace_branch_with_jump(func);
-            cfg_info->run_on(module);
-        }
-        remove_phi(func);
+        remove_unreachable_blocks(func);
     }
     cfg_info = nullptr;
 }

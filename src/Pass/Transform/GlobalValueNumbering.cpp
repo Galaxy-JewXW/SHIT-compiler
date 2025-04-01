@@ -215,8 +215,10 @@ bool evaluate_cmp(const std::shared_ptr<Cmp> &inst, int &res) {
     }
     return true;
 }
+}
 
-bool try_fold(const std::shared_ptr<Instruction> &instruction) {
+namespace Pass {
+bool GlobalValueNumbering::fold_instruction(const std::shared_ptr<Instruction> &instruction) {
     switch (instruction->get_op()) {
         case Operator::INTBINARY: {
             const auto int_binary = instruction->as<IntBinary>();
@@ -285,15 +287,13 @@ bool try_fold(const std::shared_ptr<Instruction> &instruction) {
     }
     return false;
 }
-}
 
-namespace Pass {
 bool GlobalValueNumbering::run_on_block(const FunctionPtr &func,
                                         const BlockPtr &block,
                                         std::unordered_map<std::string, InstructionPtr> &value_hashmap) {
     bool changed = false;
     for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
-        if (try_fold(*it)) {
+        if (fold_instruction(*it)) {
             (*it)->clear_operands();
             it = block->get_instructions().erase(it);
             changed = true;
