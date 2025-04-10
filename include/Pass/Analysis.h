@@ -101,6 +101,12 @@ public:
         return it->second;
     }
 
+    const std::vector<BlockPtr> &dom_tree_layer(const FunctionPtr &func) const {
+        const auto it = dom_tree_layer_.find(func);
+        if (it == dom_tree_layer_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
+        return it->second;
+    }
+
 protected:
     void analyze(std::shared_ptr<const Mir::Module> module) override;
 
@@ -129,6 +135,9 @@ private:
 
     // block的后序遍历顺序：function -> { 按照后序遍历排序的block集合 }
     std::unordered_map<FunctionPtr, std::vector<BlockPtr>> post_order_blocks_;
+
+    // block按照支配树上的层顺序：function -> { 按照支配树层顺序排序的block集合 }
+    std::unordered_map<FunctionPtr, std::vector<BlockPtr>> dom_tree_layer_;
 };
 
 /**
@@ -253,8 +262,7 @@ public:
     }
 
     void remove_child(const std::shared_ptr<LoopNodeTreeNode> &child) {
-        auto it = std::find(children_.begin(), children_.end(), child);
-        if (it != children_.end()) {
+        if (const auto it = std::find(children_.begin(), children_.end(), child); it != children_.end()) {
             children_.erase(it);
         }
     }
@@ -336,19 +344,28 @@ private:
 class AliasAnalysis final : public Analysis {
 public:
     struct Result {
-        struct PairHash {
+        struct PairHasher {
             size_t operator()(const std::pair<size_t, size_t> &p) const {
                 return std::hash<size_t>()(p.first) ^ std::hash<size_t>()(p.second) << 1;
             }
         };
 
-        std::unordered_set<std::pair<size_t, size_t>, PairHash> distinct_pairs;
+        std::unordered_set<std::pair<size_t, size_t>, PairHasher> distinct_pairs;
+        std::vector<std::unordered_set<size_t>> distinct_groups;
+        std::unordered_map<std::shared_ptr<Mir::Value>, std::vector<size_t>> pointer_attributes;
 
         void add_pair(const size_t &l, const size_t &r) {
             if (l == r) {
                 log_error("Id %lu and %lu cannot be the same", l, r);
             }
             distinct_pairs.insert({l, r});
+        }
+
+        void add_value(const std::shared_ptr<Mir::Value> &value, const std::vector<size_t> &attrs) {
+            if (!value->get_type()->is_pointer()) {
+                log_error("Value %s is not a pointer", value->to_string().c_str());
+            }
+            pointer_attributes[value] = attrs;
         }
     };
 
@@ -365,6 +382,18 @@ public:
         bool operator==(InheritEdge &&other) const {
             return dst == other.dst && src1 == other.src1 && src2 == other.src2;
         }
+
+        struct Hasher {
+            size_t operator()(const InheritEdge &edge) const {
+                const size_t h1 = std::hash<std::shared_ptr<Mir::Value>>()(edge.dst),
+                             h2 = std::hash<std::shared_ptr<Mir::Value>>()(edge.src1),
+                             h3 = std::hash<std::shared_ptr<Mir::Value>>()(edge.src2);
+                size_t seed = h1;
+                seed ^= h2 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                seed ^= h3 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                return seed;
+            }
+        };
     };
 
     explicit AliasAnalysis() : Analysis("AliasAnalysis") {}
@@ -374,6 +403,8 @@ public:
     void analyze(std::shared_ptr<const Mir::Module> module) override;
 
 private:
+    std::shared_ptr<Mir::Module> module;
+
     std::shared_ptr<ControlFlowGraph> cfg{nullptr};
 
     std::vector<std::shared_ptr<Result>> results{};

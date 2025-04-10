@@ -1,5 +1,6 @@
 #include <functional>
 #include <numeric>
+#include <queue>
 
 #include "Mir/Instruction.h"
 #include "Pass/Analysis.h"
@@ -343,6 +344,32 @@ void build_post_order(const FunctionPtr &func,
     };
     dfs(func->get_blocks().front());
 }
+
+void build_dom_tree_layer_order(const FunctionPtr &func,
+                                const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &dom_children_map,
+                                std::vector<BlockPtr> &dom_tree_layer_order) {
+    // TODO
+    std::unordered_set<BlockPtr> visited;
+    std::queue<BlockPtr> queue;
+
+    const auto entry = func->get_blocks().front();
+    queue.push(entry);
+    visited.insert(entry);
+
+    while (!queue.empty()) {
+        const auto current = queue.front();
+        queue.pop();
+        dom_tree_layer_order.push_back(current);
+        if (dom_children_map.count(current)) {
+            for (const auto &child: dom_children_map.at(current)) {
+                if (!visited.count(child)) {
+                    queue.push(child);
+                    visited.insert(child);
+                }
+            }
+        }
+    }
+}
 }
 
 void Pass::ControlFlowGraph::analyze(const std::shared_ptr<const Mir::Module> module) {
@@ -354,6 +381,7 @@ void Pass::ControlFlowGraph::analyze(const std::shared_ptr<const Mir::Module> mo
     dominance_children_.clear();
     dominance_frontier_.clear();
     post_order_blocks_.clear();
+    dom_tree_layer_.clear();
     for (const auto &func: *module) {
         auto &pred_map = predecessors_[func], // 前驱块
              &succ_map = successors_[func], // 后驱块
@@ -362,7 +390,8 @@ void Pass::ControlFlowGraph::analyze(const std::shared_ptr<const Mir::Module> mo
         auto &imm_dom_map = immediate_dominator_[func]; // 该块的唯一直接支配者（支配树中的父节点）
         auto &dominance_children_map = dominance_children_[func], // 该块在支配树中的直接子节点
              &dominance_frontier_map = dominance_frontier_[func]; // 该块的支配边界
-        auto &post_order_blocks = post_order_blocks_[func]; // func中所有block的后序遍历
+        auto &post_order_blocks = post_order_blocks_[func], // func中所有block的后序遍历
+             &dom_tree_layer = dom_tree_layer_[func]; // 按照支配树层顺序排序的block
         build_predecessors_successors(func, pred_map, succ_map);
         build_dominators_dominated(func, pred_map, dominator_map, dominated_map);
         // build_immediate_dominators(func, dominator_map, imm_dom_map);
@@ -375,5 +404,6 @@ void Pass::ControlFlowGraph::analyze(const std::shared_ptr<const Mir::Module> mo
         build_dominance_children(func, imm_dom_map, dominance_children_map);
         build_dominance_frontier(func, pred_map, imm_dom_map, dominance_frontier_map);
         build_post_order(func, dominance_children_map, post_order_blocks);
+        build_dom_tree_layer_order(func, dominance_children_map, dom_tree_layer);
     }
 }
