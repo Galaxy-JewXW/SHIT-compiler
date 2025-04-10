@@ -35,6 +35,14 @@ std::shared_ptr<T> get_analysis_result(const std::shared_ptr<Mir::Module> module
     return analysis;
 }
 
+template<typename T>
+std::shared_ptr<T> get_analysis_result(const std::shared_ptr<const Mir::Module> module) {
+    static_assert(std::is_base_of_v<Analysis, T>, "T must be a subclass of Analysis");
+    const auto analysis = Pass::create<T>();
+    analysis->run_on(module);
+    return analysis;
+}
+
 // ControlFlowGraph构建控制流图
 // 每个Function对应一套独立的CFG信息，键为FunctionPtr，代表不同的函数
 class ControlFlowGraph final : public Analysis {
@@ -321,9 +329,54 @@ private:
         LoopNodeTreeNode>>>;
     FunctLoopForestMap loop_forest_;
 
-
     std::shared_ptr<LoopNodeTreeNode> find_block_in_forest(const FunctionPtr &func,
                                                            const std::shared_ptr<Mir::Block> &block);
+};
+
+class AliasAnalysis final : public Analysis {
+public:
+    struct Result {
+        struct PairHash {
+            size_t operator()(const std::pair<size_t, size_t> &p) const {
+                return std::hash<size_t>()(p.first) ^ std::hash<size_t>()(p.second) << 1;
+            }
+        };
+
+        std::unordered_set<std::pair<size_t, size_t>, PairHash> distinct_pairs;
+
+        void add_pair(const size_t &l, const size_t &r) {
+            if (l == r) {
+                log_error("Id %lu and %lu cannot be the same", l, r);
+            }
+            distinct_pairs.insert({l, r});
+        }
+    };
+
+    struct InheritEdge {
+        std::shared_ptr<Mir::Value> dst, src1, src2;
+
+        InheritEdge(const std::shared_ptr<Mir::Value> &dst, const std::shared_ptr<Mir::Value> &src1,
+                    const std::shared_ptr<Mir::Value> &src2 = nullptr) : dst{dst}, src1{src1}, src2{src2} {}
+
+        bool operator==(const InheritEdge &other) const {
+            return dst == other.dst && src1 == other.src1 && src2 == other.src2;
+        }
+
+        bool operator==(InheritEdge &&other) const {
+            return dst == other.dst && src1 == other.src1 && src2 == other.src2;
+        }
+    };
+
+    explicit AliasAnalysis() : Analysis("AliasAnalysis") {}
+
+    void run_on_func(const std::shared_ptr<Mir::Function> &func);
+
+    void analyze(std::shared_ptr<const Mir::Module> module) override;
+
+private:
+    std::shared_ptr<ControlFlowGraph> cfg{nullptr};
+
+    std::vector<std::shared_ptr<Result>> results{};
 };
 }
 
