@@ -223,7 +223,7 @@ bool GlobalValueNumbering::fold_instruction(const std::shared_ptr<Instruction> &
         case Operator::INTBINARY: {
             const auto int_binary = instruction->as<IntBinary>();
             if (int res_val; evaluate_binary(int_binary, res_val)) {
-                const auto const_int = std::make_shared<ConstInt>(res_val);
+                const auto const_int = ConstInt::create(res_val);
                 int_binary->replace_by_new_value(const_int);
                 return true;
             }
@@ -232,7 +232,7 @@ bool GlobalValueNumbering::fold_instruction(const std::shared_ptr<Instruction> &
         case Operator::FLOATBINARY: {
             const auto float_binary = instruction->as<FloatBinary>();
             if (double res_val; evaluate_binary(float_binary, res_val)) {
-                const auto const_float = std::make_shared<ConstFloat>(res_val);
+                const auto const_float = ConstFloat::create(res_val);
                 float_binary->replace_by_new_value(const_float);
                 return true;
             }
@@ -241,7 +241,7 @@ bool GlobalValueNumbering::fold_instruction(const std::shared_ptr<Instruction> &
         case Operator::ICMP: {
             const auto icmp = instruction->as<Icmp>();
             if (int res_val; evaluate_cmp(icmp, res_val)) {
-                const auto const_bool = std::make_shared<ConstBool>(res_val);
+                const auto const_bool = ConstBool::create(res_val);
                 icmp->replace_by_new_value(const_bool);
                 return true;
             }
@@ -250,7 +250,7 @@ bool GlobalValueNumbering::fold_instruction(const std::shared_ptr<Instruction> &
         case Operator::FCMP: {
             const auto fcmp = instruction->as<Fcmp>();
             if (int res_val; evaluate_cmp(fcmp, res_val)) {
-                const auto const_bool = std::make_shared<ConstBool>(res_val);
+                const auto const_bool = ConstBool::create(res_val);
                 fcmp->replace_by_new_value(const_bool);
                 return true;
             }

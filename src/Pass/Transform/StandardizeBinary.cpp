@@ -50,14 +50,14 @@ void reverse_sign(std::vector<std::shared_ptr<Instruction>> &instructions, const
     if (binary->op == IntBinary::Op::ADD) {
         if (const int int_rhs = std::any_cast<int>(
             std::static_pointer_cast<ConstInt>(binary->get_rhs())->get_constant_value()); int_rhs < 0) {
-            const auto c = std::make_shared<ConstInt>(-int_rhs);
+            const auto c = ConstInt::create(-int_rhs);
             const auto new_sub = Sub::create(Builder::gen_variable_name(), binary->get_lhs(), c, nullptr);
             replace_instruction(binary, new_sub);
         }
     } else if (binary->op == IntBinary::Op::SUB) {
         if (const int int_rhs = std::any_cast<int>(
             std::static_pointer_cast<ConstInt>(binary->get_rhs())->get_constant_value()); int_rhs < 0) {
-            const auto c = std::make_shared<ConstInt>(-int_rhs);
+            const auto c = ConstInt::create(-int_rhs);
             const auto new_add = Add::create(Builder::gen_variable_name(), binary->get_lhs(), c, nullptr);
             replace_instruction(binary, new_add);
         }

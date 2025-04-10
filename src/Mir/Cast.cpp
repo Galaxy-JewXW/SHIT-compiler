@@ -27,16 +27,16 @@ std::shared_ptr<Value> cast_constant_value(const std::shared_ptr<Const> &v,
     if (*src_type == *target_type) return v;
     if (src_type->is_int1()) {
         const auto val = std::any_cast<int>(v->get_constant_value());
-        if (target_type->is_int32()) return std::make_shared<ConstInt>(cast_constant<bool, int>(val));
-        if (target_type->is_float()) return std::make_shared<ConstFloat>(cast_constant<bool, double>(val));
+        if (target_type->is_int32()) return ConstInt::create(cast_constant<bool, int>(val));
+        if (target_type->is_float()) return ConstFloat::create(cast_constant<bool, double>(val));
     } else if (src_type->is_int32()) {
         const auto val = std::any_cast<int>(v->get_constant_value());
-        if (target_type->is_int1()) return std::make_shared<ConstBool>(cast_constant<int, bool>(val));
-        if (target_type->is_float()) return std::make_shared<ConstFloat>(cast_constant<int, double>(val));
+        if (target_type->is_int1()) return ConstBool::create(cast_constant<int, bool>(val));
+        if (target_type->is_float()) return ConstFloat::create(cast_constant<int, double>(val));
     } else if (src_type->is_float()) {
         const auto val = std::any_cast<double>(v->get_constant_value());
-        if (target_type->is_int32()) return std::make_shared<ConstInt>(cast_constant<double, int>(val));
-        if (target_type->is_int1()) return std::make_shared<ConstBool>(cast_constant<double, bool>(val));
+        if (target_type->is_int32()) return ConstInt::create(cast_constant<double, int>(val));
+        if (target_type->is_int1()) return ConstBool::create(cast_constant<double, bool>(val));
     }
     log_error("Invalid constant cast");
 }
@@ -63,7 +63,7 @@ std::shared_ptr<Value> type_cast(const std::shared_ptr<Value> &v, const std::sha
     } else if (src_type->is_int32()) {
         if (target_type->is_int1())
             return Icmp::create(Builder::gen_variable_name(), Icmp::Op::NE, v,
-                                std::make_shared<ConstInt>(0), block);
+                                ConstInt::create(0), block);
         if (target_type->is_float())
             return Sitofp::create(Builder::gen_variable_name(), v, block);
     } else if (src_type->is_float()) {
@@ -71,7 +71,7 @@ std::shared_ptr<Value> type_cast(const std::shared_ptr<Value> &v, const std::sha
             return Fptosi::create(Builder::gen_variable_name(), v, block);
         if (target_type->is_int1())
             return Icmp::create(Builder::gen_variable_name(), Icmp::Op::NE, v,
-                                std::make_shared<ConstFloat>(0.0f), block);
+                                ConstFloat::create(0.0f), block);
     }
     log_error("Invalid cast");
 }

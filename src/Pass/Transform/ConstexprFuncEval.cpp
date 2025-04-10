@@ -57,11 +57,11 @@ bool is_constexpr_func(const std::shared_ptr<Function> &function) {
             const auto interpreter = std::make_shared<ConstexprFuncInterpreter>();
             const auto result = interpreter->interpret_function(called_function, real_args);
             if (function->get_return_type()->is_int32()) {
-                const auto ret_value = std::make_shared<ConstInt>(static_cast<int>(result));
+                const auto ret_value = ConstInt::create(static_cast<int>(result));
                 call_inst->replace_by_new_value(ret_value);
                 changed = true;
             } else if (function->get_return_type()->is_float()) {
-                const auto ret_value = std::make_shared<ConstFloat>(static_cast<double>(result));
+                const auto ret_value = ConstFloat::create(static_cast<double>(result));
                 call_inst->replace_by_new_value(ret_value);
                 changed = true;
             }

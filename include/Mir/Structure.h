@@ -78,7 +78,7 @@ class GlobalVariable final : public Value {
 public:
     GlobalVariable(const std::string &name, const std::shared_ptr<Type::Type> &type, const bool is_constant,
                    const std::shared_ptr<Init::Init> &init_value)
-        : Value{"@" + name, std::make_shared<Type::Pointer>(type)}, is_constant{is_constant}, init_value{init_value} {}
+        : Value{"@" + name, Type::Pointer::create(type)}, is_constant{is_constant}, init_value{init_value} {}
 
     [[nodiscard]] bool is_constant_gv() const { return is_constant; }
 

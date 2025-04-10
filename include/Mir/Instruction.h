@@ -58,7 +58,7 @@ public:
 class Alloc final : public Instruction {
 public:
     Alloc(const std::string &name, const std::shared_ptr<Type::Type> &type)
-        : Instruction{name, std::make_shared<Type::Pointer>(type), Operator::ALLOC} {}
+        : Instruction{name, Type::Pointer::create(type), Operator::ALLOC} {}
 
     static std::shared_ptr<Alloc> create(const std::string &name, const std::shared_ptr<Type::Type> &type,
                                          const std::shared_ptr<Block> &block);

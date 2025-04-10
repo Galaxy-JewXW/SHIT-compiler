@@ -59,7 +59,7 @@ std::shared_ptr<Type::Type> GetElementPtr::calc_type_(const std::shared_ptr<Valu
             log_error("Indexing on non-array type");
         } else {
             const auto element_type = std::static_pointer_cast<Type::Array>(contain_type)->get_element_type();
-            return std::make_shared<Type::Pointer>(element_type);
+            return Type::Pointer::create(element_type);
         }
     }
     log_error("Invalid indexes size %d", indexes.size());
@@ -124,12 +124,12 @@ std::shared_ptr<Value> Fcmp::create(const std::string &name, Op op, std::shared_
         const auto left = std::dynamic_pointer_cast<ConstFloat>(lhs),
                    right = std::dynamic_pointer_cast<ConstFloat>(rhs);
         switch (op) {
-            case Op::EQ: return std::make_shared<ConstBool>(*left == *right);
-            case Op::NE: return std::make_shared<ConstBool>(*left != *right);
-            case Op::GT: return std::make_shared<ConstBool>(*left > *right);
-            case Op::LT: return std::make_shared<ConstBool>(*left < *right);
-            case Op::GE: return std::make_shared<ConstBool>(*left >= *right);
-            case Op::LE: return std::make_shared<ConstBool>(*left <= *right);
+            case Op::EQ: return ConstBool::create(*left == *right);
+            case Op::NE: return ConstBool::create(*left != *right);
+            case Op::GT: return ConstBool::create(*left > *right);
+            case Op::LT: return ConstBool::create(*left < *right);
+            case Op::GE: return ConstBool::create(*left >= *right);
+            case Op::LE: return ConstBool::create(*left <= *right);
             default: break;
         }
     }
@@ -153,12 +153,12 @@ std::shared_ptr<Value> Icmp::create(const std::string &name, Op op, std::shared_
         const auto left = std::dynamic_pointer_cast<ConstInt>(lhs),
                    right = std::dynamic_pointer_cast<ConstInt>(rhs);
         switch (op) {
-            case Op::EQ: return std::make_shared<ConstBool>(*left == *right);
-            case Op::NE: return std::make_shared<ConstBool>(*left != *right);
-            case Op::GT: return std::make_shared<ConstBool>(*left > *right);
-            case Op::LT: return std::make_shared<ConstBool>(*left < *right);
-            case Op::GE: return std::make_shared<ConstBool>(*left >= *right);
-            case Op::LE: return std::make_shared<ConstBool>(*left <= *right);
+            case Op::EQ: return ConstBool::create(*left == *right);
+            case Op::NE: return ConstBool::create(*left != *right);
+            case Op::GT: return ConstBool::create(*left > *right);
+            case Op::LT: return ConstBool::create(*left < *right);
+            case Op::GE: return ConstBool::create(*left >= *right);
+            case Op::LE: return ConstBool::create(*left <= *right);
             default: break;
         }
     }

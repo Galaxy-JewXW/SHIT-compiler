@@ -73,9 +73,11 @@ class Array final : public Type {
     size_t size;
     std::shared_ptr<Type> element_type;
 
-public:
     explicit Array(const size_t size, const std::shared_ptr<Type> &element_type) :
         size{size}, element_type{element_type} {}
+
+public:
+    static std::shared_ptr<Array> create(size_t size, const std::shared_ptr<Type> &element_type);
 
     [[nodiscard]] bool is_array() const override { return true; }
 
@@ -106,8 +108,10 @@ public:
 class Pointer final : public Type {
     std::shared_ptr<Type> contain_type;
 
-public:
     explicit Pointer(const std::shared_ptr<Type> &contain_type) : contain_type{contain_type} {}
+
+public:
+    static std::shared_ptr<Pointer> create(const std::shared_ptr<Type> &contain_type);
 
     [[nodiscard]] bool is_pointer() const override { return true; }
 
