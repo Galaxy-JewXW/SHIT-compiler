@@ -341,6 +341,7 @@ private:
                                                            const std::shared_ptr<Mir::Block> &block);
 };
 
+// 每个指针被赋予一组属性标识符，通过比较这些属性可以判断两个指针是否可能指向同一内存位置
 class AliasAnalysis final : public Analysis {
 public:
     struct Result {
@@ -350,22 +351,48 @@ public:
             }
         };
 
+        // 互不相交的属性对
         std::unordered_set<std::pair<size_t, size_t>, PairHasher> distinct_pairs;
+        // 互不相交的属性组
         std::vector<std::unordered_set<size_t>> distinct_groups;
+        // 将 LLVM 指针值映射到一组属性标识符上
         std::unordered_map<std::shared_ptr<Mir::Value>, std::vector<size_t>> pointer_attributes;
 
-        void add_pair(const size_t &l, const size_t &r) {
+        // 两个别名属性id是相互排斥的
+        void add_distinct_pair_id(const size_t &l, const size_t &r) {
             if (l == r) {
                 log_error("Id %lu and %lu cannot be the same", l, r);
             }
             distinct_pairs.insert({l, r});
         }
 
-        void add_value(const std::shared_ptr<Mir::Value> &value, const std::vector<size_t> &attrs) {
+        // 将 LLVM 指针值映射到一组属性标识符上
+        void set_value_attrs(const std::shared_ptr<Mir::Value> &value, const std::vector<size_t> &attrs) {
             if (!value->get_type()->is_pointer()) {
                 log_error("Value %s is not a pointer", value->to_string().c_str());
             }
-            pointer_attributes[value] = attrs;
+            auto new_attrs = attrs;
+            std::sort(new_attrs.begin(), new_attrs.end());
+            pointer_attributes[value] = new_attrs;
+        }
+
+        bool add_value_attrs(const std::shared_ptr<Mir::Value> &value, const std::vector<size_t> &attrs) {
+            if (attrs.empty()) {
+                return false;
+            }
+            if (pointer_attributes.count(value) == 0) {
+                pointer_attributes[value] = {};
+            }
+            auto &value_attrs = pointer_attributes[value];
+            const auto old_size = value_attrs.size();
+            value_attrs.insert(value_attrs.end(), attrs.begin(), attrs.end());
+            value_attrs.erase(std::unique(value_attrs.begin(), value_attrs.end()), value_attrs.end());
+            std::sort(value_attrs.begin(), value_attrs.end());
+            return old_size != value_attrs.size();
+        }
+
+        bool add_value_attrs(const std::shared_ptr<Mir::Value> &value, const size_t attr) {
+            return add_value_attrs(value, std::vector{attr});
         }
     };
 
