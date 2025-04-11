@@ -10,3 +10,4 @@ bin/
 cmake-build-debug/
 .env
 test/test_data
+*.pdf
