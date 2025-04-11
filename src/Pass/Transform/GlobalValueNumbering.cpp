@@ -75,20 +75,40 @@ std::string get_hash(const std::shared_ptr<Zext> &instruction) {
            + instruction->get_value()->get_type()->to_string() + " " + instruction->get_type()->to_string();
 }
 
-std::string get_instruction_hash(const InstructionPtr &instruction) {
+std::string get_hash(const std::shared_ptr<Call> &instruction,
+                     const std::shared_ptr<Pass::FunctionAnalysis> &func_analysis) {
+    const auto &func = instruction->get_function()->as<Function>();
+    if (func->is_runtime_func()) {
+        return "";
+    }
+    if (const auto &func_info = func_analysis->func_info(func);
+        func_info.has_return && func_info.no_state && !func_info.io_read && !func_info.io_write) {
+        std::ostringstream oss;
+        for (const auto &operand: instruction->get_params()) {
+            oss << " " << operand->get_name() << ",";
+        }
+        return "call " + func->get_name() + " " + oss.str();
+    }
+    return "";
+}
+
+std::string get_instruction_hash(const InstructionPtr &instruction,
+                                 const std::shared_ptr<Pass::FunctionAnalysis> &func_analysis) {
     switch (instruction->get_op()) {
         case Operator::GEP:
-            return get_hash(std::static_pointer_cast<GetElementPtr>(instruction));
+            return get_hash(instruction->as<GetElementPtr>());
         case Operator::FCMP:
-            return get_hash(std::static_pointer_cast<Fcmp>(instruction));
+            return get_hash(instruction->as<Fcmp>());
         case Operator::ICMP:
-            return get_hash(std::static_pointer_cast<Icmp>(instruction));
+            return get_hash(instruction->as<Icmp>());
         case Operator::INTBINARY:
-            return get_hash(std::static_pointer_cast<IntBinary>(instruction));
+            return get_hash(instruction->as<IntBinary>());
         case Operator::FLOATBINARY:
-            return get_hash(std::static_pointer_cast<FloatBinary>(instruction));
+            return get_hash(instruction->as<FloatBinary>());
         case Operator::ZEXT:
-            return get_hash(std::static_pointer_cast<Zext>(instruction));
+            return get_hash(instruction->as<Zext>());
+        case Operator::CALL:
+            return get_hash(instruction->as<Call>(), func_analysis);
         default:
             return "";
     }
@@ -298,7 +318,7 @@ bool GlobalValueNumbering::run_on_block(const FunctionPtr &func,
             it = block->get_instructions().erase(it);
             changed = true;
         }
-        const auto &instruction_hash = get_instruction_hash(*it);
+        const auto &instruction_hash = get_instruction_hash(*it, func_analysis);
         if (instruction_hash.empty()) {
             ++it;
             continue;
@@ -327,6 +347,7 @@ bool GlobalValueNumbering::run_on_func(const FunctionPtr &func) {
 
 void GlobalValueNumbering::transform(const std::shared_ptr<Module> module) {
     cfg = get_analysis_result<ControlFlowGraph>(module);
+    func_analysis = get_analysis_result<FunctionAnalysis>(module);
     create<AlgebraicSimplify>()->run_on(module);
     // 不同的遍历顺序可能导致化简的结果不同
     // 跑多次GVN直到一个不动点
@@ -344,9 +365,11 @@ void GlobalValueNumbering::transform(const std::shared_ptr<Module> module) {
         }
     } while (changed);
     cfg = nullptr;
+    func_analysis = nullptr;
     // GVN后可能出现一条指令被替换成其另一条指令，但是那条指令并不支配这条指令的users的问题
     // 可以通过 GCM 解决。在 GCM 中考虑value之间的依赖，会根据依赖将那条指令移动到正确的位置
     create<GlobalCodeMotion>()->run_on(module);
     create<AlgebraicSimplify>()->run_on(module);
+    create<DeadInstEliminate>()->run_on(module);
 }
 }

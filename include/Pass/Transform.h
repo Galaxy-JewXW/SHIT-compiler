@@ -182,6 +182,8 @@ protected:
 
 private:
     std::shared_ptr<ControlFlowGraph> cfg;
+
+    std::shared_ptr<FunctionAnalysis> func_analysis;
 };
 
 // 执行在编译期内能识别出来的constexpr函数
