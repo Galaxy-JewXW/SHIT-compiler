@@ -56,6 +56,10 @@ public:
 
     [[nodiscard]] std::shared_ptr<Function> get_main_function() const { return main_function; }
 
+    [[nodiscard]] std::shared_ptr<std::vector<std::string>> get_const_strings() const {
+        return std::make_shared<std::vector<std::string>>(const_strings);
+    }
+
     void set_main_function(const std::shared_ptr<Function> &main_function) { this->main_function = main_function; }
 
     // 更新基本块和指令的id

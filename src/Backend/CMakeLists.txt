@@ -1,0 +1,2 @@
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Instructions)
+set(BACKEND ${BACKEND_INSTS} ${CMAKE_CURRENT_SOURCE_DIR}/Assembler.cpp PARENT_SCOPE)

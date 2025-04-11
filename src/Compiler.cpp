@@ -10,8 +10,9 @@ int main(int argc, char *argv[]) {
 #endif
     options.print();
     std::ifstream file(options.input_file);
-    if (!file.is_open()) {
-        log_fatal("Could not open file: %s", options.input_file.c_str());
+    if (!file) {
+        log_fatal("Could not open file %s: %s", options.input_file.c_str(), strerror(errno));
+        return 0;
     }
 
     std::stringstream buffer;
@@ -37,7 +38,8 @@ int main(int argc, char *argv[]) {
     }
 
     if (options.flag_S) {
-        emit_riscv(std::make_shared<Assembler::riscv_assembler>(), options._emit_options);
+        Assembler::RISCV_Assembler asassembler(module);
+        emit_riscv(asassembler, options._emit_options);
     }
 
     return 0;
