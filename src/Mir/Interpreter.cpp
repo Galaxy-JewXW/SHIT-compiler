@@ -19,6 +19,10 @@ static size_t type_size(const std::shared_ptr<Mir::Type::Type> &type) {
 }
 
 namespace Mir {
+ConstexprFuncInterpreter::Cache ConstexprFuncInterpreter::cache = {};
+
+auto &cache = ConstexprFuncInterpreter::cache;
+
 eval_t ConstexprFuncInterpreter::get_runtime_value(const std::shared_ptr<Value> &value) {
     if (value->is_constant()) {
         if (const auto constant_float = std::dynamic_pointer_cast<ConstFloat>(value)) {
@@ -164,8 +168,16 @@ void ConstexprFuncInterpreter::interpret_call(const std::shared_ptr<Call> &call)
     if (called_func->is_runtime_func()) {
         log_error("Unhandled runtime function: %s", called_func->get_name().c_str());
     }
-    const auto sub_interpreter = std::make_unique<ConstexprFuncInterpreter>();
-    const eval_t sub_return_value = sub_interpreter->interpret_function(called_func, real_args);
+    eval_t sub_return_value;
+    if (const Key key{called_func->get_name(), real_args}; cache.contains(key)) {
+        log_trace("111");
+        sub_return_value = cache.get(key);
+    } else {
+        log_trace("222");
+        const auto sub_interpreter = std::make_unique<ConstexprFuncInterpreter>();
+        sub_return_value = sub_interpreter->interpret_function(called_func, real_args);
+        cache.put(key, sub_return_value);
+    }
     if (!call->get_name().empty()) {
         value_map[call] = sub_return_value;
     }

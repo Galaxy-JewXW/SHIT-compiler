@@ -2,6 +2,7 @@
 #define INTERPRETER_H
 #include <memory>
 #include <unordered_map>
+#include <utility>
 #include <variant>
 
 #include "Instruction.h"
@@ -109,6 +110,58 @@ struct eval_t : std::variant<int, double> {
 
 class ConstexprFuncInterpreter {
 public:
+    struct Key {
+        std::string function_name;
+        std::vector<eval_t> arguments;
+
+        Key(std::string function_name, const std::vector<eval_t> &arguments)
+            : function_name(std::move(function_name)), arguments(arguments) {}
+
+        bool operator==(const Key &other) const {
+            return function_name == other.function_name && arguments == other.arguments;
+        }
+
+        bool operator!=(const Key &other) const {
+            return !this->operator==(other);
+        }
+
+        struct Hash {
+            std::size_t operator()(const Key &key) const {
+                std::size_t hash = std::hash<std::string>{}(key.function_name);
+                for (const auto &arg: key.arguments) {
+                    const size_t arg_hash = std::visit([](auto &&v) {
+                        return std::hash<std::decay_t<decltype(v)>>{}(v);
+                    }, arg);
+                    hash ^= arg_hash + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+                }
+                return hash;
+            }
+        };
+    };
+
+    struct Cache {
+    private:
+        std::unordered_map<Key, eval_t, Key::Hash> cache_map;
+
+    public:
+        void put(const Key &key, const eval_t &value) { cache_map[key] = value; }
+
+        size_t size() const { return cache_map.size(); }
+
+        void clear() { cache_map.clear(); }
+
+        bool contains(const Key &key) { return cache_map.find(key) != cache_map.end(); }
+
+        eval_t get(const Key &key) const {
+            if (cache_map.find(key) != cache_map.end()) {
+                return cache_map.at(key);
+            }
+            log_error("Cache miss");
+        }
+    };
+
+    static Cache cache;
+
     // args是传入的实参
     eval_t interpret_function(const std::shared_ptr<Function> &func,
                               const std::vector<eval_t> &real_args);
