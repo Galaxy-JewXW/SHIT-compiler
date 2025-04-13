@@ -170,10 +170,8 @@ void ConstexprFuncInterpreter::interpret_call(const std::shared_ptr<Call> &call)
     }
     eval_t sub_return_value;
     if (const Key key{called_func->get_name(), real_args}; cache.contains(key)) {
-        log_trace("111");
         sub_return_value = cache.get(key);
     } else {
-        log_trace("222");
         const auto sub_interpreter = std::make_unique<ConstexprFuncInterpreter>();
         sub_return_value = sub_interpreter->interpret_function(called_func, real_args);
         cache.put(key, sub_return_value);
