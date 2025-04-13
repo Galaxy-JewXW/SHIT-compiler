@@ -394,6 +394,14 @@ public:
         bool add_value_attrs(const std::shared_ptr<Mir::Value> &value, const size_t attr) {
             return add_value_attrs(value, std::vector{attr});
         }
+
+        void add_distinct_group(const std::unordered_set<size_t> &set) {
+            distinct_groups.push_back(set);
+        }
+
+        std::vector<size_t> inherit_from(const std::shared_ptr<Mir::Value> &value) {
+            return pointer_attributes.count(value) ? pointer_attributes[value] : std::vector<size_t>{};
+        }
     };
 
     struct InheritEdge {

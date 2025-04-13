@@ -1,3 +1,4 @@
+#include <functional>
 #include <set>
 
 #include "Mir/Instruction.h"
@@ -7,6 +8,28 @@ namespace {
 size_t gen_alloc_id() {
     static size_t alloc_id = 0;
     return ++alloc_id;
+}
+
+bool tbaa_distinct(const std::shared_ptr<Mir::Type::Type> &a, const std::shared_ptr<Mir::Type::Type> &b) {
+    using FuncType = std::function<bool(const std::shared_ptr<Mir::Type::Type> &,
+                                        const std::shared_ptr<Mir::Type::Type> &)>;
+    FuncType tbaa_include = [&](const std::shared_ptr<Mir::Type::Type> &x, const std::shared_ptr<Mir::Type::Type> &y) {
+        if (*x == *y) {
+            return true;
+        }
+        if (x->is_integer() || x->is_float()) {
+            return false;
+        }
+        if (x->is_array()) {
+            const auto array_type = x->as<Mir::Type::Array>();
+            const auto next = y->is_array()
+                                  ? array_type->get_element_type()
+                                  : array_type->get_atomic_type();
+            return tbaa_include(next, y);
+        }
+        log_error("Unexpected tbaa include: %s %s", x->to_string().c_str(), y->to_string().c_str());
+    };
+    return !tbaa_include(a, b) && !tbaa_include(b, a);
 }
 }
 
@@ -129,7 +152,51 @@ void AliasAnalysis::run_on_func(const std::shared_ptr<Mir::Function> &func) {
     }
 
     // TBAA: 基于类型的别名分析
+    std::unordered_map<std::shared_ptr<Mir::Type::Type>, size_t> types;
+    for (const auto &[key, value]: alias_result->pointer_attributes) {
+        if (!key->get_type()->is_pointer()) [[unlikely]] {
+            log_error("Key must be a pointer type: %s", key->to_string().c_str());
+        }
+        const auto type = key->get_type()->as<Mir::Type::Pointer>();
+        if (types.count(type->get_contain_type())) {
+            continue;
+        }
+        const auto id = gen_alloc_id();
+        types[type] = id;
+    }
 
+    for (const auto &[type1, id1]: types) {
+        for (const auto &[type2, id2]: types) {
+            if (tbaa_distinct(type1, type2)) {
+                alias_result->add_distinct_pair_id(id1, id2);
+            }
+        }
+    }
+
+    alias_result->add_distinct_group(global_groups);
+    alias_result->add_distinct_group(stack_groups);
+
+    while (true) {
+        bool changed = false;
+        for (const auto &edge: inherit_graph) {
+            if (edge.src2 != nullptr) {
+                auto vec1 = alias_result->inherit_from(edge.src1),
+                     vec2 = alias_result->inherit_from(edge.src2);
+                std::sort(vec1.begin(), vec1.end());
+                std::sort(vec2.begin(), vec2.end());
+                std::vector<size_t> intersect;
+                std::set_intersection(vec1.begin(), vec1.end(),
+                                      vec2.begin(), vec2.end(),
+                                      std::back_inserter(intersect));
+                changed |= alias_result->add_value_attrs(edge.dst, intersect);
+            } else {
+                changed |= alias_result->add_value_attrs(edge.dst, alias_result->inherit_from(edge.src1));
+            }
+        }
+        if (!changed) {
+            break;
+        }
+    }
 
     results.push_back(alias_result);
 }
