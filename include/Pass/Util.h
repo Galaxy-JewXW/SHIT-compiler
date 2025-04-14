@@ -44,4 +44,13 @@ protected:
 };
 }
 
+// 实用函数
+namespace Pass::Utils {
+using namespace Mir;
+
+// 将指令从其所在的block中移除，并移动到target之前
+void move_instruction_before(const std::shared_ptr<Instruction> &instruction,
+                             const std::shared_ptr<Instruction> &target);
+}
+
 #endif //UTIL_H

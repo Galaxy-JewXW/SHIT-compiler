@@ -47,20 +47,23 @@ std::shared_ptr<Type::Type> GetElementPtr::calc_type_(const std::shared_ptr<Valu
     if (indexes.size() == 1) {
         return ptr_type;
     }
-    if (indexes.size() == 2) {
-        const auto constant_zero = std::dynamic_pointer_cast<ConstInt>(indexes[0]);
-        if (constant_zero == nullptr) {
-            log_error("First index should be constant zero");
+    if (indexes.size() >= 2) {
+        for (size_t i = 0; i < indexes.size() - 1; ++i) {
+            if (const auto constant_zero = std::dynamic_pointer_cast<ConstInt>(indexes[i]);
+                constant_zero == nullptr) {
+                log_error("Index should be constant zero");
+            } else if (**constant_zero != 0) {
+                log_error("Index should be zero");
+            }
         }
-        if (std::any_cast<int>(constant_zero->get_constant_value()) != 0) {
-            log_error("Index should be zero");
+        auto current = ptr_type->get_contain_type();
+        for (size_t i = 1; i < indexes.size(); ++i) {
+            if (!current->is_array()) {
+                log_error("Indexing on non-array type");
+            }
+            current = current->as<Type::Array>()->get_element_type();
         }
-        if (const auto contain_type = ptr_type->get_contain_type(); !contain_type->is_array()) {
-            log_error("Indexing on non-array type");
-        } else {
-            const auto element_type = std::static_pointer_cast<Type::Array>(contain_type)->get_element_type();
-            return Type::Pointer::create(element_type);
-        }
+        return Type::Pointer::create(current);
     }
     log_error("Invalid indexes size %d", indexes.size());
 }

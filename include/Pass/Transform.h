@@ -266,6 +266,20 @@ public:
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 };
+
+// 将嵌套的 getelementptr 指令链折叠为单一 getelementptr 指令
+class GepFolding final : public Transform {
+public:
+    explicit GepFolding() : Transform("GepFolding") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+private:
+    std::shared_ptr<ControlFlowGraph> cfg{nullptr};
+
+    void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
+};
 }
 
 #endif //TRANSFORM_H

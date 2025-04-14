@@ -20,6 +20,8 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         Pass::GlobalValueNumbering,
         Pass::SimplifyCFG,
         Pass::GlobalVariableLocalize,
-        Pass::DeadCodeEliminate
+        Pass::DeadCodeEliminate,
+        Pass::EmitModule<>,
+        Pass::GepFolding
     >(module);
 }
