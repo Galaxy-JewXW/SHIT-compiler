@@ -41,7 +41,6 @@ std::shared_ptr<Type::Type> GetElementPtr::calc_type_(const std::shared_ptr<Valu
     const auto type = addr->get_type();
     const auto ptr_type = std::dynamic_pointer_cast<Type::Pointer>(type);
     if (!ptr_type) {
-        log_trace("%s", addr->to_string().c_str());
         log_error("First operand of getelementptr must be a pointer type");
     }
     if (indexes.size() == 1) {
