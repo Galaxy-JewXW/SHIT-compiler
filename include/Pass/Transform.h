@@ -186,15 +186,6 @@ private:
     std::shared_ptr<FunctionAnalysis> func_analysis;
 };
 
-// 执行在编译期内能识别出来的constexpr函数
-class ConstexprFuncEval final : public Transform {
-public:
-    explicit ConstexprFuncEval() : Transform("ConstexprFuncEval") {}
-
-protected:
-    void transform(std::shared_ptr<Mir::Module> module) override;
-};
-
 // 删除未被使用的指令
 class DeadInstEliminate final : public Transform {
 public:

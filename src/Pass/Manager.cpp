@@ -17,7 +17,6 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         Pass::DeadInstEliminate,
         Pass::DeadCodeEliminate,
         Pass::DeadFuncArgEliminate,
-        Pass::ConstexprFuncEval,
         Pass::DeadFuncEliminate,
         Pass::DeadCodeEliminate,
         Pass::DeadReturnEliminate,
