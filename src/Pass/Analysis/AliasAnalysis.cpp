@@ -166,8 +166,16 @@ void AliasAnalysis::run_on_func(const std::shared_ptr<Mir::Function> &func) {
     }
 
     for (const auto &[type1, id1]: types) {
+        const auto x = type1->as<Mir::Type::Pointer>()->get_contain_type();
+        if (x == Mir::Type::Integer::i8) {
+            continue;
+        }
         for (const auto &[type2, id2]: types) {
-            if (tbaa_distinct(type1, type2)) {
+            const auto y = type2->as<Mir::Type::Pointer>()->get_contain_type();
+            if (y == Mir::Type::Integer::i8) {
+                continue;
+            }
+            if (tbaa_distinct(x, y)) {
                 alias_result->add_distinct_pair_id(id1, id2);
             }
         }
