@@ -124,15 +124,7 @@ public:
 
     [[nodiscard]] std::shared_ptr<Value> get_addr() const { return operands_[0]; }
 
-    [[nodiscard]] std::shared_ptr<Value> get_index() const {
-        if (operands_.size() == 3) {
-            return operands_[2];
-        }
-        if (operands_.size() == 2) {
-            return operands_[1];
-        }
-        log_error("GetElementPtr must have 2 or 3 operands");
-    }
+    [[nodiscard]] std::shared_ptr<Value> get_index() const { return operands_.back(); }
 
     [[nodiscard]] std::string to_string() const override;
 

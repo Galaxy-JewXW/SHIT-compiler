@@ -14,14 +14,12 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         Pass::GlobalValueNumbering,
         Pass::LoopSimplyForm,
         Pass::LCSSA,
-        Pass::DeadInstEliminate,
-        Pass::DeadCodeEliminate,
         Pass::DeadFuncArgEliminate,
         Pass::DeadFuncEliminate,
-        Pass::DeadCodeEliminate,
         Pass::DeadReturnEliminate,
         Pass::GlobalValueNumbering,
         Pass::SimplifyCFG,
-        Pass::GlobalVariableLocalize
+        Pass::GlobalVariableLocalize,
+        Pass::DeadCodeEliminate
     >(module);
 }

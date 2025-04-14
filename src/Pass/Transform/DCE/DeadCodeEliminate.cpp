@@ -25,9 +25,9 @@ void DeadCodeEliminate::init_useful_instruction(const std::shared_ptr<Function> 
     };
     for (const auto &block: function->get_blocks()) {
         for (const auto &inst: block->get_instructions()) {
-            if (const auto terminator = std::dynamic_pointer_cast<Terminator>(inst)) {
+            if (const auto terminator = inst->is<Terminator>()) {
                 useful_instructions_.insert(inst);
-            } else if (const auto call = std::dynamic_pointer_cast<Call>(inst)) {
+            } else if (const auto call = inst->is<Call>()) {
                 if (const auto &called_function = call->get_function()->as<Function>();
                     is_useful_call(called_function)) {
                     useful_instructions_.insert(inst);
@@ -36,13 +36,20 @@ void DeadCodeEliminate::init_useful_instruction(const std::shared_ptr<Function> 
             }
         }
     }
+    for (const auto &arg: function->get_arguments()) {
+        for (const auto &user: arg->users()) {
+            if (const auto inst = user->is<Instruction>()) {
+                useful_instructions_.insert(inst);
+            }
+        }
+    }
 }
 
 void DeadCodeEliminate::update_useful_instruction(const std::shared_ptr<Instruction> &instruction) {
     add_all_operands(instruction, useful_instructions_);
     if (instruction->get_type()->is_pointer()) {
-        for (const auto &use: instruction->users()) {
-            const auto inst = std::dynamic_pointer_cast<Instruction>(use);
+        for (const auto &user: instruction->users()) {
+            const auto inst = user->is<Instruction>();
             if (inst == nullptr) {
                 continue;
             }
@@ -74,8 +81,8 @@ void DeadCodeEliminate::transform(const std::shared_ptr<Module> module) {
     for (const auto &func: *module) {
         useful_instructions_.clear();
         for (const auto &gv: module->get_global_variables()) {
-            for (const auto &use: gv->users()) {
-                const auto inst = std::dynamic_pointer_cast<Instruction>(use);
+            for (const auto &user: gv->users()) {
+                const auto inst = user->is<Instruction>();
                 if (inst == nullptr) {
                     continue;
                 }
