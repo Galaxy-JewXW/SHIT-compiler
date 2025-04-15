@@ -29,6 +29,8 @@ public:
 
     template<typename T>
     std::shared_ptr<T> as() {
+        static_assert(std::is_base_of_v<Type, T> && !std::is_same_v<Type, T>,
+                      "T must be a derived class of Type, not Type itself");
         return std::static_pointer_cast<T>(shared_from_this());
     }
 };

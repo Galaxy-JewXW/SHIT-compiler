@@ -1,0 +1,154 @@
+#include "Pass/Transform.h"
+
+using namespace Mir;
+
+namespace {
+std::shared_ptr<Value> base_addr(const std::shared_ptr<Value> &inst) {
+    auto ret = inst;
+    while (ret->is<BitCast>() != nullptr || ret->is<GetElementPtr>() != nullptr) {
+        if (const auto bitcast = ret->is<BitCast>()) {
+            ret = bitcast->get_value();
+        } else if (const auto gep = ret->is<GetElementPtr>()) {
+            ret = gep->get_addr();
+        }
+    }
+    return ret;
+}
+}
+
+namespace Pass {
+void LoadEliminate::handle_load(const std::shared_ptr<Load> &load) {
+    std::shared_ptr<Value> addr = load->get_addr();
+    while (addr->is<BitCast>()) {
+        addr = addr->as<BitCast>()->get_value();
+    }
+    if (addr->is<Load>()) {
+        return;
+    }
+    if (const auto gep = addr->is<GetElementPtr>()) {
+        addr = gep->get_addr();
+        const auto &array_store = store_indexes.
+                                  try_emplace(addr, std::unordered_map<ValuePtr, ValuePtr>{}).first->second;
+        auto &array_load = load_indexes.try_emplace(addr, std::unordered_map<ValuePtr, ValuePtr>{}).first->second;
+        if (const auto index = gep->get_index(); array_store.count(index)) {
+            load->replace_by_new_value(array_store.at(index));
+            deleted_instructions.insert(load);
+        } else if (array_load.count(index)) {
+            load->replace_by_new_value(array_load.at(index));
+            deleted_instructions.insert(load);
+        } else {
+            array_load.emplace(index, load);
+            load_indexes[addr] = array_load;
+        }
+    } else if (const auto gv = addr->is<GlobalVariable>()) {
+        if (store_global.count(gv)) {
+            load->replace_by_new_value(store_global.at(gv));
+            deleted_instructions.insert(load);
+        } else if (load_global.count(gv)) {
+            load->replace_by_new_value(load_global.at(gv));
+            deleted_instructions.insert(load);
+        } else {
+            load_global[gv] = load;
+        }
+    }
+}
+
+void LoadEliminate::handle_store(const std::shared_ptr<Store> &store) {
+    std::shared_ptr<Value> addr = store->get_addr();
+    while (addr->is<BitCast>()) {
+        addr = addr->as<BitCast>()->get_value();
+    }
+    if (addr->is<Load>()) {
+        return;
+    }
+    if (const auto gep = addr->is<GetElementPtr>()) {
+        addr = gep->get_addr();
+        if (const auto index = gep->get_index(); index->is_constant()) {
+            store_indexes.try_emplace(addr, std::unordered_map<ValuePtr, ValuePtr>{});
+            store_indexes[addr][index] = store->get_value();
+            load_indexes.try_emplace(addr, std::unordered_map<ValuePtr, ValuePtr>{});
+            load_indexes[addr].erase(index);
+        } else {
+            store_indexes.try_emplace(addr, std::unordered_map<ValuePtr, ValuePtr>{});
+            store_indexes[addr].clear();
+            store_indexes[addr][index] = store->get_value();
+            load_indexes[addr] = std::unordered_map<ValuePtr, ValuePtr>{};
+        }
+    } else {
+        const auto gv = addr->as<GlobalVariable>();
+        store_global[gv] = store->get_value();
+        load_global.erase(gv);
+    }
+}
+
+void LoadEliminate::handle_call(const std::shared_ptr<Call> &call) {
+    const auto called_function = call->get_function()->as<Function>();
+    if (called_function->is_runtime_func() && !called_function->is_sysy_runtime_func()) {
+        return;
+    }
+    const auto &info = function_analysis->func_info(called_function);
+    if (info.has_side_effect) {
+        for (const auto &param: call->get_params()) {
+            if (param->get_type()->is_pointer()) {
+                const auto base = base_addr(param);
+                load_indexes.erase(base);
+                store_indexes.erase(base);
+            }
+        }
+    }
+    if (info.memory_write) {
+        for (const auto &used_gv: info.used_global_variables) {
+            if (used_gv->get_type()->as<Type::Pointer>()->get_contain_type()->is_array()) {
+                load_indexes.erase(used_gv);
+                store_indexes.erase(used_gv);
+            } else {
+                load_global.erase(used_gv);
+                store_global.erase(used_gv);
+            }
+        }
+    }
+}
+
+void LoadEliminate::dfs(const std::shared_ptr<Block> &block) {
+    const auto cur_load_indexes = load_indexes,
+               cur_store_indexes = store_indexes;
+    const auto cur_load_global = load_global,
+               cur_store_global = store_global;
+    if (cfg->predecessors(block->get_function()).at(block).size() > 1) {
+        clear();
+    }
+    for (const auto &instruction: block->get_instructions()) {
+        if (const auto op = instruction->get_op();
+            op == Operator::LOAD) {
+            handle_load(instruction->as<Load>());
+        } else if (op == Operator::STORE) {
+            handle_store(instruction->as<Store>());
+        } else if (op == Operator::CALL) {
+            handle_call(instruction->as<Call>());
+        }
+    }
+    for (const auto &child: cfg->dominance_children(block->get_function()).at(block)) {
+        dfs(child);
+    }
+    load_indexes = cur_load_indexes;
+    store_indexes = cur_store_indexes;
+    load_global = cur_load_global;
+    store_global = cur_store_global;
+}
+
+void LoadEliminate::run_on_func(const std::shared_ptr<Function> &func) {
+    clear();
+    dfs(func->get_blocks().front());
+}
+
+void LoadEliminate::transform(const std::shared_ptr<Module> module) {
+    deleted_instructions.clear();
+    cfg = get_analysis_result<ControlFlowGraph>(module);
+    function_analysis = get_analysis_result<FunctionAnalysis>(module);
+    for (const auto &function: *module) {
+        run_on_func(function);
+    }
+    cfg = nullptr;
+    function_analysis = nullptr;
+}
+}

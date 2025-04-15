@@ -280,6 +280,44 @@ private:
 
     void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
 };
+
+class LoadEliminate final : public Transform {
+public:
+    explicit LoadEliminate() : Transform("LoadEliminate") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+private:
+    using ValuePtr = std::shared_ptr<Mir::Value>;
+
+    std::shared_ptr<ControlFlowGraph> cfg{nullptr};
+
+    std::shared_ptr<FunctionAnalysis> function_analysis{nullptr};
+
+    std::unordered_set<std::shared_ptr<Mir::Instruction>> deleted_instructions;
+
+    std::unordered_map<ValuePtr, std::unordered_map<ValuePtr, ValuePtr>> load_indexes, store_indexes;
+
+    std::unordered_map<std::shared_ptr<Mir::GlobalVariable>, ValuePtr> load_global, store_global;
+
+    void run_on_func(const std::shared_ptr<Mir::Function> &func);
+
+    void dfs(const std::shared_ptr<Mir::Block> &block);
+
+    void handle_load(const std::shared_ptr<Mir::Load> &load);
+
+    void handle_store(const std::shared_ptr<Mir::Store> &store);
+
+    void handle_call(const std::shared_ptr<Mir::Call> &call);
+
+    void clear() {
+        load_indexes.clear();
+        store_indexes.clear();
+        load_global.clear();
+        store_global.clear();
+    }
+};
 }
 
 #endif //TRANSFORM_H

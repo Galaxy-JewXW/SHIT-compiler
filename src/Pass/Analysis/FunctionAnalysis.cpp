@@ -73,11 +73,17 @@ void FunctionAnalysis::build_func_attribute(const FunctionPtr &func) {
         for (const auto &inst: block->get_instructions()) {
             if (inst->get_op() == Mir::Operator::LOAD) {
                 const auto &load = inst->as<Mir::Load>();
-                memory_read |= use_global_addr(load->get_addr());
+                if (use_global_addr(load->get_addr())) {
+                    infos_[func].used_global_variables.insert(load->get_addr()->as<Mir::GlobalVariable>());
+                    memory_read = true;
+                }
                 rely_on_state |= has_side_effect(load);
             } else if (inst->get_op() == Mir::Operator::STORE) {
                 const auto &store = inst->as<Mir::Store>();
-                memory_write |= use_global_addr(store->get_addr());
+                if (use_global_addr(store->get_addr())) {
+                    infos_[func].used_global_variables.insert(store->get_addr()->as<Mir::GlobalVariable>());
+                    memory_write = true;
+                }
                 side_effect |= has_side_effect(store->get_addr());
             } else if (inst->get_op() == Mir::Operator::ALLOC) {
                 memory_alloc = true;
@@ -124,6 +130,11 @@ void FunctionAnalysis::transmit_attribute(const std::vector<FunctionPtr> &topo) 
             infos_[func].io_read |= infos_[callee].io_read;
             infos_[func].io_write |= infos_[callee].io_write;
             infos_[func].has_side_effect |= infos_[callee].has_side_effect;
+            // infos_[func].used_global_variables;
+            std::set_union(infos_[func].used_global_variables.begin(), infos_[func].used_global_variables.end(),
+                           infos_[callee].used_global_variables.begin(), infos_[callee].used_global_variables.end(),
+                           std::inserter(infos_[func].used_global_variables,
+                                         infos_[func].used_global_variables.begin()));
         }
         infos_[func].no_state = infos_[func].no_state && !infos_[func].has_side_effect &&
                                 !infos_[func].memory_read && !infos_[func].memory_write;
@@ -151,9 +162,9 @@ static void print_function_analysis(const FunctionPtr &func, const FunctionMap &
     } else {
         oss << "  (None)" << std::endl;
     }
-    const auto [is_recursive, is_leaf, memory_read, memory_write,
+    const auto &[is_recursive, is_leaf, memory_read, memory_write,
         memory_alloc, io_read, io_write, has_return,
-        has_side_effect, no_state] = infos.at(func);
+        has_side_effect, no_state, used_global_variables] = infos.at(func);
     oss << "Function attributes:" << std::endl;
     oss << "  is_recursive    : " << (is_recursive ? "true" : "false") << std::endl;
     oss << "  is_leaf         : " << (is_leaf ? "true" : "false") << std::endl;

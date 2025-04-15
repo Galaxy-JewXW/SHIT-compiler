@@ -91,11 +91,13 @@ public:
 
     template<typename T>
     std::shared_ptr<T> as() {
+        static_assert(std::is_base_of_v<Value, T>, "T must be a derived class of Value or Value itself");
         return std::static_pointer_cast<T>(shared_from_this());
     }
 
     template<typename T>
     std::shared_ptr<T> is() {
+        static_assert(std::is_base_of_v<Value, T>, "T must be a derived class of Value or Value itself");
         return std::dynamic_pointer_cast<T>(shared_from_this());
     }
 };

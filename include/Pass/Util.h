@@ -51,6 +51,15 @@ using namespace Mir;
 // 将指令从其所在的block中移除，并移动到target之前
 void move_instruction_before(const std::shared_ptr<Instruction> &instruction,
                              const std::shared_ptr<Instruction> &target);
+
+template<typename K, typename V, typename D>
+V get_or_default(const std::unordered_map<K, V> &map, const K &key, D default_value) {
+    auto it = map.find(key);
+    if (it != map.end()) {
+        return it->second;
+    }
+    return static_cast<V>(default_value);
+}
 }
 
 #endif //UTIL_H

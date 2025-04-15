@@ -173,6 +173,7 @@ public:
         // 无状态依赖：输出与内存无关，即函数执行过程中不存在影响全局内存的行为，且没有副作用
         // 注意无状态依赖并不意味着没有进行IO操作
         bool no_state = false;
+        std::unordered_set<std::shared_ptr<Mir::GlobalVariable>> used_global_variables;
     };
 
     explicit FunctionAnalysis() : Analysis("FunctionCallGraph") {}
