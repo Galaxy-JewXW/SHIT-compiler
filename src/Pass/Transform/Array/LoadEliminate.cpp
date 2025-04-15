@@ -83,11 +83,21 @@ void LoadEliminate::handle_store(const std::shared_ptr<Store> &store) {
 
 void LoadEliminate::handle_call(const std::shared_ptr<Call> &call) {
     const auto called_function = call->get_function()->as<Function>();
-    if (called_function->is_runtime_func() && !called_function->is_sysy_runtime_func()) {
+    if (called_function->is_sysy_runtime_func()) {
         return;
     }
-    const auto &info = function_analysis->func_info(called_function);
-    if (info.has_side_effect) {
+    bool has_side_effect{false}, memory_write{false};
+    std::unordered_set<std::shared_ptr<GlobalVariable>> used_global_variables;
+    if (called_function->is_runtime_func()) {
+        has_side_effect = true;
+        memory_write = true;
+    } else {
+        const auto &info = function_analysis->func_info(called_function);
+        has_side_effect = info.has_side_effect;
+        memory_write = info.memory_write;
+        used_global_variables = info.used_global_variables;
+    }
+    if (has_side_effect) {
         for (const auto &param: call->get_params()) {
             if (param->get_type()->is_pointer()) {
                 const auto base = base_addr(param);
@@ -96,8 +106,8 @@ void LoadEliminate::handle_call(const std::shared_ptr<Call> &call) {
             }
         }
     }
-    if (info.memory_write) {
-        for (const auto &used_gv: info.used_global_variables) {
+    if (memory_write) {
+        for (const auto &used_gv: used_global_variables) {
             if (used_gv->get_type()->as<Type::Pointer>()->get_contain_type()->is_array()) {
                 load_indexes.erase(used_gv);
                 store_indexes.erase(used_gv);
@@ -148,7 +158,19 @@ void LoadEliminate::transform(const std::shared_ptr<Module> module) {
     for (const auto &function: *module) {
         run_on_func(function);
     }
+    for (const auto &function: *module) {
+        for (const auto &block: function->get_blocks()) {
+            for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
+                if (deleted_instructions.count(*it)) {
+                    it = block->get_instructions().erase(it);
+                } else {
+                    ++it;
+                }
+            }
+        }
+    }
     cfg = nullptr;
     function_analysis = nullptr;
+    deleted_instructions.clear();
 }
 }
