@@ -18,6 +18,7 @@ std::shared_ptr<Value> base_addr(const std::shared_ptr<Value> &inst) {
 
 namespace Pass {
 void LoadEliminate::handle_load(const std::shared_ptr<Load> &load) {
+    // 获取基础地址
     std::shared_ptr<Value> addr = load->get_addr();
     while (addr->is<BitCast>()) {
         addr = addr->as<BitCast>()->get_value();
@@ -31,12 +32,15 @@ void LoadEliminate::handle_load(const std::shared_ptr<Load> &load) {
                                   try_emplace(addr, std::unordered_map<ValuePtr, ValuePtr>{}).first->second;
         auto &array_load = load_indexes.try_emplace(addr, std::unordered_map<ValuePtr, ValuePtr>{}).first->second;
         if (const auto index = gep->get_index(); array_store.count(index)) {
+            // 直接替换为 store 的值
             load->replace_by_new_value(array_store.at(index));
             deleted_instructions.insert(load);
         } else if (array_load.count(index)) {
+            // 复用上一次 load 的结果
             load->replace_by_new_value(array_load.at(index));
             deleted_instructions.insert(load);
         } else {
+            // 记录当前 load 的结果
             array_load.emplace(index, load);
             load_indexes[addr] = array_load;
         }
@@ -54,6 +58,7 @@ void LoadEliminate::handle_load(const std::shared_ptr<Load> &load) {
 }
 
 void LoadEliminate::handle_store(const std::shared_ptr<Store> &store) {
+    // 获取基础地址
     std::shared_ptr<Value> addr = store->get_addr();
     while (addr->is<BitCast>()) {
         addr = addr->as<BitCast>()->get_value();
@@ -64,11 +69,13 @@ void LoadEliminate::handle_store(const std::shared_ptr<Store> &store) {
     if (const auto gep = addr->is<GetElementPtr>()) {
         addr = gep->get_addr();
         if (const auto index = gep->get_index(); index->is_constant()) {
+            // 常量索引：更新 store 映射，清除对应的 load 映射
             store_indexes.try_emplace(addr, std::unordered_map<ValuePtr, ValuePtr>{});
             store_indexes[addr][index] = store->get_value();
             load_indexes.try_emplace(addr, std::unordered_map<ValuePtr, ValuePtr>{});
             load_indexes[addr].erase(index);
         } else {
+            // 变量索引：
             store_indexes.try_emplace(addr, std::unordered_map<ValuePtr, ValuePtr>{});
             store_indexes[addr].clear();
             store_indexes[addr][index] = store->get_value();
@@ -84,7 +91,10 @@ void LoadEliminate::handle_store(const std::shared_ptr<Store> &store) {
 void LoadEliminate::handle_call(const std::shared_ptr<Call> &call) {
     const auto called_function = call->get_function()->as<Function>();
     if (called_function->is_sysy_runtime_func()) {
-        return;
+        if (called_function->get_name().find("put") != std::string::npos ||
+            called_function->get_name().find("time") != std::string::npos) {
+            return;
+        }
     }
     bool has_side_effect{false}, memory_write{false};
     std::unordered_set<std::shared_ptr<GlobalVariable>> used_global_variables;
@@ -120,20 +130,25 @@ void LoadEliminate::handle_call(const std::shared_ptr<Call> &call) {
 }
 
 void LoadEliminate::dfs(const std::shared_ptr<Block> &block) {
+    // 在进入基本块前克隆当前状态（存储和加载映射），处理完子块后恢复状态
     const auto cur_load_indexes = load_indexes,
                cur_store_indexes = store_indexes;
     const auto cur_load_global = load_global,
                cur_store_global = store_global;
+    // 控制流合并可能引入不确定性，基本块有多个前驱时清空状态
     if (cfg->predecessors(block->get_function()).at(block).size() > 1) {
         clear();
     }
     for (const auto &instruction: block->get_instructions()) {
         if (const auto op = instruction->get_op();
             op == Operator::LOAD) {
+            // 检查冗余并标记删除
             handle_load(instruction->as<Load>());
         } else if (op == Operator::STORE) {
+            // 更新存储状态
             handle_store(instruction->as<Store>());
         } else if (op == Operator::CALL) {
+            // 函数调用可能造成影响
             handle_call(instruction->as<Call>());
         }
     }

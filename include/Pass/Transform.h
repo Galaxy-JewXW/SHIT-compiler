@@ -267,7 +267,7 @@ protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 };
 
-// 将嵌套的 getelementptr 指令链折叠为单一 getelementptr 指令
+// getelementptr 折叠：将嵌套的 getelementptr 指令链折叠为单一 getelementptr 指令
 class GepFolding final : public Transform {
 public:
     explicit GepFolding() : Transform("GepFolding") {}
@@ -281,6 +281,7 @@ private:
     void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
 };
 
+// 冗余加载消除：跟踪内存的 store 和 load 操作，通过替换重复的 load 来减少不必要的内存访问
 class LoadEliminate final : public Transform {
 public:
     explicit LoadEliminate() : Transform("LoadEliminate") {}
@@ -294,11 +295,13 @@ private:
     std::shared_ptr<ControlFlowGraph> cfg{nullptr};
 
     std::shared_ptr<FunctionAnalysis> function_analysis{nullptr};
-
+    // 待删除的指令列表
     std::unordered_set<std::shared_ptr<Mir::Instruction>> deleted_instructions;
-
+    // 跟踪数组的存储和加载操作
+    // 键：基地址(alloca, GlobalVariable, Argument)
+    // 值：另一个映射，计入每个索引对应的最新存储值或加载指令
     std::unordered_map<ValuePtr, std::unordered_map<ValuePtr, ValuePtr>> load_indexes, store_indexes;
-
+    // 跟踪全局标量的存储与加载操作
     std::unordered_map<std::shared_ptr<Mir::GlobalVariable>, ValuePtr> load_global, store_global;
 
     void run_on_func(const std::shared_ptr<Mir::Function> &func);
