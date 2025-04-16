@@ -1,4 +1,5 @@
 #include "Pass/Transform.h"
+#include "Pass/Util.h"
 
 using namespace Mir;
 
@@ -173,17 +174,7 @@ void LoadEliminate::transform(const std::shared_ptr<Module> module) {
     for (const auto &function: *module) {
         run_on_func(function);
     }
-    for (const auto &function: *module) {
-        for (const auto &block: function->get_blocks()) {
-            for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
-                if (deleted_instructions.count(*it)) {
-                    it = block->get_instructions().erase(it);
-                } else {
-                    ++it;
-                }
-            }
-        }
-    }
+    Utils::delete_instruction_set(module, deleted_instructions);
     cfg = nullptr;
     function_analysis = nullptr;
     deleted_instructions.clear();

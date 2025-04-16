@@ -1,5 +1,8 @@
 #ifndef UTIL_H
 #define UTIL_H
+
+#include <unordered_set>
+
 #include "Pass.h"
 #include "Utils/Log.h"
 
@@ -52,14 +55,9 @@ using namespace Mir;
 void move_instruction_before(const std::shared_ptr<Instruction> &instruction,
                              const std::shared_ptr<Instruction> &target);
 
-template<typename K, typename V, typename D>
-V get_or_default(const std::unordered_map<K, V> &map, const K &key, D default_value) {
-    auto it = map.find(key);
-    if (it != map.end()) {
-        return it->second;
-    }
-    return static_cast<V>(default_value);
-}
+// 从module中删除给定的指令集合
+void delete_instruction_set(const std::shared_ptr<Module> &module,
+                            const std::unordered_set<std::shared_ptr<Instruction>> &deleted_instructions);
 }
 
 #endif //UTIL_H

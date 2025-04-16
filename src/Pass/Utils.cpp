@@ -1,3 +1,5 @@
+#include <unordered_set>
+
 #include "Mir/Instruction.h"
 #include "Pass/Util.h"
 
@@ -62,6 +64,21 @@ void move_instruction_before(const std::shared_ptr<Instruction> &instruction,
                   target_block->get_name().c_str());
     } else {
         target_instructions.insert(it, instruction);
+    }
+}
+
+void delete_instruction_set(const std::shared_ptr<Module> &module,
+                            const std::unordered_set<std::shared_ptr<Instruction>> &deleted_instructions) {
+    for (const auto &function: *module) {
+        for (const auto &block: function->get_blocks()) {
+            for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
+                if (deleted_instructions.count(*it)) {
+                    it = block->get_instructions().erase(it);
+                } else {
+                    ++it;
+                }
+            }
+        }
     }
 }
 }
