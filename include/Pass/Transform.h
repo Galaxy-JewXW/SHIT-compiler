@@ -356,6 +356,33 @@ private:
         store_global.clear();
     }
 };
+
+// 聚集对象的标量替换: scalar replacement of aggregate
+class SROA final : public Transform {
+public:
+    explicit SROA() : Transform("SROA") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+private:
+    using IndexMap = std::unordered_map<int, std::vector<std::shared_ptr<Mir::GetElementPtr>>>;
+
+    std::unordered_map<std::shared_ptr<Mir::Alloc>, IndexMap> alloc_index_geps;
+
+    IndexMap index_use;
+
+    std::unordered_set<std::shared_ptr<Mir::Instruction>> deleted_instructions;
+
+    void run_on_func(const std::shared_ptr<Mir::Function> &func);
+
+    bool can_be_split(const std::shared_ptr<Mir::Alloc> &alloc);
+
+    void clear() {
+        alloc_index_geps.clear();
+        deleted_instructions.clear();
+    }
+};
 }
 
 #endif //TRANSFORM_H

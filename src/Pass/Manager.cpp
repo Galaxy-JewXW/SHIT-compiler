@@ -2,7 +2,14 @@
 #include "Pass/Transform.h"
 #include "Pass/Util.h"
 
-[[maybe_unused]] void execute_O0_passes(std::shared_ptr<Mir::Module> &module) {}
+[[maybe_unused]]
+void execute_O0_passes(std::shared_ptr<Mir::Module> &module) {
+    apply<
+        Pass::Mem2Reg,
+        Pass::SimplifyCFG,
+        Pass::GlobalValueNumbering
+    >(module);
+}
 
 void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
     apply<
@@ -23,6 +30,7 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         Pass::GlobalVariableLocalize,
         Pass::LoadEliminate,
         Pass::StoreEliminate,
-        Pass::GlobalValueNumbering
+        Pass::GlobalValueNumbering,
+        Pass::SROA
     >(module);
 }
