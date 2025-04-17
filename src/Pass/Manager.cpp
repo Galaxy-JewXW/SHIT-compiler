@@ -23,14 +23,16 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         Pass::DeadFuncArgEliminate,
         Pass::DeadFuncEliminate,
         Pass::DeadReturnEliminate,
-        Pass::SimplifyCFG,
         Pass::DeadCodeEliminate,
         Pass::EmitModule<>,
         Pass::GepFolding,
         Pass::GlobalVariableLocalize,
+        Pass::GlobalArrayLocalize,
         Pass::LoadEliminate,
         Pass::StoreEliminate,
         Pass::GlobalValueNumbering,
-        Pass::SROA
+        Pass::SROA,
+        Pass::SimplifyCFG,
+        Pass::GlobalValueNumbering
     >(module);
 }

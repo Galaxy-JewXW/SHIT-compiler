@@ -163,15 +163,19 @@ class Block final : public User {
 public:
     explicit Block(const std::string &name): User(name, Type::Label::label) {}
 
-    static std::shared_ptr<Block> create(const std::string &name, const std::shared_ptr<Function> &function) {
+    static std::shared_ptr<Block> create(const std::string &name, const std::shared_ptr<Function> &function = nullptr) {
         const auto block = std::make_shared<Block>(name);
-        block->set_function(function);
+        if (function != nullptr) [[likely]] {
+            block->set_function(function);
+        }
         return block;
     }
 
-    void set_function(const std::shared_ptr<Function> &function) {
+    void set_function(const std::shared_ptr<Function> &function, const bool insert = true) {
         parent = function;
-        function->add_block(std::static_pointer_cast<Block>(shared_from_this()));
+        if (insert) {
+            function->add_block(std::static_pointer_cast<Block>(shared_from_this()));
+        }
     }
 
     [[nodiscard]] bool is_deleted() const { return deleted; }

@@ -267,6 +267,14 @@ protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 };
 
+class GlobalArrayLocalize final : public Transform {
+public:
+    explicit GlobalArrayLocalize() : Transform("GlobalArrayLocalize") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+};
+
 // getelementptr 折叠：将嵌套的 getelementptr 指令链折叠为单一 getelementptr 指令
 class GepFolding final : public Transform {
 public:
