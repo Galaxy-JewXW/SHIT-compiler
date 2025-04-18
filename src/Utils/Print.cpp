@@ -574,9 +574,9 @@ namespace Mir {
     std::ostringstream oss;
     oss << name_ << " = getelementptr inbounds " << target_type->to_string()
             << ", " << ptr_type->to_string() << " " << addr->get_name();
-    if (operands_.size() == 3) oss << ", i32 0, i32 ";
-    else oss << ", i32 ";
-    oss << get_index()->get_name();
+    for (size_t i = 1; i < operands_.size(); ++i) {
+        oss << ", " << operands_[i]->get_type()->to_string() << " " << operands_[i]->get_name();
+    }
     return oss.str();
 }
 

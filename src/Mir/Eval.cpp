@@ -8,7 +8,7 @@
 using namespace Mir;
 
 template<typename Op>
-EvalResult apply(const EvalResult &lhs, const EvalResult &rhs, Op op) {
+eval_t apply(const eval_t &lhs, const eval_t &rhs, Op op) {
     if (std::holds_alternative<int>(lhs) && std::holds_alternative<int>(rhs)) {
         return op(std::get<int>(lhs), std::get<int>(rhs));
     }
@@ -17,7 +17,7 @@ EvalResult apply(const EvalResult &lhs, const EvalResult &rhs, Op op) {
     return op(l, r);
 }
 
-EvalResult eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_ptr<Symbol::Table> &table) {
+eval_t eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_ptr<Symbol::Table> &table) {
     const std::string &ident = lVal->ident();
     const auto &symbol = table->lookup_in_all_scopes(ident);
     if (symbol == nullptr) {
@@ -59,7 +59,7 @@ EvalResult eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_p
     log_error("Unknown constant type");
 }
 
-EvalResult eval(const EvalResult lhs, const EvalResult rhs, const Token::Type type) {
+eval_t eval(const eval_t lhs, const eval_t rhs, const Token::Type type) {
     switch (type) {
         case Token::Type::ADD: return apply(lhs, rhs, std::plus<>());
         case Token::Type::SUB: return apply(lhs, rhs, std::minus<>());
@@ -71,7 +71,7 @@ EvalResult eval(const EvalResult lhs, const EvalResult rhs, const Token::Type ty
             });
         }
         case Token::Type::MOD: {
-            return apply(lhs, rhs, [](auto a, auto b) -> EvalResult {
+            return apply(lhs, rhs, [](auto a, auto b) -> eval_t {
                 if (b == 0) { log_error("Modulo by zero"); }
                 if constexpr (std::is_integral_v<decltype(a)> && std::is_integral_v<decltype(b)>) {
                     return a % b;
@@ -85,7 +85,7 @@ EvalResult eval(const EvalResult lhs, const EvalResult rhs, const Token::Type ty
     }
 }
 
-EvalResult eval_number(const std::shared_ptr<AST::Number> &number) {
+eval_t eval_number(const std::shared_ptr<AST::Number> &number) {
     const auto &p = *number;
     if (typeid(p) == typeid(AST::IntNumber)) {
         const auto &int_num = std::static_pointer_cast<AST::IntNumber>(number);
@@ -98,7 +98,7 @@ EvalResult eval_number(const std::shared_ptr<AST::Number> &number) {
     log_fatal("Fatal at eval number");
 }
 
-EvalResult eval_primaryExp(const std::shared_ptr<AST::PrimaryExp> &primaryExp,
+eval_t eval_primaryExp(const std::shared_ptr<AST::PrimaryExp> &primaryExp,
                            const std::shared_ptr<Symbol::Table> &table) {
     if (primaryExp->is_number()) {
         const auto number = std::get<std::shared_ptr<AST::Number>>(primaryExp->get_value());
@@ -115,7 +115,7 @@ EvalResult eval_primaryExp(const std::shared_ptr<AST::PrimaryExp> &primaryExp,
     log_fatal("Fatal at eval primaryExp");
 }
 
-EvalResult eval_unaryExp(const std::shared_ptr<AST::UnaryExp> &unaryExp, const std::shared_ptr<Symbol::Table> &table) {
+eval_t eval_unaryExp(const std::shared_ptr<AST::UnaryExp> &unaryExp, const std::shared_ptr<Symbol::Table> &table) {
     if (unaryExp->is_call()) {
         log_error("Function call cannot be calculated at compile time.");
     }
@@ -145,24 +145,24 @@ EvalResult eval_unaryExp(const std::shared_ptr<AST::UnaryExp> &unaryExp, const s
     log_fatal("Fatal at eval unaryExp");
 }
 
-EvalResult eval_mulExp(const std::shared_ptr<AST::MulExp> &mulExp, const std::shared_ptr<Symbol::Table> &table) {
-    EvalResult res = eval_unaryExp(mulExp->unaryExps()[0], table);
+eval_t eval_mulExp(const std::shared_ptr<AST::MulExp> &mulExp, const std::shared_ptr<Symbol::Table> &table) {
+    eval_t res = eval_unaryExp(mulExp->unaryExps()[0], table);
     for (size_t i = 1; i < mulExp->unaryExps().size(); ++i) {
-        const EvalResult rhs = eval_unaryExp(mulExp->unaryExps()[i], table);
+        const eval_t rhs = eval_unaryExp(mulExp->unaryExps()[i], table);
         res = eval(res, rhs, mulExp->operators()[i - 1]);
     }
     return res;
 }
 
-EvalResult eval_addExp(const std::shared_ptr<AST::AddExp> &addExp, const std::shared_ptr<Symbol::Table> &table) {
-    EvalResult res = eval_mulExp(addExp->mulExps()[0], table);
+eval_t eval_addExp(const std::shared_ptr<AST::AddExp> &addExp, const std::shared_ptr<Symbol::Table> &table) {
+    eval_t res = eval_mulExp(addExp->mulExps()[0], table);
     for (size_t i = 1; i < addExp->mulExps().size(); ++i) {
-        const EvalResult rhs = eval_mulExp(addExp->mulExps()[i], table);
+        const eval_t rhs = eval_mulExp(addExp->mulExps()[i], table);
         res = eval(res, rhs, addExp->operators()[i - 1]);
     }
     return res;
 }
 
-EvalResult eval_exp(const std::shared_ptr<AST::AddExp> &exp, const std::shared_ptr<Symbol::Table> &table) {
+eval_t eval_exp(const std::shared_ptr<AST::AddExp> &exp, const std::shared_ptr<Symbol::Table> &table) {
     return eval_addExp(exp, table);
 }

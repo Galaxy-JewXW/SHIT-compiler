@@ -68,7 +68,7 @@ void Builder::visit_constDef(const Token::Type type, const std::shared_ptr<AST::
     }
     for (auto it = dimensions.rbegin(); it != dimensions.rend(); ++it) {
         const auto dim = *it;
-        ir_type = std::make_shared<Type::Array>(dim, ir_type);
+        ir_type = Type::Array::create(dim, ir_type);
     }
     // ConstDef必然含有ConstInitVal
     std::shared_ptr<Init::Init> init_value;
@@ -125,7 +125,7 @@ void Builder::visit_varDef(const Token::Type type, const std::shared_ptr<AST::Va
     }
     for (auto it = dimensions.rbegin(); it != dimensions.rend(); ++it) {
         const auto dim = *it;
-        ir_type = std::make_shared<Type::Array>(dim, ir_type);
+        ir_type = Type::Array::create(dim, ir_type);
     }
     std::shared_ptr<Init::Init> init_value;
     if (const auto &initVal = varDef->initVal()) {
@@ -234,9 +234,9 @@ void Builder::visit_funcDef(const std::shared_ptr<AST::FuncDef> &funcDef) {
         if (const auto return_type = cur_function->get_return_type(); return_type->is_void()) {
             Ret::create(cur_block);
         } else if (return_type->is_int32()) {
-            Ret::create(std::make_shared<ConstInt>(0), cur_block);
+            Ret::create(ConstInt::create(0), cur_block);
         } else if (return_type->is_float()) {
-            Ret::create(std::make_shared<ConstFloat>(0.0f), cur_block);
+            Ret::create(ConstFloat::create(0.0f), cur_block);
         }
     }
     // 清除流图中无法到达的语句
@@ -308,9 +308,9 @@ Builder::visit_funcFParam(const std::shared_ptr<AST::FuncFParam> &funcFParam) co
     }
     for (auto it = dimensions.rbegin(); it != dimensions.rend(); ++it) {
         const auto dim = *it;
-        ir_type = std::make_shared<Type::Array>(dim, ir_type);
+        ir_type = Type::Array::create(dim, ir_type);
     }
-    return {ident, std::make_shared<Type::Pointer>(ir_type)};
+    return {ident, Type::Pointer::create(ir_type)};
 }
 
 void Builder::visit_block(const std::shared_ptr<AST::Block> &block) {
@@ -402,7 +402,7 @@ std::shared_ptr<Value> Builder::visit_functionCall(const AST::UnaryExp::call &ca
     // 实参列表
     std::vector<std::shared_ptr<Value>> r_params;
     if (ident.content == "starttime" || ident.content == "stoptime") {
-        r_params.emplace_back(std::make_shared<ConstInt>(ident.line));
+        r_params.emplace_back(ConstInt::create(ident.line));
         return Call::create(func, r_params, cur_block);
     }
     if (ident.content == "putf") {
@@ -425,7 +425,10 @@ std::shared_ptr<Value> Builder::visit_functionCall(const AST::UnaryExp::call &ca
         if (const auto f_type = arguments[i]->get_type(); f_type->is_int32() || f_type->is_float()) {
             r_params.emplace_back(type_cast(visit_exp(params[i]), f_type, cur_block));
         } else {
-            const auto p = visit_exp(params[i]);
+            std::shared_ptr<Value> p = visit_exp(params[i]);
+            if (*p->get_type() != *f_type) {
+                p = BitCast::create(gen_variable_name(), p, f_type, cur_block);
+            }
             r_params.emplace_back(p);
         }
     }
@@ -451,11 +454,11 @@ std::shared_ptr<Value> Builder::visit_unaryExp(const std::shared_ptr<AST::UnaryE
         if (type == Token::Type::SUB) {
             if (sub_exp_value->get_type()->is_float()) {
                 const auto &casted_sub_exp_value = type_cast(sub_exp_value, Type::Float::f32, cur_block);
-                return FSub::create(gen_variable_name(), std::make_shared<ConstFloat>(0.0f),
+                return FSub::create(gen_variable_name(), ConstFloat::create(0.0f),
                                     casted_sub_exp_value, cur_block);
             }
             const auto &casted_sub_exp_value = type_cast(sub_exp_value, Type::Integer::i32, cur_block);
-            return Sub::create(gen_variable_name(), std::make_shared<ConstInt>(0),
+            return Sub::create(gen_variable_name(), ConstInt::create(0),
                                casted_sub_exp_value, cur_block);
         }
         if (type == Token::Type::NOT) {
@@ -463,13 +466,13 @@ std::shared_ptr<Value> Builder::visit_unaryExp(const std::shared_ptr<AST::UnaryE
                 const auto &casted_sub_exp_value = type_cast(sub_exp_value, Type::Float::f32, cur_block);
                 const auto &cmp = Fcmp::create(gen_variable_name(), Fcmp::Op::EQ,
                                                casted_sub_exp_value,
-                                               std::make_shared<ConstFloat>(0.0f), cur_block);
+                                               ConstFloat::create(0.0f), cur_block);
                 return type_cast(cmp, Type::Integer::i32, cur_block);
             }
             const auto &casted_sub_exp_value = type_cast(sub_exp_value, Type::Integer::i32, cur_block);
             const auto &cmp = Icmp::create(gen_variable_name(), Icmp::Op::EQ,
                                            casted_sub_exp_value,
-                                           std::make_shared<ConstInt>(0), cur_block);
+                                           ConstInt::create(0), cur_block);
             return type_cast(cmp, Type::Integer::i32, cur_block);
         }
     }
@@ -491,10 +494,10 @@ std::shared_ptr<Value> Builder::visit_primaryExp(const std::shared_ptr<AST::Prim
 
 std::shared_ptr<Value> Builder::visit_number(const std::shared_ptr<AST::Number> &number) {
     if (const auto &num = std::dynamic_pointer_cast<AST::FloatNumber>(number)) {
-        return std::make_shared<ConstFloat>(num->get_value());
+        return ConstFloat::create(num->get_value());
     }
     if (const auto &num = std::dynamic_pointer_cast<AST::IntNumber>(number)) {
-        return std::make_shared<ConstInt>(num->get_value());
+        return ConstInt::create(num->get_value());
     }
     log_fatal("Invalid number");
 }
@@ -583,7 +586,7 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
         } else if (content_type->is_array()) {
             content_type = std::static_pointer_cast<Type::Array>(content_type)->get_element_type();
             pointer = GetElementPtr::create(gen_variable_name(), pointer,
-                                            {std::make_shared<ConstInt>(0), index}, cur_block);
+                                            {ConstInt::create(0), index}, cur_block);
         }
     }
     if (get_address) {
@@ -599,7 +602,7 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
         // 解析向函数中调用数组指针的情况
         // 此时也认为symbol的初始值被修改
         symbol->set_modified();
-        const auto constant_zero = std::make_shared<ConstInt>(0);
+        const auto constant_zero = ConstInt::create(0);
         return GetElementPtr::create(gen_variable_name(), pointer, {constant_zero, constant_zero}, cur_block);
     }
     log_fatal("Invalid lVal");

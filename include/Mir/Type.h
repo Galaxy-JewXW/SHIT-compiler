@@ -29,6 +29,8 @@ public:
 
     template<typename T>
     std::shared_ptr<T> as() {
+        static_assert(std::is_base_of_v<Type, T> && !std::is_same_v<Type, T>,
+                      "T must be a derived class of Type, not Type itself");
         return std::static_pointer_cast<T>(shared_from_this());
     }
 };
@@ -73,9 +75,11 @@ class Array final : public Type {
     size_t size;
     std::shared_ptr<Type> element_type;
 
-public:
     explicit Array(const size_t size, const std::shared_ptr<Type> &element_type) :
         size{size}, element_type{element_type} {}
+
+public:
+    static std::shared_ptr<Array> create(size_t size, const std::shared_ptr<Type> &element_type);
 
     [[nodiscard]] bool is_array() const override { return true; }
 
@@ -106,8 +110,10 @@ public:
 class Pointer final : public Type {
     std::shared_ptr<Type> contain_type;
 
-public:
     explicit Pointer(const std::shared_ptr<Type> &contain_type) : contain_type{contain_type} {}
+
+public:
+    static std::shared_ptr<Pointer> create(const std::shared_ptr<Type> &contain_type);
 
     [[nodiscard]] bool is_pointer() const override { return true; }
 

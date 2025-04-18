@@ -1,5 +1,7 @@
 #include "Pass/Transform.h"
 
+#include "Mir/Builder.h"
+
 using namespace Mir;
 using FunctionPtr = std::shared_ptr<Function>;
 using BlockPtr = std::shared_ptr<Block>;
@@ -73,20 +75,40 @@ std::string get_hash(const std::shared_ptr<Zext> &instruction) {
            + instruction->get_value()->get_type()->to_string() + " " + instruction->get_type()->to_string();
 }
 
-std::string get_instruction_hash(const InstructionPtr &instruction) {
+std::string get_hash(const std::shared_ptr<Call> &instruction,
+                     const std::shared_ptr<Pass::FunctionAnalysis> &func_analysis) {
+    const auto &func = instruction->get_function()->as<Function>();
+    if (func->is_runtime_func()) {
+        return "";
+    }
+    if (const auto &func_info = func_analysis->func_info(func);
+        func_info.has_return && func_info.no_state && !func_info.io_read && !func_info.io_write) {
+        std::ostringstream oss;
+        for (const auto &operand: instruction->get_params()) {
+            oss << " " << operand->get_name() << ",";
+        }
+        return "call " + func->get_name() + " " + oss.str();
+    }
+    return "";
+}
+
+std::string get_instruction_hash(const InstructionPtr &instruction,
+                                 const std::shared_ptr<Pass::FunctionAnalysis> &func_analysis) {
     switch (instruction->get_op()) {
         case Operator::GEP:
-            return get_hash(std::static_pointer_cast<GetElementPtr>(instruction));
+            return get_hash(instruction->as<GetElementPtr>());
         case Operator::FCMP:
-            return get_hash(std::static_pointer_cast<Fcmp>(instruction));
+            return get_hash(instruction->as<Fcmp>());
         case Operator::ICMP:
-            return get_hash(std::static_pointer_cast<Icmp>(instruction));
+            return get_hash(instruction->as<Icmp>());
         case Operator::INTBINARY:
-            return get_hash(std::static_pointer_cast<IntBinary>(instruction));
+            return get_hash(instruction->as<IntBinary>());
         case Operator::FLOATBINARY:
-            return get_hash(std::static_pointer_cast<FloatBinary>(instruction));
+            return get_hash(instruction->as<FloatBinary>());
         case Operator::ZEXT:
-            return get_hash(std::static_pointer_cast<Zext>(instruction));
+            return get_hash(instruction->as<Zext>());
+        case Operator::CALL:
+            return get_hash(instruction->as<Call>(), func_analysis);
         default:
             return "";
     }
@@ -131,8 +153,8 @@ bool evaluate_binary(const std::shared_ptr<Binary> &inst, typename binary_traits
         }
     }
     // 从常量指令中提取数值，根据操作符进行计算
-    const T lhs_val = std::any_cast<T>(std::static_pointer_cast<ConstType>(lhs)->get_constant_value()),
-            rhs_val = std::any_cast<T>(std::static_pointer_cast<ConstType>(rhs)->get_constant_value());
+    const auto lhs_val = **lhs->template as<ConstType>(),
+               rhs_val = **rhs->template as<ConstType>();
     switch (inst->op) {
         case Binary::Op::ADD: res = lhs_val + rhs_val;
             break;
@@ -213,53 +235,90 @@ bool evaluate_cmp(const std::shared_ptr<Cmp> &inst, int &res) {
     }
     return true;
 }
-
-bool try_fold(const std::shared_ptr<Instruction> &instruction) {
-    if (const Operator op = instruction->get_op(); op == Operator::INTBINARY) {
-        const auto int_binary = std::static_pointer_cast<IntBinary>(instruction);
-        if (int res_val; evaluate_binary(int_binary, res_val)) {
-            const auto const_int = std::make_shared<ConstInt>(res_val);
-            int_binary->replace_by_new_value(const_int);
-            return true;
-        }
-    } else if (op == Operator::FLOATBINARY) {
-        const auto float_binary = std::static_pointer_cast<FloatBinary>(instruction);
-        if (double res_val; evaluate_binary(float_binary, res_val)) {
-            const auto const_float = std::make_shared<ConstFloat>(res_val);
-            float_binary->replace_by_new_value(const_float);
-            return true;
-        }
-    } else if (op == Operator::ICMP) {
-        const auto icmp = std::static_pointer_cast<Icmp>(instruction);
-        if (int res_val; evaluate_cmp(icmp, res_val)) {
-            const auto const_bool = std::make_shared<ConstBool>(res_val);
-            icmp->replace_by_new_value(const_bool);
-            return true;
-        }
-    } else if (op == Operator::FCMP) {
-        const auto fcmp = std::static_pointer_cast<Fcmp>(instruction);
-        if (int res_val; evaluate_cmp(fcmp, res_val)) {
-            const auto const_bool = std::make_shared<ConstBool>(res_val);
-            fcmp->replace_by_new_value(const_bool);
-            return true;
-        }
-    }
-    return false;
-}
 }
 
 namespace Pass {
+bool GlobalValueNumbering::fold_instruction(const std::shared_ptr<Instruction> &instruction) {
+    switch (instruction->get_op()) {
+        case Operator::INTBINARY: {
+            const auto int_binary = instruction->as<IntBinary>();
+            if (int res_val; evaluate_binary(int_binary, res_val)) {
+                const auto const_int = ConstInt::create(res_val);
+                int_binary->replace_by_new_value(const_int);
+                return true;
+            }
+            break;
+        }
+        case Operator::FLOATBINARY: {
+            const auto float_binary = instruction->as<FloatBinary>();
+            if (double res_val; evaluate_binary(float_binary, res_val)) {
+                const auto const_float = ConstFloat::create(res_val);
+                float_binary->replace_by_new_value(const_float);
+                return true;
+            }
+            break;
+        }
+        case Operator::ICMP: {
+            const auto icmp = instruction->as<Icmp>();
+            if (int res_val; evaluate_cmp(icmp, res_val)) {
+                const auto const_bool = ConstBool::create(res_val);
+                icmp->replace_by_new_value(const_bool);
+                return true;
+            }
+            break;
+        }
+        case Operator::FCMP: {
+            const auto fcmp = instruction->as<Fcmp>();
+            if (int res_val; evaluate_cmp(fcmp, res_val)) {
+                const auto const_bool = ConstBool::create(res_val);
+                fcmp->replace_by_new_value(const_bool);
+                return true;
+            }
+            break;
+        }
+        case Operator::ZEXT: {
+            const auto zext = instruction->as<Zext>();
+            if (const auto const_val = zext->get_value(); const_val->is_constant()) {
+                const auto const_int = type_cast(const_val, zext->get_type(), nullptr);
+                zext->replace_by_new_value(const_int);
+                return true;
+            }
+            break;
+        }
+        case Operator::SITOFP: {
+            const auto sitofp = instruction->as<Sitofp>();
+            if (const auto const_val = sitofp->get_value(); const_val->is_constant()) {
+                const auto const_float = type_cast(const_val, sitofp->get_type(), nullptr);
+                sitofp->replace_by_new_value(const_float);
+                return true;
+            }
+            break;
+        }
+        case Operator::FPTOSI: {
+            const auto fptosi = instruction->as<Fptosi>();
+            if (const auto const_val = fptosi->get_value(); const_val->is_constant()) {
+                const auto const_int = type_cast(const_val, fptosi->get_type(), nullptr);
+                fptosi->replace_by_new_value(const_int);
+                return true;
+            }
+            break;
+        }
+        default: break;
+    }
+    return false;
+}
+
 bool GlobalValueNumbering::run_on_block(const FunctionPtr &func,
                                         const BlockPtr &block,
                                         std::unordered_map<std::string, InstructionPtr> &value_hashmap) {
     bool changed = false;
     for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
-        if (try_fold(*it)) {
+        if (fold_instruction(*it)) {
             (*it)->clear_operands();
             it = block->get_instructions().erase(it);
             changed = true;
         }
-        const auto &instruction_hash = get_instruction_hash(*it);
+        const auto &instruction_hash = get_instruction_hash(*it, func_analysis);
         if (instruction_hash.empty()) {
             ++it;
             continue;
@@ -288,6 +347,7 @@ bool GlobalValueNumbering::run_on_func(const FunctionPtr &func) {
 
 void GlobalValueNumbering::transform(const std::shared_ptr<Module> module) {
     cfg = get_analysis_result<ControlFlowGraph>(module);
+    func_analysis = get_analysis_result<FunctionAnalysis>(module);
     create<AlgebraicSimplify>()->run_on(module);
     // 不同的遍历顺序可能导致化简的结果不同
     // 跑多次GVN直到一个不动点
@@ -298,10 +358,18 @@ void GlobalValueNumbering::transform(const std::shared_ptr<Module> module) {
             changed |= run_on_func(func);
         }
     } while (changed);
+    do {
+        changed = false;
+        for (const auto &func: *module) {
+            changed |= run_on_func(func);
+        }
+    } while (changed);
     cfg = nullptr;
+    func_analysis = nullptr;
     // GVN后可能出现一条指令被替换成其另一条指令，但是那条指令并不支配这条指令的users的问题
     // 可以通过 GCM 解决。在 GCM 中考虑value之间的依赖，会根据依赖将那条指令移动到正确的位置
     create<GlobalCodeMotion>()->run_on(module);
     create<AlgebraicSimplify>()->run_on(module);
+    create<DeadInstEliminate>()->run_on(module);
 }
 }

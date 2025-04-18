@@ -31,12 +31,14 @@ public:
 class ConstBool final : public Const {
     const int value;
 
-public:
     explicit ConstBool(const int value) : Const(std::to_string(value ? 1 : 0), Type::Integer::i1), value{value} {}
 
+public:
     [[nodiscard]] bool is_zero() const override { return value == 0; }
 
     [[nodiscard]] std::any get_constant_value() const override { return value; }
+
+    static std::shared_ptr<ConstBool> create(int value);
 
     int operator*() const {
         return value;
@@ -46,13 +48,15 @@ public:
 class ConstInt final : public Const {
     const int value;
 
-public:
     explicit ConstInt(const int value, const std::shared_ptr<Type::Type> &type = Type::Integer::i32)
         : Const(std::to_string(value), type), value{value} {}
 
+public:
     [[nodiscard]] bool is_zero() const override { return value == 0; }
 
     [[nodiscard]] std::any get_constant_value() const override { return value; }
+
+    static std::shared_ptr<ConstInt> create(int value, const std::shared_ptr<Type::Type> &type = Type::Integer::i32);
 
     int operator+(const ConstInt &other) const {
         return value + other.value;
@@ -128,8 +132,10 @@ class ConstFloat final : public Const {
         return oss.str();
     }
 
-public:
     explicit ConstFloat(const double value) : Const(gen_name(value), Type::Float::f32), value{value} {}
+
+public:
+    static std::shared_ptr<ConstFloat> create(double value);
 
     [[nodiscard]] bool is_zero() const override {
         constexpr double tolerance = 1e-6f;

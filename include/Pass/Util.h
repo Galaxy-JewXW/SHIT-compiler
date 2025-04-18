@@ -1,5 +1,8 @@
 #ifndef UTIL_H
 #define UTIL_H
+
+#include <unordered_set>
+
 #include "Pass.h"
 #include "Utils/Log.h"
 
@@ -42,6 +45,19 @@ protected:
         log_set_level(log_level);
     }
 };
+}
+
+// 实用函数
+namespace Pass::Utils {
+using namespace Mir;
+
+// 将指令从其所在的block中移除，并移动到target之前
+void move_instruction_before(const std::shared_ptr<Instruction> &instruction,
+                             const std::shared_ptr<Instruction> &target);
+
+// 从module中删除给定的指令集合
+void delete_instruction_set(const std::shared_ptr<Module> &module,
+                            const std::unordered_set<std::shared_ptr<Instruction>> &deleted_instructions);
 }
 
 #endif //UTIL_H

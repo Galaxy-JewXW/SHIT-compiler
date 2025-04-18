@@ -10,11 +10,11 @@ std::shared_ptr<Constant> Constant::create_constant_init_value(const std::shared
     const auto &res = eval_exp(addExp, table);
     if (type->is_int32()) {
         int value = std::visit([](auto &&arg) { return static_cast<int>(arg); }, res);
-        return std::make_shared<Constant>(type, std::make_shared<ConstInt>(value));
+        return std::make_shared<Constant>(type, ConstInt::create(value));
     }
     if (type->is_float()) {
         double value = std::visit([](auto &&arg) { return static_cast<double>(arg); }, res);
-        return std::make_shared<Constant>(type, std::make_shared<ConstFloat>(value));
+        return std::make_shared<Constant>(type, ConstFloat::create(value));
     }
     log_error("Illegal type: %s", type->to_string().c_str());
 }
@@ -22,11 +22,11 @@ std::shared_ptr<Constant> Constant::create_constant_init_value(const std::shared
 std::shared_ptr<Constant> Constant::create_zero_constant_init_value(const std::shared_ptr<Type::Type> &type) {
     if (type->is_int32()) {
         return std::make_shared<Constant>(
-            type, std::make_shared<ConstInt>(0));
+            type, ConstInt::create(0));
     }
     if (type->is_float()) {
         return std::make_shared<Constant>(
-            type, std::make_shared<ConstFloat>(0.0f));
+            type, ConstFloat::create(0.0f));
     }
     log_error("Illegal type: %s", type->to_string().c_str());
 }
@@ -126,12 +126,12 @@ void Array::gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared
             total_elements *= dim;
         }
         const size_t total_bytes = total_elements * element_size;
-        const auto i8_ptr_type = std::make_shared<Type::Pointer>(Type::Integer::i8);
+        const auto i8_ptr_type = Type::Pointer::create(Type::Integer::i8);
         const auto bitcast = BitCast::create(Builder::gen_variable_name(), addr, i8_ptr_type, block);
         const auto func_memset = Function::llvm_runtime_functions.find("llvm.memset.p0i8.i32")->second;
-        const auto size_val = std::make_shared<ConstInt>(static_cast<int>(total_bytes)),
-                   zero_val = std::make_shared<ConstInt>(0, Type::Integer::i8),
-                   is_volatile = std::make_shared<ConstInt>(0, Type::Integer::i1);
+        const auto size_val = ConstInt::create(static_cast<int>(total_bytes)),
+                   zero_val = ConstInt::create(0, Type::Integer::i8),
+                   is_volatile = ConstInt::create(0, Type::Integer::i1);
         // 用 memset 将整个数组内存区域置 0
         Call::create(func_memset, {bitcast, zero_val, size_val, is_volatile}, block);
     }
@@ -150,8 +150,8 @@ void Array::gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared
             }
         }
         if (skip) continue;
-        auto index_val = std::make_shared<ConstInt>(static_cast<int>(i));
-        const auto zero_index = std::make_shared<ConstInt>(0);
+        auto index_val = ConstInt::create(static_cast<int>(i));
+        const auto zero_index = ConstInt::create(0);
         auto element_addr = GetElementPtr::create(Builder::gen_variable_name(), addr,
                                                     {zero_index, index_val}, block);
         // 如果当前元素是子数组，则递归生成内部 store 指令

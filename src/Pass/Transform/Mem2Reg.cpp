@@ -74,9 +74,9 @@ void Mem2Reg::rename_variables(const std::shared_ptr<Block> &block) {
             if (!def_stack.empty()) {
                 new_value = def_stack.back();
             } else if (contain_type->is_int32()) {
-                new_value = std::make_shared<ConstInt>(0);
+                new_value = ConstInt::create(0);
             } else if (contain_type->is_float()) {
-                new_value = std::make_shared<ConstFloat>(0.0f);
+                new_value = ConstFloat::create(0.0f);
             } else {
                 log_error("Unsupported type: %s", contain_type->to_string().c_str());
             }
@@ -107,9 +107,9 @@ void Mem2Reg::rename_variables(const std::shared_ptr<Block> &block) {
             if (!def_stack.empty()) {
                 new_value = def_stack.back();
             } else if (contain_type->is_int32()) {
-                new_value = std::make_shared<ConstInt>(0);
+                new_value = ConstInt::create(0);
             } else if (contain_type->is_float()) {
-                new_value = std::make_shared<ConstFloat>(0.0f);
+                new_value = ConstFloat::create(0.0f);
             } else {
                 log_error("Unsupported type: %s", contain_type->to_string().c_str());
             }

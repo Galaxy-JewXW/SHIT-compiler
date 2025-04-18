@@ -35,6 +35,14 @@ std::shared_ptr<T> get_analysis_result(const std::shared_ptr<Mir::Module> module
     return analysis;
 }
 
+template<typename T>
+std::shared_ptr<T> get_analysis_result(const std::shared_ptr<const Mir::Module> module) {
+    static_assert(std::is_base_of_v<Analysis, T>, "T must be a subclass of Analysis");
+    const auto analysis = Pass::create<T>();
+    analysis->run_on(module);
+    return analysis;
+}
+
 // ControlFlowGraph构建控制流图
 // 每个Function对应一套独立的CFG信息，键为FunctionPtr，代表不同的函数
 class ControlFlowGraph final : public Analysis {
@@ -93,6 +101,12 @@ public:
         return it->second;
     }
 
+    const std::vector<BlockPtr> &dom_tree_layer(const FunctionPtr &func) const {
+        const auto it = dom_tree_layer_.find(func);
+        if (it == dom_tree_layer_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
+        return it->second;
+    }
+
 protected:
     void analyze(std::shared_ptr<const Mir::Module> module) override;
 
@@ -121,6 +135,9 @@ private:
 
     // block的后序遍历顺序：function -> { 按照后序遍历排序的block集合 }
     std::unordered_map<FunctionPtr, std::vector<BlockPtr>> post_order_blocks_;
+
+    // block按照支配树上的层顺序：function -> { 按照支配树层顺序排序的block集合 }
+    std::unordered_map<FunctionPtr, std::vector<BlockPtr>> dom_tree_layer_;
 };
 
 /**
@@ -156,6 +173,7 @@ public:
         // 无状态依赖：输出与内存无关，即函数执行过程中不存在影响全局内存的行为，且没有副作用
         // 注意无状态依赖并不意味着没有进行IO操作
         bool no_state = false;
+        std::unordered_set<std::shared_ptr<Mir::GlobalVariable>> used_global_variables;
     };
 
     explicit FunctionAnalysis() : Analysis("FunctionCallGraph") {}
@@ -245,8 +263,7 @@ public:
     }
 
     void remove_child(const std::shared_ptr<LoopNodeTreeNode> &child) {
-        auto it = std::find(children_.begin(), children_.end(), child);
-        if (it != children_.end()) {
+        if (const auto it = std::find(children_.begin(), children_.end(), child); it != children_.end()) {
             children_.erase(it);
         }
     }
@@ -321,9 +338,112 @@ private:
         LoopNodeTreeNode>>>;
     FunctLoopForestMap loop_forest_;
 
-
     std::shared_ptr<LoopNodeTreeNode> find_block_in_forest(const FunctionPtr &func,
                                                            const std::shared_ptr<Mir::Block> &block);
+};
+
+// 每个指针被赋予一组属性标识符，通过比较这些属性可以判断两个指针是否可能指向同一内存位置
+class AliasAnalysis final : public Analysis {
+public:
+    struct Result {
+        struct PairHasher {
+            size_t operator()(const std::pair<size_t, size_t> &p) const {
+                return std::hash<size_t>()(p.first) ^ std::hash<size_t>()(p.second) << 1;
+            }
+        };
+
+        // 互不相交的属性对
+        std::unordered_set<std::pair<size_t, size_t>, PairHasher> distinct_pairs;
+        // 互不相交的属性组
+        std::vector<std::unordered_set<size_t>> distinct_groups;
+        // 将 LLVM 指针值映射到一组属性标识符上
+        std::unordered_map<std::shared_ptr<Mir::Value>, std::vector<size_t>> pointer_attributes;
+
+        // 两个别名属性id是相互排斥的
+        void add_distinct_pair_id(const size_t &l, const size_t &r) {
+            if (l == r) {
+                log_error("Id %lu and %lu cannot be the same", l, r);
+            }
+            distinct_pairs.insert({l, r});
+        }
+
+        // 将 LLVM 指针值映射到一组属性标识符上
+        void set_value_attrs(const std::shared_ptr<Mir::Value> &value, const std::vector<size_t> &attrs) {
+            if (!value->get_type()->is_pointer()) {
+                log_error("Value %s is not a pointer", value->to_string().c_str());
+            }
+            auto new_attrs = attrs;
+            std::sort(new_attrs.begin(), new_attrs.end());
+            pointer_attributes[value] = new_attrs;
+        }
+
+        bool add_value_attrs(const std::shared_ptr<Mir::Value> &value, const std::vector<size_t> &attrs) {
+            if (attrs.empty()) {
+                return false;
+            }
+            if (pointer_attributes.count(value) == 0) {
+                pointer_attributes[value] = {};
+            }
+            auto &value_attrs = pointer_attributes[value];
+            const auto old_size = value_attrs.size();
+            value_attrs.insert(value_attrs.end(), attrs.begin(), attrs.end());
+            value_attrs.erase(std::unique(value_attrs.begin(), value_attrs.end()), value_attrs.end());
+            std::sort(value_attrs.begin(), value_attrs.end());
+            return old_size != value_attrs.size();
+        }
+
+        bool add_value_attrs(const std::shared_ptr<Mir::Value> &value, const size_t attr) {
+            return add_value_attrs(value, std::vector{attr});
+        }
+
+        void add_distinct_group(const std::unordered_set<size_t> &set) {
+            distinct_groups.push_back(set);
+        }
+
+        std::vector<size_t> inherit_from(const std::shared_ptr<Mir::Value> &value) {
+            return pointer_attributes.count(value) ? pointer_attributes[value] : std::vector<size_t>{};
+        }
+    };
+
+    struct InheritEdge {
+        std::shared_ptr<Mir::Value> dst, src1, src2;
+
+        InheritEdge(const std::shared_ptr<Mir::Value> &dst, const std::shared_ptr<Mir::Value> &src1,
+                    const std::shared_ptr<Mir::Value> &src2 = nullptr) : dst{dst}, src1{src1}, src2{src2} {}
+
+        bool operator==(const InheritEdge &other) const {
+            return dst == other.dst && src1 == other.src1 && src2 == other.src2;
+        }
+
+        bool operator==(InheritEdge &&other) const {
+            return dst == other.dst && src1 == other.src1 && src2 == other.src2;
+        }
+
+        struct Hasher {
+            size_t operator()(const InheritEdge &edge) const {
+                const size_t h1 = std::hash<std::shared_ptr<Mir::Value>>()(edge.dst),
+                             h2 = std::hash<std::shared_ptr<Mir::Value>>()(edge.src1),
+                             h3 = std::hash<std::shared_ptr<Mir::Value>>()(edge.src2);
+                size_t seed = h1;
+                seed ^= h2 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                seed ^= h3 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                return seed;
+            }
+        };
+    };
+
+    explicit AliasAnalysis() : Analysis("AliasAnalysis") {}
+
+    void run_on_func(const std::shared_ptr<Mir::Function> &func);
+
+    void analyze(std::shared_ptr<const Mir::Module> module) override;
+
+private:
+    std::shared_ptr<Mir::Module> module;
+
+    std::shared_ptr<ControlFlowGraph> cfg{nullptr};
+
+    std::vector<std::shared_ptr<Result>> results{};
 };
 }
 

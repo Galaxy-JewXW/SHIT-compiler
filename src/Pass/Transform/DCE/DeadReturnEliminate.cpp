@@ -41,6 +41,5 @@ void DeadReturnEliminate::transform(const std::shared_ptr<Module> module) {
         run_on_func(func);
     }
     function_analysis_ = nullptr;
-    create<DeadCodeEliminate>()->run_on(module);
 }
 }

@@ -58,7 +58,7 @@ public:
 class Alloc final : public Instruction {
 public:
     Alloc(const std::string &name, const std::shared_ptr<Type::Type> &type)
-        : Instruction{name, std::make_shared<Type::Pointer>(type), Operator::ALLOC} {}
+        : Instruction{name, Type::Pointer::create(type), Operator::ALLOC} {}
 
     static std::shared_ptr<Alloc> create(const std::string &name, const std::shared_ptr<Type::Type> &type,
                                          const std::shared_ptr<Block> &block);
@@ -124,15 +124,7 @@ public:
 
     [[nodiscard]] std::shared_ptr<Value> get_addr() const { return operands_[0]; }
 
-    [[nodiscard]] std::shared_ptr<Value> get_index() const {
-        if (operands_.size() == 3) {
-            return operands_[2];
-        }
-        if (operands_.size() == 2) {
-            return operands_[1];
-        }
-        log_error("GetElementPtr must have 2 or 3 operands");
-    }
+    [[nodiscard]] std::shared_ptr<Value> get_index() const { return operands_.back(); }
 
     [[nodiscard]] std::string to_string() const override;
 
