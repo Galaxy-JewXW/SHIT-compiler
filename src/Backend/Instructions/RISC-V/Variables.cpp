@@ -57,14 +57,18 @@
 [[nodiscard]] std::string RISCV::Variables::VariableInitValueUtils::load_from_llvm(const Mir::Init::Array &array, const VariableType &type, size_t size) {
     std::ostringstream oss;
     if (array.zero_initialized()) {
-        oss << "0" << " " << ".zero" << " " << (size - 1) * RISCV::Variables::VariableTypeUtils::type_to_size(type);
+        oss << "0" << "\n    .zero " << (size - 1) * RISCV::Variables::VariableTypeUtils::type_to_size(type);
     }
     return oss.str();
 }
 
+[[nodiscard]] std::string RISCV::Variables::Variable::riscv_signal() const {
+    return ".global_var_" + name.substr(1, name.size() - 1);
+}
+
 [[nodiscard]] std::string RISCV::Variables::Variable::to_string() const {
     std::ostringstream oss;
-    oss << this->name << ": " << this->to_riscv_indicator() << " " << this->init_value;
+    oss << this->riscv_signal() << ": " << this->to_riscv_indicator() << " " << this->init_value;
     return oss.str();
 }
 

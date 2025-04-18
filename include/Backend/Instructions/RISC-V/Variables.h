@@ -31,6 +31,8 @@ namespace RISCV::Variables {
 
             [[nodiscard]] virtual std::string to_riscv_indicator() const;
 
+            [[nodiscard]] virtual std::string riscv_signal() const;
+
             explicit Variable() = default;
 
             explicit Variable(const std::string &name, const RISCV::Variables::VariableType &type, const std::string &init_value)
