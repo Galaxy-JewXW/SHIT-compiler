@@ -89,7 +89,13 @@ namespace RISCV::Instructions {
             std::string label;
 
             LoadAddress(RISCV::Instructions::Register rd, std::string label)
-                : rd{rd}, label{label} {}
+                : rd{rd} {
+                    if (label[0] == '@') {
+                        this->label = ".global_var_" + label.substr(1);
+                    } else {
+                        this->label = label;
+                    }
+                }
 
             [[nodiscard]] std::string to_string() const override;
     };

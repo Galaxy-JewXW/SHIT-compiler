@@ -118,15 +118,23 @@ namespace RISCV::Instructions::InstructionFactory {
                     break;
                 }
                 std::vector<std::shared_ptr<Mir::Value>> params = call->get_params();
-                for (std::shared_ptr<Mir::Value> param : params) {
+                function_field.add_instruction(std::make_shared<RISCV::Instructions::Addi>(RISCV::Instructions::Register(RISCV::Instructions::Registers::SP), RISCV::Instructions::Register(RISCV::Instructions::Registers::SP), RISCV::Instructions::Immediate(-((params.size() + 1) << 3))));
+                function_field.add_instruction(std::make_shared<RISCV::Instructions::StoreDoubleword>(RISCV::Instructions::Register(RISCV::Instructions::Registers::RA), RISCV::Instructions::Register(RISCV::Instructions::Registers::SP), RISCV::Instructions::Immediate(params.size() << 3)));
+                for (long long unsigned int i = 0; i < params.size(); i++) {
+                    std::shared_ptr<Mir::Value> param = params[i];
                     if (param->is_constant()) {
                         function_field.add_instruction(std::make_shared<RISCV::Instructions::Addi>(RISCV::Instructions::Register(RISCV::Instructions::Registers::A0), RISCV::Instructions::Register(RISCV::Instructions::Registers::ZERO), RISCV::Instructions::Immediate(param->get_name())));
+                    } else if (function_field.memory.vreg2offset.find(param->get_name()) != function_field.memory.vreg2offset.end()) {
+                        size_t offset = function_field.sp - function_field.memory.vreg2offset[param->get_name()];
+                        function_field.add_instruction(std::make_shared<RISCV::Instructions::LoadDoubleword>(RISCV::Instructions::Register(RISCV::Instructions::Registers::A0), RISCV::Instructions::Register(RISCV::Instructions::Registers::SP), RISCV::Instructions::Immediate(offset)));
                     } else {
                         function_field.add_instruction(std::make_shared<RISCV::Instructions::LoadAddress>(RISCV::Instructions::Register(RISCV::Instructions::Registers::A0), param->get_name()));
                         function_field.add_instruction(std::make_shared<RISCV::Instructions::StoreDoubleword>(RISCV::Instructions::Register(RISCV::Instructions::Registers::A0), RISCV::Instructions::Register(RISCV::Instructions::Registers::SP), RISCV::Instructions::Immediate(0)));
                     }
                 }
                 function_field.add_instruction(std::make_shared<RISCV::Instructions::Call>(function_name));
+                function_field.add_instruction(std::make_shared<RISCV::Instructions::LoadDoubleword>(RISCV::Instructions::Register(RISCV::Instructions::Registers::RA), RISCV::Instructions::Register(RISCV::Instructions::Registers::SP), RISCV::Instructions::Immediate(params.size() << 3)));
+                function_field.add_instruction(std::make_shared<RISCV::Instructions::Addi>(RISCV::Instructions::Register(RISCV::Instructions::Registers::SP), RISCV::Instructions::Register(RISCV::Instructions::Registers::SP), RISCV::Instructions::Immediate((params.size() + 1) << 3)));
                 break;
             }
             case Mir::Operator::INTBINARY: {
