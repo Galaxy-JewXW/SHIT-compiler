@@ -88,7 +88,7 @@ void GepFolding::run_on_func(const std::shared_ptr<Function> &func) const {
 
 
 void GepFolding::transform(const std::shared_ptr<Module> module) {
-    cfg = get_analysis_result<ControlFlowGraph>(module);
+    cfg = get_analysis_result<ControlFlowGraph_Old>(module);
     for (const auto &func: *module) {
         run_on_func(func);
     }

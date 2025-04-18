@@ -346,7 +346,7 @@ bool GlobalValueNumbering::run_on_func(const FunctionPtr &func) {
 }
 
 void GlobalValueNumbering::transform(const std::shared_ptr<Module> module) {
-    cfg = get_analysis_result<ControlFlowGraph>(module);
+    cfg = get_analysis_result<ControlFlowGraph_Old>(module);
     func_analysis = get_analysis_result<FunctionAnalysis>(module);
     create<AlgebraicSimplify>()->run_on(module);
     // 不同的遍历顺序可能导致化简的结果不同

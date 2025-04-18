@@ -221,7 +221,7 @@ void GlobalCodeMotion::run_on_func(const FunctionPtr &func) {
 
 void GlobalCodeMotion::transform(const std::shared_ptr<Module> module) {
     // 计算支配树和支配关系
-    cfg = get_analysis_result<ControlFlowGraph>(module);
+    cfg = get_analysis_result<ControlFlowGraph_Old>(module);
     // 利用循环分析计算循环深度
     loop_analysis = get_analysis_result<LoopAnalysis>(module);
 

@@ -297,12 +297,12 @@ void SimplifyCFG::transform(const std::shared_ptr<Module> module) {
         replace_branch_with_jump(func);
         remove_unreachable_blocks(func);
     }
-    cfg_info = get_analysis_result<ControlFlowGraph>(module);
+    cfg_info = get_analysis_result<ControlFlowGraph_Old>(module);
     bool changed = false;
     do {
         changed = false;
         for (const auto &func: *module) {
-            cfg_info = get_analysis_result<ControlFlowGraph>(module);
+            cfg_info = get_analysis_result<ControlFlowGraph_Old>(module);
             changed |= remove_phi(func);
             while (try_merge_blocks(func)) {
                 changed = true;

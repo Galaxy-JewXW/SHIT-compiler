@@ -132,7 +132,7 @@ void StoreEliminate::run_on_func(const std::shared_ptr<Function> &func) {
 void StoreEliminate::transform(const std::shared_ptr<Module> module) {
     ::module = module;
     deleted_instructions.clear();
-    cfg = get_analysis_result<ControlFlowGraph>(module);
+    cfg = get_analysis_result<ControlFlowGraph_Old>(module);
     function_analysis = get_analysis_result<FunctionAnalysis>(module);
     for (const auto &function: *module) {
         run_on_func(function);

@@ -372,7 +372,7 @@ void build_dom_tree_layer_order(const FunctionPtr &func,
 }
 }
 
-void Pass::ControlFlowGraph::analyze(const std::shared_ptr<const Mir::Module> module) {
+void Pass::ControlFlowGraph_Old::analyze(const std::shared_ptr<const Mir::Module> module) {
     predecessors_.clear();
     successors_.clear();
     dominator_blocks_.clear();

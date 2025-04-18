@@ -6,7 +6,7 @@
 
 namespace Pass {
 void LCSSA::transform(std::shared_ptr<Mir::Module> module) {
-    const auto cfg_info = create<ControlFlowGraph>();
+    const auto cfg_info = create<ControlFlowGraph_Old>();
     const auto loop_info = create<LoopAnalysis>();
     cfg_info->run_on(module);
     loop_info->run_on(module);

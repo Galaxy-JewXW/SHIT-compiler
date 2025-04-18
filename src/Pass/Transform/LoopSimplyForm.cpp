@@ -7,7 +7,7 @@
 namespace Pass {
 void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
     module->update_id(); // DEBUG
-    const auto cfg_info = create<ControlFlowGraph>();
+    const auto cfg_info = create<ControlFlowGraph_Old>();
     const auto loop_info = create<LoopAnalysis>();
     cfg_info->run_on(module);
     module->update_id(); // DEBUG

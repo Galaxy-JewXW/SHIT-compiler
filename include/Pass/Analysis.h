@@ -45,11 +45,11 @@ std::shared_ptr<T> get_analysis_result(const std::shared_ptr<const Mir::Module> 
 
 // ControlFlowGraph构建控制流图
 // 每个Function对应一套独立的CFG信息，键为FunctionPtr，代表不同的函数
-class ControlFlowGraph final : public Analysis {
+class [[deprecated]] ControlFlowGraph_Old final : public Analysis {
 public:
     using FunctionPtr = std::shared_ptr<Mir::Function>;
     using BlockPtr = std::shared_ptr<Mir::Block>;
-    explicit ControlFlowGraph() : Analysis("ControlFlowGraph") {}
+    explicit ControlFlowGraph_Old() : Analysis("ControlFlowGraph") {}
 
     const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &predecessors(const FunctionPtr &func) const {
         const auto it = predecessors_.find(func);
@@ -441,7 +441,7 @@ public:
 private:
     std::shared_ptr<Mir::Module> module;
 
-    std::shared_ptr<ControlFlowGraph> cfg{nullptr};
+    std::shared_ptr<ControlFlowGraph_Old> cfg{nullptr};
 
     std::vector<std::shared_ptr<Result>> results{};
 };

@@ -169,7 +169,7 @@ void LoadEliminate::run_on_func(const std::shared_ptr<Function> &func) {
 
 void LoadEliminate::transform(const std::shared_ptr<Module> module) {
     deleted_instructions.clear();
-    cfg = get_analysis_result<ControlFlowGraph>(module);
+    cfg = get_analysis_result<ControlFlowGraph_Old>(module);
     function_analysis = get_analysis_result<FunctionAnalysis>(module);
     for (const auto &function: *module) {
         run_on_func(function);

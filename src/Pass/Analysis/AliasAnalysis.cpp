@@ -211,7 +211,7 @@ void AliasAnalysis::run_on_func(const std::shared_ptr<Mir::Function> &func) {
 
 void AliasAnalysis::analyze(const std::shared_ptr<const Mir::Module> module) {
     this->module = std::const_pointer_cast<Mir::Module>(module);
-    cfg = get_analysis_result<ControlFlowGraph>(module);
+    cfg = get_analysis_result<ControlFlowGraph_Old>(module);
     for (const auto &func: *module) {
         run_on_func(func);
     }
