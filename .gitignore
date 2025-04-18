@@ -11,3 +11,9 @@ cmake-build-debug/
 .env
 test/test_data
 *.pdf
+*.pdf
+*.s
+riscv
+*.sh
+*.elf
+*.o

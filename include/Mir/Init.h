@@ -95,6 +95,8 @@ public:
     std::shared_ptr<T> as() {
         return std::static_pointer_cast<T>(shared_from_this());
     }
+
+    [[nodiscard]] std::shared_ptr<Type::Type> get_type() const { return type; }
 };
 
 class Constant final : public Init {
@@ -167,6 +169,8 @@ public:
 
     void gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared_ptr<Block> &block,
                         const std::vector<int> &dimensions) const;
+
+    [[nodiscard]] bool zero_initialized() const { return is_zero_initialized; }
 
     [[nodiscard]] std::string to_string() const override;
 };

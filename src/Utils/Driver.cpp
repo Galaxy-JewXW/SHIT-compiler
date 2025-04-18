@@ -210,10 +210,9 @@ void emit_llvm(const std::shared_ptr<Mir::Module> &module, const emit_options &o
     emit_output(options.llvm_file, module->to_string());
 }
 
-void emit_riscv(const Assembler::RISCV_Assembler &assembler, const emit_options &options) {
+void emit_riscv(const Assembler::RISCV_Assembler &assembler, const compiler_options &options) {
     //TODO - Emitting RISC-V assembly
-    if (!options.emit_riscv) return;
+    if (!options._emit_options.emit_riscv) return;
     log_info("Emitting RISC-V assembly...");
-    printf("%s", assembler.to_string().c_str());
-    log_warn("Not implemented yet");
+    emit_output(options.output_file, assembler.to_string());
 }

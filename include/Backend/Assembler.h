@@ -2,7 +2,7 @@
 #define ASSEMBLER_H
 
 #include "Mir/Structure.h"
-#include "Backend/Instructions/RISC-V/Instruction.h"
+#include "Backend/Instructions/RISC-V/Modules.h"
 #include <map>
 
 namespace Assembler {
@@ -14,10 +14,9 @@ namespace Assembler {
 
             [[nodiscard]] std::string to_string() const;
         private:
-            RISCV_Instructions::TextField text;
-            RISCV_Instructions::DataField data;
+            RISCV::Modules::TextField text;
+            RISCV::Modules::DataField data;
             std::shared_ptr<Mir::Module> module;
     };
 }
-
 #endif
