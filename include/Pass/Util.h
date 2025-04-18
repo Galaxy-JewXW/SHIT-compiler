@@ -51,6 +51,9 @@ protected:
 namespace Pass::Utils {
 using namespace Mir;
 
+// 输出基本块集合的辅助方法
+std::string format_blocks(const std::unordered_set<std::shared_ptr<Block>> &blocks);
+
 // 将指令从其所在的block中移除，并移动到target之前
 void move_instruction_before(const std::shared_ptr<Instruction> &instruction,
                              const std::shared_ptr<Instruction> &target);

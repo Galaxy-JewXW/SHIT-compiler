@@ -137,8 +137,12 @@ void LoadEliminate::dfs(const std::shared_ptr<Block> &block) {
     const auto cur_load_global = load_global,
                cur_store_global = store_global;
     // 控制流合并可能引入不确定性，基本块有多个前驱时清空状态
-    if (cfg->predecessors(block->get_function()).at(block).size() > 1) {
-        clear();
+    try {
+        if (cfg_info->graph(block->get_function()).predecessors.at(block).size() > 1) {
+            clear();
+        }
+    } catch (const std::out_of_range &) {
+        log_error("%s", block->get_function()->to_string().c_str());
     }
     for (const auto &instruction: block->get_instructions()) {
         if (const auto op = instruction->get_op();
@@ -153,7 +157,7 @@ void LoadEliminate::dfs(const std::shared_ptr<Block> &block) {
             handle_call(instruction->as<Call>());
         }
     }
-    for (const auto &child: cfg->dominance_children(block->get_function()).at(block)) {
+    for (const auto &child: dom_info->graph(block->get_function()).dominance_children.at(block)) {
         dfs(child);
     }
     load_indexes = cur_load_indexes;
@@ -169,13 +173,15 @@ void LoadEliminate::run_on_func(const std::shared_ptr<Function> &func) {
 
 void LoadEliminate::transform(const std::shared_ptr<Module> module) {
     deleted_instructions.clear();
-    cfg = get_analysis_result<ControlFlowGraph_Old>(module);
+    cfg_info = get_analysis_result<ControlFlowGraph>(module);
+    dom_info = get_analysis_result<DominanceGraph>(module);
     function_analysis = get_analysis_result<FunctionAnalysis>(module);
     for (const auto &function: *module) {
         run_on_func(function);
     }
     Utils::delete_instruction_set(module, deleted_instructions);
-    cfg = nullptr;
+    cfg_info = nullptr;
+    dom_info = nullptr;
     function_analysis = nullptr;
     deleted_instructions.clear();
 }

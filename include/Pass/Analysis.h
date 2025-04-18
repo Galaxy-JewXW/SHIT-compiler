@@ -1,5 +1,6 @@
 #ifndef ANALYSIS_H
 #define ANALYSIS_H
+#include <typeindex>
 #include <unordered_set>
 #include <utility>
 
@@ -22,6 +23,9 @@ public:
         analyze(module);
     }
 
+    [[nodiscard]]
+    virtual bool is_dirty() const { return true; }
+
 protected:
     // 子类必须实现的纯虚函数（只读版本）
     virtual void analyze(std::shared_ptr<const Mir::Module> module) = 0;
@@ -30,18 +34,115 @@ protected:
 template<typename T>
 std::shared_ptr<T> get_analysis_result(const std::shared_ptr<Mir::Module> module) {
     static_assert(std::is_base_of_v<Analysis, T>, "T must be a subclass of Analysis");
+    static std::unordered_map<std::type_index, std::shared_ptr<Analysis>> analysis_results;
+    const std::type_index idx(typeid(T));
+    if (const auto it = analysis_results.find(idx);
+        it != analysis_results.end() && !it->second->is_dirty()) {
+        return std::static_pointer_cast<T>(it->second);
+    }
     const auto analysis = Pass::create<T>();
     analysis->run_on(module);
+    analysis_results[idx] = analysis;
     return analysis;
 }
 
 template<typename T>
-std::shared_ptr<T> get_analysis_result(const std::shared_ptr<const Mir::Module> module) {
+std::shared_ptr<T> get_analysis_result(const std::shared_ptr<const Mir::Module> &module) {
     static_assert(std::is_base_of_v<Analysis, T>, "T must be a subclass of Analysis");
-    const auto analysis = Pass::create<T>();
-    analysis->run_on(module);
-    return analysis;
+    return get_analysis_result<T>(std::const_pointer_cast<Mir::Module>(module));
 }
+
+// ControlFlowGraph 构建控制流图
+class ControlFlowGraph final : public Analysis {
+public:
+    using FunctionPtr = std::shared_ptr<Mir::Function>;
+    using BlockPtr = std::shared_ptr<Mir::Block>;
+    using BlockPtrMap = std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>>;
+
+    struct Graph {
+        // 前驱块关系：{ block -> {所有前驱块} }
+        BlockPtrMap predecessors{};
+        // 后继块关系：{ block -> {所有后继块} }
+        BlockPtrMap successors{};
+    };
+
+    const Graph &graph(const FunctionPtr &func) const {
+        const auto it = graphs_.find(func);
+        if (it == graphs_.end()) [[unlikely]] {
+            log_error("Function not existed: %s", func->get_name().c_str());
+        }
+        return it->second;
+    }
+
+    explicit ControlFlowGraph() : Analysis("ControlFlowGraph") {}
+
+    bool is_dirty() const override;
+
+    void set_dirty(const FunctionPtr &func);
+
+    void remove(const FunctionPtr &func) {
+        graphs_.erase(func);
+    }
+
+protected:
+    void analyze(std::shared_ptr<const Mir::Module> module) override;
+
+private:
+    std::unordered_map<FunctionPtr, Graph> graphs_;
+
+    std::unordered_map<FunctionPtr, bool> dirty_funcs_;
+};
+
+// DominanceGraph 构建基本块的支配图
+class DominanceGraph final : public Analysis {
+public:
+    using FunctionPtr = std::shared_ptr<Mir::Function>;
+    using BlockPtr = std::shared_ptr<Mir::Block>;
+    using BlockPtrMap = std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>>;
+
+    explicit DominanceGraph() : Analysis("DominanceGraph") {}
+
+    struct Graph {
+        // 被支配块集合：{ block -> {被该块支配的所有块集合（含自身）} }
+        BlockPtrMap dominated_blocks{};
+        // 支配块集合：{ block -> {支配该块的所有块集合（含自身）} }
+        BlockPtrMap dominator_blocks{};
+        // 直接支配者：{ block -> 该块的唯一直接支配者（支配树中的父节点） }
+        std::unordered_map<BlockPtr, BlockPtr> immediate_dominator{};
+        // 支配树子节点：{ block -> {该块在支配树中的直接子节点} }
+        BlockPtrMap dominance_children{};
+        // 支配边界集合：function -> { block -> {该块的支配边界} }
+        BlockPtrMap dominance_frontier{};
+    };
+
+    const Graph &graph(const FunctionPtr &func) const {
+        const auto it = graphs_.find(func);
+        if (it == graphs_.end()) [[unlikely]] {
+            log_error("Function not existed: %s", func->get_name().c_str());
+        }
+        return it->second;
+    }
+
+    std::vector<BlockPtr> dom_tree_layer(const FunctionPtr &func);
+
+    std::vector<BlockPtr> post_order_blocks(const FunctionPtr &func);
+
+    bool is_dirty() const override;
+
+    void set_dirty(const FunctionPtr &func);
+
+    void remove(const FunctionPtr &func) {
+        graphs_.erase(func);
+    }
+
+protected:
+    void analyze(std::shared_ptr<const Mir::Module> module) override;
+
+private:
+    std::unordered_map<FunctionPtr, Graph> graphs_;
+
+    std::unordered_map<FunctionPtr, bool> dirty_funcs_;
+};
 
 // ControlFlowGraph构建控制流图
 // 每个Function对应一套独立的CFG信息，键为FunctionPtr，代表不同的函数
@@ -441,7 +542,7 @@ public:
 private:
     std::shared_ptr<Mir::Module> module;
 
-    std::shared_ptr<ControlFlowGraph_Old> cfg{nullptr};
+    std::shared_ptr<DominanceGraph> dom_graph{nullptr};
 
     std::vector<std::shared_ptr<Result>> results{};
 };

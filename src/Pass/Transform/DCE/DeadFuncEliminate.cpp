@@ -40,6 +40,8 @@ void DeadFuncEliminate::transform(const std::shared_ptr<Module> module) {
                 block->get_instructions().clear();
             }
             it = module->get_functions().erase(it);
+            get_analysis_result<ControlFlowGraph>(module)->remove(func);
+            get_analysis_result<DominanceGraph>(module)->remove(func);
         } else {
             ++it;
         }

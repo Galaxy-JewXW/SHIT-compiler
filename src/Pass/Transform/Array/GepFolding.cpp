@@ -73,7 +73,7 @@ void try_fold_gep(const std::shared_ptr<GetElementPtr> &gep) {
 namespace Pass {
 void GepFolding::run_on_func(const std::shared_ptr<Function> &func) const {
     std::vector<std::shared_ptr<GetElementPtr>> geps;
-    for (const auto &block: cfg->dom_tree_layer(func)) {
+    for (const auto &block: dom_graph->dom_tree_layer(func)) {
         for (const auto &instruction: block->get_instructions()) {
             if (is_folded_leaf_gep(instruction)) {
                 geps.push_back(instruction->as<GetElementPtr>());
@@ -88,12 +88,12 @@ void GepFolding::run_on_func(const std::shared_ptr<Function> &func) const {
 
 
 void GepFolding::transform(const std::shared_ptr<Module> module) {
-    cfg = get_analysis_result<ControlFlowGraph_Old>(module);
+    dom_graph = get_analysis_result<DominanceGraph>(module);
     for (const auto &func: *module) {
         run_on_func(func);
     }
     module->update_id();
-    cfg = nullptr;
+    dom_graph = nullptr;
     create<GlobalValueNumbering>()->run_on(module);
 }
 }

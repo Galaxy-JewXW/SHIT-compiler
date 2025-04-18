@@ -29,7 +29,8 @@ protected:
 
 private:
     // 控制流图信息，用于后续基本块支配关系和变量使用/定义分析
-    std::shared_ptr<ControlFlowGraph_Old> cfg_info;
+    std::shared_ptr<ControlFlowGraph> cfg_info;
+    std::shared_ptr<DominanceGraph> dom_info;
     // 当前正在处理的函数对象
     std::shared_ptr<Mir::Function> current_function;
     // 当前被处理的alloca指令，可能被提升为寄存器变量
@@ -109,7 +110,7 @@ protected:
 private:
     std::unordered_set<std::shared_ptr<Mir::Block>> visited;
 
-    std::shared_ptr<ControlFlowGraph_Old> cfg_info;
+    std::shared_ptr<ControlFlowGraph> cfg_info;
 };
 
 // 标准化计算指令 "Binary"
@@ -156,7 +157,8 @@ protected:
                                          const std::shared_ptr<Mir::Block> &block2) const;
 
 private:
-    std::shared_ptr<ControlFlowGraph_Old> cfg = nullptr;
+    std::shared_ptr<ControlFlowGraph> cfg_info = nullptr;
+    std::shared_ptr<DominanceGraph> dom_info = nullptr;
     std::shared_ptr<LoopAnalysis> loop_analysis = nullptr;
     std::shared_ptr<FunctionAnalysis> function_analysis = nullptr;
     std::shared_ptr<Mir::Function> current_function = nullptr;
@@ -181,7 +183,7 @@ protected:
                       std::unordered_map<std::string, std::shared_ptr<Mir::Instruction>> &value_hashmap);
 
 private:
-    std::shared_ptr<ControlFlowGraph_Old> cfg;
+    std::shared_ptr<DominanceGraph> dom_info;
 
     std::shared_ptr<FunctionAnalysis> func_analysis;
 };
@@ -284,7 +286,7 @@ protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
 private:
-    std::shared_ptr<ControlFlowGraph_Old> cfg{nullptr};
+    std::shared_ptr<DominanceGraph> dom_graph{nullptr};
 
     void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
 };
@@ -300,7 +302,9 @@ protected:
 private:
     using ValuePtr = std::shared_ptr<Mir::Value>;
 
-    std::shared_ptr<ControlFlowGraph_Old> cfg{nullptr};
+    std::shared_ptr<ControlFlowGraph> cfg_info{nullptr};
+
+    std::shared_ptr<DominanceGraph> dom_info{nullptr};
 
     std::shared_ptr<FunctionAnalysis> function_analysis{nullptr};
     // 待删除的指令列表
@@ -340,8 +344,6 @@ protected:
 
 private:
     using ValuePtr = std::shared_ptr<Mir::Value>;
-
-    std::shared_ptr<ControlFlowGraph_Old> cfg{nullptr};
 
     std::shared_ptr<FunctionAnalysis> function_analysis{nullptr};
 

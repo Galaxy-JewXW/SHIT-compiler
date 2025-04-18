@@ -59,7 +59,7 @@ void AliasAnalysis::run_on_func(const std::shared_ptr<Mir::Function> &func) {
         }
     }
 
-    const auto &dom_tree_layer_order = cfg->dom_tree_layer(func);
+    const auto &dom_tree_layer_order = dom_graph->dom_tree_layer(func);
     for (const auto &block: dom_tree_layer_order) {
         visited_blocks.insert(block);
         for (const auto &inst: block->get_instructions()) {
@@ -211,7 +211,7 @@ void AliasAnalysis::run_on_func(const std::shared_ptr<Mir::Function> &func) {
 
 void AliasAnalysis::analyze(const std::shared_ptr<const Mir::Module> module) {
     this->module = std::const_pointer_cast<Mir::Module>(module);
-    cfg = get_analysis_result<ControlFlowGraph_Old>(module);
+    dom_graph = get_analysis_result<DominanceGraph>(module);
     for (const auto &func: *module) {
         run_on_func(func);
     }
