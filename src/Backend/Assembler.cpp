@@ -3,8 +3,8 @@
 Assembler::RISCV_Assembler::RISCV_Assembler(std::shared_ptr<Mir::Module> module) {
     this->module = module;
     this->data.const_strings = *module->get_const_strings();
-    this->data.load_global_variables(*module->get_global_variables());
-    for (const std::shared_ptr<Mir::Function> &function : module->all_functions()) {
+    this->data.load_global_variables(module->get_global_variables());
+    for (const std::shared_ptr<Mir::Function> &function : module->get_functions()) {
         RISCV::Modules::FunctionField function_field(function->get_name());
         RISCV::Instructions::InstructionFactory::alloc_all(function, function_field);
         function_field.instructions.push_back(std::make_shared<RISCV::Instructions::Addi>(RISCV::Instructions::Register(RISCV::Instructions::Registers::SP), RISCV::Instructions::Register(RISCV::Instructions::Registers::SP), RISCV::Instructions::Immediate(-function_field.sp)));
