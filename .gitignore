@@ -10,3 +10,8 @@ bin/
 cmake-build-debug/
 .env
 *.pdf
+*.s
+riscv
+*.sh
+*.elf
+*.o

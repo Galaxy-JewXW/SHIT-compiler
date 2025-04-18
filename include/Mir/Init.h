@@ -90,6 +90,8 @@ public:
     [[nodiscard]] virtual bool is_array_init() const { return false; }
 
     [[nodiscard]] virtual std::string to_string() const = 0;
+
+    [[nodiscard]] std::shared_ptr<Type::Type> get_type() const { return type; }
 };
 
 class Constant final : public Init {
@@ -162,6 +164,8 @@ public:
 
     void gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared_ptr<Block> &block,
                         const std::vector<int> &dimensions) const;
+
+    [[nodiscard]] bool zero_initialized() const { return is_zero_initialized; }
 
     [[nodiscard]] std::string to_string() const override;
 };

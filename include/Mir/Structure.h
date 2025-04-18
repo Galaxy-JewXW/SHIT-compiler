@@ -56,6 +56,10 @@ public:
 
     [[nodiscard]] std::shared_ptr<Function> get_main_function() const { return main_function; }
 
+    [[nodiscard]] std::shared_ptr<std::vector<std::shared_ptr<GlobalVariable>>> get_global_variables() {
+        return std::make_shared<std::vector<std::shared_ptr<GlobalVariable>>>(global_variables);
+    }
+
     [[nodiscard]] std::shared_ptr<std::vector<std::string>> get_const_strings() const {
         return std::make_shared<std::vector<std::string>>(const_strings);
     }
@@ -85,6 +89,8 @@ public:
     [[nodiscard]] bool is_constant_gv() const { return is_constant; }
 
     [[nodiscard]] std::string to_string() const override;
+
+    [[nodiscard]] std::shared_ptr<Init::Init> get_init_value() const { return init_value; }
 };
 
 class Argument final : public Value {

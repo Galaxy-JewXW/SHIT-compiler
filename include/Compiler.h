@@ -67,7 +67,7 @@ void emit_ast(const std::shared_ptr<AST::CompUnit> &ast, const emit_options &opt
 
 void emit_llvm(const std::shared_ptr<Mir::Module> &module, const emit_options &options);
 
-void emit_riscv(const Assembler::RISCV_Assembler &assembler, const emit_options &options);
+void emit_riscv(const Assembler::RISCV_Assembler &assembler, const compiler_options &options);
 
 void usage(const char *prog_name);
 
