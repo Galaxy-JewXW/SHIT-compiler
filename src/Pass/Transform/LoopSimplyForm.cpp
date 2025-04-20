@@ -8,6 +8,7 @@ namespace Pass {
 void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
     module->update_id(); // DEBUG
     const auto cfg_info = create<ControlFlowGraph>();
+    const auto dom_info = create<DominanceGraph>();
     const auto loop_info = create<LoopAnalysis>();
     cfg_info->run_on(module);
     module->update_id(); // DEBUG
@@ -15,8 +16,8 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
 
     for (auto &func: *module) {
         auto loops = loop_info->loops(func);
-        auto block_predecessors = cfg_info->predecessors(func);
-        auto block_dominators = cfg_info->dominator(func);
+        auto block_predecessors = cfg_info->graph(func).predecessors;
+        auto block_dominators = dom_info->graph(func).dominator_blocks;;
         //TODO:以下为了分割三种动作的逻辑，拆分出了三个循环，之后需要把这个架构重构一下
 
         for (auto &loop: loops) {
@@ -42,6 +43,7 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
                 if (auto parent_loop_node = loop_info->find_loop_in_forest(func, loop)->get_parent()) {
                     parent_loop_node->add_block4ancestors(block);
                 }
+                cfg_info->set_dirty(func);
             } //循环位于 function 头部，或位于不可达处，需补上头节点
 
             if (entering.size() > 1) {
@@ -57,6 +59,7 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
                     enter->modify_successor(loop->get_header(), pre_header);
                 } //先改变跳转关系
 
+                cfg_info->set_dirty(func);
                 //TODO: 这里本来还应该有 PHI 指令的前提操作，但因为中端翻译 while 指令的奇怪做法，目前认为 pre-header 的单一性被保证，暂时认为无需补足该方法
             } /*
                    *  多个 pre_header, 则新建一个 pre_header, 将所有 pre_header 的跳转都指向它
@@ -99,6 +102,7 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
                     }
                     phi->set_optional_value(latch_block, new_phi);
                 }
+                cfg_info->set_dirty(func);
             }
         }
 
@@ -133,6 +137,7 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
                         }
                         phi->set_optional_value(new_exit_block, new_phi);
                     }
+                    cfg_info->set_dirty(func);
                 }
             }
         }

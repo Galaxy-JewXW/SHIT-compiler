@@ -333,7 +333,7 @@ bool GlobalValueNumbering::run_on_block(const FunctionPtr &func,
             ++it;
         }
     }
-    for (const auto &child: cfg->dominance_children(func).at(block)) {
+    for (const auto &child: dom_info->graph(func).dominance_children.at(block)) {
         changed |= run_on_block(func, child, value_hashmap);
     }
     return changed;
@@ -346,7 +346,7 @@ bool GlobalValueNumbering::run_on_func(const FunctionPtr &func) {
 }
 
 void GlobalValueNumbering::transform(const std::shared_ptr<Module> module) {
-    cfg = get_analysis_result<ControlFlowGraph>(module);
+    dom_info = get_analysis_result<DominanceGraph>(module);
     func_analysis = get_analysis_result<FunctionAnalysis>(module);
     create<AlgebraicSimplify>()->run_on(module);
     // 不同的遍历顺序可能导致化简的结果不同
@@ -364,7 +364,7 @@ void GlobalValueNumbering::transform(const std::shared_ptr<Module> module) {
             changed |= run_on_func(func);
         }
     } while (changed);
-    cfg = nullptr;
+    dom_info = nullptr;
     func_analysis = nullptr;
     // GVN后可能出现一条指令被替换成其另一条指令，但是那条指令并不支配这条指令的users的问题
     // 可以通过 GCM 解决。在 GCM 中考虑value之间的依赖，会根据依赖将那条指令移动到正确的位置
