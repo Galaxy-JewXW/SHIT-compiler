@@ -7,8 +7,8 @@ using BlockPtr = std::shared_ptr<Mir::Block>;
 namespace Pass {
 void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
     this->loops_.clear();
-    std::shared_ptr<ControlFlowGraph> cfg_info = Pass::create<ControlFlowGraph>();
-    const auto dom_info = Pass::create<DominanceGraph>();
+    std::shared_ptr<ControlFlowGraph> cfg_info = get_analysis_result<ControlFlowGraph>(module);
+    const auto dom_info = get_analysis_result<DominanceGraph>(module);
     std::shared_ptr<Mir::Module> mutable_module = std::const_pointer_cast<Mir::Module>(module);
     cfg_info->run_on(mutable_module);
 
