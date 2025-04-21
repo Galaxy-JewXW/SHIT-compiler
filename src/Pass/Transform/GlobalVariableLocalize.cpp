@@ -22,6 +22,7 @@ void replace_const_normal_gv(const std::shared_ptr<Module> &module) {
     }
 }
 
+// TODO: 非 main 函数的情况下将全局变量作为参数进行传递
 void localize(const std::shared_ptr<Module> &module) {
     const auto func_analysis = Pass::get_analysis_result<Pass::FunctionAnalysis>(module);
     std::unordered_set<std::shared_ptr<GlobalVariable>> can_replaced;
@@ -38,9 +39,16 @@ void localize(const std::shared_ptr<Module> &module) {
                 use_function.insert(inst->get_block()->get_function());
             }
         }
-        if (use_function.size() != 1) { continue; }
+        if (use_function.size() != 1) {
+            continue;
+        }
         const auto &func = *use_function.begin();
-        if (func_analysis->func_info(func).is_recursive) { continue; }
+        if (func->get_name() != "main") {
+            continue;
+        }
+        if (func_analysis->func_info(func).is_recursive) {
+            continue;
+        }
         const auto &entry = func->get_blocks().front();
         const auto new_alloc = Alloc::create(Builder::gen_variable_name(),
                                              gv->get_type()->as<Type::Pointer>()->get_contain_type(), nullptr);
