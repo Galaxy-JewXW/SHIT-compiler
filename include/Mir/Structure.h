@@ -23,8 +23,18 @@ class Module {
     std::vector<std::shared_ptr<Function>> functions;
     std::shared_ptr<Function> main_function;
 
+    static std::shared_ptr<Module> instance_;
+
 public:
     explicit Module() = default;
+
+    static void set_instance(const std::shared_ptr<Module> &module) {
+        instance_ = module;
+    }
+
+    static std::shared_ptr<Module> instance() {
+        return instance_;
+    }
 
     void add_global_variable(const std::shared_ptr<GlobalVariable> &global_variable) {
         global_variables.emplace_back(global_variable);

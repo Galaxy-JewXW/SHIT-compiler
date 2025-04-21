@@ -103,7 +103,7 @@ void ControlFlowGraph::analyze(const std::shared_ptr<const Mir::Module> module) 
         if (!dirty_funcs_[func]) {
             continue;
         }
-        if (graphs_.count(func)){
+        if (graphs_.count(func)) {
             graphs_.erase(func);
         }
         graphs_.try_emplace(func, Graph{});
@@ -122,5 +122,6 @@ bool ControlFlowGraph::is_dirty() const {
 
 void ControlFlowGraph::set_dirty(const FunctionPtr &func) {
     dirty_funcs_[func] = true;
+    get_analysis_result<DominanceGraph>(Mir::Module::instance())->set_dirty(func);
 }
 }
