@@ -23,13 +23,11 @@ void try_exchange_operands(const std::shared_ptr<Instruction> &instruction) {
     } else if (op == Operator::ICMP) {
         if (const auto &icmp = std::static_pointer_cast<Icmp>(instruction);
             icmp->get_lhs()->is_constant() && !icmp->get_rhs()->is_constant()) {
-            std::swap(icmp->lhs(), icmp->rhs());
             icmp->reverse_op();
         }
     } else if (op == Operator::FCMP) {
         if (const auto &fcmp = std::static_pointer_cast<Fcmp>(instruction);
             fcmp->get_lhs()->is_constant() && !fcmp->get_rhs()->is_constant()) {
-            std::swap(fcmp->lhs(), fcmp->rhs());
             fcmp->reverse_op();
         }
     }

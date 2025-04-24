@@ -321,7 +321,7 @@ void DominanceGraph::set_dirty(const FunctionPtr &func) {
 
 std::vector<BlockPtr> DominanceGraph::post_order_blocks(const FunctionPtr &func) {
     std::unordered_set<BlockPtr> visited;
-    std::vector<::BlockPtr> post_order;
+    std::vector<BlockPtr> post_order;
     std::function<void(const BlockPtr &)> dfs = [&](const BlockPtr &block) {
         if (visited.count(block)) {
             return;

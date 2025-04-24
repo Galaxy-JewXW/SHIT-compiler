@@ -208,15 +208,16 @@ public:
         }
     }
 
-    void reverse_op() { this->op = swap_op(this->op); }
+    void reverse_op() {
+        this->op = swap_op(this->op);
+        std::swap(operands_[0], operands_[1]);
+    }
 
     static std::shared_ptr<Value> create(const std::string &name, Op op, std::shared_ptr<Value> lhs,
                                          std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::shared_ptr<Value> get_lhs() const { return operands_[0]; }
     [[nodiscard]] std::shared_ptr<Value> get_rhs() const { return operands_[1]; }
-    [[nodiscard]] std::shared_ptr<Value> &lhs() { return operands_[0]; }
-    [[nodiscard]] std::shared_ptr<Value> &rhs() { return operands_[1]; }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -244,15 +245,16 @@ public:
         }
     }
 
-    void reverse_op() { this->op = swap_op(this->op); }
+    void reverse_op() {
+        this->op = swap_op(this->op);
+        std::swap(operands_[0], operands_[1]);
+    }
 
     static std::shared_ptr<Value> create(const std::string &name, Op op, std::shared_ptr<Value> lhs,
                                          std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::shared_ptr<Value> get_lhs() const { return operands_[0]; }
     [[nodiscard]] std::shared_ptr<Value> get_rhs() const { return operands_[1]; }
-    [[nodiscard]] std::shared_ptr<Value> &lhs() { return operands_[0]; }
-    [[nodiscard]] std::shared_ptr<Value> &rhs() { return operands_[1]; }
 
     [[nodiscard]] std::string to_string() const override;
 };

@@ -73,12 +73,12 @@ public:
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
-    void runOnNode(const std::shared_ptr<LoopNodeTreeNode>& loop_node);
+    void runOnNode(const std::shared_ptr<LoopNodeTreeNode> &loop_node);
 
-    bool usedOutLoop(const std::shared_ptr<Mir::Instruction>& inst, const std::shared_ptr<Loop>& loop);
+    bool usedOutLoop(const std::shared_ptr<Mir::Instruction> &inst, const std::shared_ptr<Loop> &loop);
 
-    void addPhi4Exit(const std::shared_ptr<Mir::Instruction>& inst, const std::shared_ptr<Mir::Block>& exit,
-                     const std::shared_ptr<Loop>& loop);
+    void addPhi4Exit(const std::shared_ptr<Mir::Instruction> &inst, const std::shared_ptr<Mir::Block> &exit,
+                     const std::shared_ptr<Loop> &loop);
 
 private:
     std::shared_ptr<ControlFlowGraph> cfg_info_;
@@ -397,6 +397,19 @@ private:
         alloc_index_geps.clear();
         deleted_instructions.clear();
     }
+};
+
+class If2Switch final : public Transform {
+public:
+    explicit If2Switch() : Transform("If2Switch") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+private:
+    std::shared_ptr<DominanceGraph> dom_info{nullptr};
+
+    void run_on_func(const std::shared_ptr<Mir::Function> &func);
 };
 }
 
