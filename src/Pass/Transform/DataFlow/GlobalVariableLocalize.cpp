@@ -1,5 +1,7 @@
 #include "Mir/Init.h"
 #include "Pass/Transform.h"
+#include "Pass/Transforms/DataFlow.h"
+
 using namespace Mir;
 
 namespace {

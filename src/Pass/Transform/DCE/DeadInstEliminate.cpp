@@ -1,5 +1,5 @@
 #include "Pass/Analysis.h"
-#include "Pass/Transform.h"
+#include "Pass/Transforms/DCE.h"
 
 using namespace Mir;
 using InstructionPtr = std::shared_ptr<Instruction>;

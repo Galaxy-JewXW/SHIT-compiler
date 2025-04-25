@@ -1,5 +1,6 @@
 #include "Mir/Builder.h"
-#include "Pass/Transform.h"
+#include "Pass/Transforms/Common.h"
+#include "Pass/Transforms/DCE.h"
 
 using namespace Mir;
 

@@ -1,5 +1,7 @@
+#include "Pass/Analyses/LoopAnalysis.h"
 #include "Mir/Instruction.h"
-#include "Pass/Analysis.h"
+#include "Pass/Analyses/ControlFlowGraph.h"
+#include "Pass/Analyses/DominanceGraph.h"
 
 using FunctionPtr = std::shared_ptr<Mir::Function>;
 using BlockPtr = std::shared_ptr<Mir::Block>;

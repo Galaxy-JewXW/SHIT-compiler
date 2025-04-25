@@ -1,6 +1,7 @@
-#include "Pass/Transform.h"
-
 #include "Mir/Builder.h"
+#include "Pass/Transforms/Common.h"
+#include "Pass/Transforms/DataFlow.h"
+#include "Pass/Transforms/DCE.h"
 
 using namespace Mir;
 using FunctionPtr = std::shared_ptr<Function>;

@@ -1,5 +1,6 @@
-#include "Pass/Transform.h"
 #include "Pass/Util.h"
+#include "Pass/Transforms/Array.h"
+#include "Pass/Transforms/DataFlow.h"
 
 using namespace Mir;
 

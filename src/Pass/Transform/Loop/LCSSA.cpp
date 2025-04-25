@@ -2,7 +2,7 @@
 
 #include "Mir/Builder.h"
 #include "Pass/Analysis.h"
-#include "Pass/Transform.h"
+#include "Pass/Transforms/Loop.h"
 
 namespace Pass {
 void LCSSA::transform(std::shared_ptr<Mir::Module> module) {

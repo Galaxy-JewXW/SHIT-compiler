@@ -1,4 +1,4 @@
-#include "Pass/Transform.h"
+#include "Pass/Transforms/DCE.h"
 
 using namespace Mir;
 

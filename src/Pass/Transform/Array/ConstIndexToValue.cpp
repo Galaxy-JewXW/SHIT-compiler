@@ -1,8 +1,8 @@
 #include <deque>
 
 #include "Mir/Init.h"
-#include "Pass/Transform.h"
 #include "Pass/Util.h"
+#include "Pass/Transforms/Array.h"
 
 using namespace Mir;
 

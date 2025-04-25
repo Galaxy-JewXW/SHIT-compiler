@@ -1,8 +1,8 @@
 #include <functional>
 #include <set>
 
+#include "Pass/Analyses/AliasAnalysis.h"
 #include "Mir/Instruction.h"
-#include "Pass/Analysis.h"
 
 namespace {
 size_t gen_alloc_id() {

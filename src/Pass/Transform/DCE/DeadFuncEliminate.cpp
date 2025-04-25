@@ -1,7 +1,8 @@
 #include <functional>
 
-#include "Pass/Analysis.h"
-#include "Pass/Transform.h"
+#include "Pass/Analyses/ControlFlowGraph.h"
+#include "Pass/Analyses/DominanceGraph.h"
+#include "Pass/Transforms/DCE.h"
 
 using namespace Mir;
 

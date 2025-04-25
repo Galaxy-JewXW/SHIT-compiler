@@ -1,9 +1,10 @@
 #include <functional>
 #include <queue>
 
+#include "Pass/Analyses/ControlFlowGraph.h"
 #include "Mir/Instruction.h"
-#include "Pass/Analysis.h"
 #include "Pass/Util.h"
+#include "Pass/Analyses/DominanceGraph.h"
 
 using FunctionPtr = std::shared_ptr<Mir::Function>;
 using BlockPtr = std::shared_ptr<Mir::Block>;

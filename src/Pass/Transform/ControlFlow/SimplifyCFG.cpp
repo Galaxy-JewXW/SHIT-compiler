@@ -1,7 +1,8 @@
 #include <unordered_set>
 
-#include "Pass/Analysis.h"
-#include "Pass/Transform.h"
+#include "Pass/Analyses/ControlFlowGraph.h"
+#include "Pass/Transforms/ControlFlow.h"
+#include "Pass/Transforms/DataFlow.h"
 
 using namespace Mir;
 
