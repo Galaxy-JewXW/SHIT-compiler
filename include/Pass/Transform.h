@@ -398,19 +398,6 @@ private:
         deleted_instructions.clear();
     }
 };
-
-class If2Switch final : public Transform {
-public:
-    explicit If2Switch() : Transform("If2Switch") {}
-
-protected:
-    void transform(std::shared_ptr<Mir::Module> module) override;
-
-private:
-    std::shared_ptr<DominanceGraph> dom_info{nullptr};
-
-    void run_on_func(const std::shared_ptr<Mir::Function> &func);
-};
 }
 
 #endif //TRANSFORM_H
