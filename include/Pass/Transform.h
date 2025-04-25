@@ -398,6 +398,14 @@ private:
         deleted_instructions.clear();
     }
 };
+
+class ConstIndexToValue final : public Transform {
+public:
+    explicit ConstIndexToValue() : Transform("ConstIndexToValue") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+};
 }
 
 #endif //TRANSFORM_H
