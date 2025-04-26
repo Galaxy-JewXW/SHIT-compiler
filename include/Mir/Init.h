@@ -152,6 +152,8 @@ public:
 
     [[nodiscard]] bool is_array_init() const override { return true; }
 
+    [[nodiscard]] bool zero_initialized() const { return is_zero_initialized; }
+
     [[nodiscard]] size_t get_size() const { return init_values.size(); }
 
     std::shared_ptr<Init> get_init_value(const std::vector<int> &indexes);

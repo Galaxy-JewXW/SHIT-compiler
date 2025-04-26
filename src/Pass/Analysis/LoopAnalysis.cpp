@@ -1,5 +1,7 @@
+#include "Pass/Analyses/LoopAnalysis.h"
 #include "Mir/Instruction.h"
-#include "Pass/Analysis.h"
+#include "Pass/Analyses/ControlFlowGraph.h"
+#include "Pass/Analyses/DominanceGraph.h"
 
 using FunctionPtr = std::shared_ptr<Mir::Function>;
 using BlockPtr = std::shared_ptr<Mir::Block>;
@@ -7,18 +9,19 @@ using BlockPtr = std::shared_ptr<Mir::Block>;
 namespace Pass {
 void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
     this->loops_.clear();
-    std::shared_ptr<ControlFlowGraph> cfg_info = Pass::create<ControlFlowGraph>();
+    std::shared_ptr<ControlFlowGraph> cfg_info = get_analysis_result<ControlFlowGraph>(module);
+    const auto dom_info = get_analysis_result<DominanceGraph>(module);
     std::shared_ptr<Mir::Module> mutable_module = std::const_pointer_cast<Mir::Module>(module);
     cfg_info->run_on(mutable_module);
 
     //TODO: 这里的逻辑也稍有混乱了，好好设计整理一下
     for (const auto &func: *module) {
-        auto block_predecessors = cfg_info->predecessors(func);
-        auto block_successors = cfg_info->successors(func);
-        auto block_dominators = cfg_info->dominator(func);
+        auto block_predecessors = cfg_info->graph(func).predecessors;
+        auto block_successors = cfg_info->graph(func).successors;
+        auto block_dominators = dom_info->graph(func).dominator_blocks;
 
         std::vector<std::shared_ptr<Mir::Block>> headers;
-        for (const auto &block: cfg_info->post_order_blocks(func)) {
+        for (const auto &block: dom_info->post_order_blocks(func)) {
             for (const auto &predecessor: block_predecessors[block]) {
                 if (block_dominators[predecessor].find(block) != block_dominators[predecessor].end()) {
                     headers.push_back(block);

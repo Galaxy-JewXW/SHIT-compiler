@@ -1,7 +1,8 @@
 #include <functional>
 
-#include "Pass/Analysis.h"
-#include "Pass/Transform.h"
+#include "Pass/Analyses/ControlFlowGraph.h"
+#include "Pass/Analyses/DominanceGraph.h"
+#include "Pass/Transforms/DCE.h"
 
 using namespace Mir;
 
@@ -40,6 +41,8 @@ void DeadFuncEliminate::transform(const std::shared_ptr<Module> module) {
                 block->get_instructions().clear();
             }
             it = module->get_functions().erase(it);
+            get_analysis_result<ControlFlowGraph>(module)->remove(func);
+            get_analysis_result<DominanceGraph>(module)->remove(func);
         } else {
             ++it;
         }

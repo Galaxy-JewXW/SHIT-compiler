@@ -1,7 +1,7 @@
 #include <functional>
 
+#include "Pass/Analyses/FunctionAnalysis.h"
 #include "Mir/Instruction.h"
-#include "Pass/Analysis.h"
 
 using FunctionPtr = std::shared_ptr<Mir::Function>;
 using FunctionMap = std::unordered_map<FunctionPtr, std::unordered_set<FunctionPtr>>;

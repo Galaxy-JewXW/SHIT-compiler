@@ -2,7 +2,7 @@
 
 #include "Mir/Builder.h"
 #include "Pass/Analysis.h"
-#include "Pass/Transform.h"
+#include "Pass/Transforms/DataFlow.h"
 
 using namespace Mir;
 
@@ -39,10 +39,10 @@ void Mem2Reg::insert_phi() {
     while (!worklist.empty()) {
         const auto x = worklist.front();
         worklist.erase(worklist.begin());
-        for (const auto &y: cfg_info->dominance_frontier(current_function).at(x)) {
+        for (const auto &y: dom_info->graph(current_function).dominance_frontier.at(x)) {
             if (processed_blocks.find(y) != processed_blocks.end()) continue;
             std::unordered_map<std::shared_ptr<Block>, std::shared_ptr<Value>> optional_map;
-            for (const auto &prev_block: cfg_info->predecessors(current_function).at(y)) {
+            for (const auto &prev_block: cfg_info->graph(current_function).predecessors.at(y)) {
                 optional_map[prev_block] = nullptr;
             }
             const auto contain_type = std::static_pointer_cast<Type::Pointer>(current_alloc->get_type())
@@ -99,7 +99,7 @@ void Mem2Reg::rename_variables(const std::shared_ptr<Block> &block) {
         }
     }
     // 第二遍遍历：更新后继块的Phi操作数
-    for (const auto &succ_block: cfg_info->successors(current_function).at(block)) {
+    for (const auto &succ_block: cfg_info->graph(current_function).successors.at(block)) {
         const auto first_instruction = succ_block->get_instructions().front();
         if (const auto phi = std::dynamic_pointer_cast<Phi>(first_instruction);
             phi && std::find(use_instructions.begin(), use_instructions.end(), phi) != use_instructions.end()) {
@@ -117,7 +117,7 @@ void Mem2Reg::rename_variables(const std::shared_ptr<Block> &block) {
         }
     }
     // 递归处理支配子树
-    for (const auto &imm_dom_block: cfg_info->dominance_children(current_function).at(block)) {
+    for (const auto &imm_dom_block: dom_info->graph(current_function).dominance_children.at(block)) {
         rename_variables(imm_dom_block);
     }
     // 栈回退操作
@@ -127,8 +127,8 @@ void Mem2Reg::rename_variables(const std::shared_ptr<Block> &block) {
 }
 
 void Mem2Reg::transform(const std::shared_ptr<Module> module) {
-    cfg_info = create<ControlFlowGraph>();
-    cfg_info->run_on(module);
+    cfg_info = get_analysis_result<ControlFlowGraph>(module);
+    dom_info = get_analysis_result<DominanceGraph>(module);
     for (const auto &func: *module) {
         // 收集当前函数的所有Alloc指令
         std::vector<std::shared_ptr<Alloc>> valid_allocs;
@@ -156,6 +156,7 @@ void Mem2Reg::transform(const std::shared_ptr<Module> module) {
     current_alloc = nullptr;
     current_function = nullptr;
     cfg_info = nullptr;
+    dom_info = nullptr;
     def_instructions.clear();
     use_instructions.clear();
     def_blocks.clear();

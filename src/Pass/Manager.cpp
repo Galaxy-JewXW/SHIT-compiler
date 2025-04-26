@@ -1,6 +1,9 @@
-#include "Pass/Analysis.h"
-#include "Pass/Transform.h"
 #include "Pass/Util.h"
+#include "Pass/Transforms/Array.h"
+#include "Pass/Transforms/ControlFlow.h"
+#include "Pass/Transforms/DataFlow.h"
+#include "Pass/Transforms/DCE.h"
+#include "Pass/Transforms/Loop.h"
 
 [[maybe_unused]]
 void execute_O0_passes(std::shared_ptr<Mir::Module> &module) {
@@ -14,12 +17,11 @@ void execute_O0_passes(std::shared_ptr<Mir::Module> &module) {
 void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
     apply<
         Pass::Mem2Reg,
-        Pass::SimplifyCFG,
         Pass::DeadFuncEliminate,
         Pass::EmitModule<true>,
         Pass::GlobalValueNumbering,
-        Pass::LoopSimplyForm,
-        Pass::LCSSA,
+        // Pass::LoopSimplyForm,
+        // Pass::LCSSA,
         Pass::DeadFuncArgEliminate,
         Pass::DeadFuncEliminate,
         Pass::DeadReturnEliminate,
@@ -30,9 +32,7 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         Pass::GlobalArrayLocalize,
         Pass::LoadEliminate,
         Pass::StoreEliminate,
-        Pass::GlobalValueNumbering,
         Pass::SROA,
-        Pass::SimplifyCFG,
         Pass::GlobalValueNumbering
     >(module);
 }

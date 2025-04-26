@@ -1,7 +1,8 @@
 #include <unordered_set>
 
-#include "Pass/Analysis.h"
-#include "Pass/Transform.h"
+#include "Pass/Analyses/ControlFlowGraph.h"
+#include "Pass/Transforms/ControlFlow.h"
+#include "Pass/Transforms/DataFlow.h"
 
 using namespace Mir;
 
@@ -126,7 +127,7 @@ void SimplifyCFG::remove_unreachable_blocks_for_phi(const std::shared_ptr<Phi> &
         if (block->is_deleted()) {
             return true;
         }
-        if (const auto &succ = cfg_info->predecessors(func).at(current_block);
+        if (const auto &succ = cfg_info->graph(func).predecessors.at(current_block);
             succ.find(block) == succ.end()) {
             return true;
         }
@@ -152,14 +153,14 @@ bool SimplifyCFG::try_merge_blocks(const std::shared_ptr<Function> &func) const 
     for (const auto &block: blocks) {
         if (block->is_deleted())
             continue;
-        if (cfg_info->successors(func).at(block).size() != 1)
+        if (cfg_info->graph(func).successors.at(block).size() != 1)
             continue;
-        const auto &child = *cfg_info->successors(func).at(block).begin();
+        const auto &child = *cfg_info->graph(func).successors.at(block).begin();
         if (child->is_deleted())
             continue;
-        if (cfg_info->predecessors(func).at(child).size() != 1)
+        if (cfg_info->graph(func).predecessors.at(child).size() != 1)
             continue;
-        if (const auto parent = *cfg_info->predecessors(func).at(child).begin(); parent != block) {
+        if (const auto parent = *cfg_info->graph(func).predecessors.at(child).begin(); parent != block) {
             log_error("Parent block is not the current block");
         }
         perform_merge(block, child);
@@ -183,12 +184,13 @@ bool SimplifyCFG::try_merge_blocks(const std::shared_ptr<Function> &func) const 
 }
 
 // 消除只包含单个非条件跳转的基本块
-[[deprecated]] bool SimplifyCFG::try_simplify_single_jump(const std::shared_ptr<Function> &func) const {
+[[deprecated]]
+bool SimplifyCFG::try_simplify_single_jump(const std::shared_ptr<Function> &func) const {
     bool changed = false;
     auto is_single_jump_block = [&](const std::shared_ptr<Block> &block) -> std::shared_ptr<Block> {
         if (block->get_instructions().size() != 1)
             return nullptr;
-        if (cfg_info->predecessors(func).at(block).empty()) {
+        if (cfg_info->graph(func).predecessors.at(block).empty()) {
             return nullptr;
         }
         if (const auto op = block->get_instructions().front()->get_op(); op == Operator::JUMP) {
@@ -203,7 +205,7 @@ bool SimplifyCFG::try_merge_blocks(const std::shared_ptr<Function> &func) const 
         const auto target_block = is_single_jump_block(block);
         if (target_block == nullptr)
             continue;
-        if (cfg_info->successors(func).at(block).size() != 1)
+        if (cfg_info->graph(func).predecessors.at(block).size() != 1)
             log_error("Block has more than one successor");
         block->cleanup_users();
         const auto copied_users = block->weak_users();
@@ -217,7 +219,7 @@ bool SimplifyCFG::try_merge_blocks(const std::shared_ptr<Function> &func) const 
                     const auto value = it->second;
                     block->delete_user(phi);
                     optional_values.erase(it);
-                    for (const auto &prev: cfg_info->predecessors(func).at(block)) {
+                    for (const auto &prev: cfg_info->graph(func).predecessors.at(block)) {
                         phi->set_optional_value(prev, value);
                         prev->add_user(phi);
                     }
@@ -263,6 +265,7 @@ void SimplifyCFG::remove_unreachable_blocks(const std::shared_ptr<Function> &fun
                       });
         block->clear_operands();
         block->set_deleted();
+        cfg_info->set_dirty(func);
         return true;
     }), blocks.end());
 }
@@ -306,7 +309,8 @@ void SimplifyCFG::transform(const std::shared_ptr<Module> module) {
             changed |= remove_phi(func);
             while (try_merge_blocks(func)) {
                 changed = true;
-                cfg_info->run_on(module);
+                cfg_info->set_dirty(func);
+                cfg_info = get_analysis_result<ControlFlowGraph>(module);
             }
             changed |= remove_phi(func);
             for (const auto &block: func->get_blocks()) {
@@ -322,10 +326,12 @@ void SimplifyCFG::transform(const std::shared_ptr<Module> module) {
             }
             replace_branch_with_jump(func);
             remove_unreachable_blocks(func);
+            cfg_info = get_analysis_result<ControlFlowGraph>(module);
         }
     } while (changed);
     for (const auto &func: *module) {
         remove_unreachable_blocks(func);
+        cfg_info = get_analysis_result<ControlFlowGraph>(module);
     }
     cfg_info = nullptr;
 }

@@ -1,5 +1,5 @@
-#include "Pass/Transform.h"
 #include "Pass/Util.h"
+#include "Pass/Transforms/Array.h"
 
 using namespace Mir;
 
@@ -132,12 +132,10 @@ void StoreEliminate::run_on_func(const std::shared_ptr<Function> &func) {
 void StoreEliminate::transform(const std::shared_ptr<Module> module) {
     ::module = module;
     deleted_instructions.clear();
-    cfg = get_analysis_result<ControlFlowGraph>(module);
     function_analysis = get_analysis_result<FunctionAnalysis>(module);
     for (const auto &function: *module) {
         run_on_func(function);
     }
-    cfg = nullptr;
     function_analysis = nullptr;
     deleted_instructions.clear();
     ::module = nullptr;

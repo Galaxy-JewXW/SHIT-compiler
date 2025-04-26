@@ -1,3 +1,4 @@
+#include <numeric>
 #include <unordered_set>
 
 #include "Mir/Instruction.h"
@@ -5,6 +6,17 @@
 
 namespace Pass::Utils {
 using namespace Mir;
+
+std::string format_blocks(const std::unordered_set<std::shared_ptr<Block>> &blocks) {
+    if (blocks.empty()) return "∅";
+    std::vector<std::string> names;
+    names.reserve(blocks.size());
+    for (const auto &b: blocks) names.push_back("\'" + b->get_name() + "\'");
+    return std::accumulate(
+        std::next(names.begin()), names.end(), names[0],
+        [](const std::string &a, const std::string &b) { return a + ", " + b; }
+    );
+}
 
 void move_instruction_before(const std::shared_ptr<Instruction> &instruction,
                              const std::shared_ptr<Instruction> &target) {

@@ -1,5 +1,6 @@
 #include "Mir/Init.h"
-#include "Pass/Transform.h"
+#include "Pass/Transforms/DataFlow.h"
+
 using namespace Mir;
 
 namespace {
@@ -74,6 +75,7 @@ bool array_can_localized(const std::shared_ptr<GlobalVariable> &gv) {
     return true;
 }
 
+// TODO: 非 main 函数的情况下将全局变量作为参数进行传递
 void localize(const std::shared_ptr<Module> &module) {
     const auto func_analysis = Pass::get_analysis_result<Pass::FunctionAnalysis>(module);
     std::unordered_set<std::shared_ptr<GlobalVariable>> can_replaced;
@@ -94,6 +96,9 @@ void localize(const std::shared_ptr<Module> &module) {
             continue;
         }
         const auto &func = *use_function.begin();
+        if (func->get_name() != "main") {
+            continue;
+        }
         if (func_analysis->func_info(func).is_recursive) {
             continue;
         }
@@ -116,6 +121,8 @@ void localize(const std::shared_ptr<Module> &module) {
         array_init->gen_store_inst(new_alloc, new_entry, indexes);
         gv->replace_by_new_value(new_alloc);
         Jump::create(current_entry, new_entry);
+        Pass::get_analysis_result<Pass::ControlFlowGraph>(module)->set_dirty(func);
+        Pass::get_analysis_result<Pass::DominanceGraph>(module)->set_dirty(func);
     }
     if (!can_replaced.empty()) {
         for (auto it = module->get_global_variables().begin(); it != module->get_global_variables().end();) {
