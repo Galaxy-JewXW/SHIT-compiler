@@ -6,7 +6,7 @@
 
 [[nodiscard]] std::string RISCV::Variables::VariableTypeUtils::to_riscv_indicator(const VariableType &type) {
     switch (type) {
-        case INT32: return ".word";
+        case INT32: return ".dword";
         case INT64: return ".dword";
         case FLOAT: return ".float";
         case DOUBLE: return ".double";
@@ -15,15 +15,16 @@
     }
 }
 
-[[nodiscard]] size_t RISCV::Variables::VariableTypeUtils::type_to_size(const VariableType &type) {
-    switch (type) {
-        case INT32: return 4;
-        case INT64: return 8;
-        case FLOAT: return 4;
-        case DOUBLE: return 8;
-        case BOOL: return 1;
-        default: return 4;
-    }
+[[nodiscard]] int64_t RISCV::Variables::VariableTypeUtils::type_to_size(const VariableType &type) {
+    // switch (type) {
+    //     case INT32: return 4;
+    //     case INT64: return 8;
+    //     case FLOAT: return 4;
+    //     case DOUBLE: return 8;
+    //     case BOOL: return 1;
+    //     default: return 4;
+    // }
+    return 8;
 }
 
 [[nodiscard]] RISCV::Variables::VariableType RISCV::Variables::VariableTypeUtils::llvm_to_riscv(const Mir::Type::Type &type) {
@@ -54,7 +55,7 @@
     }
 }
 
-[[nodiscard]] std::string RISCV::Variables::VariableInitValueUtils::load_from_llvm(const Mir::Init::Array &array, const VariableType &type, size_t size) {
+[[nodiscard]] std::string RISCV::Variables::VariableInitValueUtils::load_from_llvm(const Mir::Init::Array &array, const VariableType &type, int64_t size) {
     std::ostringstream oss;
     if (array.zero_initialized()) {
         oss << "0" << "\n    .zero " << (size - 1) * RISCV::Variables::VariableTypeUtils::type_to_size(type);

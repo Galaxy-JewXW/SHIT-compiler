@@ -8,6 +8,7 @@
 #include "Backend/Instructions/RISC-V/Variables.h"
 #include "Backend/Instructions/RISC-V/Memory.h"
 #include "Backend/Instructions/RISC-V/Instructions.h"
+#include "Backend/Instructions/RISC-V/Registers.h"
 #include "Mir/Structure.h"
 
 namespace RISCV::Modules {
@@ -15,8 +16,8 @@ namespace RISCV::Modules {
         public:
             std::string function_name;
             std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> instructions;
-            RISCV::Memory::Memory memory;
-            size_t sp{0};
+            std::shared_ptr<RISCV::Memory::Memory> memory{std::make_shared<RISCV::Memory::Memory>(this)};
+            std::shared_ptr<RISCV::Registers::StackPointer> sp{std::make_shared<RISCV::Registers::StackPointer>(this)};
 
             [[nodiscard]] std::string to_string() const;
 
@@ -49,6 +50,11 @@ namespace RISCV::Instructions::InstructionFactory {
     void alloc_all(const std::shared_ptr<Mir::Function> &function, RISCV::Modules::FunctionField &function_field);
 
     void create(const std::shared_ptr<Mir::Instruction> &instruction, RISCV::Modules::FunctionField &function_field);
-}
 
+    template <typename T>
+    void transform_integer_binary(const std::shared_ptr<Mir::IntBinary> &instruction, RISCV::Modules::FunctionField &function_field);
+
+    template <typename T>
+    void transform_integer_binary(const std::shared_ptr<Mir::Icmp> &instruction, RISCV::Modules::FunctionField &function_field);
+}
 #endif

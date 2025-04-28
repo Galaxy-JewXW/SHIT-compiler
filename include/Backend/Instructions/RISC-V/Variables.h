@@ -41,14 +41,14 @@ namespace RISCV::Variables {
 
     class Array : public Variable {
         public:
-            size_t size;
+            int64_t size;
             RISCV::Variables::VariableType element_type;
 
             [[nodiscard]] std::string to_riscv_indicator() const override;
 
             explicit Array() = default;
 
-            explicit Array(const std::string &name, const RISCV::Variables::VariableType &element_type, const std::string &init_value, size_t size)
+            explicit Array(const std::string &name, const RISCV::Variables::VariableType &element_type, const std::string &init_value, int64_t size)
                 : Variable(name, VariableType::ARRAY, init_value), size(size), element_type(element_type) {}
     };
 }
@@ -60,13 +60,13 @@ namespace RISCV::Variables::VariableTypeUtils {
 
     [[nodiscard]] VariableType llvm_to_riscv(const Mir::Type::Type &global_variables);
 
-    [[nodiscard]] size_t type_to_size(const VariableType &type);
+    [[nodiscard]] int64_t type_to_size(const VariableType &type);
 }
 
 namespace RISCV::Variables::VariableInitValueUtils {
     [[nodiscard]] std::string load_from_llvm(const Mir::Init::Init &value, const VariableType &type);
 
-    [[nodiscard]] std::string load_from_llvm(const Mir::Init::Array &value, const VariableType &type, size_t size);
+    [[nodiscard]] std::string load_from_llvm(const Mir::Init::Array &value, const VariableType &type, int64_t size);
 }
 
 #endif

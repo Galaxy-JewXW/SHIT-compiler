@@ -7,14 +7,13 @@ Assembler::RISCV_Assembler::RISCV_Assembler(std::shared_ptr<Mir::Module> module)
     for (const std::shared_ptr<Mir::Function> &function : module->get_functions()) {
         RISCV::Modules::FunctionField function_field(function->get_name());
         RISCV::Instructions::InstructionFactory::alloc_all(function, function_field);
-        function_field.instructions.push_back(std::make_shared<RISCV::Instructions::Addi>(RISCV::Instructions::Register(RISCV::Instructions::Registers::SP), RISCV::Instructions::Register(RISCV::Instructions::Registers::SP), RISCV::Instructions::Immediate(-function_field.sp)));
+        function_field.instructions.push_back(std::make_shared<RISCV::Instructions::AddImmediate>(function_field.sp, function_field.sp, -function_field.sp->offset));
         for (const std::shared_ptr<Mir::Block> &block : function->get_blocks()) {
+            function_field.instructions.push_back(std::make_shared<RISCV::Instructions::Label>("." + function->get_name() + "." + block->get_name()));
             for (const std::shared_ptr<Mir::Instruction> &instruction : block->get_instructions()) {
                 RISCV::Instructions::InstructionFactory::create(instruction, function_field);
             }
         }
-        function_field.instructions.push_back(std::make_shared<RISCV::Instructions::Addi>(RISCV::Instructions::Register(RISCV::Instructions::Registers::SP), RISCV::Instructions::Register(RISCV::Instructions::Registers::SP), RISCV::Instructions::Immediate(function_field.sp)));
-        function_field.instructions.push_back(std::make_shared<RISCV::Instructions::Ret>());
         this->text.add_function(function_field);
     }
 }
