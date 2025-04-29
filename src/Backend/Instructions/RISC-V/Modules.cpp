@@ -149,9 +149,9 @@ namespace RISCV::Instructions::InstructionFactory {
             }
             case Mir::Operator::RET: {
                 std::shared_ptr<Mir::Ret> ret = std::dynamic_pointer_cast<Mir::Ret>(instruction);
-                std::shared_ptr<Mir::Value> value = ret->get_value();
-                if (value->is_constant()) {
-                    function_field.add_instruction(std::make_shared<RISCV::Instructions::LoadImmediate>(RISCV::Registers::A0, value->get_name()));
+                if (!ret->get_type()->is_void()) {
+                    std::shared_ptr<Mir::Value> value = ret->get_value();
+                    function_field.memory->load_to(RISCV::Registers::A0, value);
                 }
                 function_field.add_instruction(std::make_shared<RISCV::Instructions::AddImmediate>(function_field.sp, function_field.sp, function_field.sp->offset));
                 function_field.add_instruction(std::make_shared<RISCV::Instructions::Ret>());
@@ -176,6 +176,7 @@ namespace RISCV::Instructions::InstructionFactory {
                     std::shared_ptr<Mir::Value> param = params[i];
                     if (i < 4) {
                         function_field.memory->load_to(RISCV::Registers::A0 + i, param);
+                        function_field.add_instruction(std::make_shared<RISCV::Instructions::StoreDoubleword>(RISCV::Registers::A0 + i, function_field.sp, -((i + 1) << 3)));
                     } else {
                         //
                     }
@@ -183,6 +184,10 @@ namespace RISCV::Instructions::InstructionFactory {
                 function_field.add_instruction(std::make_shared<RISCV::Instructions::Call>(function_name));
                 function_field.add_instruction(std::make_shared<RISCV::Instructions::LoadDoubleword>(RISCV::Registers::RA, function_field.sp, params.size() << 3));
                 function_field.sp->free_stack((size_t)1);
+                if (!call->get_type()->is_void()) {
+                    std::string store_to = instruction->get_name();
+                    function_field.memory->store_to(store_to, RISCV::Registers::A0);
+                }
                 break;
             }
             case Mir::Operator::INTBINARY: {
@@ -253,6 +258,14 @@ namespace RISCV::Instructions::InstructionFactory {
     }
 
     void alloc_all(const std::shared_ptr<Mir::Function> &function, RISCV::Modules::FunctionField &function_field) {
+        log_debug("Allocating function: %s", function->get_name().c_str());
+        for (const std::shared_ptr<Mir::Argument> &parameter: function->get_arguments()) {
+            std::string vreg = parameter->get_name();
+            std::shared_ptr<Mir::Type::Type> type_ = parameter->get_type();
+            size_t size = RISCV::Variables::VariableTypeUtils::type_to_size(RISCV::Variables::VariableTypeUtils::llvm_to_riscv(*type_));
+            function_field.memory->vreg2offset[vreg] = function_field.sp->offset += size;
+            log_debug("Alloc: %s, size: %zu, $sp: %zu", vreg.c_str(), size, function_field.sp->offset);
+        }
         for (const std::shared_ptr<Mir::Block> &block: function->get_blocks()) {
             for (const std::shared_ptr<Mir::Instruction> &instruction: block->get_instructions()) {
                 if (instruction->get_op() == Mir::Operator::ALLOC) {
