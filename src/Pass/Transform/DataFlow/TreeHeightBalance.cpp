@@ -1,4 +1,4 @@
-#include <variant>
+#include <type_traits>
 
 #include "Mir/Instruction.h"
 #include "Pass/Transforms/DataFlow.h"
@@ -6,40 +6,70 @@
 using namespace Mir;
 
 namespace {
-// 具有交换律和结合律的int/float运算
-constexpr bool float_operands_available = false;
+template<typename T, typename... Ts>
+inline constexpr bool is_one_of_v = (std::is_same_v<T, Ts> || ...);
 
-using Op = std::variant<IntBinary::Op, FloatBinary::Op>;
+template<typename BinaryType>
+std::vector<std::shared_ptr<BinaryType>> make_chain(const std::shared_ptr<Block> &block) {
+    std::vector<std::shared_ptr<BinaryType>> chain;
+    const auto &instructions = block->get_instructions();
+    for (const auto &inst: instructions) {
+        if (const auto binary = inst->is<BinaryType>()) {
+            if (chain.empty() || binary->get_lhs() == chain.back()) {
+                chain.push_back(binary);
+            } else {
+                break;
+            }
+        } else if (!chain.empty()) {
+            break;
+        }
+    }
+    return chain;
+}
 
-std::unordered_map<Op, int> int_ops_priority = {
-    {IntBinary::Op::ADD, 0},
-    {IntBinary::Op::SUB, 0},
-    {IntBinary::Op::MUL, 1},
-    {IntBinary::Op::DIV, 1},
-    {IntBinary::Op::MOD, 1}
-};
+template<typename BinaryType>
+std::shared_ptr<BinaryType> build_balanced(const std::shared_ptr<Block> &block,
+                                           const std::vector<std::shared_ptr<Value>> &operands,
+                                           const std::vector<std::shared_ptr<BinaryType>> &chain,
+                                           const size_t start, const size_t end) {
+    const size_t count = end - start;
+    if (count == 1) {
+        return operands[start]->as<BinaryType>();
+    }
+    const size_t mid = start + count / 2;
+    const auto lhs = build_balanced<BinaryType>(block, operands, chain, start, mid),
+               rhs = build_balanced<BinaryType>(block, operands, chain, mid, end);
+    const auto new_add = Add::create("add", lhs, rhs, nullptr);
+    new_add->set_block(block, false);
+    auto &instructions = block->get_instructions();
+    auto pos = std::find(instructions.begin(), instructions.end(), chain.back());
+    instructions.insert(pos, new_add);
+    return new_add;
+}
 
-std::unordered_map<Op, int> float_ops_priority = {
-    {FloatBinary::Op::ADD, 0},
-    {FloatBinary::Op::SUB, 0},
-    {FloatBinary::Op::MUL, 1},
-    {FloatBinary::Op::DIV, 1},
-    {FloatBinary::Op::MOD, 1}
-};
-
-struct CalcNode {
-    std::shared_ptr<CalcNode> left, right, parent;
-    std::shared_ptr<Binary> binary;
-
-    CalcNode(const std::shared_ptr<CalcNode> &parent, const std::shared_ptr<CalcNode> &left,
-             const std::shared_ptr<CalcNode> &right, const std::shared_ptr<Binary> &binary)
-        : left(left), right(right), parent(parent), binary(binary) {}
-};
+template<typename BinaryType>
+void handle(const std::shared_ptr<Block> &block) {
+    static_assert(is_one_of_v<BinaryType, Add, Mul, FAdd, FMul>,
+                  "Only support commutative and associative instructions");
+    const auto chain = make_chain<BinaryType>(block);
+    if (chain.size() < 2) {
+        return;
+    }
+    std::vector<std::shared_ptr<Value>> operands;
+    operands.push_back(chain.front()->get_lhs());
+    for (const auto &inst: chain) {
+        operands.push_back(inst->get_rhs());
+    }
+    const auto new_add = build_balanced<BinaryType>(block, operands, chain, 0, operands.size());
+    chain.back()->replace_by_new_value(new_add);
+}
 }
 
 namespace Pass {
 void TreeHeightBalance::run_on_func(const std::shared_ptr<Function> &func) {
-    log_trace("%s", func->get_name().c_str());
+    for (const auto &block: func->get_blocks()) {
+        handle<Add>(block);
+    }
 }
 
 void TreeHeightBalance::transform(const std::shared_ptr<Module> module) {

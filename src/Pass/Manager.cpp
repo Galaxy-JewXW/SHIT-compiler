@@ -17,6 +17,8 @@ void execute_O0_passes(std::shared_ptr<Mir::Module> &module) {
 void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
     apply<
         Pass::Mem2Reg,
+        Pass::EmitModule<true>,
+        Pass::TreeHeightBalance,
         Pass::DeadFuncEliminate,
         Pass::EmitModule<true>,
         Pass::GlobalValueNumbering,

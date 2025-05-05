@@ -122,7 +122,7 @@ public:
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
-    void run_on_func(const std::shared_ptr<Mir::Function> &func);
+    static void run_on_func(const std::shared_ptr<Mir::Function> &func);
 };
 }
 
