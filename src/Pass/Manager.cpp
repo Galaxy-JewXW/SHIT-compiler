@@ -35,6 +35,7 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         Pass::LoadEliminate,
         Pass::StoreEliminate,
         Pass::SROA,
-        Pass::GlobalValueNumbering
+        Pass::GlobalValueNumbering,
+        Pass::BlockPositioning
     >(module);
 }

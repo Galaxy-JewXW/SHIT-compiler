@@ -114,7 +114,7 @@ protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 };
 
-// 树高平衡
+// 树高平衡，实现指令级并行性
 class TreeHeightBalance final : public Transform {
 public:
     explicit TreeHeightBalance() : Transform("TreeHeightBalance") {}

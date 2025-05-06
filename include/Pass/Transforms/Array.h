@@ -124,6 +124,7 @@ private:
     }
 };
 
+// 将全局变量中数组的常量索引访问替换为对应的初始化值
 class ConstIndexToValue final : public Transform {
 public:
     explicit ConstIndexToValue() : Transform("ConstIndexToValue") {}

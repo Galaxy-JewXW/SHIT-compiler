@@ -15,7 +15,7 @@ std::vector<int> gen_indexes(const std::shared_ptr<Type::Array> &type, const int
     std::shared_ptr<Type::Type> current_type = type;
     std::vector<int> indexes, dimensions;
     while (current_type->is_array()) {
-        dimensions.push_back(current_type->as<Type::Array>()->get_size());
+        dimensions.push_back(static_cast<int>(current_type->as<Type::Array>()->get_size()));
         current_type = current_type->as<Type::Array>()->get_element_type();
     }
     for (size_t i = 0; i < dimensions.size(); ++i) {
@@ -59,7 +59,7 @@ void transform_global_variable(const std::shared_ptr<GlobalVariable> &gv) {
         const auto gep = load->get_addr()->as<GetElementPtr>();
 
         const auto init_value = gv->get_init_value()->as<Init::Array>();
-        if (!gep->get_index()->is_constant() && !init_value->zero_initialized()) {
+        if (!gep->get_index()->is_constant()) {
             continue;
         }
         const auto indexes = gen_indexes(array_type, **gep->get_index()->as<ConstInt>());

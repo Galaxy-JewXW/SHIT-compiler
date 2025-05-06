@@ -36,6 +36,20 @@ private:
 
     std::shared_ptr<ControlFlowGraph> cfg_info;
 };
+
+// 重排序函数内部的基本块，减少指令缓存未命中和分支预测开销
+class BlockPositioning final : public Transform {
+public:
+    explicit BlockPositioning() : Transform("BlockPositioning") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+    void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
+
+private:
+    std::shared_ptr<ControlFlowGraph> cfg_info;
+};
 }
 
 #endif //CONTROLFLOW_H
