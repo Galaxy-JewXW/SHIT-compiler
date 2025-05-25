@@ -55,14 +55,7 @@ void Builder::visit_constDef(const Token::Type type, const std::shared_ptr<AST::
     std::vector<int> dimensions;
     for (const auto &constExp: constDef->constExps()) {
         const auto res = eval_exp(constExp->addExp(), table);
-        int dim;
-        if (std::holds_alternative<int>(res)) {
-            dim = std::get<int>(res);
-        } else if (std::holds_alternative<double>(res)) {
-            dim = static_cast<int>(std::get<double>(res));
-        } else {
-            log_error("Unexpected error on calculating dim");
-        }
+        int dim = res.get<int>();
         if (dim <= 0) { log_error("Non-Positive dimension: %d", dim); }
         dimensions.push_back(dim);
     }
@@ -112,14 +105,7 @@ void Builder::visit_varDef(const Token::Type type, const std::shared_ptr<AST::Va
     std::vector<int> dimensions;
     for (const auto &constExp: varDef->constExps()) {
         const auto res = eval_exp(constExp->addExp(), table);
-        int dim;
-        if (std::holds_alternative<int>(res)) {
-            dim = std::get<int>(res);
-        } else if (std::holds_alternative<double>(res)) {
-            dim = static_cast<int>(std::get<double>(res));
-        } else {
-            log_error("Unexpected error on calculating dim");
-        }
+        int dim = res.get<int>();
         if (dim <= 0) { log_error("Non-Positive dimension: %d", dim); }
         dimensions.push_back(dim);
     }
@@ -255,17 +241,24 @@ void Builder::visit_funcDef(const std::shared_ptr<AST::FuncDef> &funcDef) {
                   });
     // 清除流图中无法到达的基本块
     std::unordered_set<std::shared_ptr<Block>> visited;
-    std::function<void(const std::shared_ptr<Block> &)> dfs = [&](const std::shared_ptr<Block> &block) -> void {
-        if (visited.find(block) != visited.end()) return;
+    const std::function<void(const std::shared_ptr<Block> &)> dfs = [&](const std::shared_ptr<Block> &block) -> void {
+        if (visited.count(block)) {
+            return;
+        }
         visited.insert(block);
-        if (block->get_instructions().empty()) { log_error("Empty block"); }
-        const auto last_instruction = block->get_instructions().back();
-        if (const auto branch = std::dynamic_pointer_cast<Branch>(last_instruction)) {
+        const auto &instructions = block->get_instructions();
+        if (instructions.empty()) {
+            log_error("Empty Block");
+        }
+        const auto last_instruction = instructions.back();
+        if (const auto op = last_instruction->get_op(); op == Operator::JUMP) {
+            dfs(last_instruction->as<Jump>()->get_target_block());
+        } else if (op == Operator::BRANCH) {
+            const auto branch = last_instruction->as<Branch>();
             dfs(branch->get_true_block());
             dfs(branch->get_false_block());
-        }
-        if (const auto jump = std::dynamic_pointer_cast<Jump>(last_instruction)) {
-            dfs(jump->get_target_block());
+        } else if (op != Operator::RET) {
+            log_error("Last instruction is not a terminator: %s", last_instruction->to_string().c_str());
         }
     };
     dfs(entry_block);
@@ -295,14 +288,7 @@ Builder::visit_funcFParam(const std::shared_ptr<AST::FuncFParam> &funcFParam) co
     for (const auto &exp: funcFParam->exps()) {
         if (!exp) continue;
         const auto res = eval_exp(exp->addExp(), table);
-        int dim;
-        if (std::holds_alternative<int>(res)) {
-            dim = std::get<int>(res);
-        } else if (std::holds_alternative<double>(res)) {
-            dim = static_cast<int>(std::get<double>(res));
-        } else {
-            log_error("Unexpected error on calculating dim");
-        }
+        int dim = res.get<int>();
         if (dim <= 0) { log_error("Non-Positive dimension: %d", dim); }
         dimensions.push_back(dim);
     }
@@ -563,8 +549,7 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
         if (const auto array_init = std::dynamic_pointer_cast<Init::Array>(initial)) {
             std::vector<int> int_indexes;
             for (const auto &idx: indexes) {
-                const int index = std::get<int>(idx->as<ConstInt>()->get_constant_value());
-                int_indexes.push_back(index);
+                int_indexes.push_back(idx->as<ConstInt>()->get<int>());
             }
             initial = array_init->get_init_value(int_indexes);
             if (const auto constant_initial = std::dynamic_pointer_cast<Init::Constant>(initial)) {

@@ -9,12 +9,10 @@ using namespace Mir;
 
 template<typename Op>
 eval_t apply(const eval_t &lhs, const eval_t &rhs, Op op) {
-    if (std::holds_alternative<int>(lhs) && std::holds_alternative<int>(rhs)) {
-        return op(std::get<int>(lhs), std::get<int>(rhs));
+    if (lhs.holds<int>() && rhs.holds<int>()) {
+        return op(lhs.get<int>(), rhs.get<int>());
     }
-    double l = std::holds_alternative<int>(lhs) ? static_cast<double>(std::get<int>(lhs)) : std::get<double>(lhs);
-    double r = std::holds_alternative<int>(rhs) ? static_cast<double>(std::get<int>(rhs)) : std::get<double>(rhs);
-    return op(l, r);
+    return op(lhs.get<double>(), rhs.get<double>());
 }
 
 eval_t eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_ptr<Symbol::Table> &table) {
@@ -30,12 +28,9 @@ eval_t eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_ptr<S
     std::vector<int> indexes;
     for (const auto &exp: lVal->exps()) {
         const auto &eval_result = eval_exp(exp->addExp(), table);
-        int idx;
+        int idx = eval_result.get<int>();
         if (!std::holds_alternative<int>(eval_result)) {
             log_warn("Index of non-integer: %f", std::get<double>(eval_result));
-            idx = static_cast<int>(std::get<double>(eval_result));
-        } else {
-            idx = std::get<int>(eval_result);
         }
         if (idx < 0) { log_error("Index out of bounds: %d", idx); }
         indexes.push_back(idx);
@@ -46,17 +41,14 @@ eval_t eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_ptr<S
         }
         const auto &constant_value = std::static_pointer_cast<Init::Constant>(init_value)->get_const_value();
         if (!constant_value->is_constant()) { log_error("Non-constant expression"); }
-        const auto res = constant_value->as<Const>()->get_constant_value();
-        if (std::holds_alternative<int>(res)) { return std::get<int>(res); }
-        if (std::holds_alternative<double>(res)) { return std::get<double>(res); }
-    } else if (init_value->is_array_init()) {
+        return constant_value->as<Const>()->get_constant_value();
+    }
+    if (init_value->is_array_init()) {
         init_value = std::static_pointer_cast<Init::Array>(init_value)->get_init_value(indexes);
         if (!init_value->is_constant_init()) { log_error("Non-constant expression"); }
         const auto &constant_value = std::static_pointer_cast<Init::Constant>(init_value)->get_const_value();
         if (!constant_value->is_constant()) { log_error("Non-constant expression"); }
-        const auto res = constant_value->as<Const>()->get_constant_value();
-        if (std::holds_alternative<int>(res)) { return std::get<int>(res); }
-        if (std::holds_alternative<double>(res)) { return std::get<double>(res); }
+        return constant_value->as<Const>()->get_constant_value();
     }
     log_error("Unknown constant type");
 }
@@ -132,13 +124,13 @@ eval_t eval_unaryExp(const std::shared_ptr<AST::UnaryExp> &unaryExp, const std::
         switch (op) {
             case Token::Type::ADD: return val;
             case Token::Type::SUB: {
-                if (std::holds_alternative<int>(val)) { return -std::get<int>(val); }
-                return -std::get<double>(val);
+                if (val.holds<int>()) {
+                    return -val.get<int>();
+                }
+                return -val.get<double>();
             }
             case Token::Type::NOT: {
-                const bool is_zero = std::holds_alternative<int>(val)
-                                         ? std::get<int>(val) == 0
-                                         : std::get<double>(val) == 0.0f;
+                const bool is_zero = val.holds<int>() ? val.get<int>() == 0 : val.get<double>() == 0.0f;
                 return is_zero ? 1 : 0;
             }
             default: log_fatal("Unknown operator");

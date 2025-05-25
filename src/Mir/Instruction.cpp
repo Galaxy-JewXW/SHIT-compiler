@@ -198,7 +198,7 @@ std::shared_ptr<Value> Branch::create(const std::shared_ptr<Value> &cond, const 
         log_error("Cond must be an integer 1"); 
     }       
     if (cond->is_constant()) {
-        if (const auto value = std::get<int>(cond->as<ConstBool>()->get_constant_value()); value == 1) {
+        if (const auto value = cond->as<ConstBool>()->get<int>(); value == 1) {
             return Jump::create(true_block, block);
         }
         return Jump::create(false_block, block);
