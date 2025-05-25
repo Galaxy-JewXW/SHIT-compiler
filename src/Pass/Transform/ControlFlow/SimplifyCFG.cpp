@@ -56,7 +56,7 @@ void replace_branch_with_jump(const std::shared_ptr<Function> &func) {
             const auto current_block = last_br->get_block();
             const auto cond_value = cond->is<ConstBool>();
             if (cond_value == nullptr) { log_error("Cond is not a ConstBool object"); }
-            if (std::any_cast<int>(cond_value->get_constant_value())) {
+            if (std::get<int>(cond_value->get_constant_value())) {
                 const auto jump_true = Jump::create(last_br->get_true_block(), nullptr);
                 jump_true->set_block(current_block, false);
                 last_br->replace_by_new_value(jump_true);
@@ -96,7 +96,7 @@ void SimplifyCFG::dfs(const std::shared_ptr<Block> &current_block) {
         if (const auto cond = branch->get_cond(); cond->is_constant()) {
             const auto cond_value = std::dynamic_pointer_cast<ConstBool>(cond);
             if (cond_value == nullptr) { log_error("Cond is not a ConstBool object"); }
-            if (std::any_cast<int>(cond_value->get_constant_value())) {
+            if (std::get<int>(cond_value->get_constant_value())) {
                 const auto jump_true = Jump::create(branch->get_true_block(), nullptr);
                 jump_true->set_block(current_block, false);
                 branch->replace_by_new_value(jump_true);

@@ -1,7 +1,7 @@
 #ifndef ANALYSIS_H
 #define ANALYSIS_H
+
 #include <typeindex>
-#include <unordered_set>
 #include <utility>
 
 #include "Pass.h"

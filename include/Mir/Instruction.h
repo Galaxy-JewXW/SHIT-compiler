@@ -1,5 +1,6 @@
 #ifndef INSTRUCTION_H
 #define INSTRUCTION_H
+
 #include <utility>
 
 #include "Const.h"

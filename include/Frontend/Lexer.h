@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-#include "../Utils/Token.h"
+#include "Utils/Token.h"
 
 class Lexer {
     // 以字符串形式保存到源程序

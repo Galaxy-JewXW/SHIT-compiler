@@ -1,14 +1,14 @@
 #include "Mir/Builder.h"
+#include "Mir/Const.h"
 #include "Mir/Init.h"
+#include "Mir/Instruction.h"
+#include "Mir/Structure.h"
+#include "Utils/Log.h"
 
 #include <algorithm>
 #include <cassert>
 #include <functional>
 #include <unordered_set>
-
-#include "Mir/Instruction.h"
-#include "Mir/Structure.h"
-#include "Utils/Log.h"
 
 namespace Mir {
 size_t Builder::block_count{0}, Builder::variable_count{0};
@@ -563,7 +563,7 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
         if (const auto array_init = std::dynamic_pointer_cast<Init::Array>(initial)) {
             std::vector<int> int_indexes;
             for (const auto &idx: indexes) {
-                const int index = std::any_cast<int>(std::dynamic_pointer_cast<ConstInt>(idx)->get_constant_value());
+                const int index = std::get<int>(idx->as<ConstInt>()->get_constant_value());
                 int_indexes.push_back(index);
             }
             initial = array_init->get_init_value(int_indexes);

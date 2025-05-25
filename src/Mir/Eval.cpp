@@ -41,20 +41,22 @@ eval_t eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_ptr<S
         indexes.push_back(idx);
     }
     if (init_value->is_constant_init()) {
-        if (!indexes.empty()) { log_error("Non-array variable %s", ident.c_str()); }
+        if (!indexes.empty()) {
+            log_error("Non-array variable %s", ident.c_str());
+        }
         const auto &constant_value = std::static_pointer_cast<Init::Constant>(init_value)->get_const_value();
         if (!constant_value->is_constant()) { log_error("Non-constant expression"); }
-        const auto res = std::static_pointer_cast<Const>(constant_value)->get_constant_value();
-        if (res.type() == typeid(int)) { return std::any_cast<int>(res); }
-        if (res.type() == typeid(double)) { return std::any_cast<double>(res); }
+        const auto res = constant_value->as<Const>()->get_constant_value();
+        if (std::holds_alternative<int>(res)) { return std::get<int>(res); }
+        if (std::holds_alternative<double>(res)) { return std::get<double>(res); }
     } else if (init_value->is_array_init()) {
         init_value = std::static_pointer_cast<Init::Array>(init_value)->get_init_value(indexes);
         if (!init_value->is_constant_init()) { log_error("Non-constant expression"); }
         const auto &constant_value = std::static_pointer_cast<Init::Constant>(init_value)->get_const_value();
         if (!constant_value->is_constant()) { log_error("Non-constant expression"); }
-        const auto res = std::static_pointer_cast<Const>(constant_value)->get_constant_value();
-        if (res.type() == typeid(int)) { return std::any_cast<int>(res); }
-        if (res.type() == typeid(double)) { return std::any_cast<double>(res); }
+        const auto res = constant_value->as<Const>()->get_constant_value();
+        if (std::holds_alternative<int>(res)) { return std::get<int>(res); }
+        if (std::holds_alternative<double>(res)) { return std::get<double>(res); }
     }
     log_error("Unknown constant type");
 }
@@ -99,7 +101,7 @@ eval_t eval_number(const std::shared_ptr<AST::Number> &number) {
 }
 
 eval_t eval_primaryExp(const std::shared_ptr<AST::PrimaryExp> &primaryExp,
-                           const std::shared_ptr<Symbol::Table> &table) {
+                       const std::shared_ptr<Symbol::Table> &table) {
     if (primaryExp->is_number()) {
         const auto number = std::get<std::shared_ptr<AST::Number>>(primaryExp->get_value());
         return eval_number(number);

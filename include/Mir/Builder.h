@@ -1,5 +1,6 @@
 #ifndef BUILDER_H
 #define BUILDER_H
+
 #include <memory>
 
 #include "Const.h"

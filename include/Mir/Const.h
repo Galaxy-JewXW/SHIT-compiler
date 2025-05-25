@@ -1,13 +1,13 @@
 #ifndef CONST_H
 #define CONST_H
 
-#include <any>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include <variant>
 
 #include "Value.h"
 #include "Utils/Log.h"
@@ -19,9 +19,11 @@ public:
 
     ~Const() override = default;
 
+    using const_value_t = std::variant<int, double>;
+
     [[nodiscard]] virtual bool is_zero() const = 0;
 
-    [[nodiscard]] virtual std::any get_constant_value() const = 0;
+    [[nodiscard]] virtual const_value_t get_constant_value() const = 0;
 
     [[nodiscard]] bool is_constant() override { return true; }
 
@@ -36,7 +38,7 @@ class ConstBool final : public Const {
 public:
     [[nodiscard]] bool is_zero() const override { return value == 0; }
 
-    [[nodiscard]] std::any get_constant_value() const override { return value; }
+    [[nodiscard]] const_value_t get_constant_value() const override { return value; }
 
     static std::shared_ptr<ConstBool> create(int value);
 
@@ -54,7 +56,7 @@ class ConstInt final : public Const {
 public:
     [[nodiscard]] bool is_zero() const override { return value == 0; }
 
-    [[nodiscard]] std::any get_constant_value() const override { return value; }
+    [[nodiscard]] const_value_t get_constant_value() const override { return value; }
 
     static std::shared_ptr<ConstInt> create(int value, const std::shared_ptr<Type::Type> &type = Type::Integer::i32);
 
@@ -142,7 +144,7 @@ public:
         return std::fabs(value) < tolerance;
     }
 
-    [[nodiscard]] std::any get_constant_value() const override { return value; }
+    [[nodiscard]] const_value_t get_constant_value() const override { return value; }
 
     double operator+(const ConstFloat &other) const {
         return value + other.value;

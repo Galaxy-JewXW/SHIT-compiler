@@ -1,6 +1,5 @@
-#include <Mir/Instruction.h>
-
 #include "Mir/Builder.h"
+#include "Mir/Instruction.h"
 #include "Utils/Log.h"
 
 template<typename From, typename To>
@@ -26,15 +25,15 @@ std::shared_ptr<Value> cast_constant_value(const std::shared_ptr<Const> &v,
     const auto &src_type = v->get_type();
     if (*src_type == *target_type) return v;
     if (src_type->is_int1()) {
-        const auto val = std::any_cast<int>(v->get_constant_value());
+        const auto val = std::get<int>(v->get_constant_value());
         if (target_type->is_int32()) return ConstInt::create(cast_constant<bool, int>(val));
         if (target_type->is_float()) return ConstFloat::create(cast_constant<bool, double>(val));
     } else if (src_type->is_int32()) {
-        const auto val = std::any_cast<int>(v->get_constant_value());
+        const auto val = std::get<int>(v->get_constant_value());
         if (target_type->is_int1()) return ConstBool::create(cast_constant<int, bool>(val));
         if (target_type->is_float()) return ConstFloat::create(cast_constant<int, double>(val));
     } else if (src_type->is_float()) {
-        const auto val = std::any_cast<double>(v->get_constant_value());
+        const auto val = std::get<double>(v->get_constant_value());
         if (target_type->is_int32()) return ConstInt::create(cast_constant<double, int>(val));
         if (target_type->is_int1()) return ConstBool::create(cast_constant<double, bool>(val));
     }
