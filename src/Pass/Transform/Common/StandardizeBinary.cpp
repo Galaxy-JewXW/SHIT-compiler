@@ -47,7 +47,7 @@ void reverse_sign(std::vector<std::shared_ptr<Instruction>> &instructions, const
     const auto binary = std::static_pointer_cast<IntBinary>(instructions[idx]);
     if (!binary->get_rhs()->is_constant()) { return; }
     if (binary->op == IntBinary::Op::ADD) {
-        if (const int int_rhs = binary->get_lhs()->as<ConstInt>()->get<int>(); int_rhs < 0) {
+        if (const int int_rhs = binary->get_rhs()->as<ConstInt>()->get<int>(); int_rhs < 0) {
             const auto c = ConstInt::create(-int_rhs);
             const auto new_sub = Sub::create(Builder::gen_variable_name(), binary->get_lhs(), c, nullptr);
             replace_instruction(binary, new_sub);

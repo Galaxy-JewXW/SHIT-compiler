@@ -11,7 +11,7 @@ namespace Pass {
  * 3. 消除只有一个前驱块的phi节点
  * 4. (弃用)消除只包含单个非条件跳转的基本块
  */
-class [[deprecated("Use SimplifyControlGraph instead")]] SimplifyCFG final : public Transform {
+class [[deprecated("Use SimplifyControlFlow instead")]] SimplifyCFG final : public Transform {
 public:
     explicit SimplifyCFG() : Transform("SimplifyCFG") {}
 
@@ -37,9 +37,9 @@ private:
     std::shared_ptr<ControlFlowGraph> cfg_info;
 };
 
-class SimplifyControlGraph final : public Transform {
+class SimplifyControlFlow final : public Transform {
 public:
-    explicit SimplifyControlGraph() : Transform("SimplifyControlGraph") {}
+    explicit SimplifyControlFlow() : Transform("SimplifyControlFlow") {}
 
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;

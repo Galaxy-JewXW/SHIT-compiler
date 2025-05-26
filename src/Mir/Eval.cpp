@@ -80,14 +80,11 @@ eval_t eval(const eval_t lhs, const eval_t rhs, const Token::Type type) {
 }
 
 eval_t eval_number(const std::shared_ptr<AST::Number> &number) {
-    const auto &p = *number;
-    if (typeid(p) == typeid(AST::IntNumber)) {
-        const auto &int_num = std::static_pointer_cast<AST::IntNumber>(number);
-        return int_num->get_value();
+    if (const auto int_number = std::dynamic_pointer_cast<AST::IntNumber>(number)) {
+        return eval_t{int_number->get_value()};
     }
-    if (typeid(p) == typeid(AST::FloatNumber)) {
-        const auto &float_num = std::static_pointer_cast<AST::FloatNumber>(number);
-        return float_num->get_value();
+    if (const auto float_number = std::dynamic_pointer_cast<AST::FloatNumber>(number)) {
+        return eval_t{float_number->get_value()};
     }
     log_fatal("Fatal at eval number");
 }
