@@ -109,6 +109,7 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
     auto [predecessors, successors] = cfg_info->graph(func);
     bool graph_modified{false}, changed{false};
 
+    // 合并冗余分支：分支指令的两个目标为同一个块，或者分支指令的条件变量为常数
     const auto fold_redundant_branch = [&]() -> void {
         for (const auto &block: func->get_blocks()) {
             auto &last_instruction = block->get_instructions().back();
@@ -139,6 +140,7 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
         }
     };
 
+    // 合并基本块：如果一个块有唯一的前驱，是前驱的唯一后继，则将当前块合并到前驱块
     const auto combine_blocks = [&]() -> void {
         const auto &blocks = func->get_blocks();
         for (const auto &block: blocks) {
@@ -167,7 +169,204 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
             predecessors.erase(child);
             successors.erase(child);
         }
-        if (changed) [[unlikely]] {
+        if (changed) {
+            remove_deleted_blocks(func);
+        }
+    };
+
+    const auto is_single_jump_block = [&](const std::shared_ptr<Block> &block) -> std::shared_ptr<Block> {
+        if (block->get_instructions().size() != 1)
+            return nullptr;
+        if (predecessors.at(block).empty()) {
+            return nullptr;
+        }
+        if (const auto op = block->get_instructions().front()->get_op(); op == Operator::JUMP) {
+            const auto jump = block->get_instructions().front()->as<Jump>();
+            return jump->get_target_block();
+        }
+        return nullptr;
+    };
+
+    const auto is_single_branch_block = [&](const std::shared_ptr<Block> &block) -> std::shared_ptr<Branch> {
+        if (block->get_instructions().size() != 1)
+            return nullptr;
+        if (predecessors.at(block).empty()) {
+            return nullptr;
+        }
+        if (const auto op = block->get_instructions().front()->get_op(); op == Operator::BRANCH) {
+            return block->get_instructions().front()->as<Branch>();
+        }
+        return nullptr;
+    };
+
+    // 检查给定块的前驱是否均只有给定块作为后继
+    [[maybe_unused]] const auto get_candidate_predecessors = [&](const std::shared_ptr<Block> &block) {
+        std::unordered_set<std::shared_ptr<Block>> candidates;
+        for (const auto &pre: predecessors.at(block)) {
+            if (successors.at(pre).size() != 1) {
+                continue;
+            }
+            if (const auto &target = *successors.at(pre).begin(); target != block) {
+                continue;
+            }
+            candidates.insert(pre);
+        }
+        return candidates;
+    };
+
+    // 移除"空"块：消除只包含单个无条件跳转的基本块
+    const auto remove_empty_blocks = [&]() -> void {
+        const auto &blocks = func->get_blocks();
+        for (const auto &block: blocks) {
+            if (block->is_deleted()) {
+                continue;
+            }
+            const auto target = is_single_jump_block(block);
+            if (target == nullptr || target->is_deleted()) {
+                continue;
+            }
+            std::vector<std::shared_ptr<User>> locked_users;
+            for (const auto &weak: block->weak_users()) {
+                if (const auto sp = weak.lock()) {
+                    locked_users.push_back(sp);
+                }
+            }
+
+            bool available{true};
+            for (const auto &user: locked_users) {
+                if (const auto phi = user->is<Phi>()) {
+                    const auto &options = phi->get_optional_values();
+                    for (const auto &pre: predecessors.at(block)) {
+                        if (options.find(pre) != options.end()) {
+                            available = false;
+                            break;
+                        }
+                    }
+                }
+                if (!available) {
+                    break;
+                }
+            }
+            if (!available) {
+                continue;
+            }
+            for (const auto &user: locked_users) {
+                if (const auto phi = user->is<Phi>()) {
+                    auto &options = phi->get_optional_values();
+                    auto it = options.find(block);
+                    if (it == options.end()) {
+                        log_error("Phi operand not found");
+                    }
+                    const auto value = it->second;
+                    for (const auto &pre: predecessors.at(block)) {
+                        phi->set_optional_value(pre, value);
+                        pre->add_user(phi);
+                    }
+                    block->delete_user(phi);
+                    options.erase(it);
+                } else {
+                    user->modify_operand(block, target);
+                }
+            }
+            // 手动维护cfg
+            for (const auto &pre: predecessors.at(block)) {
+                successors.at(pre).erase(block);
+                successors.at(pre).insert(target);
+                predecessors.at(target).insert(pre);
+            }
+            predecessors.erase(block);
+            successors.erase(block);
+            predecessors.at(target).erase(block);
+
+            block->get_instructions().clear();
+            block->clear_operands();
+            block->set_deleted();
+            changed = true;
+            graph_modified = true;
+        }
+        if (changed) {
+            remove_deleted_blocks(func);
+        }
+    };
+
+    // 提升分支指令：消除只包含单个有条件跳转的基本块
+    [[maybe_unused]] const auto hoist_branch = [&]() -> void {
+        const auto &blocks = func->get_blocks();
+        for (const auto &block: blocks) {
+            if (block->is_deleted()) {
+                continue;
+            }
+            const auto branch = is_single_branch_block(block);
+            if (branch == nullptr) {
+                continue;
+            }
+            if (branch->get_true_block()->is_deleted() || branch->get_false_block()->is_deleted()) {
+                continue;
+            }
+            const auto candidate = get_candidate_predecessors(block);
+            if (candidate.empty()) {
+                continue;
+            }
+            std::vector<std::shared_ptr<User>> locked_users;
+            for (const auto &weak: block->weak_users()) {
+                if (const auto sp = weak.lock()) {
+                    locked_users.push_back(sp);
+                }
+            }
+            bool available{true};
+            for (const auto &user: locked_users) {
+                if (const auto phi = user->is<Phi>()) {
+                    const auto &options = phi->get_optional_values();
+                    for (const auto &pre: candidate) {
+                        if (options.find(pre) != options.end()) {
+                            available = false;
+                            break;
+                        }
+                    }
+                }
+                if (!available) {
+                    break;
+                }
+            }
+            if (!available) {
+                continue;
+            }
+            for (const auto &pre: candidate) {
+                const auto &last_instruction = pre->get_instructions().back();
+                last_instruction->clear_operands();
+                pre->get_instructions().pop_back();
+                if (last_instruction->get_op() != Operator::JUMP) {
+                    log_error("last instruction should be a jump");
+                }
+                if (const auto jump = last_instruction->as<Jump>(); jump->get_target_block() != block) {
+                    log_error("jump target should be the block to be removed");
+                }
+                Branch::create(branch->get_cond(), branch->get_true_block(), branch->get_false_block(), pre);
+            }
+            for (const auto &user: locked_users) {
+                if (const auto phi = user->is<Phi>()) {
+                    auto &options = phi->get_optional_values();
+                    auto it = options.find(block);
+                    if (it == options.end()) {
+                        log_error("Phi operand not found");
+                    }
+                    const auto value = it->second;
+                    for (const auto &pre: candidate) {
+                        phi->set_optional_value(pre, value);
+                        pre->add_user(phi);
+                    }
+                    block->delete_user(phi);
+                    options.erase(it);
+                }
+            }
+            // 手动维护cfg
+            block->get_instructions().clear();
+            block->clear_operands();
+            block->set_deleted();
+            changed = true;
+            graph_modified = true;
+        }
+        if (changed) {
             remove_deleted_blocks(func);
         }
     };
@@ -176,6 +375,7 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
         changed = false;
         fold_redundant_branch();
         combine_blocks();
+        remove_empty_blocks();
         try_constant_fold(func);
     } while (changed);
 

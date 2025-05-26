@@ -9,7 +9,6 @@
 void execute_O0_passes(std::shared_ptr<Mir::Module> &module) {
     apply<
         Pass::Mem2Reg,
-        Pass::SimplifyCFG,
         Pass::GlobalValueNumbering
     >(module);
 }
@@ -36,6 +35,7 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         Pass::StoreEliminate,
         Pass::SROA,
         Pass::GlobalValueNumbering,
-        Pass::BlockPositioning
+        Pass::BlockPositioning,
+        Pass::SimplifyControlFlow
     >(module);
 }
