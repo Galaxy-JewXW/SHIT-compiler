@@ -102,42 +102,42 @@ void perform_merge(const std::shared_ptr<Block> &block, const std::shared_ptr<Bl
     child->replace_by_new_value(block);
     child->set_deleted();
 }
-
-void fold_redundant_branch(const std::shared_ptr<Function> &func) {
-    for (const auto &block: func->get_blocks()) {
-        auto &last_instruction = block->get_instructions().back();
-        if (last_instruction->get_op() != Operator::BRANCH) {
-            continue;
-        }
-        const auto branch = last_instruction->as<Branch>();
-        if (const auto cond = branch->get_cond(); cond->is_constant()) {
-            const auto cond_value = cond->is<ConstBool>();
-            if (cond_value == nullptr) {
-                log_error("Cond is not a ConstBool object");
-            }
-            const auto target_block = cond_value->get_constant_value().get<int>()
-                                          ? branch->get_true_block()
-                                          : branch->get_false_block();
-            const auto jump = Jump::create(target_block, nullptr);
-            jump->set_block(block, false);
-            last_instruction->replace_by_new_value(jump);
-            last_instruction = jump;
-            continue;
-        }
-        if (branch->get_true_block() == branch->get_false_block()) {
-            const auto jump = Jump::create(branch->get_true_block(), nullptr);
-            jump->set_block(block, false);
-            last_instruction->replace_by_new_value(jump);
-            last_instruction = jump;
-        }
-    }
-}
 }
 
 namespace Pass {
 void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) const {
     auto [predecessors, successors] = cfg_info->graph(func);
     bool graph_modified{false}, changed{false};
+
+    const auto fold_redundant_branch = [&]() -> void {
+        for (const auto &block: func->get_blocks()) {
+            auto &last_instruction = block->get_instructions().back();
+            if (last_instruction->get_op() != Operator::BRANCH) {
+                continue;
+            }
+            const auto branch = last_instruction->as<Branch>();
+            if (const auto cond = branch->get_cond(); cond->is_constant()) {
+                const auto cond_value = cond->is<ConstBool>();
+                if (cond_value == nullptr) {
+                    log_error("Cond is not a ConstBool object");
+                }
+                const auto target_block = cond_value->get_constant_value().get<int>()
+                                              ? branch->get_true_block()
+                                              : branch->get_false_block();
+                const auto jump = Jump::create(target_block, nullptr);
+                jump->set_block(block, false);
+                last_instruction->replace_by_new_value(jump);
+                last_instruction = jump;
+                continue;
+            }
+            if (branch->get_true_block() == branch->get_false_block()) {
+                const auto jump = Jump::create(branch->get_true_block(), nullptr);
+                jump->set_block(block, false);
+                last_instruction->replace_by_new_value(jump);
+                last_instruction = jump;
+            }
+        }
+    };
 
     const auto combine_blocks = [&]() -> void {
         const auto &blocks = func->get_blocks();
@@ -174,7 +174,7 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
 
     do {
         changed = false;
-        fold_redundant_branch(func);
+        fold_redundant_branch();
         combine_blocks();
         try_constant_fold(func);
     } while (changed);
