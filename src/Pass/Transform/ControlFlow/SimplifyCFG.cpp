@@ -275,7 +275,7 @@ bool SimplifyCFG::remove_phi(const std::shared_ptr<Function> &func) const {
     // 如果phi节点的每个可选值都是相同的，则替换为第一个可选值，并删除phi节点
     // 如果没有指令使用phi节点，则删除phi节点
     bool changed = false;
-    auto &blocks = func->get_blocks();
+    const auto &blocks = func->get_blocks();
     for (const auto &block: blocks) {
         for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
             if ((*it)->get_op() != Operator::PHI) break;

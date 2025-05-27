@@ -548,6 +548,7 @@ std::shared_ptr<Value> Builder::visit_lVal(const std::shared_ptr<AST::LVal> &lVa
         auto initial = symbol->get_init_value();
         if (const auto array_init = std::dynamic_pointer_cast<Init::Array>(initial)) {
             std::vector<int> int_indexes;
+            int_indexes.reserve(indexes.size());
             for (const auto &idx: indexes) {
                 int_indexes.push_back(idx->as<ConstInt>()->get<int>());
             }

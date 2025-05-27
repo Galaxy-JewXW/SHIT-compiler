@@ -3,11 +3,11 @@
 #include "Mir/Instruction.h"
 
 namespace Mir {
-void Module::update_id() {
+void Module::update_id() const {
     for (const auto &function: functions) { function->update_id(); }
 }
 
-void Function::update_id() {
+void Function::update_id() const {
     Builder::reset_count();
     for (size_t i = 0; i < arguments.size(); ++i) {
         arguments[i]->set_index(static_cast<int>(i));
@@ -21,14 +21,14 @@ void Function::update_id() {
     }
 }
 
-void Block::modify_successor(const std::shared_ptr<Block> &old_successor, const std::shared_ptr<Block> &new_successor) {
+void Block::modify_successor(const std::shared_ptr<Block> &old_successor, const std::shared_ptr<Block> &new_successor) const {
     for (auto &instruction: instructions) {
         if (dynamic_cast<Branch*>(instruction.get()) != nullptr) {
-            auto branch = std::static_pointer_cast<Branch>(instruction);
+            const auto branch = std::static_pointer_cast<Branch>(instruction);
             branch->modify_operand(old_successor, new_successor);
         }
         if (dynamic_cast<Jump*>(instruction.get()) != nullptr) {
-            auto jump = std::static_pointer_cast<Jump>(instruction);
+            const auto jump = std::static_pointer_cast<Jump>(instruction);
             jump->modify_operand(old_successor, new_successor);
         }
     }

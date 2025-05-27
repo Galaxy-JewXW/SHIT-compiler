@@ -71,7 +71,7 @@ public:
     void set_main_function(const std::shared_ptr<Function> &main_function) { this->main_function = main_function; }
 
     // 更新基本块和指令的id
-    void update_id();
+    void update_id() const;
 
     [[nodiscard]] std::string to_string() const;
 
@@ -158,7 +158,7 @@ public:
     [[nodiscard]] std::vector<std::shared_ptr<Block>> &get_blocks() { return blocks; }
 
     // 清除流图后需要更新基本块和指令的id
-    void update_id();
+    void update_id() const;
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -200,7 +200,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    void modify_successor(const std::shared_ptr<Block> &old_successor, const std::shared_ptr<Block> &new_successor);
+    void modify_successor(const std::shared_ptr<Block> &old_successor, const std::shared_ptr<Block> &new_successor) const;
 
     std::shared_ptr<std::vector<std::shared_ptr<Instruction>>> get_phis();
 };

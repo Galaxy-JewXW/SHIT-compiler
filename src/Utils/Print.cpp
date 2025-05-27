@@ -1,6 +1,6 @@
+#include "Mir/Init.h"
 #include "Mir/Instruction.h"
 #include "Mir/Structure.h"
-#include "Mir/Init.h"
 #include "Utils/AST.h"
 #include "Utils/Token.h"
 

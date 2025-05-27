@@ -43,6 +43,7 @@ void try_fold_gep(const std::shared_ptr<GetElementPtr> &gep) {
         }
     }
     std::vector<std::shared_ptr<Value>> offsets;
+    offsets.reserve(zero_count);
     for (size_t i = 0; i < zero_count; ++i) {
         offsets.push_back(ConstInt::create(0));
     }
