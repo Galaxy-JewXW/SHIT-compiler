@@ -102,6 +102,63 @@ void perform_merge(const std::shared_ptr<Block> &block, const std::shared_ptr<Bl
     child->replace_by_new_value(block);
     child->set_deleted();
 }
+
+void cleanup_phi(const std::shared_ptr<Function> &func, const std::shared_ptr<Pass::ControlFlowGraph> &cfg_info) {
+    const auto all_options_equal = [&](const std::shared_ptr<Phi> &phi) -> bool {
+        const auto &optional_values = phi->get_optional_values();
+        if (optional_values.empty()) {
+            log_error("Phi has not optional values");
+        }
+        if (optional_values.size() == 1) {
+            return true;
+        }
+        const auto &first_val = optional_values.begin()->second;
+        return std::all_of(optional_values.begin(), optional_values.end(),
+                           [&](const auto &pair) { return pair.second->get_name() == first_val->get_name(); });
+    };
+
+    const auto remove_unreachable_phi_pairs = [&](const std::shared_ptr<Phi> &phi) -> void {
+        const auto &current_block = phi->get_block();
+        const auto block_is_unreachable = [&](const std::shared_ptr<Block> &block) -> bool {
+            if (block->is_deleted()) {
+                return true;
+            }
+            if (const auto &succ = cfg_info->graph(func).predecessors.at(current_block);
+                succ.find(block) == succ.end()) {
+                return true;
+            }
+            return false;
+        };
+        for (auto it = phi->get_optional_values().begin(); it != phi->get_optional_values().end();) {
+            if (auto &[block, value] = *it; block_is_unreachable(block)) {
+                // remove_operand包括了delete_user的步骤
+                phi->remove_operand(value);
+                // block不是phi的操作数，这里只需要delete_user即可
+                block->delete_user(phi);
+                it = phi->get_optional_values().erase(it);
+            } else {
+                ++it;
+            }
+        }
+    };
+
+    const auto &blocks = func->get_blocks();
+    for (const auto &block: blocks) {
+        for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
+            if ((*it)->get_op() != Operator::PHI) break;
+            auto phi = std::static_pointer_cast<Phi>(*it);
+            remove_unreachable_phi_pairs(phi);
+            if (all_options_equal(phi) || phi->users().size() == 0) {
+                auto first_val = phi->get_optional_values().begin()->second;
+                phi->replace_by_new_value(first_val);
+                phi->clear_operands();
+                it = block->get_instructions().erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+}
 }
 
 namespace Pass {
@@ -143,6 +200,7 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
     // 合并基本块：如果一个块有唯一的前驱，是前驱的唯一后继，则将当前块合并到前驱块
     const auto combine_blocks = [&]() -> void {
         const auto &blocks = func->get_blocks();
+        auto modified{false};
         for (const auto &block: blocks) {
             if (block->is_deleted()) {
                 continue;
@@ -161,7 +219,7 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
                 log_error("Parent block is not the current block");
             }
             perform_merge(block, child);
-            changed = true;
+            modified = true;
             graph_modified = true;
             // 手动维护cfg
             successors.at(block).erase(child);
@@ -169,7 +227,8 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
             predecessors.erase(child);
             successors.erase(child);
         }
-        if (changed) {
+        if (modified) {
+            changed = true;
             remove_deleted_blocks(func);
         }
     };
@@ -217,6 +276,7 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
     // 移除"空"块：消除只包含单个无条件跳转的基本块
     const auto remove_empty_blocks = [&]() -> void {
         const auto &blocks = func->get_blocks();
+        auto modified{false};
         for (const auto &block: blocks) {
             if (block->is_deleted()) {
                 continue;
@@ -281,17 +341,19 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
             block->get_instructions().clear();
             block->clear_operands();
             block->set_deleted();
-            changed = true;
+            modified = true;
             graph_modified = true;
         }
-        if (changed) {
+        if (modified) {
+            changed = true;
             remove_deleted_blocks(func);
         }
     };
 
     // 提升分支指令：消除只包含单个有条件跳转的基本块
-    [[maybe_unused]] const auto hoist_branch = [&]() -> void {
+    const auto hoist_branch = [&]() -> void {
         const auto &blocks = func->get_blocks();
+        auto modified{false};
         for (const auto &block: blocks) {
             if (block->is_deleted()) {
                 continue;
@@ -360,13 +422,22 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
                 }
             }
             // 手动维护cfg
+            for (const auto &pre: candidate) {
+                successors.at(pre).erase(block);
+                successors.at(pre).insert({branch->get_true_block(), branch->get_false_block()});
+                predecessors.at(branch->get_true_block()).insert(pre);
+                predecessors.at(branch->get_false_block()).insert(pre);
+            }
+            predecessors.erase(block);
+            successors.erase(block);
             block->get_instructions().clear();
             block->clear_operands();
             block->set_deleted();
-            changed = true;
+            modified = true;
             graph_modified = true;
         }
-        if (changed) {
+        if (modified) {
+            changed = true;
             remove_deleted_blocks(func);
         }
     };
@@ -376,6 +447,10 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
         fold_redundant_branch();
         combine_blocks();
         remove_empty_blocks();
+        hoist_branch();
+        if (changed) {
+            remove_deleted_blocks(func);
+        }
         try_constant_fold(func);
     } while (changed);
 
@@ -394,6 +469,12 @@ void SimplifyControlFlow::transform(const std::shared_ptr<Module> module) {
     for (const auto &func: *module) {
         run_on_func(func);
     }
+    cfg_info = get_analysis_result<ControlFlowGraph>(module);
+
+    for (const auto &func: *module) {
+        cleanup_phi(func, cfg_info);
+    }
     cfg_info = nullptr;
+    create<GlobalCodeMotion>()->run_on(module);
 }
 }
