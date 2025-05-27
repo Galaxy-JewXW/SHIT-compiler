@@ -163,7 +163,8 @@ void cleanup_phi(const std::shared_ptr<Function> &func, const std::shared_ptr<Pa
 
 namespace Pass {
 void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) const {
-    auto [predecessors, successors] = cfg_info->graph(func);
+    auto predecessors = cfg_info->graph(func).predecessors;
+    auto successors = cfg_info->graph(func).successors;
     bool graph_modified{false}, changed{false};
 
     // 合并冗余分支：分支指令的两个目标为同一个块，或者分支指令的条件变量为常数

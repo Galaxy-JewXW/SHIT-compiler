@@ -7,14 +7,6 @@
 
 using namespace Mir;
 
-template<typename Op>
-eval_t apply(const eval_t &lhs, const eval_t &rhs, Op op) {
-    if (lhs.holds<int>() && rhs.holds<int>()) {
-        return op(lhs.get<int>(), rhs.get<int>());
-    }
-    return op(lhs.get<double>(), rhs.get<double>());
-}
-
 eval_t eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_ptr<Symbol::Table> &table) {
     const std::string &ident = lVal->ident();
     const auto &symbol = table->lookup_in_all_scopes(ident);
@@ -55,27 +47,12 @@ eval_t eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_ptr<S
 
 eval_t eval(const eval_t lhs, const eval_t rhs, const Token::Type type) {
     switch (type) {
-        case Token::Type::ADD: return apply(lhs, rhs, std::plus<>());
-        case Token::Type::SUB: return apply(lhs, rhs, std::minus<>());
-        case Token::Type::MUL: return apply(lhs, rhs, std::multiplies<>());
-        case Token::Type::DIV: {
-            return apply(lhs, rhs, [](auto a, auto b) {
-                if (b == 0) { log_error("Division by zero"); }
-                return a / b;
-            });
-        }
-        case Token::Type::MOD: {
-            return apply(lhs, rhs, [](auto a, auto b) -> eval_t {
-                if (b == 0) { log_error("Modulo by zero"); }
-                if constexpr (std::is_integral_v<decltype(a)> && std::is_integral_v<decltype(b)>) {
-                    return a % b;
-                } else {
-                    return std::fmod(a, b);
-                }
-            });
-        }
-        default:
-            log_fatal("Unknown operator");
+        case Token::Type::ADD: return lhs + rhs;
+        case Token::Type::SUB: return lhs - rhs;
+        case Token::Type::MUL: return lhs * rhs;
+        case Token::Type::DIV: return lhs / rhs;
+        case Token::Type::MOD: return lhs % rhs;
+        default: log_fatal("Unknown operator");
     }
 }
 
