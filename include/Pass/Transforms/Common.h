@@ -2,6 +2,7 @@
 #define COMMON_H
 
 #include "Pass/Transform.h"
+#include "Pass/Analyses/FunctionAnalysis.h"
 
 namespace Pass {
 // 对指令进行代数优化恒等式变形
@@ -21,6 +22,19 @@ public:
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 };
+
+// 执行在编译期内能识别出来的constexpr函数
+class ConstexprFuncEval final : public Transform {
+public:
+    explicit ConstexprFuncEval() : Transform("ConstexprFuncEval") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+private:
+    std::shared_ptr<FunctionAnalysis> func_analysis;
+};
+
 }
 
 #endif //COMMON_H

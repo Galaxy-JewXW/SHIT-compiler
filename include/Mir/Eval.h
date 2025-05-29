@@ -1,6 +1,8 @@
 #ifndef EVAL_H
 #define EVAL_H
 
+#include <cmath>
+#include <stdexcept>
 #include <variant>
 
 #include "Utils/Log.h"
