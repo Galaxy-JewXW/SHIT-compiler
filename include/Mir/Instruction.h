@@ -4,6 +4,7 @@
 #include <utility>
 
 #include "Const.h"
+#include "Interpreter.h"
 #include "Structure.h"
 #include "Value.h"
 #include "Utils/Log.h"
