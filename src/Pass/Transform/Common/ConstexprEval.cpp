@@ -8,8 +8,8 @@ using namespace Mir;
 namespace Pass {
 void ConstexprFuncEval::transform(const std::shared_ptr<Module> module) {
     func_analysis = get_analysis_result<FunctionAnalysis>(module);
-    bool dataflow_modified{false}, changed{false};
-    const auto cache{std::make_unique<Interpreter::Cache>()};
+    bool changed{false};
+    const auto cache{std::make_shared<Interpreter::Cache>()};
 
     const auto is_constexpr_func = [&](const std::shared_ptr<Function> &func) -> bool {
         if (func->is_runtime_func()) {
@@ -57,12 +57,12 @@ void ConstexprFuncEval::transform(const std::shared_ptr<Module> module) {
                     continue;
                 }
                 eval_t result;
-                if (const Interpreter::Key key{func->get_name(), real_args}; cache->contains(key)) {
+                if (const Interpreter::Key key{called_func->get_name(), real_args}; cache->contains(key)) {
                     result = cache->get(key);
                 } else {
-                    const auto interpreter{std::make_unique<Interpreter>()};
+                    const auto interpreter{std::make_unique<Interpreter>(cache)};
                     try {
-                        interpreter->interpret_function(func, real_args);
+                        interpreter->interpret_function(called_func, real_args);
                     } catch (const std::exception &) {
                         continue;
                     }
@@ -78,7 +78,6 @@ void ConstexprFuncEval::transform(const std::shared_ptr<Module> module) {
                     log_error("Invalid return type %s", func->get_return_type()->to_string().c_str());
                 }
                 call->replace_by_new_value(new_value);
-                dataflow_modified = true;
                 changed = true;
             }
         }
@@ -87,12 +86,11 @@ void ConstexprFuncEval::transform(const std::shared_ptr<Module> module) {
     do {
         changed = false;
         std::for_each(module->get_functions().begin(), module->get_functions().end(), run_on_func);
+        if (changed) {
+            create<DeadInstEliminate>()->run_on(module);
+            create<GlobalValueNumbering>()->run_on(module);
+        }
     } while (changed);
-
-    if (dataflow_modified) {
-        create<GlobalValueNumbering>()->run_on(module);
-        create<DeadInstEliminate>()->run_on(module);
-    }
 
     func_analysis = nullptr;
 }

@@ -56,7 +56,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override = 0;
 
-    virtual void do_interpret(const Interpreter *const interpreter) const {
+    virtual void do_interpret(Interpreter *const interpreter) {
         Interpreter::abort();
     }
 };
@@ -177,7 +177,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    void do_interpret(const Interpreter *interpreter) const override;
+    void do_interpret(Interpreter *interpreter) override;
 };
 
 class Sitofp final : public Instruction {
@@ -194,7 +194,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    void do_interpret(const Interpreter *interpreter) const override;
+    void do_interpret(Interpreter *interpreter) override;
 };
 
 class Fcmp final : public Instruction {
@@ -233,7 +233,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    void do_interpret(const Interpreter *interpreter) const override;
+    void do_interpret(Interpreter *interpreter) override;
 };
 
 class Icmp final : public Instruction {
@@ -274,7 +274,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    void do_interpret(const Interpreter *interpreter) const override;
+    void do_interpret(Interpreter *interpreter) override;
 };
 
 class Zext final : public Instruction {
@@ -291,7 +291,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    void do_interpret(const Interpreter *interpreter) const override;
+    void do_interpret(Interpreter *interpreter) override;
 };
 
 class Terminator : public Instruction {
@@ -314,7 +314,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    void do_interpret(const Interpreter *interpreter) const override;
+    void do_interpret(Interpreter *interpreter) override;
 };
 
 class Branch final : public Terminator {
@@ -341,7 +341,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    void do_interpret(const Interpreter *interpreter) const override;
+    void do_interpret(Interpreter *interpreter) override;
 };
 
 class Ret final : public Terminator {
@@ -362,7 +362,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    void do_interpret(const Interpreter *interpreter) const override;
+    void do_interpret(Interpreter *interpreter) override;
 };
 
 class Call final : public Instruction {
@@ -412,7 +412,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    void do_interpret(const Interpreter *interpreter) const override;
+    void do_interpret(Interpreter *interpreter) override;
 };
 
 class Binary : public Instruction {
@@ -485,7 +485,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    void do_interpret(const Interpreter *interpreter) const override;
+    void do_interpret(Interpreter *interpreter) override;
 };
 
 class Sub final : public IntBinary {
@@ -498,7 +498,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    void do_interpret(const Interpreter *interpreter) const override;
+    void do_interpret(Interpreter *interpreter) override;
 };
 
 class Mul final : public IntBinary {
@@ -511,7 +511,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    void do_interpret(const Interpreter *interpreter) const override;
+    void do_interpret(Interpreter *interpreter) override;
 };
 
 class Div final : public IntBinary {
@@ -524,7 +524,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    void do_interpret(const Interpreter *interpreter) const override;
+    void do_interpret(Interpreter *interpreter) override;
 };
 
 class Mod final : public IntBinary {
@@ -537,7 +537,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    void do_interpret(const Interpreter *interpreter) const override;
+    void do_interpret(Interpreter *interpreter) override;
 };
 
 class FAdd final : public FloatBinary {
@@ -550,7 +550,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    void do_interpret(const Interpreter *interpreter) const override;
+    void do_interpret(Interpreter *interpreter) override;
 };
 
 class FSub final : public FloatBinary {
@@ -563,7 +563,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    void do_interpret(const Interpreter *interpreter) const override;
+    void do_interpret(Interpreter *interpreter) override;
 };
 
 class FMul final : public FloatBinary {
@@ -576,7 +576,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    void do_interpret(const Interpreter *interpreter) const override;
+    void do_interpret(Interpreter *interpreter) override;
 };
 
 class FDiv final : public FloatBinary {
@@ -589,7 +589,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    void do_interpret(const Interpreter *interpreter) const override;
+    void do_interpret(Interpreter *interpreter) override;
 };
 
 class FMod final : public FloatBinary {
@@ -602,7 +602,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    void do_interpret(const Interpreter *interpreter) const override;
+    void do_interpret(Interpreter *interpreter) override;
 };
 
 class Phi final : public Instruction {
@@ -628,7 +628,7 @@ public:
 
     std::shared_ptr<Block> find_optional_block(const std::shared_ptr<Value> &value);
 
-    void do_interpret(const Interpreter *interpreter) const override;
+    void do_interpret(Interpreter *interpreter) override;
 
 private:
     Optional_Values optional_values;

@@ -74,6 +74,10 @@ struct Interpreter {
 
     std::shared_ptr<Frame> frame{nullptr};
 
+    std::weak_ptr<Cache> cache;
+
+    explicit Interpreter(const std::shared_ptr<Cache> &cache) : cache(cache) {}
+
     [[nodiscard]]
     eval_t get_runtime_value(Value *value) const;
 
@@ -89,7 +93,7 @@ struct Interpreter {
     void interpret_instruction(const std::shared_ptr<Instruction> &instruction);
 
 private:
-    static constexpr size_t counter_limit{300000};
+    static constexpr size_t counter_limit{20000};
     // 程序计数器
     size_t counter{0};
 };
