@@ -55,6 +55,10 @@ public:
     [[nodiscard]] Operator get_op() const { return op; }
 
     [[nodiscard]] std::string to_string() const override = 0;
+
+    virtual void do_interpret(const Interpreter *const interpreter) const {
+        Interpreter::abort();
+    }
 };
 
 class Alloc final : public Instruction {
@@ -172,6 +176,8 @@ public:
     [[nodiscard]] std::shared_ptr<Value> get_value() const { return operands_[0]; }
 
     [[nodiscard]] std::string to_string() const override;
+
+    void do_interpret(const Interpreter *interpreter) const override;
 };
 
 class Sitofp final : public Instruction {
@@ -187,6 +193,8 @@ public:
     [[nodiscard]] std::shared_ptr<Value> get_value() const { return operands_[0]; }
 
     [[nodiscard]] std::string to_string() const override;
+
+    void do_interpret(const Interpreter *interpreter) const override;
 };
 
 class Fcmp final : public Instruction {
@@ -224,6 +232,8 @@ public:
     [[nodiscard]] Op fcmp_op() const { return op; }
 
     [[nodiscard]] std::string to_string() const override;
+
+    void do_interpret(const Interpreter *interpreter) const override;
 };
 
 class Icmp final : public Instruction {
@@ -263,6 +273,8 @@ public:
     [[nodiscard]] Op icmp_op() const { return op; }
 
     [[nodiscard]] std::string to_string() const override;
+
+    void do_interpret(const Interpreter *interpreter) const override;
 };
 
 class Zext final : public Instruction {
@@ -278,6 +290,8 @@ public:
     [[nodiscard]] std::shared_ptr<Value> get_value() const { return operands_[0]; }
 
     [[nodiscard]] std::string to_string() const override;
+
+    void do_interpret(const Interpreter *interpreter) const override;
 };
 
 class Terminator : public Instruction {
@@ -299,8 +313,9 @@ public:
     }
 
     [[nodiscard]] std::string to_string() const override;
-};
 
+    void do_interpret(const Interpreter *interpreter) const override;
+};
 
 class Branch final : public Terminator {
 public:
@@ -325,6 +340,8 @@ public:
     }
 
     [[nodiscard]] std::string to_string() const override;
+
+    void do_interpret(const Interpreter *interpreter) const override;
 };
 
 class Ret final : public Terminator {
@@ -344,6 +361,8 @@ public:
     [[nodiscard]] std::shared_ptr<Value> get_value() const { return operands_[0]; }
 
     [[nodiscard]] std::string to_string() const override;
+
+    void do_interpret(const Interpreter *interpreter) const override;
 };
 
 class Call final : public Instruction {
@@ -392,6 +411,8 @@ public:
     [[nodiscard]] int get_const_string_index() const { return const_string_index; }
 
     [[nodiscard]] std::string to_string() const override;
+
+    void do_interpret(const Interpreter *interpreter) const override;
 };
 
 class Binary : public Instruction {
@@ -463,6 +484,8 @@ public:
                                        std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
+
+    void do_interpret(const Interpreter *interpreter) const override;
 };
 
 class Sub final : public IntBinary {
@@ -474,6 +497,8 @@ public:
                                        const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
+
+    void do_interpret(const Interpreter *interpreter) const override;
 };
 
 class Mul final : public IntBinary {
@@ -485,6 +510,8 @@ public:
                                        std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
+
+    void do_interpret(const Interpreter *interpreter) const override;
 };
 
 class Div final : public IntBinary {
@@ -496,6 +523,8 @@ public:
                                        const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
+
+    void do_interpret(const Interpreter *interpreter) const override;
 };
 
 class Mod final : public IntBinary {
@@ -507,6 +536,8 @@ public:
                                        const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
+
+    void do_interpret(const Interpreter *interpreter) const override;
 };
 
 class FAdd final : public FloatBinary {
@@ -518,6 +549,8 @@ public:
                                         std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
+
+    void do_interpret(const Interpreter *interpreter) const override;
 };
 
 class FSub final : public FloatBinary {
@@ -529,6 +562,8 @@ public:
                                         const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
+
+    void do_interpret(const Interpreter *interpreter) const override;
 };
 
 class FMul final : public FloatBinary {
@@ -540,6 +575,8 @@ public:
                                         std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
+
+    void do_interpret(const Interpreter *interpreter) const override;
 };
 
 class FDiv final : public FloatBinary {
@@ -551,6 +588,8 @@ public:
                                         const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
+
+    void do_interpret(const Interpreter *interpreter) const override;
 };
 
 class FMod final : public FloatBinary {
@@ -562,6 +601,8 @@ public:
                                         const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::string to_string() const override;
+
+    void do_interpret(const Interpreter *interpreter) const override;
 };
 
 class Phi final : public Instruction {
@@ -586,6 +627,8 @@ public:
     void modify_operand(const std::shared_ptr<Value> &old_value, const std::shared_ptr<Value> &new_value) override;
 
     std::shared_ptr<Block> find_optional_block(const std::shared_ptr<Value> &value);
+
+    void do_interpret(const Interpreter *interpreter) const override;
 
 private:
     Optional_Values optional_values;

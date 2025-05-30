@@ -9,6 +9,7 @@ namespace Pass {
 void ConstexprFuncEval::transform(const std::shared_ptr<Module> module) {
     func_analysis = get_analysis_result<FunctionAnalysis>(module);
     bool dataflow_modified{false}, changed{false};
+    const auto cache{std::make_unique<Interpreter::Cache>()};
 
     const auto is_constexpr_func = [&](const std::shared_ptr<Function> &func) -> bool {
         if (func->is_runtime_func()) {
@@ -55,6 +56,28 @@ void ConstexprFuncEval::transform(const std::shared_ptr<Module> module) {
                 if (!all_params_constant) {
                     continue;
                 }
+                eval_t result;
+                if (const Interpreter::Key key{func->get_name(), real_args}; cache->contains(key)) {
+                    result = cache->get(key);
+                } else {
+                    const auto interpreter{std::make_unique<Interpreter>()};
+                    try {
+                        interpreter->interpret_function(func, real_args);
+                    } catch (const std::exception &) {
+                        continue;
+                    }
+                    result = interpreter->frame->ret_value;
+                    cache->put(key, result);
+                }
+                std::shared_ptr<Value> new_value;
+                if (func->get_return_type()->is_int32()) {
+                    new_value = ConstInt::create(result.get<int>());
+                } else if (func->get_return_type()->is_float()) {
+                    new_value = ConstFloat::create(result.get<double>());
+                } else {
+                    log_error("Invalid return type %s", func->get_return_type()->to_string().c_str());
+                }
+                call->replace_by_new_value(new_value);
                 dataflow_modified = true;
                 changed = true;
             }

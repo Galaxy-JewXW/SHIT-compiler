@@ -11,20 +11,6 @@ struct eval_t : std::variant<int, double> {
     using base = std::variant<int, double>;
     using base::variant;
 
-    explicit eval_t(base const &v) noexcept: base(v) {}
-
-    explicit eval_t(base &&v) noexcept: base(v) {}
-
-    eval_t &operator=(base const &v) noexcept {
-        base::operator=(v);
-        return *this;
-    }
-
-    eval_t &operator=(base &&v) noexcept {
-        base::operator=(v);
-        return *this;
-    }
-
     template<typename T>
     [[nodiscard]]
     bool holds() const {

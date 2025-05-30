@@ -29,7 +29,7 @@ public:
         return get_constant_value().get<T>();
     }
 
-    [[nodiscard]] bool is_constant() override { return true; }
+    [[nodiscard]] bool is_constant() const override { return true; }
 
     [[nodiscard]] std::string to_string() const override { return name_; }
 };

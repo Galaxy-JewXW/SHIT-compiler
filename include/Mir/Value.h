@@ -52,7 +52,7 @@ public:
 
     std::vector<std::weak_ptr<User>> &weak_users() { return users_; }
 
-    [[nodiscard]] virtual bool is_constant() { return false; }
+    [[nodiscard]] virtual bool is_constant() const { return false; }
 
     [[nodiscard]] virtual std::string to_string() const = 0;
 
