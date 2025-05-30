@@ -7,16 +7,6 @@
 
 using namespace Mir;
 
-template<typename Op>
-eval_t apply(const eval_t &lhs, const eval_t &rhs, Op op) {
-    if (std::holds_alternative<int>(lhs) && std::holds_alternative<int>(rhs)) {
-        return op(std::get<int>(lhs), std::get<int>(rhs));
-    }
-    double l = std::holds_alternative<int>(lhs) ? static_cast<double>(std::get<int>(lhs)) : std::get<double>(lhs);
-    double r = std::holds_alternative<int>(rhs) ? static_cast<double>(std::get<int>(rhs)) : std::get<double>(rhs);
-    return op(l, r);
-}
-
 eval_t eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_ptr<Symbol::Table> &table) {
     const std::string &ident = lVal->ident();
     const auto &symbol = table->lookup_in_all_scopes(ident);
@@ -30,76 +20,54 @@ eval_t eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_ptr<S
     std::vector<int> indexes;
     for (const auto &exp: lVal->exps()) {
         const auto &eval_result = eval_exp(exp->addExp(), table);
-        int idx;
+        int idx = eval_result.get<int>();
         if (!std::holds_alternative<int>(eval_result)) {
             log_warn("Index of non-integer: %f", std::get<double>(eval_result));
-            idx = static_cast<int>(std::get<double>(eval_result));
-        } else {
-            idx = std::get<int>(eval_result);
         }
         if (idx < 0) { log_error("Index out of bounds: %d", idx); }
         indexes.push_back(idx);
     }
     if (init_value->is_constant_init()) {
-        if (!indexes.empty()) { log_error("Non-array variable %s", ident.c_str()); }
+        if (!indexes.empty()) {
+            log_error("Non-array variable %s", ident.c_str());
+        }
         const auto &constant_value = std::static_pointer_cast<Init::Constant>(init_value)->get_const_value();
         if (!constant_value->is_constant()) { log_error("Non-constant expression"); }
-        const auto res = std::static_pointer_cast<Const>(constant_value)->get_constant_value();
-        if (res.type() == typeid(int)) { return std::any_cast<int>(res); }
-        if (res.type() == typeid(double)) { return std::any_cast<double>(res); }
-    } else if (init_value->is_array_init()) {
+        return constant_value->as<Const>()->get_constant_value();
+    }
+    if (init_value->is_array_init()) {
         init_value = std::static_pointer_cast<Init::Array>(init_value)->get_init_value(indexes);
         if (!init_value->is_constant_init()) { log_error("Non-constant expression"); }
         const auto &constant_value = std::static_pointer_cast<Init::Constant>(init_value)->get_const_value();
         if (!constant_value->is_constant()) { log_error("Non-constant expression"); }
-        const auto res = std::static_pointer_cast<Const>(constant_value)->get_constant_value();
-        if (res.type() == typeid(int)) { return std::any_cast<int>(res); }
-        if (res.type() == typeid(double)) { return std::any_cast<double>(res); }
+        return constant_value->as<Const>()->get_constant_value();
     }
     log_error("Unknown constant type");
 }
 
 eval_t eval(const eval_t lhs, const eval_t rhs, const Token::Type type) {
     switch (type) {
-        case Token::Type::ADD: return apply(lhs, rhs, std::plus<>());
-        case Token::Type::SUB: return apply(lhs, rhs, std::minus<>());
-        case Token::Type::MUL: return apply(lhs, rhs, std::multiplies<>());
-        case Token::Type::DIV: {
-            return apply(lhs, rhs, [](auto a, auto b) {
-                if (b == 0) { log_error("Division by zero"); }
-                return a / b;
-            });
-        }
-        case Token::Type::MOD: {
-            return apply(lhs, rhs, [](auto a, auto b) -> eval_t {
-                if (b == 0) { log_error("Modulo by zero"); }
-                if constexpr (std::is_integral_v<decltype(a)> && std::is_integral_v<decltype(b)>) {
-                    return a % b;
-                } else {
-                    return std::fmod(a, b);
-                }
-            });
-        }
-        default:
-            log_fatal("Unknown operator");
+        case Token::Type::ADD: return lhs + rhs;
+        case Token::Type::SUB: return lhs - rhs;
+        case Token::Type::MUL: return lhs * rhs;
+        case Token::Type::DIV: return lhs / rhs;
+        case Token::Type::MOD: return lhs % rhs;
+        default: log_fatal("Unknown operator");
     }
 }
 
 eval_t eval_number(const std::shared_ptr<AST::Number> &number) {
-    const auto &p = *number;
-    if (typeid(p) == typeid(AST::IntNumber)) {
-        const auto &int_num = std::static_pointer_cast<AST::IntNumber>(number);
-        return int_num->get_value();
+    if (const auto int_number = std::dynamic_pointer_cast<AST::IntNumber>(number)) {
+        return eval_t{int_number->get_value()};
     }
-    if (typeid(p) == typeid(AST::FloatNumber)) {
-        const auto &float_num = std::static_pointer_cast<AST::FloatNumber>(number);
-        return float_num->get_value();
+    if (const auto float_number = std::dynamic_pointer_cast<AST::FloatNumber>(number)) {
+        return eval_t{float_number->get_value()};
     }
     log_fatal("Fatal at eval number");
 }
 
 eval_t eval_primaryExp(const std::shared_ptr<AST::PrimaryExp> &primaryExp,
-                           const std::shared_ptr<Symbol::Table> &table) {
+                       const std::shared_ptr<Symbol::Table> &table) {
     if (primaryExp->is_number()) {
         const auto number = std::get<std::shared_ptr<AST::Number>>(primaryExp->get_value());
         return eval_number(number);
@@ -130,13 +98,13 @@ eval_t eval_unaryExp(const std::shared_ptr<AST::UnaryExp> &unaryExp, const std::
         switch (op) {
             case Token::Type::ADD: return val;
             case Token::Type::SUB: {
-                if (std::holds_alternative<int>(val)) { return -std::get<int>(val); }
-                return -std::get<double>(val);
+                if (val.holds<int>()) {
+                    return -val.get<int>();
+                }
+                return -val.get<double>();
             }
             case Token::Type::NOT: {
-                const bool is_zero = std::holds_alternative<int>(val)
-                                         ? std::get<int>(val) == 0
-                                         : std::get<double>(val) == 0.0f;
+                const bool is_zero = val.holds<int>() ? val.get<int>() == 0 : val.get<double>() == 0.0f;
                 return is_zero ? 1 : 0;
             }
             default: log_fatal("Unknown operator");

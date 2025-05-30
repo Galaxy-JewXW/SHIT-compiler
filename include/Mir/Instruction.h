@@ -1,5 +1,6 @@
 #ifndef INSTRUCTION_H
 #define INSTRUCTION_H
+
 #include <utility>
 
 #include "Const.h"
@@ -219,6 +220,8 @@ public:
     [[nodiscard]] std::shared_ptr<Value> get_lhs() const { return operands_[0]; }
     [[nodiscard]] std::shared_ptr<Value> get_rhs() const { return operands_[1]; }
 
+    [[nodiscard]] Op fcmp_op() const { return op; }
+
     [[nodiscard]] std::string to_string() const override;
 };
 
@@ -255,6 +258,8 @@ public:
 
     [[nodiscard]] std::shared_ptr<Value> get_lhs() const { return operands_[0]; }
     [[nodiscard]] std::shared_ptr<Value> get_rhs() const { return operands_[1]; }
+
+    [[nodiscard]] Op icmp_op() const { return op; }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -424,6 +429,8 @@ public:
         }
     }
 
+    [[nodiscard]] Op intbinary_op() const { return op; }
+
     [[nodiscard]] std::string to_string() const override = 0;
 };
 
@@ -440,6 +447,8 @@ public:
             log_error("Operands must be float");
         }
     }
+
+    [[nodiscard]] Op floatbinary_op() const { return op; }
 
     [[nodiscard]] std::string to_string() const override = 0;
 };

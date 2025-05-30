@@ -4,8 +4,6 @@
 using namespace Mir;
 
 namespace {
-std::shared_ptr<Module> module{nullptr};
-
 std::shared_ptr<Value> base_addr(const std::shared_ptr<Value> &inst) {
     auto ret = inst;
     while (ret->is<BitCast>() != nullptr || ret->is<GetElementPtr>() != nullptr) {
@@ -125,12 +123,11 @@ void StoreEliminate::run_on_func(const std::shared_ptr<Function> &func) {
                 handle_call(instruction->as<Call>());
             }
         }
-        Utils::delete_instruction_set(module, deleted_instructions);
+        Utils::delete_instruction_set(Module::instance(), deleted_instructions);
     }
 }
 
 void StoreEliminate::transform(const std::shared_ptr<Module> module) {
-    ::module = module;
     deleted_instructions.clear();
     function_analysis = get_analysis_result<FunctionAnalysis>(module);
     for (const auto &function: *module) {
@@ -138,6 +135,5 @@ void StoreEliminate::transform(const std::shared_ptr<Module> module) {
     }
     function_analysis = nullptr;
     deleted_instructions.clear();
-    ::module = nullptr;
 }
 }

@@ -1,8 +1,10 @@
 #ifndef BUILDER_H
 #define BUILDER_H
+
 #include <memory>
 
 #include "Const.h"
+#include "Eval.h"
 #include "Structure.h"
 #include "Symbol.h"
 #include "Utils/AST.h"
@@ -104,8 +106,6 @@ std::shared_ptr<Value> type_cast(const std::shared_ptr<Value> &v, const std::sha
 }
 
 // 用于在编译期内计算常数
-using eval_t = std::variant<int, double>;
-
 eval_t eval_exp(const std::shared_ptr<AST::AddExp> &exp, const std::shared_ptr<Mir::Symbol::Table> &table);
 
 #endif

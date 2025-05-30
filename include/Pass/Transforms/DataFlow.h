@@ -96,6 +96,7 @@ private:
     std::shared_ptr<FunctionAnalysis> func_analysis;
 };
 
+// 全局变量局部化
 class GlobalVariableLocalize final : public Transform {
 public:
     explicit GlobalVariableLocalize() : Transform("GlobalVariableLocalize") {}
@@ -104,12 +105,24 @@ protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 };
 
+// 全局数组局部化
 class GlobalArrayLocalize final : public Transform {
 public:
     explicit GlobalArrayLocalize() : Transform("GlobalArrayLocalize") {}
 
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
+};
+
+// 树高平衡，实现指令级并行性
+class TreeHeightBalance final : public Transform {
+public:
+    explicit TreeHeightBalance() : Transform("TreeHeightBalance") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+    static void run_on_func(const std::shared_ptr<Mir::Function> &func);
 };
 }
 

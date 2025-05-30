@@ -1,5 +1,6 @@
 #ifndef SYMBOL_H
 #define SYMBOL_H
+
 #include <memory>
 #include <string>
 #include <unordered_map>

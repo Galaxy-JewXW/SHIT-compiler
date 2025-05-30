@@ -9,11 +9,11 @@ std::shared_ptr<Constant> Constant::create_constant_init_value(const std::shared
                                                                const std::shared_ptr<Symbol::Table> &table) {
     const auto &res = eval_exp(addExp, table);
     if (type->is_int32()) {
-        int value = std::visit([](auto &&arg) { return static_cast<int>(arg); }, res);
+        const int value = std::visit([](auto &&arg) { return static_cast<int>(arg); }, res);
         return std::make_shared<Constant>(type, ConstInt::create(value));
     }
     if (type->is_float()) {
-        double value = std::visit([](auto &&arg) { return static_cast<double>(arg); }, res);
+        const double value = std::visit([](auto &&arg) { return static_cast<double>(arg); }, res);
         return std::make_shared<Constant>(type, ConstFloat::create(value));
     }
     log_error("Illegal type: %s", type->to_string().c_str());

@@ -1,6 +1,8 @@
 #ifndef FUNCTIONANALYSIS_H
 #define FUNCTIONANALYSIS_H
 
+#include <unordered_set>
+
 #include "Pass/Analysis.h"
 
 namespace Pass {

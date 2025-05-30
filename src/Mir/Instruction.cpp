@@ -194,10 +194,11 @@ std::shared_ptr<Jump> Jump::create(const std::shared_ptr<Block> &target_block,
 std::shared_ptr<Value> Branch::create(const std::shared_ptr<Value> &cond, const std::shared_ptr<Block> &true_block,
                                       const std::shared_ptr<Block> &false_block,
                                       const std::shared_ptr<Block> &block) {
-    if (!cond->get_type()->is_int1()) { log_error("Cond must be an integer 1"); }
+    if (!cond->get_type()->is_int1()) {
+        log_error("Cond must be an integer 1"); 
+    }       
     if (cond->is_constant()) {
-        if (const auto value = std::any_cast<int>(
-            std::dynamic_pointer_cast<ConstBool>(cond)->get_constant_value()); value == 1) {
+        if (const auto value = cond->as<ConstBool>()->get<int>(); value == 1) {
             return Jump::create(true_block, block);
         }
         return Jump::create(false_block, block);

@@ -355,7 +355,7 @@ bool reduce_mul(const std::shared_ptr<Mul> &mul, std::vector<std::shared_ptr<Ins
             mul->replace_by_new_value(zero);
             return true;
         }
-        const int constant_rhs_v = std::any_cast<int>(constant_rhs->get_constant_value());
+        const int constant_rhs_v = constant_rhs->get<int>();
         // a * 1 = a
         if (constant_rhs_v == 1) {
             mul->replace_by_new_value(lhs);
@@ -417,7 +417,7 @@ bool reduce_div(const std::shared_ptr<Div> &div, std::vector<std::shared_ptr<Ins
     }
     if (rhs->is_constant()) {
         const auto constant_rhs = std::static_pointer_cast<ConstInt>(rhs);
-        const int constant_rhs_v = std::any_cast<int>(constant_rhs->get_constant_value());
+        const int constant_rhs_v = constant_rhs->get<int>();
         // a / 1 = a
         if (constant_rhs_v == 1) {
             div->replace_by_new_value(lhs);
@@ -432,7 +432,7 @@ bool reduce_div(const std::shared_ptr<Div> &div, std::vector<std::shared_ptr<Ins
         if (const auto mul_lhs = std::dynamic_pointer_cast<Mul>(lhs)) {
             // (a * c2) / c1 = x * (c2 / c1), when c2 % c1 == 0
             if (const auto c2 = std::dynamic_pointer_cast<ConstInt>(mul_lhs->get_rhs())) {
-                if (const int c2_v = std::any_cast<int>(c2->get_constant_value()); c2_v % constant_rhs_v == 0) {
+                if (const int c2_v = c2->get<int>(); c2_v % constant_rhs_v == 0) {
                     const auto c = ConstInt::create(c2_v / constant_rhs_v);
                     const auto new_mul = Mul::create(Builder::gen_variable_name(), mul_lhs->get_lhs(), c, nullptr);
                     replace_instruction(div, new_mul, current_block, instructions, idx);
@@ -497,7 +497,7 @@ bool reduce_mod(const std::shared_ptr<Mod> &mod, std::vector<std::shared_ptr<Ins
     }
     if (rhs->is_constant()) {
         const auto constant_rhs = std::static_pointer_cast<ConstInt>(rhs);
-        const int constant_rhs_v = std::any_cast<int>(constant_rhs->get_constant_value());
+        const int constant_rhs_v = constant_rhs->get<int>();
         // a % 1 = 0
         if (constant_rhs_v == 1 || constant_rhs_v == -1) {
             mod->replace_by_new_value(ConstInt::create(0));
@@ -506,7 +506,7 @@ bool reduce_mod(const std::shared_ptr<Mod> &mod, std::vector<std::shared_ptr<Ins
         if (const auto mul_lhs = std::dynamic_pointer_cast<Mul>(lhs)) {
             // (a * c2) % c1 = x * (c2 % c1), when c2 % c1 == 0
             if (const auto c2 = std::dynamic_pointer_cast<ConstInt>(mul_lhs->get_rhs())) {
-                if (const int c2_v = std::any_cast<int>(c2->get_constant_value()); c2_v % constant_rhs_v == 0) {
+                if (const int c2_v = c2->get<int>(); c2_v % constant_rhs_v == 0) {
                     const auto c = ConstInt::create(c2_v % constant_rhs_v);
                     const auto new_mul = Mul::create(Builder::gen_variable_name(), mul_lhs->get_lhs(), c, nullptr);
                     replace_instruction(mod, new_mul, current_block, instructions, idx);

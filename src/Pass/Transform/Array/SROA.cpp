@@ -4,10 +4,6 @@
 
 using namespace Mir;
 
-namespace {
-std::shared_ptr<Module> module{nullptr};
-}
-
 namespace Pass {
 bool SROA::can_be_split(const std::shared_ptr<Alloc> &alloc) {
     if (!alloc->get_type()->as<Type::Pointer>()->get_contain_type()->is_array()) {
@@ -82,16 +78,14 @@ void SROA::run_on_func(const std::shared_ptr<Function> &func) {
             }
         }
     }
-    Utils::delete_instruction_set(module, deleted_instructions);
+    Utils::delete_instruction_set(Module::instance(), deleted_instructions);
 }
 
 void SROA::transform(const std::shared_ptr<Module> module) {
-    ::module = module;
     for (const auto &func: *module) {
         run_on_func(func);
     }
     module->update_id();
-    ::module = nullptr;
     create<Mem2Reg>()->run_on(module);
 }
 }

@@ -1,6 +1,8 @@
 #ifndef DOMINANCEGRAPH_H
 #define DOMINANCEGRAPH_H
 
+#include <unordered_set>
+
 #include "Pass/Analysis.h"
 
 namespace Pass {
