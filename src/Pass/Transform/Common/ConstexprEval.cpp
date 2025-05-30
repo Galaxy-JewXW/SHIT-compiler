@@ -79,6 +79,10 @@ void ConstexprFuncEval::transform(const std::shared_ptr<Module> module) {
                 }
                 call->replace_by_new_value(new_value);
                 changed = true;
+                break;
+            }
+            if (changed) {
+                break;
             }
         }
     };
