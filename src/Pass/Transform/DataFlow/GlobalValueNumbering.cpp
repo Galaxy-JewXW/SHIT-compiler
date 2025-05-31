@@ -1,3 +1,5 @@
+#include <type_traits>
+
 #include "Mir/Builder.h"
 #include "Pass/Transforms/Common.h"
 #include "Pass/Transforms/DataFlow.h"
@@ -115,7 +117,7 @@ std::string get_instruction_hash(const InstructionPtr &instruction,
     }
 }
 
-template<typename T>
+template<typename>
 struct always_false : std::false_type {};
 
 // 声明模板

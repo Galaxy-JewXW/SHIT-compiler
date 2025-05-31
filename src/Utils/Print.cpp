@@ -710,85 +710,26 @@ namespace Mir {
 }
 
 
-[[nodiscard]] std::string Add::to_string() const {
-    std::ostringstream oss;
-    oss << name_ << " = ";
-    oss << "add " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", " << get_rhs()->
-            get_name();
-    return oss.str();
+#define BINARY_TO_STRING(op_name, instr_name) \
+[[nodiscard]] std::string op_name::to_string() const { \
+    std::ostringstream oss; \
+    oss << name_ << " = "; \
+    oss << #instr_name << " " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", " << get_rhs()->get_name(); \
+    return oss.str(); \
 }
 
-[[nodiscard]] std::string Sub::to_string() const {
-    std::ostringstream oss;
-    oss << name_ << " = ";
-    oss << "sub " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", " << get_rhs()->
-            get_name();
-    return oss.str();
-}
+BINARY_TO_STRING(Add, add)
+BINARY_TO_STRING(Sub, sub)
+BINARY_TO_STRING(Mul, mul)
+BINARY_TO_STRING(Div, sdiv)
+BINARY_TO_STRING(Mod, srem)
+BINARY_TO_STRING(FAdd, fadd)
+BINARY_TO_STRING(FSub, fsub)
+BINARY_TO_STRING(FMul, fmul)
+BINARY_TO_STRING(FDiv, fdiv)
+BINARY_TO_STRING(FMod, frem)
 
-[[nodiscard]] std::string Mul::to_string() const {
-    std::ostringstream oss;
-    oss << name_ << " = ";
-    oss << "mul " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", " << get_rhs()->
-            get_name();
-    return oss.str();
-}
-
-[[nodiscard]] std::string Div::to_string() const {
-    std::ostringstream oss;
-    oss << name_ << " = ";
-    oss << "sdiv " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", " << get_rhs()->
-            get_name();
-    return oss.str();
-}
-
-[[nodiscard]] std::string Mod::to_string() const {
-    std::ostringstream oss;
-    oss << name_ << " = ";
-    oss << "srem " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", " << get_rhs()->
-            get_name();
-    return oss.str();
-}
-
-[[nodiscard]] std::string FAdd::to_string() const {
-    std::ostringstream oss;
-    oss << name_ << " = ";
-    oss << "fadd " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", " << get_rhs()->
-            get_name();
-    return oss.str();
-}
-
-[[nodiscard]] std::string FSub::to_string() const {
-    std::ostringstream oss;
-    oss << name_ << " = ";
-    oss << "fsub " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", " << get_rhs()->
-            get_name();
-    return oss.str();
-}
-
-[[nodiscard]] std::string FMul::to_string() const {
-    std::ostringstream oss;
-    oss << name_ << " = ";
-    oss << "fmul " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", " << get_rhs()->
-            get_name();
-    return oss.str();
-}
-
-[[nodiscard]] std::string FDiv::to_string() const {
-    std::ostringstream oss;
-    oss << name_ << " = ";
-    oss << "fdiv " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", " << get_rhs()->
-            get_name();
-    return oss.str();
-}
-
-[[nodiscard]] std::string FMod::to_string() const {
-    std::ostringstream oss;
-    oss << name_ << " = ";
-    oss << "frem " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", " << get_rhs()->
-            get_name();
-    return oss.str();
-}
+#undef BINARY_TO_STRING
 
 [[nodiscard]] std::string Phi::to_string() const {
     std::ostringstream oss;

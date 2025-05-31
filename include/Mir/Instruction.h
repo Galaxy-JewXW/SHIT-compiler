@@ -475,135 +475,50 @@ public:
     [[nodiscard]] std::string to_string() const override = 0;
 };
 
-class Add final : public IntBinary {
-public:
-    explicit Add(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
-        : IntBinary(name, lhs, rhs, Op::ADD) {}
-
-    static std::shared_ptr<Add> create(const std::string &name, std::shared_ptr<Value> lhs,
-                                       std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
-
-    [[nodiscard]] std::string to_string() const override;
-
-    void do_interpret(Interpreter *interpreter) override;
+#define INTBINARY_DECLARE(Class, op) \
+class Class final : public IntBinary { \
+public: \
+    explicit Class(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs) \
+        : IntBinary(name, lhs, rhs, op) {} \
+    static std::shared_ptr<Class> create(const std::string &name, const std::shared_ptr<Value> &lhs, \
+                                       const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block); \
+    [[nodiscard]] std::string to_string() const override; \
+    void do_interpret(Interpreter *interpreter) override; \
 };
 
-class Sub final : public IntBinary {
-public:
-    explicit Sub(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
-        : IntBinary(name, lhs, rhs, Op::SUB) {}
-
-    static std::shared_ptr<Sub> create(const std::string &name, const std::shared_ptr<Value> &lhs,
-                                       const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
-
-    [[nodiscard]] std::string to_string() const override;
-
-    void do_interpret(Interpreter *interpreter) override;
+#define FLOATBINARY_DECLARE(Class, op) \
+class Class final : public FloatBinary { \
+public: \
+    explicit Class(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs) \
+        : FloatBinary(name, lhs, rhs, op) {} \
+    static std::shared_ptr<Class> create(const std::string &name, const std::shared_ptr<Value> &lhs, \
+    const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block); \
+    [[nodiscard]] std::string to_string() const override; \
+    void do_interpret(Interpreter *interpreter) override; \
 };
 
-class Mul final : public IntBinary {
-public:
-    explicit Mul(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
-        : IntBinary(name, lhs, rhs, Op::MUL) {}
+INTBINARY_DECLARE(Add, Op::ADD)
 
-    static std::shared_ptr<Mul> create(const std::string &name, std::shared_ptr<Value> lhs,
-                                       std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
+INTBINARY_DECLARE(Sub, Op::SUB)
 
-    [[nodiscard]] std::string to_string() const override;
+INTBINARY_DECLARE(Mul, Op::MUL)
 
-    void do_interpret(Interpreter *interpreter) override;
-};
+INTBINARY_DECLARE(Div, Op::DIV)
 
-class Div final : public IntBinary {
-public:
-    explicit Div(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
-        : IntBinary(name, lhs, rhs, Op::DIV) {}
+INTBINARY_DECLARE(Mod, Op::MOD)
 
-    static std::shared_ptr<Div> create(const std::string &name, const std::shared_ptr<Value> &lhs,
-                                       const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
+FLOATBINARY_DECLARE(FAdd, Op::ADD)
 
-    [[nodiscard]] std::string to_string() const override;
+FLOATBINARY_DECLARE(FSub, Op::SUB)
 
-    void do_interpret(Interpreter *interpreter) override;
-};
+FLOATBINARY_DECLARE(FMul, Op::MUL)
 
-class Mod final : public IntBinary {
-public:
-    explicit Mod(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
-        : IntBinary(name, lhs, rhs, Op::MOD) {}
+FLOATBINARY_DECLARE(FDiv, Op::DIV)
 
-    static std::shared_ptr<Mod> create(const std::string &name, const std::shared_ptr<Value> &lhs,
-                                       const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
+FLOATBINARY_DECLARE(FMod, Op::MOD)
 
-    [[nodiscard]] std::string to_string() const override;
-
-    void do_interpret(Interpreter *interpreter) override;
-};
-
-class FAdd final : public FloatBinary {
-public:
-    explicit FAdd(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
-        : FloatBinary(name, lhs, rhs, Op::ADD) {}
-
-    static std::shared_ptr<FAdd> create(const std::string &name, std::shared_ptr<Value> lhs,
-                                        std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
-
-    [[nodiscard]] std::string to_string() const override;
-
-    void do_interpret(Interpreter *interpreter) override;
-};
-
-class FSub final : public FloatBinary {
-public:
-    explicit FSub(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
-        : FloatBinary(name, lhs, rhs, Op::SUB) {}
-
-    static std::shared_ptr<FSub> create(const std::string &name, const std::shared_ptr<Value> &lhs,
-                                        const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
-
-    [[nodiscard]] std::string to_string() const override;
-
-    void do_interpret(Interpreter *interpreter) override;
-};
-
-class FMul final : public FloatBinary {
-public:
-    explicit FMul(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
-        : FloatBinary(name, lhs, rhs, Op::MUL) {}
-
-    static std::shared_ptr<FMul> create(const std::string &name, std::shared_ptr<Value> lhs,
-                                        std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
-
-    [[nodiscard]] std::string to_string() const override;
-
-    void do_interpret(Interpreter *interpreter) override;
-};
-
-class FDiv final : public FloatBinary {
-public:
-    explicit FDiv(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
-        : FloatBinary(name, lhs, rhs, Op::DIV) {}
-
-    static std::shared_ptr<FDiv> create(const std::string &name, const std::shared_ptr<Value> &lhs,
-                                        const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
-
-    [[nodiscard]] std::string to_string() const override;
-
-    void do_interpret(Interpreter *interpreter) override;
-};
-
-class FMod final : public FloatBinary {
-public:
-    explicit FMod(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs)
-        : FloatBinary(name, lhs, rhs, Op::MOD) {}
-
-    static std::shared_ptr<FMod> create(const std::string &name, const std::shared_ptr<Value> &lhs,
-                                        const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);
-
-    [[nodiscard]] std::string to_string() const override;
-
-    void do_interpret(Interpreter *interpreter) override;
-};
+#undef INTBINARY_DECLARE
+#undef FLOATBINARY_DECLARE
 
 class Phi final : public Instruction {
 public:
