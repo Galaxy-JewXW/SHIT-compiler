@@ -141,10 +141,10 @@ void Call::do_interpret(Interpreter *const interpreter) {
         sub_ret_value = interpreter->cache.lock()->get(key);
     } else {
         const auto prev_frame{interpreter->frame};
-        interpreter->frame = std::make_shared<Interpreter::Frame>();
         interpreter->interpret_function(called_func, real_args);
         sub_ret_value = interpreter->frame->ret_value;
         interpreter->frame = prev_frame;
+        interpreter->cache.lock()->put(key, sub_ret_value);
     }
     if (!this->get_type()->is_void()) {
         interpreter->frame->value_map[this] = sub_ret_value;

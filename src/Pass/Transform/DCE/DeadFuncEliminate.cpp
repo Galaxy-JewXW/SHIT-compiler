@@ -12,8 +12,7 @@ using FunctionSet = std::unordered_set<FunctionPtr>;
 
 namespace Pass {
 void DeadFuncEliminate::transform(const std::shared_ptr<Module> module) {
-    const auto func_analysis = create<FunctionAnalysis>();
-    func_analysis->run_on(module);
+    const auto func_analysis = get_analysis_result<FunctionAnalysis>(module);
     const auto main_func = module->get_main_function();
     FunctionSet reachable_functions;
     std::function<void(const FunctionPtr &, FunctionSet &)> dfs =

@@ -44,11 +44,9 @@ bool DeadInstEliminate::remove_unused_instructions(const std::shared_ptr<Module>
 }
 
 void DeadInstEliminate::transform(const std::shared_ptr<Module> module) {
-    func_analysis = create<FunctionAnalysis>();
-    func_analysis->run_on(module);
+    func_analysis = get_analysis_result<FunctionAnalysis>(module);
     while (remove_unused_instructions(module)) {
-        func_analysis = create<FunctionAnalysis>();
-        func_analysis->run_on(module);
+        func_analysis = get_analysis_result<FunctionAnalysis>(module);
     }
     func_analysis = nullptr;
 }
