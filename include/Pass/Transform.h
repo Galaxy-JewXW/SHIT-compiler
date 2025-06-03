@@ -1,7 +1,6 @@
 #ifndef TRANSFORM_H
 #define TRANSFORM_H
 
-#include "Analysis.h"
 #include "Pass.h"
 #include "Mir/Instruction.h"
 
