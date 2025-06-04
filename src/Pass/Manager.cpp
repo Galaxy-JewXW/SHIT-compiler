@@ -38,6 +38,7 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         Pass::GlobalValueNumbering,
         Pass::BlockPositioning,
         Pass::ConstexprFuncEval,
-        Pass::SimplifyControlFlow
+        Pass::SimplifyControlFlow,
+        Pass::TailRecursionToLoop
     >(module);
 }

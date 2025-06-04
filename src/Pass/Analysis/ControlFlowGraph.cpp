@@ -122,7 +122,10 @@ bool ControlFlowGraph::is_dirty() const {
 }
 
 void ControlFlowGraph::set_dirty(const FunctionPtr &func) {
+    if (dirty_funcs_[func]) {
+        return;
+    }
     dirty_funcs_[func] = true;
-    get_analysis_result<DominanceGraph>(Mir::Module::instance())->set_dirty(func);
+    set_analysis_result_dirty<DominanceGraph>(func);
 }
 }

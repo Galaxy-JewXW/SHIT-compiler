@@ -317,7 +317,14 @@ std::shared_ptr<Phi> Phi::create(const std::string &name, const std::shared_ptr<
 }
 
 void Phi::set_optional_value(const std::shared_ptr<Block> &block, const std::shared_ptr<Value> &optional_value) {
-    if (*optional_value->get_type() != *type_) { log_error("Phi operand type must be same"); }
+    if (*optional_value->get_type() != *type_) {
+        log_error("Phi operand type must be same");
+    }
+    if (optional_values.find(block) == optional_values.end()) [[likely]] {
+        block->add_user(shared_from_this()->as<User>());
+    } else if (optional_values.at(block) != nullptr) {
+        log_error("Should be nullptr");
+    }
     optional_values[block] = optional_value;
     add_operand(optional_value);
 }

@@ -84,7 +84,7 @@ void delete_instruction_set(const std::shared_ptr<Module> &module,
     for (const auto &function: *module) {
         for (const auto &block: function->get_blocks()) {
             for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
-                if (deleted_instructions.count(*it)) {
+                if (deleted_instructions.count(*it)) [[unlikely]] {
                     it = block->get_instructions().erase(it);
                 } else {
                     ++it;

@@ -317,7 +317,11 @@ bool DominanceGraph::is_dirty() const {
 }
 
 void DominanceGraph::set_dirty(const FunctionPtr &func) {
+    if (dirty_funcs_[func]) {
+        return;
+    }
     dirty_funcs_[func] = true;
+    set_analysis_result_dirty<ControlFlowGraph>(func);
 }
 
 std::vector<BlockPtr> DominanceGraph::post_order_blocks(const FunctionPtr &func) {
