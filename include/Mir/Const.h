@@ -18,8 +18,6 @@ class Const : public Value {
 public:
     Const(const std::string &name, const std::shared_ptr<Type::Type> &type) : Value{name, type} {}
 
-    ~Const() override = default;
-
     [[nodiscard]] virtual bool is_zero() const = 0;
 
     [[nodiscard]] virtual eval_t get_constant_value() const = 0;

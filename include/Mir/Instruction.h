@@ -41,8 +41,6 @@ protected:
         : User{name, type}, op{op} {}
 
 public:
-    ~Instruction() override = default;
-
     [[nodiscard]] std::shared_ptr<Block> get_block() const { return block.lock(); }
 
     void set_block(const std::shared_ptr<Block> &block, const bool insert = true) {
@@ -297,8 +295,6 @@ public:
 class Terminator : public Instruction {
 protected:
     Terminator(const std::shared_ptr<Type::Type> &type, const Operator op) : Instruction("", type, op) {}
-
-    ~Terminator() override = default;
 };
 
 class Jump final : public Terminator {
@@ -422,8 +418,6 @@ protected:
         : Instruction(name, lhs->get_type(), op) {
         if (lhs->get_type() != rhs->get_type()) { log_error("Operands must have the same type"); }
     }
-
-    ~Binary() override = default;
 
 public:
     [[nodiscard]] std::shared_ptr<Value> get_lhs() const { return operands_[0]; }
