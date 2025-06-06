@@ -93,4 +93,14 @@ void delete_instruction_set(const std::shared_ptr<Module> &module,
         }
     }
 }
+
+std::optional<std::vector<std::shared_ptr<Instruction>>::iterator>
+inst_as_iter(const std::shared_ptr<Instruction> &inst) {
+    const auto block{inst->get_block()};
+    if (auto it = std::find(block->get_instructions().begin(), block->get_instructions().end(), inst);
+        it != block->get_instructions().end()) {
+        return std::make_optional(it);
+    }
+    return std::nullopt;
+}
 }

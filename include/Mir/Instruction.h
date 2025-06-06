@@ -299,7 +299,7 @@ protected:
 
 class Jump final : public Terminator {
 public:
-    explicit Jump(const std::shared_ptr<Block> &block) : Terminator(Type::Label::label, Operator::JUMP) {}
+    explicit Jump(const std::shared_ptr<Block> &) : Terminator(Type::Label::label, Operator::JUMP) {}
 
     static std::shared_ptr<Jump> create(const std::shared_ptr<Block> &target_block,
                                         const std::shared_ptr<Block> &block);
@@ -315,8 +315,8 @@ public:
 
 class Branch final : public Terminator {
 public:
-    Branch(const std::shared_ptr<Value> &cond, const std::shared_ptr<Block> &true_block,
-           const std::shared_ptr<Block> &false_block)
+    Branch(const std::shared_ptr<Value> &cond, const std::shared_ptr<Block> &,
+           const std::shared_ptr<Block> &)
         : Terminator(Type::Label::label, Operator::BRANCH) {
         if (!cond->get_type()->is_int1()) { log_error("Cond must be an integer 1"); }
     }
@@ -342,7 +342,7 @@ public:
 
 class Ret final : public Terminator {
 public:
-    explicit Ret(const std::shared_ptr<Value> &value) : Terminator(value->get_type(), Operator::RET) {
+    explicit Ret(const std::shared_ptr<Value> &value) : Terminator(Type::Void::void_, Operator::RET) {
         if (value->get_type()->is_void()) {
             log_error("Value must not be void");
         }
@@ -366,14 +366,14 @@ class Call final : public Instruction {
 
 public:
     explicit Call(const std::string &name, const std::shared_ptr<Function> &function,
-                  const std::vector<std::shared_ptr<Value>> &params)
+                  const std::vector<std::shared_ptr<Value>> &)
         : Instruction(name, function->get_type(), Operator::CALL) {
         if (function->get_type()->is_void() && !name.empty()) {
             log_error("Void function must not have a return value");
         }
     }
 
-    explicit Call(const std::shared_ptr<Function> &function, const std::vector<std::shared_ptr<Value>> &params,
+    explicit Call(const std::shared_ptr<Function> &function, const std::vector<std::shared_ptr<Value>> &,
                   const int const_string_index = -1)
         : Instruction("", function->get_type(), Operator::CALL), const_string_index{const_string_index} {
         if (!function->get_type()->is_void()) {
@@ -424,16 +424,20 @@ public:
 
     [[nodiscard]] std::shared_ptr<Value> get_rhs() const { return operands_[1]; }
 
-    [[nodiscard]] std::shared_ptr<Value> &lhs() { return operands_[0]; }
-
-    [[nodiscard]] std::shared_ptr<Value> &rhs() { return operands_[1]; }
+    void swap_operands() { std::swap(operands_[0], operands_[1]); }
 
     [[nodiscard]] std::string to_string() const override = 0;
+
+    // 满足交换律
+    virtual bool is_commutative() const = 0;
+
+    // 满足结合律
+    virtual bool is_associative() const = 0;
 };
 
 class IntBinary : public Binary {
 public:
-    enum class Op { ADD, SUB, MUL, DIV, MOD };
+    enum class Op { ADD, SUB, MUL, DIV, MOD, AND, OR, XOR, SMAX, SMIN };
 
     const Op op;
 
@@ -448,6 +452,36 @@ public:
     [[nodiscard]] Op intbinary_op() const { return op; }
 
     [[nodiscard]] std::string to_string() const override = 0;
+
+    bool is_commutative() const override {
+        switch (op) {
+            case Op::ADD:
+            case Op::MUL:
+            case Op::AND:
+            case Op::OR:
+            case Op::XOR:
+            case Op::SMAX:
+            case Op::SMIN:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    bool is_associative() const override {
+        switch (op) {
+            case Op::ADD:
+            case Op::MUL:
+            case Op::AND:
+            case Op::OR:
+            case Op::XOR:
+            case Op::SMAX:
+            case Op::SMIN:
+                return true;
+            default:
+                return false;
+        }
+    }
 };
 
 class FloatBinary : public Binary {
@@ -467,6 +501,26 @@ public:
     [[nodiscard]] Op floatbinary_op() const { return op; }
 
     [[nodiscard]] std::string to_string() const override = 0;
+
+    bool is_commutative() const override {
+        switch (op) {
+            case Op::ADD:
+            case Op::MUL:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    bool is_associative() const override {
+        switch (op) {
+            case Op::ADD:
+            case Op::MUL:
+                return true;
+            default:
+                return false;
+        }
+    }
 };
 
 #define INTBINARY_DECLARE(Class, op) \

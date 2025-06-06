@@ -123,7 +123,7 @@ void Jump::do_interpret(Interpreter *const interpreter) {
 void Ret::do_interpret(Interpreter *const interpreter) {
     interpreter->frame->prev_block = interpreter->frame->current_block;
     interpreter->frame->current_block = nullptr;
-    interpreter->frame->ret_value = this->get_type()->is_void() ? 0 : interpreter->get_runtime_value(this->get_value());
+    interpreter->frame->ret_value = operands_.empty() ? 0 : interpreter->get_runtime_value(this->get_value());
 }
 
 void Call::do_interpret(Interpreter *const interpreter) {

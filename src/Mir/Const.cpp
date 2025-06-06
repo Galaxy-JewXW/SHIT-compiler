@@ -45,6 +45,10 @@ std::shared_ptr<ConstInt> ConstInt::create(const int value, const std::shared_pt
         }
     };
 
+    if (!type->is_integer()) [[unlikely]] {
+        log_error("Invalid Integer Type");
+    }
+
     static std::unordered_map<Key, std::weak_ptr<ConstInt>, KeyHash> cache;
     const Key key{value, type};
 

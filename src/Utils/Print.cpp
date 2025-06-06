@@ -673,8 +673,11 @@ namespace Mir {
 [[nodiscard]] std::string Ret::to_string() const {
     std::ostringstream oss;
     oss << "ret ";
-    if (type_->is_void()) oss << "void";
-    else oss << get_value()->get_type()->to_string() << " " << get_value()->get_name();
+    if (operands_.empty()) {
+        oss << "void";
+    } else {
+        oss << get_value()->get_type()->to_string() << " " << get_value()->get_name();
+    }
     return oss.str();
 }
 
