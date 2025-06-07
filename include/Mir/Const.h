@@ -2,7 +2,6 @@
 #define CONST_H
 
 #include <cmath>
-#include <cstdint>
 #include <cstring>
 #include <iomanip>
 #include <sstream>
@@ -201,6 +200,19 @@ public:
     int operator>=(const ConstFloat &other) const {
         return value >= other.value && std::fabs(value - other.value) >= tolerance;
     }
+};
+
+class Undef final : public Const {
+    explicit Undef(const std::shared_ptr<Type::Type> &type) : Const{"undef", type} {}
+
+public:
+    [[nodiscard]] std::string to_string() const override { return "undef"; }
+
+    bool is_zero() const override { return false; }
+
+    eval_t get_constant_value() const override { log_error("Cannot get a constant from an Undef"); }
+
+    static std::shared_ptr<Undef> create(const std::shared_ptr<Type::Type> &type);
 };
 }
 

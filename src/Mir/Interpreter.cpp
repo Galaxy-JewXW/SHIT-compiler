@@ -180,3 +180,10 @@ void FMod::do_interpret(Interpreter *const interpreter) {
                  right{interpreter->get_runtime_value(this->get_rhs())};
     interpreter->frame->value_map[this] = std::fmod(left.get<double>(), right.get<double>());
 }
+
+void Select::do_interpret(Interpreter *interpreter) {
+    const eval_t condition{interpreter->get_runtime_value(this->get_cond())};
+    interpreter->frame->value_map[this] = condition.get<int>()
+                                              ? interpreter->get_runtime_value(this->get_true_value())
+                                              : interpreter->get_runtime_value(this->get_false_value());
+}

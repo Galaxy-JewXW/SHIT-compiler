@@ -750,6 +750,15 @@ BINARY_TO_STRING(FMod, frem)
     return oss.str();
 }
 
+std::string Select::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = select " << get_cond()->get_type()->to_string() << " " << get_cond()->get_name() << ", ";
+    oss << get_true_value()->get_type()->to_string() << " " << get_true_value()->get_name() << ", "
+            << get_false_value()->get_type()->to_string() << " " << get_false_value()->get_name();
+    return oss.str();
+}
+
+
 namespace Init {
     [[nodiscard]] std::string Constant::to_string() const {
         return type->to_string() + " " + const_value->to_string();

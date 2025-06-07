@@ -366,4 +366,22 @@ std::shared_ptr<Block> Phi::find_optional_block(const std::shared_ptr<Value> &va
                                  [&](const auto &pair) { return pair.second == value; });
     return it != optional_values.end() ? it->first : nullptr;
 }
+
+std::shared_ptr<Select> Select::create(const std::string &name, const std::shared_ptr<Value> &condition,
+                                       const std::shared_ptr<Value> &true_value,
+                                       const std::shared_ptr<Value> &false_value,
+                                       const std::shared_ptr<Block> &block) {
+    if (*true_value->get_type() != *false_value->get_type()) {
+        log_error("lhs and rhs should be same type");
+    }
+    if (condition->get_type() != Type::Integer::i1) {
+        log_error("condition should be an i1");
+    }
+    const auto instruction = std::make_shared<Select>(name, condition, true_value, false_value);
+    if (block != nullptr) [[likely]] { instruction->set_block(block); }
+    instruction->add_operand(condition);
+    instruction->add_operand(true_value);
+    instruction->add_operand(false_value);
+    return instruction;
+}
 }

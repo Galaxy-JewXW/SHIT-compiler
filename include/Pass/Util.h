@@ -46,6 +46,14 @@ protected:
         log_set_level(log_level);
     }
 };
+
+class CheckUninitialized final : public Util {
+public:
+    explicit CheckUninitialized() : Util("CheckUninitialized") {}
+
+protected:
+    void util_impl(std::shared_ptr<Mir::Module> module) override;
+};
 }
 
 // 实用函数

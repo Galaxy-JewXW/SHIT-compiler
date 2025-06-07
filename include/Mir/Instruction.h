@@ -30,6 +30,7 @@ enum class Operator {
     INTBINARY,
     FLOATBINARY,
     PHI,
+    SELECT,
 };
 
 class Instruction : public User {
@@ -56,6 +57,11 @@ public:
 
     virtual void do_interpret(Interpreter *const interpreter) {
         Interpreter::abort();
+    }
+
+    [[nodiscard]]
+    virtual std::shared_ptr<Instruction> clone() {
+        log_error("Not implemented");
     }
 };
 
@@ -529,7 +535,8 @@ public: \
     explicit Class(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs) \
         : IntBinary(name, lhs, rhs, op) {} \
     static std::shared_ptr<Class> create(const std::string &name, const std::shared_ptr<Value> &lhs, \
-                                       const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block); \
+                                         const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block); \
+    std::shared_ptr<Instruction> clone() override { return create(get_name(), get_lhs(), get_rhs(), get_block()); } \
     [[nodiscard]] std::string to_string() const override; \
     void do_interpret(Interpreter *interpreter) override; \
 };
@@ -540,7 +547,8 @@ public: \
     explicit Class(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs) \
         : FloatBinary(name, lhs, rhs, op) {} \
     static std::shared_ptr<Class> create(const std::string &name, const std::shared_ptr<Value> &lhs, \
-    const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block); \
+                                         const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block); \
+    std::shared_ptr<Instruction> clone() override { return create(get_name(), get_lhs(), get_rhs(), get_block()); } \
     [[nodiscard]] std::string to_string() const override; \
     void do_interpret(Interpreter *interpreter) override; \
 };
@@ -595,6 +603,35 @@ public:
 
 private:
     Optional_Values optional_values;
+};
+
+class Select final : public Instruction {
+public:
+    explicit Select(const std::string &name, const std::shared_ptr<Value> &condition,
+                    const std::shared_ptr<Value> &true_value, const std::shared_ptr<Value> &false_value) :
+        Instruction(name, true_value->get_type(), Operator::SELECT) {
+        if (*true_value->get_type() != *false_value->get_type()) {
+            log_error("lhs and rhs should be same type");
+        }
+        if (condition->get_type() != Type::Integer::i1) {
+            log_error("condition should be an i1");
+        }
+    }
+
+    static std::shared_ptr<Select> create(const std::string &name, const std::shared_ptr<Value> &condition,
+                                          const std::shared_ptr<Value> &true_value,
+                                          const std::shared_ptr<Value> &false_value,
+                                          const std::shared_ptr<Block> &block);
+
+    [[nodiscard]] std::shared_ptr<Value> get_cond() const { return operands_[0]; }
+
+    [[nodiscard]] std::shared_ptr<Value> get_true_value() const { return operands_[1]; }
+
+    [[nodiscard]] std::shared_ptr<Value> get_false_value() const { return operands_[2]; }
+
+    std::string to_string() const override;
+
+    void do_interpret(Interpreter *interpreter) override;
 };
 }
 
