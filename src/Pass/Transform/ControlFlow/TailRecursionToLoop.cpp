@@ -260,9 +260,9 @@ void TailRecursionToLoop::run_on_func(const std::shared_ptr<Function> &func) con
                 // 修改控制流：将分支改为直接返回
                 block->get_instructions().pop_back(); // 移除分支指令
                 // 创建新的return指令
-                const auto new_ret = [&]() -> std::shared_ptr<Ret> {
-                    return ret->get_operands().empty() ? Ret::create(block) : Ret::create(ret->get_value(), block);
-                }();
+                const auto new_ret = ret->get_operands().empty()
+                                         ? Ret::create(block)
+                                         : Ret::create(ret->get_value(), block);
                 // 处理返回值（如果存在）
                 if (!new_ret->get_operands().empty()) {
                     const auto returned_value = new_ret->get_value();

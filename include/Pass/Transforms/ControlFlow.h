@@ -3,6 +3,7 @@
 
 #include "Pass/Transform.h"
 #include "Pass/Analyses/ControlFlowGraph.h"
+#include "Pass/Analyses/DominanceGraph.h"
 #include "Pass/Analyses/FunctionAnalysis.h"
 
 namespace Pass {
@@ -41,6 +42,7 @@ private:
     std::shared_ptr<ControlFlowGraph> cfg_info;
 };
 
+// 尾递归优化：将尾递归转换为循环
 class TailRecursionToLoop final : public Transform {
 public:
     explicit TailRecursionToLoop() : Transform("TailRecursionToLoop") {}
@@ -53,6 +55,21 @@ protected:
 private:
     std::shared_ptr<ControlFlowGraph> cfg_info;
     std::shared_ptr<FunctionAnalysis> func_info;
+};
+
+// 合并嵌套的分支，减少控制流复杂度
+class BranchMerging final : public Transform {
+public:
+    explicit BranchMerging() : Transform("BranchMerging") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+    void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
+
+private:
+    std::shared_ptr<ControlFlowGraph> cfg_info;
+    std::shared_ptr<DominanceGraph> dom_info;
 };
 }
 

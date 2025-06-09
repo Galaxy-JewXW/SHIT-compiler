@@ -156,30 +156,34 @@ void Phi::do_interpret(Interpreter *const interpreter) {
         this->optional_values.at(interpreter->frame->prev_block));
 }
 
-#define BINARY_DO_INTERPRET(Class, Op, Type) \
+#define BINARY_DO_INTERPRET(Class, Calc, Type) \
 void Class::do_interpret(Interpreter *const interpreter)  { \
-    const eval_t left{interpreter->get_runtime_value(this->get_lhs())}, \
-                 right{interpreter->get_runtime_value(this->get_rhs())}; \
-    interpreter->frame->value_map[this] = left.get<Type>() Op right.get<Type>(); \
+    const eval_t left{interpreter->get_runtime_value(this->get_lhs())}, right{interpreter->get_runtime_value(this->get_rhs())}; \
+    interpreter->frame->value_map[this] = [](const Type a, const Type b) {Calc} (left.get<Type>(), right.get<Type>()); \
 }
 
-BINARY_DO_INTERPRET(Add, +, int)
-BINARY_DO_INTERPRET(Sub, -, int)
-BINARY_DO_INTERPRET(Mul, *, int)
-BINARY_DO_INTERPRET(Div, /, int)
-BINARY_DO_INTERPRET(Mod, %, int)
-BINARY_DO_INTERPRET(FAdd, +, double)
-BINARY_DO_INTERPRET(FSub, -, double)
-BINARY_DO_INTERPRET(FMul, *, double)
-BINARY_DO_INTERPRET(FDiv, /, double)
+// 整数运算
+BINARY_DO_INTERPRET(Add, return a + b;, int)
+BINARY_DO_INTERPRET(Sub, return a - b;, int)
+BINARY_DO_INTERPRET(Mul, return a * b;, int)
+BINARY_DO_INTERPRET(Div, return a / b;, int)
+BINARY_DO_INTERPRET(Mod, return a % b;, int)
+BINARY_DO_INTERPRET(And, return a & b;, int)
+BINARY_DO_INTERPRET(Or, return a | b;, int)
+BINARY_DO_INTERPRET(Xor, return a ^ b;, int)
+BINARY_DO_INTERPRET(Smax, return std::max(a, b);, int)
+BINARY_DO_INTERPRET(Smin, return std::min(a, b);, int)
+
+// 浮点数运算
+BINARY_DO_INTERPRET(FAdd, return a + b;, double)
+BINARY_DO_INTERPRET(FSub, return a - b;, double)
+BINARY_DO_INTERPRET(FMul, return a * b;, double)
+BINARY_DO_INTERPRET(FDiv, return a / b;, double)
+BINARY_DO_INTERPRET(FMod, return std::fmod(a, b);, double)
+BINARY_DO_INTERPRET(FSmax, return std::max(a, b);, double)
+BINARY_DO_INTERPRET(FSmin, return std::min(a, b);, double)
 
 #undef BINARY_DO_INTERPRET
-
-void FMod::do_interpret(Interpreter *const interpreter) {
-    const eval_t left{interpreter->get_runtime_value(this->get_lhs())},
-                 right{interpreter->get_runtime_value(this->get_rhs())};
-    interpreter->frame->value_map[this] = std::fmod(left.get<double>(), right.get<double>());
-}
 
 void Select::do_interpret(Interpreter *interpreter) {
     const eval_t condition{interpreter->get_runtime_value(this->get_cond())};

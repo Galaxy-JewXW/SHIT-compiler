@@ -295,11 +295,19 @@ CREATE_BINARY(Sub, is_int32)
 CREATE_BINARY(Mul, is_int32)
 CREATE_BINARY(Div, is_int32)
 CREATE_BINARY(Mod, is_int32)
+CREATE_BINARY(And, is_int32)
+CREATE_BINARY(Or, is_int32)
+CREATE_BINARY(Xor, is_int32)
+CREATE_BINARY(Smax, is_int32)
+CREATE_BINARY(Smin, is_int32)
+
 CREATE_BINARY(FAdd, is_float)
 CREATE_BINARY(FSub, is_float)
 CREATE_BINARY(FMul, is_float)
 CREATE_BINARY(FDiv, is_float)
 CREATE_BINARY(FMod, is_float)
+CREATE_BINARY(FSmax, is_float)
+CREATE_BINARY(FSmin, is_float)
 
 #undef CREATE_BINARY
 

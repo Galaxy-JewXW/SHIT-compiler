@@ -212,6 +212,7 @@ public:
         if (!lhs->get_type()->is_float() || !rhs->get_type()->is_float()) { log_error("Operands must be a float"); }
     }
 
+private:
     static Op swap_op(const Op op) {
         switch (op) {
             case Op::GT: return Op::LT;
@@ -222,6 +223,7 @@ public:
         }
     }
 
+public:
     void reverse_op() {
         this->op = swap_op(this->op);
         std::swap(operands_[0], operands_[1]);
@@ -253,6 +255,7 @@ public:
         }
     }
 
+private:
     static Op swap_op(const Op op) {
         switch (op) {
             case Op::GT: return Op::LT;
@@ -263,6 +266,7 @@ public:
         }
     }
 
+public:
     void reverse_op() {
         this->op = swap_op(this->op);
         std::swap(operands_[0], operands_[1]);
@@ -330,6 +334,8 @@ public:
     static std::shared_ptr<Value> create(const std::shared_ptr<Value> &cond, const std::shared_ptr<Block> &true_block,
                                          const std::shared_ptr<Block> &false_block,
                                          const std::shared_ptr<Block> &block);
+
+    void swap() { std::swap(operands_[0], operands_[1]); }
 
     [[nodiscard]] std::shared_ptr<Value> get_cond() const { return operands_[0]; }
 
@@ -492,7 +498,7 @@ public:
 
 class FloatBinary : public Binary {
 public:
-    enum class Op { ADD, SUB, MUL, DIV, MOD };
+    enum class Op { ADD, SUB, MUL, DIV, MOD, SMAX, SMIN };
 
     const Op op;
 
@@ -512,6 +518,8 @@ public:
         switch (op) {
             case Op::ADD:
             case Op::MUL:
+            case Op::SMAX:
+            case Op::SMIN:
                 return true;
             default:
                 return false;
@@ -522,6 +530,8 @@ public:
         switch (op) {
             case Op::ADD:
             case Op::MUL:
+            case Op::SMAX:
+            case Op::SMIN:
                 return true;
             default:
                 return false;
@@ -563,6 +573,16 @@ INTBINARY_DECLARE(Div, Op::DIV)
 
 INTBINARY_DECLARE(Mod, Op::MOD)
 
+INTBINARY_DECLARE(And, Op::AND)
+
+INTBINARY_DECLARE(Or, Op::OR)
+
+INTBINARY_DECLARE(Xor, Op::XOR)
+
+INTBINARY_DECLARE(Smax, Op::SMAX)
+
+INTBINARY_DECLARE(Smin, Op::SMIN)
+
 FLOATBINARY_DECLARE(FAdd, Op::ADD)
 
 FLOATBINARY_DECLARE(FSub, Op::SUB)
@@ -572,6 +592,10 @@ FLOATBINARY_DECLARE(FMul, Op::MUL)
 FLOATBINARY_DECLARE(FDiv, Op::DIV)
 
 FLOATBINARY_DECLARE(FMod, Op::MOD)
+
+FLOATBINARY_DECLARE(FSmax, Op::SMAX)
+
+FLOATBINARY_DECLARE(FSmin, Op::SMIN)
 
 #undef INTBINARY_DECLARE
 #undef FLOATBINARY_DECLARE

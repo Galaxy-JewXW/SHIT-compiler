@@ -726,11 +726,46 @@ BINARY_TO_STRING(Sub, sub)
 BINARY_TO_STRING(Mul, mul)
 BINARY_TO_STRING(Div, sdiv)
 BINARY_TO_STRING(Mod, srem)
+BINARY_TO_STRING(And, and)
+BINARY_TO_STRING(Or, or)
+BINARY_TO_STRING(Xor, xor)
 BINARY_TO_STRING(FAdd, fadd)
 BINARY_TO_STRING(FSub, fsub)
 BINARY_TO_STRING(FMul, fmul)
 BINARY_TO_STRING(FDiv, fdiv)
 BINARY_TO_STRING(FMod, frem)
+
+std::string Smax::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = call i32 @llvm.smax.i32("
+            << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", "
+            << get_rhs()->get_type()->to_string() << " " << get_rhs()->get_name() << ")";
+    return oss.str();
+}
+
+std::string Smin::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = call i32 @llvm.smin.i32("
+            << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", "
+            << get_rhs()->get_type()->to_string() << " " << get_rhs()->get_name() << ")";
+    return oss.str();
+}
+
+std::string FSmax::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = call float @llvm.smax.float("
+            << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", "
+            << get_rhs()->get_type()->to_string() << " " << get_rhs()->get_name() << ")";
+    return oss.str();
+}
+
+std::string FSmin::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = call float @llvm.smin.float("
+            << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", "
+            << get_rhs()->get_type()->to_string() << " " << get_rhs()->get_name() << ")";
+    return oss.str();
+}
 
 #undef BINARY_TO_STRING
 
