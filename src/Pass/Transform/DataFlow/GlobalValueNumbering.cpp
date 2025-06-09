@@ -158,25 +158,22 @@ bool evaluate_binary(const std::shared_ptr<Binary> &inst, typename binary_traits
     // 从常量指令中提取数值，根据操作符进行计算
     const auto lhs_val = **lhs->template as<ConstType>(),
                rhs_val = **rhs->template as<ConstType>();
-    switch (inst->op) {
-        case Binary::Op::ADD: res = lhs_val + rhs_val;
-            break;
-        case Binary::Op::SUB: res = lhs_val - rhs_val;
-            break;
-        case Binary::Op::MUL: res = lhs_val * rhs_val;
-            break;
-        case Binary::Op::DIV: res = lhs_val / rhs_val;
-            break;
-        case Binary::Op::MOD: {
-            if constexpr (std::is_same_v<T, double>) {
-                res = std::fmod(lhs_val, rhs_val);
-            } else {
-                res = lhs_val % rhs_val;
+    res = [&]() -> typename binary_traits<Binary>::value_type {
+        switch (inst->op) {
+            case Binary::Op::ADD: return lhs_val + rhs_val;
+            case Binary::Op::SUB: return lhs_val - rhs_val;
+            case Binary::Op::MUL: return lhs_val * rhs_val;
+            case Binary::Op::DIV: return lhs_val / rhs_val;
+            case Binary::Op::MOD: {
+                if constexpr (std::is_same_v<T, double>) {
+                    return std::fmod(lhs_val, rhs_val);
+                } else {
+                    return lhs_val % rhs_val;
+                }
             }
-            break;
+            default: log_error("Unsupported operator in %s", inst->to_string().c_str());
         }
-        default: log_error("Unsupported operator in %s", inst->to_string().c_str());
-    }
+    }();
     return true;
 }
 
@@ -221,21 +218,17 @@ bool evaluate_cmp(const std::shared_ptr<Cmp> &inst, int &res) {
     // 解引用静态指针获得常量值，根据比较操作符进行计算
     const auto lhs_val = **lhs->template as<ConstType>(),
                rhs_val = **rhs->template as<ConstType>();
-    switch (inst->op) {
-        case Cmp::Op::EQ: res = lhs_val == rhs_val;
-            break;
-        case Cmp::Op::NE: res = lhs_val != rhs_val;
-            break;
-        case Cmp::Op::GT: res = lhs_val > rhs_val;
-            break;
-        case Cmp::Op::GE: res = lhs_val >= rhs_val;
-            break;
-        case Cmp::Op::LT: res = lhs_val < rhs_val;
-            break;
-        case Cmp::Op::LE: res = lhs_val <= rhs_val;
-            break;
-        default: log_error("Unsupported operator in %s", inst->to_string().c_str());
-    }
+    res = [&]() -> int {
+        switch (inst->op) {
+            case Cmp::Op::EQ: return lhs_val == rhs_val;
+            case Cmp::Op::NE: return lhs_val != rhs_val;
+            case Cmp::Op::GT: return lhs_val > rhs_val;
+            case Cmp::Op::GE: return lhs_val >= rhs_val;
+            case Cmp::Op::LT: return lhs_val < rhs_val;
+            case Cmp::Op::LE: return lhs_val <= rhs_val;
+            default: log_error("Unsupported operator in %s", inst->to_string().c_str());
+        }
+    }();
     return true;
 }
 }
