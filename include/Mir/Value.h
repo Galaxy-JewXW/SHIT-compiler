@@ -50,8 +50,6 @@ public:
 
     void replace_by_new_value(const std::shared_ptr<Value> &new_value);
 
-    std::vector<std::weak_ptr<User>> &weak_users() { return users_; }
-
     [[nodiscard]] virtual bool is_constant() const { return false; }
 
     [[nodiscard]] virtual std::string to_string() const = 0;
@@ -77,6 +75,17 @@ public:
                 return *this;
             }
         };
+
+        [[nodiscard]] std::vector<std::shared_ptr<User>> lock() const {
+            std::vector<std::shared_ptr<User>> result;
+            result.reserve(users_.size());
+            for (const auto &user_weak: users_) {
+                if (auto user_shared{user_weak.lock()}) {
+                    result.push_back(user_shared);
+                }
+            }
+            return result;
+        }
 
         [[nodiscard]] size_t size() const { return users_.size(); }
         [[nodiscard]] Iterator begin() const { return Iterator{users_.begin()}; }

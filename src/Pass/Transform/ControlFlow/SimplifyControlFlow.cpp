@@ -286,13 +286,7 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
             if (target == nullptr || target->is_deleted()) {
                 continue;
             }
-            std::vector<std::shared_ptr<User>> locked_users;
-            for (const auto &weak: block->weak_users()) {
-                if (const auto sp = weak.lock()) {
-                    locked_users.push_back(sp);
-                }
-            }
-
+            std::vector locked_users{block->users().lock()};
             bool available{true};
             for (const auto &user: locked_users) {
                 if (const auto phi = user->is<Phi>()) {
@@ -370,12 +364,7 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
             if (candidate.empty()) {
                 continue;
             }
-            std::vector<std::shared_ptr<User>> locked_users;
-            for (const auto &weak: block->weak_users()) {
-                if (const auto sp = weak.lock()) {
-                    locked_users.push_back(sp);
-                }
-            }
+            std::vector locked_users{block->users().lock()};
             bool available{true};
             for (const auto &user: locked_users) {
                 if (const auto phi = user->is<Phi>()) {
