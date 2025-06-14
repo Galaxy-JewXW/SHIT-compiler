@@ -36,6 +36,7 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         Pass::ConstexprFuncEval,
         Pass::DeadFuncArgEliminate,
         Pass::DeadFuncEliminate,
-        Pass::DeadReturnEliminate
+        Pass::DeadReturnEliminate,
+        Pass::BranchMerging
     >(module);
 }

@@ -77,10 +77,9 @@ std::shared_ptr<T> get_analysis_result(const std::shared_ptr<Mir::Module> module
 }
 
 template<typename T, typename... Args>
-std::shared_ptr<T> get_analysis_result(const std::shared_ptr<const Mir::Module> &module,
-                                       [[maybe_unused]] Args &&... args) {
+std::shared_ptr<T> get_analysis_result(const std::shared_ptr<const Mir::Module> &module, Args &&... args) {
     static_assert(std::is_base_of_v<Analysis, T>, "T must be a subclass of Analysis");
-    return get_analysis_result<T, Args...>(std::const_pointer_cast<Mir::Module>(module));
+    return get_analysis_result<T, Args...>(std::const_pointer_cast<Mir::Module>(module), std::forward<Args>(args)...);
 }
 }
 

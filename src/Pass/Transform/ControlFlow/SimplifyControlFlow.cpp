@@ -8,64 +8,6 @@
 using namespace Mir;
 
 namespace {
-void remove_deleted_blocks(const std::shared_ptr<Function> &func) {
-    auto &blocks = func->get_blocks();
-    blocks.erase(std::remove_if(blocks.begin(), blocks.end(), [](const std::shared_ptr<Block> &block) {
-        if (!block->is_deleted()) [[likely]] {
-            return false;
-        }
-        std::for_each(block->get_instructions().begin(), block->get_instructions().end(),
-                      [&](const std::shared_ptr<Instruction> &instruction) {
-                          instruction->clear_operands();
-                      });
-        block->clear_operands();
-        block->set_deleted();
-        return true;
-    }), blocks.end());
-}
-
-void remove_unreachable_blocks(const std::shared_ptr<Function> &func) {
-    std::unordered_set<std::shared_ptr<Block>> visited_blocks;
-
-    const std::function<void(const std::shared_ptr<Block> &)> dfs = [&](const std::shared_ptr<Block> &block) -> void {
-        if (visited_blocks.count(block)) {
-            return;
-        }
-        visited_blocks.insert(block);
-        const auto &instructions = block->get_instructions();
-        if (instructions.empty()) {
-            log_error("Empty Block");
-        }
-        const auto last_instruction = instructions.back();
-        if (const auto op = last_instruction->get_op(); op == Operator::JUMP) {
-            dfs(last_instruction->as<Jump>()->get_target_block());
-        } else if (op == Operator::BRANCH) {
-            const auto branch = last_instruction->as<Branch>();
-            dfs(branch->get_true_block());
-            dfs(branch->get_false_block());
-        } else if (op != Operator::RET) {
-            log_error("Last instruction is not a terminator: %s", last_instruction->to_string().c_str());
-        }
-    };
-
-    dfs(func->get_blocks().front());
-
-    auto &blocks = func->get_blocks();
-    blocks.erase(std::remove_if(blocks.begin(), blocks.end(), [&](const std::shared_ptr<Block> &block) {
-        if (visited_blocks.find(block) != visited_blocks.end()) {
-            return false;
-        }
-        std::for_each(block->get_instructions().begin(), block->get_instructions().end(),
-                      [&](const std::shared_ptr<Instruction> &instruction) {
-                          instruction->clear_operands();
-                      });
-        block->clear_operands();
-        block->set_deleted();
-        Pass::get_analysis_result<Pass::ControlFlowGraph>(Module::instance())->set_dirty(func);
-        return true;
-    }), blocks.end());
-}
-
 void try_constant_fold(const std::shared_ptr<Function> &func) {
     for (const auto &block: func->get_blocks()) {
         for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
@@ -162,6 +104,70 @@ void cleanup_phi(const std::shared_ptr<Function> &func, const std::shared_ptr<Pa
 }
 
 namespace Pass {
+void SimplifyControlFlow::remove_deleted_blocks(const std::shared_ptr<Function> &func) {
+    auto &blocks = func->get_blocks();
+    blocks.erase(std::remove_if(blocks.begin(), blocks.end(), [](const std::shared_ptr<Block> &block) {
+        if (!block->is_deleted()) [[likely]] {
+            return false;
+        }
+        std::for_each(block->get_instructions().begin(), block->get_instructions().end(),
+                      [&](const std::shared_ptr<Instruction> &instruction) {
+                          instruction->clear_operands();
+                      });
+        block->clear_operands();
+        block->set_deleted();
+        return true;
+    }), blocks.end());
+
+    set_analysis_result_dirty<ControlFlowGraph>(func);
+    set_analysis_result_dirty<DominanceGraph>(func);
+}
+
+void SimplifyControlFlow::remove_unreachable_blocks(const std::shared_ptr<Function> &func) {
+    std::unordered_set<std::shared_ptr<Block>> visited_blocks;
+
+    const std::function<void(const std::shared_ptr<Block> &)> dfs = [&](const std::shared_ptr<Block> &block) -> void {
+        if (visited_blocks.count(block)) {
+            return;
+        }
+        visited_blocks.insert(block);
+        const auto &instructions = block->get_instructions();
+        if (instructions.empty()) {
+            log_error("Empty Block");
+        }
+        const auto last_instruction = instructions.back();
+        if (const auto op = last_instruction->get_op(); op == Operator::JUMP) {
+            dfs(last_instruction->as<Jump>()->get_target_block());
+        } else if (op == Operator::BRANCH) {
+            const auto branch = last_instruction->as<Branch>();
+            dfs(branch->get_true_block());
+            dfs(branch->get_false_block());
+        } else if (op != Operator::RET) {
+            log_error("Last instruction is not a terminator: %s", last_instruction->to_string().c_str());
+        }
+    };
+
+    dfs(func->get_blocks().front());
+
+    auto &blocks = func->get_blocks();
+    blocks.erase(std::remove_if(blocks.begin(), blocks.end(), [&](const std::shared_ptr<Block> &block) {
+        if (visited_blocks.find(block) != visited_blocks.end()) {
+            return false;
+        }
+        std::for_each(block->get_instructions().begin(), block->get_instructions().end(),
+                      [&](const std::shared_ptr<Instruction> &instruction) {
+                          instruction->clear_operands();
+                      });
+        block->clear_operands();
+        block->set_deleted();
+        set_analysis_result_dirty<ControlFlowGraph>(func);
+        return true;
+    }), blocks.end());
+
+    set_analysis_result_dirty<ControlFlowGraph>(func);
+    set_analysis_result_dirty<DominanceGraph>(func);
+}
+
 void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) const {
     auto predecessors = cfg_info->graph(func).predecessors;
     auto successors = cfg_info->graph(func).successors;
@@ -240,7 +246,7 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
         if (predecessors.at(block).empty()) {
             return nullptr;
         }
-        if (const auto op = block->get_instructions().front()->get_op(); op == Operator::JUMP) {
+        if (block->get_instructions().front()->get_op() == Operator::JUMP) {
             const auto jump = block->get_instructions().front()->as<Jump>();
             return jump->get_target_block();
         }
@@ -253,20 +259,20 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
         if (predecessors.at(block).empty()) {
             return nullptr;
         }
-        if (const auto op = block->get_instructions().front()->get_op(); op == Operator::BRANCH) {
+        if (block->get_instructions().front()->get_op() == Operator::BRANCH) {
             return block->get_instructions().front()->as<Branch>();
         }
         return nullptr;
     };
 
     // 检查给定块的前驱是否均只有给定块作为后继
-    [[maybe_unused]] const auto get_candidate_predecessors = [&](const std::shared_ptr<Block> &block) {
+    const auto get_candidate_predecessors = [&](const std::shared_ptr<Block> &block) {
         std::unordered_set<std::shared_ptr<Block>> candidates;
         for (const auto &pre: predecessors.at(block)) {
             if (successors.at(pre).size() != 1) {
                 continue;
             }
-            if (const auto &target = *successors.at(pre).begin(); target != block) {
+            if (*successors.at(pre).begin() != block) {
                 continue;
             }
             candidates.insert(pre);
@@ -286,23 +292,19 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
             if (target == nullptr || target->is_deleted()) {
                 continue;
             }
-            std::vector locked_users{block->users().lock()};
-            bool available{true};
-            for (const auto &user: locked_users) {
-                if (const auto phi = user->is<Phi>()) {
-                    const auto &options = phi->get_optional_values();
+            auto locked_users{block->users().lock()};
+            const auto is_available = [&](const std::shared_ptr<User> &user) -> bool {
+                if (const auto phi{user->is<Phi>()}) {
+                    const auto &options{phi->get_optional_values()};
                     for (const auto &pre: predecessors.at(block)) {
                         if (options.find(pre) != options.end()) {
-                            available = false;
-                            break;
+                            return false;
                         }
                     }
                 }
-                if (!available) {
-                    break;
-                }
-            }
-            if (!available) {
+                return true;
+            };
+            if (!std::all_of(locked_users.begin(), locked_users.end(), is_available)) {
                 continue;
             }
             for (const auto &user: locked_users) {
@@ -364,23 +366,19 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
             if (candidate.empty()) {
                 continue;
             }
-            std::vector locked_users{block->users().lock()};
-            bool available{true};
-            for (const auto &user: locked_users) {
-                if (const auto phi = user->is<Phi>()) {
-                    const auto &options = phi->get_optional_values();
-                    for (const auto &pre: candidate) {
+            auto locked_users{block->users().lock()};
+            const auto is_available = [&](const std::shared_ptr<User> &user) -> bool {
+                if (const auto phi{user->is<Phi>()}) {
+                    const auto &options{phi->get_optional_values()};
+                    for (const auto &pre: predecessors.at(block)) {
                         if (options.find(pre) != options.end()) {
-                            available = false;
-                            break;
+                            return false;
                         }
                     }
                 }
-                if (!available) {
-                    break;
-                }
-            }
-            if (!available) {
+                return true;
+            };
+            if (!std::all_of(locked_users.begin(), locked_users.end(), is_available)) {
                 continue;
             }
             for (const auto &pre: candidate) {
