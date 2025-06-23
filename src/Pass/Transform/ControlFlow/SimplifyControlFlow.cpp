@@ -1,4 +1,3 @@
-#include <functional>
 #include <unordered_set>
 
 #include "Pass/Analyses/ControlFlowGraph.h"
@@ -126,7 +125,7 @@ void SimplifyControlFlow::remove_deleted_blocks(const std::shared_ptr<Function> 
 void SimplifyControlFlow::remove_unreachable_blocks(const std::shared_ptr<Function> &func) {
     std::unordered_set<std::shared_ptr<Block>> visited_blocks;
 
-    const std::function<void(const std::shared_ptr<Block> &)> dfs = [&](const std::shared_ptr<Block> &block) -> void {
+    auto dfs = [&](auto &&self, const std::shared_ptr<Block> &block) -> void {
         if (visited_blocks.count(block)) {
             return;
         }
@@ -137,17 +136,17 @@ void SimplifyControlFlow::remove_unreachable_blocks(const std::shared_ptr<Functi
         }
         const auto last_instruction = instructions.back();
         if (const auto op = last_instruction->get_op(); op == Operator::JUMP) {
-            dfs(last_instruction->as<Jump>()->get_target_block());
+            self(self, last_instruction->as<Jump>()->get_target_block());
         } else if (op == Operator::BRANCH) {
             const auto branch = last_instruction->as<Branch>();
-            dfs(branch->get_true_block());
-            dfs(branch->get_false_block());
+            self(self, branch->get_true_block());
+            self(self, branch->get_false_block());
         } else if (op != Operator::RET) {
             log_error("Last instruction is not a terminator: %s", last_instruction->to_string().c_str());
         }
     };
 
-    dfs(func->get_blocks().front());
+    dfs(dfs, func->get_blocks().front());
 
     auto &blocks = func->get_blocks();
     blocks.erase(std::remove_if(blocks.begin(), blocks.end(), [&](const std::shared_ptr<Block> &block) {

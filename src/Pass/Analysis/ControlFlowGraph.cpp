@@ -1,4 +1,3 @@
-#include <functional>
 #include <queue>
 
 #include "Pass/Analyses/ControlFlowGraph.h"
@@ -55,17 +54,17 @@ void build_post_order(const FunctionPtr &func,
                       const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &dominance_children_map,
                       std::vector<BlockPtr> &post_order) {
     std::unordered_set<BlockPtr> visited;
-    std::function<void(const BlockPtr &)> dfs = [&](const BlockPtr &block) {
+    auto dfs = [&](auto &&self, const BlockPtr &block) -> void {
         if (visited.count(block)) {
             return;
         }
         visited.insert(block);
         for (const auto &child: dominance_children_map.at(block)) {
-            dfs(child);
+            self(self, child);
         }
         post_order.push_back(block);
     };
-    dfs(func->get_blocks().front());
+    dfs(dfs, func->get_blocks().front());
 }
 
 [[maybe_unused]]

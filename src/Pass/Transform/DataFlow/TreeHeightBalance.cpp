@@ -1,4 +1,3 @@
-#include <functional>
 #include <type_traits>
 
 #include "Mir/Instruction.h"
@@ -49,20 +48,19 @@ void handle(const std::shared_ptr<Block> &block) {
         }
         std::vector<std::shared_ptr<Value>> leaves;
         std::vector<BinaryInst> cluster;
-        std::function<void(const std::shared_ptr<Value> &)> dfs;
-        dfs = [&](const std::shared_ptr<Value> &value) {
+        auto dfs = [&](auto &&self, const std::shared_ptr<Value> &value) -> void {
             if (auto b = value->is<BinaryType>()) {
                 if (visited.insert(b).second) {
                     cluster.push_back(b);
-                    dfs(b->get_lhs());
-                    dfs(b->get_rhs());
+                    self(self, b->get_lhs());
+                    self(self, b->get_rhs());
                 }
             } else {
                 leaves.push_back(value);
             }
         };
-        dfs(root->get_lhs());
-        dfs(root->get_rhs());
+        dfs(dfs, root->get_lhs());
+        dfs(dfs, root->get_rhs());
         if (leaves.size() < 2) {
             continue;
         }

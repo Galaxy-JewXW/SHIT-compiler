@@ -1,5 +1,3 @@
-#include <functional>
-
 #include "Pass/Analyses/ControlFlowGraph.h"
 #include "Pass/Transforms/ControlFlow.h"
 
@@ -17,18 +15,18 @@ void reverse_postorder_placement(const std::shared_ptr<Function> &func,
     std::vector<BlockPtr> rpo;
     std::unordered_set<BlockPtr> visited;
 
-    std::function<void(BlockPtr)> dfs = [&](const BlockPtr &block) {
+    auto dfs = [&](auto &&self, const BlockPtr &block) -> void {
         visited.insert(block);
         for (const auto &succ: cfg->graph(func).successors.at(block)) {
             if (!visited.count(succ)) {
-                dfs(succ);
+                self(self, succ);
             }
         }
         rpo.push_back(block);
     };
 
     const auto entry = func->get_blocks().front();
-    dfs(entry);
+    dfs(dfs, entry);
     std::reverse(rpo.begin(), rpo.end());
     blocks = std::move(rpo);
 }

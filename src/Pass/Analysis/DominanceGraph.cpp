@@ -1,4 +1,3 @@
-#include <functional>
 #include <queue>
 
 #include "Pass/Analyses/DominanceGraph.h"
@@ -327,17 +326,17 @@ void DominanceGraph::set_dirty(const FunctionPtr &func) {
 std::vector<BlockPtr> DominanceGraph::post_order_blocks(const FunctionPtr &func) {
     std::unordered_set<BlockPtr> visited;
     std::vector<BlockPtr> post_order;
-    std::function<void(const BlockPtr &)> dfs = [&](const BlockPtr &block) {
+    auto dfs = [&](auto &&self, const BlockPtr &block) -> void {
         if (visited.count(block)) {
             return;
         }
         visited.insert(block);
         for (const auto &child: graphs_[func].dominance_children.at(block)) {
-            dfs(child);
+            self(self, child);
         }
         post_order.push_back(block);
     };
-    dfs(func->get_blocks().front());
+    dfs(dfs, func->get_blocks().front());
     return post_order;
 }
 

@@ -1,5 +1,3 @@
-#include <functional>
-
 #include "Pass/Analyses/ControlFlowGraph.h"
 #include "Pass/Analyses/DominanceGraph.h"
 #include "Pass/Transforms/DCE.h"
@@ -15,18 +13,17 @@ void DeadFuncEliminate::transform(const std::shared_ptr<Module> module) {
     const auto func_analysis = get_analysis_result<FunctionAnalysis>(module);
     const auto main_func = module->get_main_function();
     FunctionSet reachable_functions;
-    std::function<void(const FunctionPtr &, FunctionSet &)> dfs =
-            [&](const FunctionPtr &cur_function, FunctionSet &reachable) {
+    auto dfs = [&](auto &&self, const FunctionPtr &cur_function, FunctionSet &reachable) -> void {
         if (reachable.find(cur_function) != reachable.end()) {
             return;
         }
         reachable.insert(cur_function);
         const auto &call_graph = func_analysis->call_graph_func(cur_function);
         for (const auto &func: call_graph) {
-            dfs(func, reachable);
+            self(self, func, reachable);
         }
     };
-    dfs(main_func, reachable_functions);
+    dfs(dfs, main_func, reachable_functions);
     for (auto it = module->get_functions().begin(); it != module->get_functions().end();) {
         if (reachable_functions.find(*it) == reachable_functions.end()) {
             const auto func = *it;
