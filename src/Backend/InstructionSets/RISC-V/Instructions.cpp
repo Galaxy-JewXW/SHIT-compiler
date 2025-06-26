@@ -1,14 +1,9 @@
-#include "Backend/Instructions/RISC-V/Instructions.h"
-#include "Backend/Instructions/RISC-V/Registers.h"
-#include "Backend/Instructions/RISC-V/Memory.h"
+#include "Backend/InstructionSets/RISC-V/Modules/Instructions.h"
+#include "Backend/InstructionSets/RISC-V/Registers.h"
 #include "Utils/Log.h"
 #include <ostream>
 
 namespace RISCV::Instructions {
-    [[nodiscard]] std::string Immediate::to_string() const {
-        return std::to_string(value);
-    }
-
     [[nodiscard]] std::string Sub::to_string() const {
         std::ostringstream oss;
         oss << "sub " << rd->to_string() << ", " << rs1->to_string() << ", " << rs2->to_string();
@@ -17,25 +12,25 @@ namespace RISCV::Instructions {
 
     [[nodiscard]] std::string StoreDoubleword::to_string() const {
         std::ostringstream oss;
-        oss << "sd " << rs1->to_string() << ", " << imm.to_string() << "(" << rs2->to_string() << ")";
+        oss << "sd " << rs1->to_string() << ", " << imm->to_string() << "(" << rs2->to_string() << ")";
         return oss.str();
     }
 
     [[nodiscard]] std::string StoreWord::to_string() const {
         std::ostringstream oss;
-        oss << "sw " << rs1->to_string() << ", " << imm.to_string() << "(" << rs2->to_string() << ")";
+        oss << "sw " << rs1->to_string() << ", " << imm->to_string() << "(" << rs2->to_string() << ")";
         return oss.str();
     }
 
     [[nodiscard]] std::string LoadDoubleword::to_string() const {
         std::ostringstream oss;
-        oss << "ld " << rd->to_string() << ", " << imm.to_string() << "(" << rs1->to_string() << ")";
+        oss << "ld " << rd->to_string() << ", " << imm->to_string() << "(" << rs1->to_string() << ")";
         return oss.str();
     }
 
     [[nodiscard]] std::string LoadWord::to_string() const {
         std::ostringstream oss;
-        oss << "lw " << rd->to_string() << ", " << imm.to_string() << "(" << rs1->to_string() << ")";
+        oss << "lw " << rd->to_string() << ", " << imm->to_string() << "(" << rs1->to_string() << ")";
         return oss.str();
     }
 
@@ -47,7 +42,7 @@ namespace RISCV::Instructions {
 
     [[nodiscard]] std::string AddImmediate::to_string() const {
         std::ostringstream oss;
-        oss << "addi " << rd->to_string() << ", " << rs1->to_string() << ", " << imm.to_string();
+        oss << "addi " << rd->to_string() << ", " << rs1->to_string() << ", " << imm->to_string();
         return oss.str();
     }
 
@@ -73,7 +68,7 @@ namespace RISCV::Instructions {
 
     [[nodiscard]] std::string LoadImmediate::to_string() const {
         std::ostringstream oss;
-        oss << "li " << rd->to_string() << ", " << imm.to_string();
+        oss << "li " << rd->to_string() << ", " << imm->to_string();
         return oss.str();
     }
 

@@ -2,21 +2,15 @@
 #define ASSEMBLER_H
 
 #include "Mir/Structure.h"
-#include "Backend/Instructions/RISC-V/Modules.h"
-#include <map>
 
-namespace Assembler {
-    class RISCV_Assembler
-    {
+namespace Backend::Assembler {
+    class AssemblerBase {
         public:
-            explicit RISCV_Assembler() = default;
-            explicit RISCV_Assembler(std::shared_ptr<Mir::Module> module);
+            virtual ~AssemblerBase() = default;
 
-            [[nodiscard]] std::string to_string() const;
-        private:
-            RISCV::Modules::TextField text;
-            RISCV::Modules::DataField data;
-            std::shared_ptr<Mir::Module> module;
+            virtual void assemble(std::shared_ptr<Mir::Module> module) = 0;
+
+            [[nodiscard]] virtual std::string to_string() const = 0;
     };
 }
 #endif

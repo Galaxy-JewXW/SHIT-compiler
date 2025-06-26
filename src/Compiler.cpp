@@ -38,8 +38,8 @@ int main(int argc, char *argv[]) {
     }
 
     if (options.flag_S) {
-        Assembler::RISCV_Assembler asassembler(module);
-        emit_riscv(asassembler, options);
+        RISCV::Assembler assembler(module);
+        emit_riscv(assembler, options);
     }
 
     return 0;

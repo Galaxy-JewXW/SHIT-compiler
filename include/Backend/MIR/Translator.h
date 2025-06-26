@@ -1,0 +1,4 @@
+#ifndef BACKEND_MIR_TRANSLATOR_H
+#define BACKEND_MIR_TRANSLATOR_H
+
+#endif
