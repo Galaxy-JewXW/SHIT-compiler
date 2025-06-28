@@ -120,6 +120,10 @@ bool ControlFlowGraph::is_dirty() const {
     });
 }
 
+bool ControlFlowGraph::is_dirty(const std::shared_ptr<Mir::Function> &function) const {
+    return dirty_funcs_.at(function);
+}
+
 void ControlFlowGraph::set_dirty(const FunctionPtr &func) {
     if (dirty_funcs_[func]) {
         return;

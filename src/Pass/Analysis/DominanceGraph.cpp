@@ -17,17 +17,14 @@ void build_dominators_dominated(const FunctionPtr &func,
     const auto &blocks = func->get_blocks();
     const std::unordered_set all_blocks(blocks.begin(), blocks.end());
     for (const auto &block: blocks) {
-        if (block == blocks.front())
-            dominator[block] = {block};
-        else
-            dominator[block] = all_blocks;
+        if (block == blocks.front()) dominator[block] = {block};
+        else dominator[block] = all_blocks;
     }
     bool changed = true;
     while (changed) {
         changed = false;
         for (const auto &block: blocks) {
-            if (block == blocks.front())
-                continue;
+            if (block == blocks.front()) continue;
             // 新支配集为其所有前驱支配集的交集，再加上自身
             std::unordered_set<BlockPtr> new_dom;
             bool first = true;
@@ -38,8 +35,7 @@ void build_dominators_dominated(const FunctionPtr &func,
                 } else {
                     std::unordered_set<BlockPtr> temp;
                     for (const auto &d: new_dom) {
-                        if (dominator.at(pred).count(d))
-                            temp.insert(d);
+                        if (dominator.at(pred).count(d)) temp.insert(d);
                     }
                     new_dom = std::move(temp);
                 }
@@ -53,8 +49,7 @@ void build_dominators_dominated(const FunctionPtr &func,
     }
     for (const auto &b: blocks) {
         for (const auto &c: blocks) {
-            if (dominator.at(c).count(b))
-                dominated[b].insert(c);
+            if (dominator.at(c).count(b)) dominated[b].insert(c);
         }
     }
     std::ostringstream oss;
@@ -314,6 +309,11 @@ bool DominanceGraph::is_dirty() const {
         return pair.second;
     });
 }
+
+bool DominanceGraph::is_dirty(const std::shared_ptr<Mir::Function> &function) const {
+    return dirty_funcs_.at(function);
+}
+
 
 void DominanceGraph::set_dirty(const FunctionPtr &func) {
     if (dirty_funcs_[func]) {

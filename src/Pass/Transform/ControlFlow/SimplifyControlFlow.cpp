@@ -442,7 +442,8 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
     } while (changed);
 
     if (graph_modified) {
-        cfg_info->set_dirty(func);
+        set_analysis_result_dirty<ControlFlowGraph>(func);
+        set_analysis_result_dirty<DominanceGraph>(func);
     }
 }
 

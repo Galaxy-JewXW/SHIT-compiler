@@ -32,6 +32,8 @@ public:
 
     bool is_dirty() const override;
 
+    bool is_dirty(const std::shared_ptr<Mir::Function> &function) const override;
+
     void set_dirty(const FunctionPtr &func);
 
     void remove(const FunctionPtr &func) {

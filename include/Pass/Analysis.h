@@ -27,6 +27,9 @@ public:
     [[nodiscard]]
     virtual bool is_dirty() const { return true; }
 
+    [[nodiscard]]
+    virtual bool is_dirty(const std::shared_ptr<Mir::Function> &function) const { return true; }
+
 protected:
     // 子类必须实现的纯虚函数（只读版本）
     virtual void analyze(std::shared_ptr<const Mir::Module> module) = 0;
@@ -53,7 +56,7 @@ void set_analysis_result_dirty(const std::shared_ptr<Mir::Function> &function) {
     static_assert(has_set_dirty_v<T>, "Analysis type T cannot set dirty");
     const std::type_index idx(typeid(T));
     if (const auto it = _analysis_results().find(idx);
-        it != _analysis_results().end() && !it->second->is_dirty()) [[likely]] {
+        it != _analysis_results().end() && !it->second->is_dirty(function)) [[likely]] {
         std::static_pointer_cast<T>(it->second)->set_dirty(function);
     }
 }
