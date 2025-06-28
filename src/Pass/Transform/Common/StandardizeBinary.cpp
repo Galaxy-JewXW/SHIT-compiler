@@ -9,16 +9,16 @@ namespace {
 void try_exchange_operands(const std::shared_ptr<Instruction> &instruction) {
     if (const auto op = instruction->get_op(); op == Operator::INTBINARY) {
         if (const auto int_binary = std::static_pointer_cast<IntBinary>(instruction);
-            int_binary->op == IntBinary::Op::ADD || int_binary->op == IntBinary::Op::MUL) {
+            int_binary->is_commutative()) {
             if (int_binary->get_lhs()->is_constant() && !int_binary->get_rhs()->is_constant()) {
-                std::swap(int_binary->lhs(), int_binary->rhs());
+                int_binary->swap_operands();
             }
         }
     } else if (op == Operator::FLOATBINARY) {
         if (const auto float_binary = std::static_pointer_cast<FloatBinary>(instruction);
-            float_binary->op == FloatBinary::Op::ADD || float_binary->op == FloatBinary::Op::MUL) {
+            float_binary->is_commutative()) {
             if (float_binary->get_lhs()->is_constant() && !float_binary->get_rhs()->is_constant()) {
-                std::swap(float_binary->lhs(), float_binary->rhs());
+                float_binary->swap_operands();
             }
         }
     } else if (op == Operator::ICMP) {

@@ -1,5 +1,3 @@
-#include <functional>
-
 #include "Pass/Analyses/FunctionAnalysis.h"
 #include "Mir/Instruction.h"
 
@@ -31,18 +29,18 @@ bool has_side_effect(std::shared_ptr<Mir::Value> addr) {
 std::vector<FunctionPtr> topo_order(const FunctionPtr &main, const FunctionMap &call_graph) {
     std::unordered_set<FunctionPtr> visited;
     std::vector<FunctionPtr> order;
-    std::function<void(const FunctionPtr &)> dfs = [&](const FunctionPtr &func) {
+    auto dfs = [&](auto &&self, const FunctionPtr &func) -> void {
         visited.insert(func);
         if (call_graph.find(func) != call_graph.end()) {
             for (const auto &called: call_graph.at(func)) {
                 if (visited.find(called) == visited.end()) {
-                    dfs(called);
+                    self(self, called);
                 }
             }
         }
         order.push_back(func);
     };
-    dfs(main);
+    dfs(dfs, main);
     return order;
 }
 }

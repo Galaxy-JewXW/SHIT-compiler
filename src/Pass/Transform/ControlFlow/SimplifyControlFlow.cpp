@@ -1,4 +1,3 @@
-#include <functional>
 #include <unordered_set>
 
 #include "Pass/Analyses/ControlFlowGraph.h"
@@ -8,64 +7,6 @@
 using namespace Mir;
 
 namespace {
-void remove_deleted_blocks(const std::shared_ptr<Function> &func) {
-    auto &blocks = func->get_blocks();
-    blocks.erase(std::remove_if(blocks.begin(), blocks.end(), [](const std::shared_ptr<Block> &block) {
-        if (!block->is_deleted()) [[likely]] {
-            return false;
-        }
-        std::for_each(block->get_instructions().begin(), block->get_instructions().end(),
-                      [&](const std::shared_ptr<Instruction> &instruction) {
-                          instruction->clear_operands();
-                      });
-        block->clear_operands();
-        block->set_deleted();
-        return true;
-    }), blocks.end());
-}
-
-void remove_unreachable_blocks(const std::shared_ptr<Function> &func) {
-    std::unordered_set<std::shared_ptr<Block>> visited_blocks;
-
-    const std::function<void(const std::shared_ptr<Block> &)> dfs = [&](const std::shared_ptr<Block> &block) -> void {
-        if (visited_blocks.count(block)) {
-            return;
-        }
-        visited_blocks.insert(block);
-        const auto &instructions = block->get_instructions();
-        if (instructions.empty()) {
-            log_error("Empty Block");
-        }
-        const auto last_instruction = instructions.back();
-        if (const auto op = last_instruction->get_op(); op == Operator::JUMP) {
-            dfs(last_instruction->as<Jump>()->get_target_block());
-        } else if (op == Operator::BRANCH) {
-            const auto branch = last_instruction->as<Branch>();
-            dfs(branch->get_true_block());
-            dfs(branch->get_false_block());
-        } else if (op != Operator::RET) {
-            log_error("Last instruction is not a terminator: %s", last_instruction->to_string().c_str());
-        }
-    };
-
-    dfs(func->get_blocks().front());
-
-    auto &blocks = func->get_blocks();
-    blocks.erase(std::remove_if(blocks.begin(), blocks.end(), [&](const std::shared_ptr<Block> &block) {
-        if (visited_blocks.find(block) != visited_blocks.end()) {
-            return false;
-        }
-        std::for_each(block->get_instructions().begin(), block->get_instructions().end(),
-                      [&](const std::shared_ptr<Instruction> &instruction) {
-                          instruction->clear_operands();
-                      });
-        block->clear_operands();
-        block->set_deleted();
-        Pass::get_analysis_result<Pass::ControlFlowGraph>(Module::instance())->set_dirty(func);
-        return true;
-    }), blocks.end());
-}
-
 void try_constant_fold(const std::shared_ptr<Function> &func) {
     for (const auto &block: func->get_blocks()) {
         for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
@@ -159,9 +100,188 @@ void cleanup_phi(const std::shared_ptr<Function> &func, const std::shared_ptr<Pa
         }
     }
 }
+
+// 识别并消除那些只包含 PHI 指令和一条无条件跳转指令的“中间”基本块。
+// 将这个中间块的 PHI 指令合并到后继基本块的 PHI 指令中，并修改前驱基本块的跳转目标
+void merge_phi(const std::shared_ptr<Function> &func, const std::shared_ptr<Pass::ControlFlowGraph> &cfg_info) {
+    // ReSharper disable once CppUseStructuredBinding
+    const auto &cfg{cfg_info->graph(func)};
+    const auto get_phi_instructions = [](const std::shared_ptr<Block> &block) {
+        std::vector<std::shared_ptr<Phi>> phi_instructions;
+        for (const auto &instruction: block->get_instructions()) {
+            if (instruction->get_op() == Operator::PHI) {
+                phi_instructions.push_back(instruction->as<Phi>());
+            } else {
+                break;
+            }
+        }
+        return phi_instructions;
+    };
+
+    bool modified{false};
+    const auto run_on_block = [&](const std::shared_ptr<Block> &block) -> void {
+        const auto phis{get_phi_instructions(block)};
+        if (phis.empty()) {
+            return;
+        }
+        if (block->get_instructions().back()->get_op() != Operator::JUMP) {
+            return;
+        }
+        const auto jump{block->get_instructions().back()->as<Jump>()};
+        for (auto it{block->get_instructions().rbegin()}; it != block->get_instructions().rend(); ++it) {
+            if (*it == jump) {
+                continue;
+            }
+            if ((*it)->get_op() != Operator::PHI) {
+                return;
+            }
+        }
+        const auto target_block{jump->get_target_block()};
+        const auto target_phis{get_phi_instructions(target_block)};
+        if (target_phis.empty()) {
+            return;
+        }
+
+        // 检查当前块的前驱和目标块的前驱是否有交集
+        const auto &prev{cfg.predecessors.at(block)},
+                   &target_prev{cfg.predecessors.at(target_block)};
+        if (std::any_of(prev.begin(), prev.end(), [&](const auto &p) { return target_prev.count(p); })) {
+            return;
+        }
+
+        // 要求当前块中所有的 phi 指令，它们的所有使用者（users）必须是目标块中的 phi 指令
+        for (const auto &phi: phis) {
+            const auto users{phi->users().lock()};
+            const auto is_available_phi = [&target_block](const std::shared_ptr<User> &user)-> bool {
+                if (const auto phi_user{user->is<Phi>()}) {
+                    if (phi_user->get_block() == target_block) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+            if (!std::all_of(users.begin(), users.end(), is_available_phi)) {
+                return;
+            }
+        }
+
+        std::vector<std::shared_ptr<Block>> worklist;
+        for (const auto &[key, value]: phis.front()->get_optional_values()) {
+            worklist.push_back(key);
+        }
+
+        std::unordered_set<std::shared_ptr<Phi>> fixed_phis;
+        for (const auto &phi: phis) {
+            const auto users{phi->users().lock()};
+            for (const auto &user: users) {
+                const auto phi_user{user->as<Phi>()};
+                phi_user->remove_optional_value(target_block);
+                decltype(worklist) pre;
+                for (const auto &[key, value]: phi->get_optional_values()) {
+                    pre.push_back(key);
+                }
+                for (const auto &p: pre) {
+                    phi_user->set_optional_value(p, phi->get_optional_values()[p]);
+                }
+                fixed_phis.insert(phi_user);
+            }
+        }
+
+        // 它们之前从 block 接收一个值，现在由于 block 被绕过了
+        // 它们需要从 block 的所有前驱 pre 接收值。这个值应该和它们之前从 block 接收的值相同
+        for (const auto &phi: target_phis) {
+            if (fixed_phis.count(phi)) {
+                continue;
+            }
+            for (const auto &p: worklist) {
+                phi->set_optional_value(p, phi->get_optional_values()[block]);
+            }
+            phi->remove_optional_value(block);
+        }
+
+        block->replace_by_new_value(target_block);
+        block->set_deleted();
+        for (const auto &inst: block->get_instructions()) {
+            inst->clear_operands();
+        }
+        block->get_instructions().clear();
+        func->get_blocks().erase(std::find(func->get_blocks().begin(), func->get_blocks().end(), block));
+        modified = true;
+    };
+
+    std::for_each(func->get_blocks().begin(), func->get_blocks().end(), run_on_block);
+    if (modified) {
+        Pass::set_analysis_result_dirty<Pass::ControlFlowGraph>(func);
+        Pass::set_analysis_result_dirty<Pass::DominanceGraph>(func);
+    }
+}
 }
 
 namespace Pass {
+void SimplifyControlFlow::remove_deleted_blocks(const std::shared_ptr<Function> &func) {
+    auto &blocks = func->get_blocks();
+    blocks.erase(std::remove_if(blocks.begin(), blocks.end(), [](const std::shared_ptr<Block> &block) {
+        if (!block->is_deleted()) [[likely]] {
+            return false;
+        }
+        std::for_each(block->get_instructions().begin(), block->get_instructions().end(),
+                      [&](const std::shared_ptr<Instruction> &instruction) {
+                          instruction->clear_operands();
+                      });
+        block->clear_operands();
+        block->set_deleted();
+        return true;
+    }), blocks.end());
+
+    set_analysis_result_dirty<ControlFlowGraph>(func);
+    set_analysis_result_dirty<DominanceGraph>(func);
+}
+
+void SimplifyControlFlow::remove_unreachable_blocks(const std::shared_ptr<Function> &func) {
+    std::unordered_set<std::shared_ptr<Block>> visited_blocks;
+
+    auto dfs = [&](auto &&self, const std::shared_ptr<Block> &block) -> void {
+        if (visited_blocks.count(block)) {
+            return;
+        }
+        visited_blocks.insert(block);
+        const auto &instructions = block->get_instructions();
+        if (instructions.empty()) {
+            log_error("Empty Block");
+        }
+        const auto last_instruction = instructions.back();
+        if (const auto op = last_instruction->get_op(); op == Operator::JUMP) {
+            self(self, last_instruction->as<Jump>()->get_target_block());
+        } else if (op == Operator::BRANCH) {
+            const auto branch = last_instruction->as<Branch>();
+            self(self, branch->get_true_block());
+            self(self, branch->get_false_block());
+        } else if (op != Operator::RET) {
+            log_error("Last instruction is not a terminator: %s", last_instruction->to_string().c_str());
+        }
+    };
+
+    dfs(dfs, func->get_blocks().front());
+
+    auto &blocks = func->get_blocks();
+    blocks.erase(std::remove_if(blocks.begin(), blocks.end(), [&](const std::shared_ptr<Block> &block) {
+        if (visited_blocks.find(block) != visited_blocks.end()) {
+            return false;
+        }
+        std::for_each(block->get_instructions().begin(), block->get_instructions().end(),
+                      [&](const std::shared_ptr<Instruction> &instruction) {
+                          instruction->clear_operands();
+                      });
+        block->clear_operands();
+        block->set_deleted();
+        set_analysis_result_dirty<ControlFlowGraph>(func);
+        return true;
+    }), blocks.end());
+
+    set_analysis_result_dirty<ControlFlowGraph>(func);
+    set_analysis_result_dirty<DominanceGraph>(func);
+}
+
 void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) const {
     auto predecessors = cfg_info->graph(func).predecessors;
     auto successors = cfg_info->graph(func).successors;
@@ -235,12 +355,13 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
     };
 
     const auto is_single_jump_block = [&](const std::shared_ptr<Block> &block) -> std::shared_ptr<Block> {
-        if (block->get_instructions().size() != 1)
+        if (block->get_instructions().size() != 1) {
             return nullptr;
+        }
         if (predecessors.at(block).empty()) {
             return nullptr;
         }
-        if (const auto op = block->get_instructions().front()->get_op(); op == Operator::JUMP) {
+        if (block->get_instructions().front()->get_op() == Operator::JUMP) {
             const auto jump = block->get_instructions().front()->as<Jump>();
             return jump->get_target_block();
         }
@@ -248,25 +369,26 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
     };
 
     const auto is_single_branch_block = [&](const std::shared_ptr<Block> &block) -> std::shared_ptr<Branch> {
-        if (block->get_instructions().size() != 1)
+        if (block->get_instructions().size() != 1) {
             return nullptr;
+        }
         if (predecessors.at(block).empty()) {
             return nullptr;
         }
-        if (const auto op = block->get_instructions().front()->get_op(); op == Operator::BRANCH) {
+        if (block->get_instructions().front()->get_op() == Operator::BRANCH) {
             return block->get_instructions().front()->as<Branch>();
         }
         return nullptr;
     };
 
     // 检查给定块的前驱是否均只有给定块作为后继
-    [[maybe_unused]] const auto get_candidate_predecessors = [&](const std::shared_ptr<Block> &block) {
+    const auto get_candidate_predecessors = [&](const std::shared_ptr<Block> &block) {
         std::unordered_set<std::shared_ptr<Block>> candidates;
         for (const auto &pre: predecessors.at(block)) {
             if (successors.at(pre).size() != 1) {
                 continue;
             }
-            if (const auto &target = *successors.at(pre).begin(); target != block) {
+            if (*successors.at(pre).begin() != block) {
                 continue;
             }
             candidates.insert(pre);
@@ -286,29 +408,19 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
             if (target == nullptr || target->is_deleted()) {
                 continue;
             }
-            std::vector<std::shared_ptr<User>> locked_users;
-            for (const auto &weak: block->weak_users()) {
-                if (const auto sp = weak.lock()) {
-                    locked_users.push_back(sp);
-                }
-            }
-
-            bool available{true};
-            for (const auto &user: locked_users) {
-                if (const auto phi = user->is<Phi>()) {
-                    const auto &options = phi->get_optional_values();
+            auto locked_users{block->users().lock()};
+            const auto is_available = [&](const std::shared_ptr<User> &user) -> bool {
+                if (const auto phi{user->is<Phi>()}) {
+                    const auto &options{phi->get_optional_values()};
                     for (const auto &pre: predecessors.at(block)) {
                         if (options.find(pre) != options.end()) {
-                            available = false;
-                            break;
+                            return false;
                         }
                     }
                 }
-                if (!available) {
-                    break;
-                }
-            }
-            if (!available) {
+                return true;
+            };
+            if (!std::all_of(locked_users.begin(), locked_users.end(), is_available)) {
                 continue;
             }
             for (const auto &user: locked_users) {
@@ -370,28 +482,19 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
             if (candidate.empty()) {
                 continue;
             }
-            std::vector<std::shared_ptr<User>> locked_users;
-            for (const auto &weak: block->weak_users()) {
-                if (const auto sp = weak.lock()) {
-                    locked_users.push_back(sp);
-                }
-            }
-            bool available{true};
-            for (const auto &user: locked_users) {
-                if (const auto phi = user->is<Phi>()) {
-                    const auto &options = phi->get_optional_values();
-                    for (const auto &pre: candidate) {
+            auto locked_users{block->users().lock()};
+            const auto is_available = [&](const std::shared_ptr<User> &user) -> bool {
+                if (const auto phi{user->is<Phi>()}) {
+                    const auto &options{phi->get_optional_values()};
+                    for (const auto &pre: predecessors.at(block)) {
                         if (options.find(pre) != options.end()) {
-                            available = false;
-                            break;
+                            return false;
                         }
                     }
                 }
-                if (!available) {
-                    break;
-                }
-            }
-            if (!available) {
+                return true;
+            };
+            if (!std::all_of(locked_users.begin(), locked_users.end(), is_available)) {
                 continue;
             }
             for (const auto &pre: candidate) {
@@ -456,7 +559,8 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
     } while (changed);
 
     if (graph_modified) {
-        cfg_info->set_dirty(func);
+        set_analysis_result_dirty<ControlFlowGraph>(func);
+        set_analysis_result_dirty<DominanceGraph>(func);
     }
 }
 
@@ -475,7 +579,11 @@ void SimplifyControlFlow::transform(const std::shared_ptr<Module> module) {
     for (const auto &func: *module) {
         cleanup_phi(func, cfg_info);
     }
+
+    cfg_info = get_analysis_result<ControlFlowGraph>(module);
+    for (const auto &func: *module) {
+        merge_phi(func, cfg_info);
+    }
     cfg_info = nullptr;
-    create<GlobalCodeMotion>()->run_on(module);
 }
 }

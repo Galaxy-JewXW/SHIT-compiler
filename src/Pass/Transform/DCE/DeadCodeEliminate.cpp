@@ -76,8 +76,7 @@ void DeadCodeEliminate::dead_global_variable_eliminate(const std::shared_ptr<Mod
 
 
 void DeadCodeEliminate::transform(const std::shared_ptr<Module> module) {
-    function_analysis_ = create<FunctionAnalysis>();
-    function_analysis_->run_on(module);
+    function_analysis_ = get_analysis_result<FunctionAnalysis>(module);
     dead_global_variable_eliminate(module);
     for (const auto &func: *module) {
         useful_instructions_.clear();

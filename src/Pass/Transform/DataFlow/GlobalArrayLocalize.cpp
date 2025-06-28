@@ -121,8 +121,7 @@ void localize(const std::shared_ptr<Module> &module) {
         array_init->gen_store_inst(new_alloc, new_entry, indexes);
         gv->replace_by_new_value(new_alloc);
         Jump::create(current_entry, new_entry);
-        Pass::get_analysis_result<Pass::ControlFlowGraph>(module)->set_dirty(func);
-        Pass::get_analysis_result<Pass::DominanceGraph>(module)->set_dirty(func);
+        Pass::set_analysis_result_dirty<Pass::ControlFlowGraph>(func);
     }
     if (!can_replaced.empty()) {
         for (auto it = module->get_global_variables().begin(); it != module->get_global_variables().end();) {

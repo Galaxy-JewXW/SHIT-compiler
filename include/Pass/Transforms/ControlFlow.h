@@ -2,6 +2,9 @@
 #define CONTROLFLOW_H
 
 #include "Pass/Transform.h"
+#include "Pass/Analyses/ControlFlowGraph.h"
+#include "Pass/Analyses/DominanceGraph.h"
+#include "Pass/Analyses/FunctionAnalysis.h"
 
 namespace Pass {
 /**
@@ -9,34 +12,9 @@ namespace Pass {
  * 1. 删除没有前驱块（即无法到达）的基本块
  * 2. 如果某一个基本块只有一个前驱，且前驱的后继只有当前基本块，则将当前基本块与其前驱合并
  * 3. 消除只有一个前驱块的phi节点
- * 4. (弃用)消除只包含单个非条件跳转的基本块
+ * 4. 消除只包含单个非条件跳转的基本块
+ * 5. 消除只包含单个条件跳转的基本块
  */
-class [[deprecated("Use SimplifyControlFlow instead")]] SimplifyCFG final : public Transform {
-public:
-    explicit SimplifyCFG() : Transform("SimplifyCFG") {}
-
-protected:
-    void transform(std::shared_ptr<Mir::Module> module) override;
-
-    void dfs(const std::shared_ptr<Mir::Block> &current_block);
-
-    void remove_unreachable_blocks_for_phi(const std::shared_ptr<Mir::Phi> &phi,
-                                           const std::shared_ptr<Mir::Function> &func) const;
-
-    bool try_merge_blocks(const std::shared_ptr<Mir::Function> &func) const;
-
-    [[deprecated]] bool try_simplify_single_jump(const std::shared_ptr<Mir::Function> &func) const;
-
-    void remove_unreachable_blocks(const std::shared_ptr<Mir::Function> &func);
-
-    bool remove_phi(const std::shared_ptr<Mir::Function> &func) const;
-
-private:
-    std::unordered_set<std::shared_ptr<Mir::Block>> visited;
-
-    std::shared_ptr<ControlFlowGraph> cfg_info;
-};
-
 class SimplifyControlFlow final : public Transform {
 public:
     explicit SimplifyControlFlow() : Transform("SimplifyControlFlow") {}
@@ -45,6 +23,11 @@ protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
     void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
+
+public:
+    static void remove_unreachable_blocks(const std::shared_ptr<Mir::Function> &func);
+
+    static void remove_deleted_blocks(const std::shared_ptr<Mir::Function> &func);
 
 private:
     std::shared_ptr<ControlFlowGraph> cfg_info;
@@ -62,6 +45,36 @@ protected:
 
 private:
     std::shared_ptr<ControlFlowGraph> cfg_info;
+};
+
+// 尾递归优化：将尾递归转换为循环
+class TailRecursionToLoop final : public Transform {
+public:
+    explicit TailRecursionToLoop() : Transform("TailRecursionToLoop") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+    void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
+
+private:
+    std::shared_ptr<ControlFlowGraph> cfg_info;
+    std::shared_ptr<FunctionAnalysis> func_info;
+};
+
+// 合并嵌套的分支，减少控制流复杂度
+class BranchMerging final : public Transform {
+public:
+    explicit BranchMerging() : Transform("BranchMerging") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+    void run_on_func(const std::shared_ptr<Mir::Function> &func);
+
+private:
+    std::shared_ptr<ControlFlowGraph> cfg_info;
+    std::shared_ptr<DominanceGraph> dom_info;
 };
 }
 

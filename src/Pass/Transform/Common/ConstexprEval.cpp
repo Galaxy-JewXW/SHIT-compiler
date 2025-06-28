@@ -8,7 +8,8 @@ using namespace Mir;
 namespace Pass {
 void ConstexprFuncEval::transform(const std::shared_ptr<Module> module) {
     func_analysis = get_analysis_result<FunctionAnalysis>(module);
-    bool dataflow_modified{false}, changed{false};
+    bool changed{false};
+    const auto cache{std::make_shared<Interpreter::Cache>()};
 
     const auto is_constexpr_func = [&](const std::shared_ptr<Function> &func) -> bool {
         if (func->is_runtime_func()) {
@@ -44,19 +45,49 @@ void ConstexprFuncEval::transform(const std::shared_ptr<Module> module) {
 
                 const auto &real_params{call->get_params()};
                 bool all_params_constant{true};
-                std::vector<eval_t> real_args;
-                for (const auto &param: real_params) {
-                    if (!param->is_constant()) {
-                        all_params_constant = false;
-                        break;
+                const auto real_args = [&]() -> std::vector<eval_t> {
+                    std::vector<eval_t> args;
+                    args.reserve(real_params.size());
+                    for (const auto &param: real_params) {
+                        if (!param->is_constant()) {
+                            all_params_constant = false;
+                            break;
+                        }
+                        args.emplace_back(param->as<Const>()->get_constant_value());
                     }
-                    real_args.emplace_back(param->as<Const>()->get_constant_value());
-                }
+                    return args;
+                }();
                 if (!all_params_constant) {
                     continue;
                 }
-                dataflow_modified = true;
+                eval_t result;
+                if (const Interpreter::Key key{called_func->get_name(), real_args}; cache->contains(key)) {
+                    result = cache->get(key);
+                } else {
+                    const auto interpreter{std::make_unique<Interpreter>(cache)};
+                    try {
+                        interpreter->interpret_function(called_func, real_args);
+                    } catch (const std::exception &) {
+                        continue;
+                    }
+                    result = interpreter->frame->ret_value;
+                    cache->put(key, result);
+                }
+                const auto new_value = [&]() -> std::shared_ptr<Value> {
+                    if (func->get_return_type()->is_int32()) {
+                        return ConstInt::create(result.get<int>());
+                    }
+                    if (func->get_return_type()->is_float()) {
+                        return ConstFloat::create(result.get<double>());
+                    }
+                    log_error("Invalid return type %s", func->get_return_type()->to_string().c_str());
+                }();
+                call->replace_by_new_value(new_value);
                 changed = true;
+                break;
+            }
+            if (changed) {
+                break;
             }
         }
     };
@@ -64,12 +95,11 @@ void ConstexprFuncEval::transform(const std::shared_ptr<Module> module) {
     do {
         changed = false;
         std::for_each(module->get_functions().begin(), module->get_functions().end(), run_on_func);
+        if (changed) {
+            create<DeadInstEliminate>()->run_on(module);
+            create<GlobalValueNumbering>()->run_on(module);
+        }
     } while (changed);
-
-    if (dataflow_modified) {
-        create<GlobalValueNumbering>()->run_on(module);
-        create<DeadInstEliminate>()->run_on(module);
-    }
 
     func_analysis = nullptr;
 }

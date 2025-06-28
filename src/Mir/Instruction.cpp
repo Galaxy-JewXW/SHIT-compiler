@@ -195,8 +195,8 @@ std::shared_ptr<Value> Branch::create(const std::shared_ptr<Value> &cond, const 
                                       const std::shared_ptr<Block> &false_block,
                                       const std::shared_ptr<Block> &block) {
     if (!cond->get_type()->is_int1()) {
-        log_error("Cond must be an integer 1"); 
-    }       
+        log_error("Cond must be an integer 1");
+    }
     if (cond->is_constant()) {
         if (const auto value = cond->as<ConstBool>()->get<int>(); value == 1) {
             return Jump::create(true_block, block);
@@ -276,137 +276,40 @@ std::shared_ptr<Call> Call::create(const std::shared_ptr<Function> &function,
     return instruction;
 }
 
-std::shared_ptr<Add> Add::create(const std::string &name, std::shared_ptr<Value> lhs,
-                                 std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block) {
-    if (!lhs->get_type()->is_int32() || !rhs->get_type()->is_int32()) {
-        log_error("Operands must be int 32");
-    }
-    if (lhs->is_constant() && !rhs->is_constant()) {
-        std::swap(lhs, rhs);
-    }
-    const auto instruction = std::make_shared<Add>(name, lhs, rhs);
-    if (block != nullptr) [[likely]] { instruction->set_block(block); }
-    instruction->add_operand(lhs);
-    instruction->add_operand(rhs);
-    return instruction;
+#define CREATE_BINARY(Type, TypeCheck) \
+std::shared_ptr<Type> Type::create(const std::string &name, \
+    const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs, \
+    const std::shared_ptr<Block> &block) { \
+    if (!lhs->get_type()->TypeCheck() || !rhs->get_type()->TypeCheck()) { \
+        log_error("Operands does not fit %s", #TypeCheck); \
+    } \
+    const auto instruction = std::make_shared<Type>(name, lhs, rhs); \
+    if (block != nullptr) [[likely]] { instruction->set_block(block); } \
+    instruction->add_operand(lhs); \
+    instruction->add_operand(rhs); \
+    return instruction; \
 }
 
-std::shared_ptr<Sub> Sub::create(const std::string &name, const std::shared_ptr<Value> &lhs,
-                                 const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block) {
-    if (!lhs->get_type()->is_int32() || !rhs->get_type()->is_int32()) {
-        log_error("Operands must be int 32");
-    }
-    const auto instruction = std::make_shared<Sub>(name, lhs, rhs);
-    if (block != nullptr) [[likely]] { instruction->set_block(block); }
-    instruction->add_operand(lhs);
-    instruction->add_operand(rhs);
-    return instruction;
-}
+CREATE_BINARY(Add, is_int32)
+CREATE_BINARY(Sub, is_int32)
+CREATE_BINARY(Mul, is_int32)
+CREATE_BINARY(Div, is_int32)
+CREATE_BINARY(Mod, is_int32)
+CREATE_BINARY(And, is_int32)
+CREATE_BINARY(Or, is_int32)
+CREATE_BINARY(Xor, is_int32)
+CREATE_BINARY(Smax, is_int32)
+CREATE_BINARY(Smin, is_int32)
 
-std::shared_ptr<Mul> Mul::create(const std::string &name, std::shared_ptr<Value> lhs,
-                                 std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block) {
-    if (!lhs->get_type()->is_int32() || !rhs->get_type()->is_int32()) {
-        log_error("Operands must be int 32");
-    }
-    if (lhs->is_constant() && !rhs->is_constant()) {
-        std::swap(lhs, rhs);
-    }
-    const auto instruction = std::make_shared<Mul>(name, lhs, rhs);
-    if (block != nullptr) [[likely]] { instruction->set_block(block); }
-    instruction->add_operand(lhs);
-    instruction->add_operand(rhs);
-    return instruction;
-}
+CREATE_BINARY(FAdd, is_float)
+CREATE_BINARY(FSub, is_float)
+CREATE_BINARY(FMul, is_float)
+CREATE_BINARY(FDiv, is_float)
+CREATE_BINARY(FMod, is_float)
+CREATE_BINARY(FSmax, is_float)
+CREATE_BINARY(FSmin, is_float)
 
-std::shared_ptr<Div> Div::create(const std::string &name, const std::shared_ptr<Value> &lhs,
-                                 const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block) {
-    if (!lhs->get_type()->is_int32() || !rhs->get_type()->is_int32()) {
-        log_error("Operands must be int 32");
-    }
-    const auto instruction = std::make_shared<Div>(name, lhs, rhs);
-    if (block != nullptr) [[likely]] { instruction->set_block(block); }
-    instruction->add_operand(lhs);
-    instruction->add_operand(rhs);
-    return instruction;
-}
-
-std::shared_ptr<Mod> Mod::create(const std::string &name, const std::shared_ptr<Value> &lhs,
-                                 const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block) {
-    if (!lhs->get_type()->is_int32() || !rhs->get_type()->is_int32()) {
-        log_error("Operands must be int 32");
-    }
-    const auto instruction = std::make_shared<Mod>(name, lhs, rhs);
-    if (block != nullptr) [[likely]] { instruction->set_block(block); }
-    instruction->add_operand(lhs);
-    instruction->add_operand(rhs);
-    return instruction;
-}
-
-std::shared_ptr<FAdd> FAdd::create(const std::string &name, std::shared_ptr<Value> lhs,
-                                   std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block) {
-    if (!lhs->get_type()->is_float() || !rhs->get_type()->is_float()) {
-        log_error("Operands must be float");
-    }
-    if (lhs->is_constant() && !rhs->is_constant()) {
-        std::swap(lhs, rhs);
-    }
-    const auto instruction = std::make_shared<FAdd>(name, lhs, rhs);
-    if (block != nullptr) [[likely]] { instruction->set_block(block); }
-    instruction->add_operand(lhs);
-    instruction->add_operand(rhs);
-    return instruction;
-}
-
-std::shared_ptr<FSub> FSub::create(const std::string &name, const std::shared_ptr<Value> &lhs,
-                                   const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block) {
-    if (!lhs->get_type()->is_float() || !rhs->get_type()->is_float()) {
-        log_error("Operands must be float");
-    }
-    const auto instruction = std::make_shared<FSub>(name, lhs, rhs);
-    if (block != nullptr) [[likely]] { instruction->set_block(block); }
-    instruction->add_operand(lhs);
-    instruction->add_operand(rhs);
-    return instruction;
-}
-
-std::shared_ptr<FMul> FMul::create(const std::string &name, std::shared_ptr<Value> lhs,
-                                   std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block) {
-    if (!lhs->get_type()->is_float() || !rhs->get_type()->is_float()) {
-        log_error("Operands must be float");
-    }
-    if (lhs->is_constant() && !rhs->is_constant()) {
-        std::swap(lhs, rhs);
-    }
-    const auto instruction = std::make_shared<FMul>(name, lhs, rhs);
-    if (block != nullptr) [[likely]] { instruction->set_block(block); }
-    instruction->add_operand(lhs);
-    instruction->add_operand(rhs);
-    return instruction;
-}
-
-std::shared_ptr<FDiv> FDiv::create(const std::string &name, const std::shared_ptr<Value> &lhs,
-                                   const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block) {
-    if (!lhs->get_type()->is_float() || !rhs->get_type()->is_float()) {
-        log_error("Operands must be float");
-    }
-    const auto instruction = std::make_shared<FDiv>(name, lhs, rhs);
-    if (block != nullptr) [[likely]] { instruction->set_block(block); }
-    instruction->add_operand(lhs);
-    instruction->add_operand(rhs);
-    return instruction;
-}
-
-std::shared_ptr<FMod> FMod::create(const std::string &name, const std::shared_ptr<Value> &lhs,
-                                   const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block) {
-    if (!lhs->get_type()->is_float() || !rhs->get_type()->is_float()) {
-        log_error("Operands must be float");
-    }
-    const auto instruction = std::make_shared<FMod>(name, lhs, rhs);
-    if (block != nullptr) [[likely]] { instruction->set_block(block); }
-    instruction->add_operand(lhs);
-    instruction->add_operand(rhs);
-    return instruction;
-}
+#undef CREATE_BINARY
 
 std::shared_ptr<Phi> Phi::create(const std::string &name, const std::shared_ptr<Type::Type> &type,
                                  const std::shared_ptr<Block> &block,
@@ -422,7 +325,14 @@ std::shared_ptr<Phi> Phi::create(const std::string &name, const std::shared_ptr<
 }
 
 void Phi::set_optional_value(const std::shared_ptr<Block> &block, const std::shared_ptr<Value> &optional_value) {
-    if (*optional_value->get_type() != *type_) { log_error("Phi operand type must be same"); }
+    if (*optional_value->get_type() != *type_) {
+        log_error("Phi operand type must be same");
+    }
+    if (optional_values.find(block) == optional_values.end()) [[likely]] {
+        block->add_user(shared_from_this()->as<User>());
+    } else if (optional_values.at(block) != nullptr) {
+        log_error("Should be nullptr");
+    }
     optional_values[block] = optional_value;
     add_operand(optional_value);
 }
@@ -455,16 +365,31 @@ void Phi::modify_operand(const std::shared_ptr<Value> &old_value, const std::sha
 void Phi::remove_optional_value(const std::shared_ptr<Block> &block) {
     const auto value = optional_values[block];
     optional_values.erase(block);
-    remove_operand(block);
+    block->delete_user(shared_from_this()->as<User>());
     remove_operand(value);
 }
 
 std::shared_ptr<Block> Phi::find_optional_block(const std::shared_ptr<Value> &value) {
-    for (const auto &[block, optional_value]: optional_values) {
-        if (optional_value == value) {
-            return block;
-        }
+    const auto it = std::find_if(optional_values.begin(), optional_values.end(),
+                                 [&](const auto &pair) { return pair.second == value; });
+    return it != optional_values.end() ? it->first : nullptr;
+}
+
+std::shared_ptr<Select> Select::create(const std::string &name, const std::shared_ptr<Value> &condition,
+                                       const std::shared_ptr<Value> &true_value,
+                                       const std::shared_ptr<Value> &false_value,
+                                       const std::shared_ptr<Block> &block) {
+    if (*true_value->get_type() != *false_value->get_type()) {
+        log_error("lhs and rhs should be same type");
     }
-    return nullptr;
+    if (condition->get_type() != Type::Integer::i1) {
+        log_error("condition should be an i1");
+    }
+    const auto instruction = std::make_shared<Select>(name, condition, true_value, false_value);
+    if (block != nullptr) [[likely]] { instruction->set_block(block); }
+    instruction->add_operand(condition);
+    instruction->add_operand(true_value);
+    instruction->add_operand(false_value);
+    return instruction;
 }
 }

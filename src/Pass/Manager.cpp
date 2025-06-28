@@ -1,5 +1,6 @@
 #include "Pass/Util.h"
 #include "Pass/Transforms/Array.h"
+#include "Pass/Transforms/Common.h"
 #include "Pass/Transforms/ControlFlow.h"
 #include "Pass/Transforms/DataFlow.h"
 #include "Pass/Transforms/DCE.h"
@@ -16,18 +17,13 @@ void execute_O0_passes(std::shared_ptr<Mir::Module> &module) {
 void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
     apply<
         Pass::Mem2Reg,
-        Pass::EmitModule<true>,
         Pass::TreeHeightBalance,
         Pass::DeadFuncEliminate,
-        Pass::EmitModule<true>,
         Pass::GlobalValueNumbering,
         // Pass::LoopSimplyForm,
         // Pass::LCSSA,
-        Pass::DeadFuncArgEliminate,
-        Pass::DeadFuncEliminate,
-        Pass::DeadReturnEliminate,
         Pass::DeadCodeEliminate,
-        Pass::EmitModule<>,
+        Pass::BranchMerging,
         Pass::GepFolding,
         Pass::GlobalVariableLocalize,
         Pass::GlobalArrayLocalize,
@@ -36,6 +32,12 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         Pass::SROA,
         Pass::GlobalValueNumbering,
         Pass::BlockPositioning,
-        Pass::SimplifyControlFlow
+        Pass::SimplifyControlFlow,
+        Pass::TailRecursionToLoop,
+        Pass::ConstexprFuncEval,
+        Pass::DeadCodeEliminate,
+        Pass::DeadFuncArgEliminate,
+        Pass::DeadFuncEliminate,
+        Pass::DeadReturnEliminate
     >(module);
 }

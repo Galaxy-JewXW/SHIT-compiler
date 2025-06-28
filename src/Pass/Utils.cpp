@@ -4,9 +4,29 @@
 #include "Mir/Instruction.h"
 #include "Pass/Util.h"
 
-namespace Pass::Utils {
 using namespace Mir;
 
+namespace Pass {
+void CheckUninitialized::util_impl(const std::shared_ptr<Module> module) {
+    const auto uninitialized_operand = [&](const std::shared_ptr<Value> &value) -> bool {
+        return value->is<Undef>() != nullptr;
+    };
+
+    std::for_each(module->get_functions().begin(), module->get_functions().end(),
+                  [&](const std::shared_ptr<Function> &func) {
+                      for (const auto &block: func->get_blocks()) {
+                          for (const auto &inst: block->get_instructions()) {
+                              if (std::any_of(inst->get_operands().begin(), inst->get_operands().end(),
+                                              uninitialized_operand)) {
+                                  log_error("Invalid instruction: %s", inst->to_string().c_str());
+                              }
+                          }
+                      }
+                  });
+}
+}
+
+namespace Pass::Utils {
 std::string format_blocks(const std::unordered_set<std::shared_ptr<Block>> &blocks) {
     if (blocks.empty()) return "∅";
     std::vector<std::string> names;
@@ -84,7 +104,7 @@ void delete_instruction_set(const std::shared_ptr<Module> &module,
     for (const auto &function: *module) {
         for (const auto &block: function->get_blocks()) {
             for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
-                if (deleted_instructions.count(*it)) {
+                if (deleted_instructions.count(*it)) [[unlikely]] {
                     it = block->get_instructions().erase(it);
                 } else {
                     ++it;
@@ -92,5 +112,15 @@ void delete_instruction_set(const std::shared_ptr<Module> &module,
             }
         }
     }
+}
+
+std::optional<std::vector<std::shared_ptr<Instruction>>::iterator>
+inst_as_iter(const std::shared_ptr<Instruction> &inst) {
+    const auto block{inst->get_block()};
+    if (auto it = std::find(block->get_instructions().begin(), block->get_instructions().end(), inst);
+        it != block->get_instructions().end()) {
+        return std::make_optional(it);
+    }
+    return std::nullopt;
 }
 }

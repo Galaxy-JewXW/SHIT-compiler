@@ -8,6 +8,8 @@
 #include "Utils/Log.h"
 
 namespace Pass {
+class Analysis;
+
 class Pass {
 public:
     enum class PassType { ANALYSIS, TRANSFORM, UTIL };
@@ -24,7 +26,7 @@ public:
 
     [[nodiscard]] PassType type() const { return type_; }
 
-    [[nodiscard]] std::string name() const { return name_; }
+    [[nodiscard]] const std::string &name() const { return name_; }
 
     virtual void run_on(std::shared_ptr<Mir::Module> module) = 0;
 
@@ -35,6 +37,7 @@ public:
         static_assert(std::is_base_of_v<Pass, PassType>, "PassType must be a derived class of Pass::Pass");
         // 检查 PassType 是否是非抽象类
         static_assert(!std::is_abstract_v<PassType>, "PassType must not be an abstract class");
+        static_assert(!std::is_base_of_v<Analysis, PassType>, "Use get_analysis_result instead");
         return std::make_shared<PassType>(std::forward<Args>(args)...);
     }
 
@@ -59,6 +62,7 @@ template<typename PassType>
 struct PassChecker {
     static_assert(std::is_base_of_v<Pass::Pass, PassType>, "PassType must be a derived class of Pass::Pass");
     static_assert(!std::is_abstract_v<PassType>, "PassType must not be an abstract class");
+    static_assert(!std::is_base_of_v<Pass::Analysis, PassType>, "Use get_analysis_result instead");
 };
 
 template<typename... Passes>

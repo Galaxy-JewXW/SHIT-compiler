@@ -45,6 +45,10 @@ std::shared_ptr<ConstInt> ConstInt::create(const int value, const std::shared_pt
         }
     };
 
+    if (!type->is_integer()) [[unlikely]] {
+        log_error("Invalid Integer Type");
+    }
+
     static std::unordered_map<Key, std::weak_ptr<ConstInt>, KeyHash> cache;
     const Key key{value, type};
 
@@ -82,6 +86,21 @@ std::shared_ptr<ConstFloat> ConstFloat::create(const double value) {
     }
     auto new_const = std::shared_ptr<ConstFloat>(new ConstFloat(value));
     cache[key] = new_const;
+    return new_const;
+}
+
+std::shared_ptr<Undef> Undef::create(const std::shared_ptr<Type::Type> &type) {
+    if (!(type->is_integer() || type->is_float())) [[unlikely]] {
+        log_error("Invalid type: %s", type->to_string().c_str());
+    }
+    static std::unordered_map<std::shared_ptr<Type::Type>, std::weak_ptr<Undef>> cache;
+    if (const auto it = cache.find(type); it != cache.end()) {
+        if (auto existing = it->second.lock()) {
+            return existing;
+        }
+    }
+    auto new_const = std::shared_ptr<Undef>(new Undef(type));
+    cache[type] = new_const;
     return new_const;
 }
 }

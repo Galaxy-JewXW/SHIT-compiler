@@ -1,6 +1,7 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <optional>
 #include <unordered_set>
 
 #include "Pass.h"
@@ -45,22 +46,31 @@ protected:
         log_set_level(log_level);
     }
 };
+
+class CheckUninitialized final : public Util {
+public:
+    explicit CheckUninitialized() : Util("CheckUninitialized") {}
+
+protected:
+    void util_impl(std::shared_ptr<Mir::Module> module) override;
+};
 }
 
 // 实用函数
 namespace Pass::Utils {
-using namespace Mir;
-
 // 输出基本块集合的辅助方法
-std::string format_blocks(const std::unordered_set<std::shared_ptr<Block>> &blocks);
+std::string format_blocks(const std::unordered_set<std::shared_ptr<Mir::Block>> &blocks);
 
 // 将指令从其所在的block中移除，并移动到target之前
-void move_instruction_before(const std::shared_ptr<Instruction> &instruction,
-                             const std::shared_ptr<Instruction> &target);
+void move_instruction_before(const std::shared_ptr<Mir::Instruction> &instruction,
+                             const std::shared_ptr<Mir::Instruction> &target);
 
 // 从module中删除给定的指令集合
-void delete_instruction_set(const std::shared_ptr<Module> &module,
-                            const std::unordered_set<std::shared_ptr<Instruction>> &deleted_instructions);
+void delete_instruction_set(const std::shared_ptr<Mir::Module> &module,
+                            const std::unordered_set<std::shared_ptr<Mir::Instruction>> &deleted_instructions);
+
+std::optional<std::vector<std::shared_ptr<Mir::Instruction>>::iterator>
+inst_as_iter(const std::shared_ptr<Mir::Instruction> &inst);
 }
 
 #endif //UTIL_H

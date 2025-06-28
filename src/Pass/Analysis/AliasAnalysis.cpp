@@ -1,4 +1,3 @@
-#include <functional>
 #include <set>
 
 #include "Pass/Analyses/AliasAnalysis.h"
@@ -11,9 +10,8 @@ size_t gen_alloc_id() {
 }
 
 bool tbaa_distinct(const std::shared_ptr<Mir::Type::Type> &a, const std::shared_ptr<Mir::Type::Type> &b) {
-    using FuncType = std::function<bool(const std::shared_ptr<Mir::Type::Type> &,
-                                        const std::shared_ptr<Mir::Type::Type> &)>;
-    FuncType tbaa_include = [&](const std::shared_ptr<Mir::Type::Type> &x, const std::shared_ptr<Mir::Type::Type> &y) {
+    auto tbaa_include = [&](auto &&self, const std::shared_ptr<Mir::Type::Type> &x,
+                            const std::shared_ptr<Mir::Type::Type> &y) {
         if (*x == *y) {
             return true;
         }
@@ -25,11 +23,11 @@ bool tbaa_distinct(const std::shared_ptr<Mir::Type::Type> &a, const std::shared_
             const auto next = y->is_array()
                                   ? array_type->get_element_type()
                                   : array_type->get_atomic_type();
-            return tbaa_include(next, y);
+            return self(self, next, y);
         }
         log_error("Unexpected tbaa include: %s %s", x->to_string().c_str(), y->to_string().c_str());
     };
-    return !tbaa_include(a, b) && !tbaa_include(b, a);
+    return !tbaa_include(tbaa_include, a, b) && !tbaa_include(tbaa_include, b, a);
 }
 }
 

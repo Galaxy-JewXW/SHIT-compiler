@@ -2,7 +2,6 @@
 #define CONST_H
 
 #include <cmath>
-#include <cstdint>
 #include <cstring>
 #include <iomanip>
 #include <sstream>
@@ -18,8 +17,6 @@ class Const : public Value {
 public:
     Const(const std::string &name, const std::shared_ptr<Type::Type> &type) : Value{name, type} {}
 
-    ~Const() override = default;
-
     [[nodiscard]] virtual bool is_zero() const = 0;
 
     [[nodiscard]] virtual eval_t get_constant_value() const = 0;
@@ -29,7 +26,7 @@ public:
         return get_constant_value().get<T>();
     }
 
-    [[nodiscard]] bool is_constant() override { return true; }
+    [[nodiscard]] bool is_constant() const override { return true; }
 
     [[nodiscard]] std::string to_string() const override { return name_; }
 };
@@ -203,6 +200,19 @@ public:
     int operator>=(const ConstFloat &other) const {
         return value >= other.value && std::fabs(value - other.value) >= tolerance;
     }
+};
+
+class Undef final : public Const {
+    explicit Undef(const std::shared_ptr<Type::Type> &type) : Const{"undef", type} {}
+
+public:
+    [[nodiscard]] std::string to_string() const override { return "undef"; }
+
+    bool is_zero() const override { return false; }
+
+    eval_t get_constant_value() const override { log_error("Cannot get a constant from an Undef"); }
+
+    static std::shared_ptr<Undef> create(const std::shared_ptr<Type::Type> &type);
 };
 }
 
