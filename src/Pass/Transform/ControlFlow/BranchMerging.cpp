@@ -1,4 +1,5 @@
 #include <optional>
+#include <type_traits>
 
 #include "Pass/Util.h"
 #include "Pass/Transforms/ControlFlow.h"
@@ -9,9 +10,12 @@ namespace {
 template<typename Compare>
 inline constexpr bool is_compare_v = std::is_same_v<Compare, Icmp> || std::is_same_v<Compare, Fcmp>;
 
+template<typename>
+struct always_false : std::false_type {};
+
 template<typename Compare>
 struct Trait {
-    static_assert(is_compare_v<Compare>, "Class Type is not a compare instruction");
+    static_assert(always_false<Compare>::value, "Class Type is not a compare instruction");
 };
 
 template<>
@@ -42,7 +46,6 @@ namespace {
 template<typename Compare>
 void select_handle(const std::shared_ptr<Block> &end_block, const std::shared_ptr<Block> &true_block,
                    const std::shared_ptr<Compare> &cmp) {
-    static_assert(is_compare_v<Compare>, "Class Type is not a compare instruction");
     using MaxInst = typename Trait<Compare>::MaxInst;
     using MinInst = typename Trait<Compare>::MinInst;
 

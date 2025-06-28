@@ -23,10 +23,10 @@
 #ifndef LOG_H
 #define LOG_H
 
-#include <chrono>
 #include <cstdarg>
 #include <cstdio>
 #include <ctime>
+#include <stdexcept>
 
 #define LOG_VERSION "0.1.0"
 #define LOG_USE_COLOR

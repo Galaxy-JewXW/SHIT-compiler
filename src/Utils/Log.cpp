@@ -21,6 +21,7 @@
  */
 
 #include "Utils/Log.h"
+#include <chrono>
 
 constexpr int MAX_CALLBACKS = 32;
 

@@ -1,8 +1,9 @@
 #ifndef EVAL_H
 #define EVAL_H
 
+#include <algorithm>
 #include <cmath>
-#include <stdexcept>
+#include <type_traits>
 #include <variant>
 
 #include "Utils/Log.h"
@@ -35,7 +36,12 @@ struct eval_t : std::variant<int, double> {
     }
 
     template<typename T>
-    static eval_t apply(const eval_t &lhs, const eval_t &rhs, T op) {
+    static eval_t _apply(const eval_t &lhs, const eval_t &rhs, T op) {
+        static_assert(std::is_invocable_v<T, int, int>, "op must be callable with (int, int)");
+        static_assert(std::is_invocable_v<T, double, double>, "op must be callable with (double, double)");
+        static_assert(std::is_convertible_v<std::invoke_result_t<T, int, int>, eval_t> ||
+                      std::is_convertible_v<std::invoke_result_t<T, double, double>, eval_t>,
+                      "op must return a type convertible to eval_t");
         if (lhs.holds<int>() && rhs.holds<int>()) {
             return op(lhs.get<int>(), rhs.get<int>());
         }
@@ -43,21 +49,20 @@ struct eval_t : std::variant<int, double> {
     }
 };
 
-
 inline eval_t operator+(const eval_t &lhs, const eval_t &rhs) {
-    return eval_t::apply(lhs, rhs, std::plus<>());
+    return eval_t::_apply(lhs, rhs, std::plus<>());
 }
 
 inline eval_t operator-(const eval_t &lhs, const eval_t &rhs) {
-    return eval_t::apply(lhs, rhs, std::minus<>());
+    return eval_t::_apply(lhs, rhs, std::minus<>());
 }
 
 inline eval_t operator*(const eval_t &lhs, const eval_t &rhs) {
-    return eval_t::apply(lhs, rhs, std::multiplies<>());
+    return eval_t::_apply(lhs, rhs, std::multiplies<>());
 }
 
 inline eval_t operator/(const eval_t &lhs, const eval_t &rhs) {
-    return eval_t::apply(lhs, rhs, [](auto a, auto b) {
+    return eval_t::_apply(lhs, rhs, [](auto a, auto b) {
         if (b == 0) {
             log_error("Division by zero");
         }
@@ -66,7 +71,7 @@ inline eval_t operator/(const eval_t &lhs, const eval_t &rhs) {
 }
 
 inline eval_t operator%(const eval_t &lhs, const eval_t &rhs) {
-    return eval_t::apply(lhs, rhs, [](auto a, auto b) -> eval_t {
+    return eval_t::_apply(lhs, rhs, [](auto a, auto b) {
         if (b == 0) {
             log_error("Modulo by zero");
         }
@@ -76,6 +81,14 @@ inline eval_t operator%(const eval_t &lhs, const eval_t &rhs) {
             return std::fmod(a, b);
         }
     });
+}
+
+inline eval_t max(const eval_t &a, const eval_t &b) {
+    return eval_t::_apply(a, b, [](auto x, auto y) { return std::max(x, y); });
+}
+
+inline eval_t min(const eval_t &a, const eval_t &b) {
+    return eval_t::_apply(a, b, [](auto x, auto y) { return std::min(x, y); });
 }
 
 #endif

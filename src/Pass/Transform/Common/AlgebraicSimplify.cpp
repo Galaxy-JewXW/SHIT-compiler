@@ -27,6 +27,7 @@ void insert_instruction(const std::shared_ptr<Instruction> &instruction,
     ++idx;
 }
 
+[[nodiscard]]
 bool reduce_add(const std::shared_ptr<Add> &add, std::vector<std::shared_ptr<Instruction>> &instructions,
                 size_t &idx) {
     const auto current_block = add->get_block();
@@ -169,6 +170,7 @@ bool reduce_add(const std::shared_ptr<Add> &add, std::vector<std::shared_ptr<Ins
     return false;
 }
 
+[[nodiscard]]
 bool reduce_sub(const std::shared_ptr<Sub> &sub, std::vector<std::shared_ptr<Instruction>> &instructions,
                 size_t &idx) {
     const auto current_block = sub->get_block();
@@ -343,6 +345,7 @@ bool reduce_sub(const std::shared_ptr<Sub> &sub, std::vector<std::shared_ptr<Ins
     return false;
 }
 
+[[nodiscard]]
 bool reduce_mul(const std::shared_ptr<Mul> &mul, std::vector<std::shared_ptr<Instruction>> &instructions,
                 const size_t &idx) {
     const auto current_block = mul->get_block();
@@ -391,6 +394,7 @@ bool reduce_mul(const std::shared_ptr<Mul> &mul, std::vector<std::shared_ptr<Ins
     return false;
 }
 
+[[nodiscard]]
 bool reduce_div(const std::shared_ptr<Div> &div, std::vector<std::shared_ptr<Instruction>> &instructions,
                 const size_t &idx) {
     const auto current_block = div->get_block();
@@ -479,6 +483,7 @@ bool reduce_div(const std::shared_ptr<Div> &div, std::vector<std::shared_ptr<Ins
     return false;
 }
 
+[[nodiscard]]
 bool reduce_mod(const std::shared_ptr<Mod> &mod, std::vector<std::shared_ptr<Instruction>> &instructions,
                 const size_t &idx) {
     const auto current_block = mod->get_block();
@@ -518,30 +523,102 @@ bool reduce_mod(const std::shared_ptr<Mod> &mod, std::vector<std::shared_ptr<Ins
     return false;
 }
 
-[[nodiscard]] bool run_on_block(const std::shared_ptr<Block> &block) {
+[[nodiscard]]
+bool reduce_max(const std::shared_ptr<Smax> &smax, std::vector<std::shared_ptr<Instruction>> &, const size_t &) {
+    // max(a, a) = a
+    if (smax->get_lhs() == smax->get_rhs()) {
+        smax->replace_by_new_value(smax->get_lhs());
+        return true;
+    }
+    // max(max(a, b), c) = max(a, b), if a == c or b == c
+    if (const auto smax_lhs{smax->get_lhs()->is<Smax>()}) {
+        if (smax_lhs->get_lhs() == smax->get_rhs() || smax_lhs->get_rhs() == smax->get_rhs()) {
+            smax->replace_by_new_value(smax_lhs);
+            return true;
+        }
+    }
+    // max(a, max(b, c)) = max(b, c), if a == b or a == c
+    if (const auto smax_rhs{smax->get_rhs()->is<Smax>()}) {
+        if (smax_rhs->get_lhs() == smax->get_lhs() || smax_rhs->get_rhs() == smax->get_lhs()) {
+            smax->replace_by_new_value(smax_rhs);
+            return true;
+        }
+    }
+    // max(min(a, b), c) = c, if a == c or b == c
+    if (const auto smin_lhs{smax->get_lhs()->is<Smin>()}) {
+        if (smin_lhs->get_lhs() == smax->get_rhs() || smin_lhs->get_rhs() == smax->get_rhs()) {
+            smax->replace_by_new_value(smax->get_rhs());
+            return true;
+        }
+    }
+    // max(a, min(b, c)) = a, if a == b or a == c
+    if (const auto smin_rhs{smax->get_rhs()->is<Smin>()}) {
+        if (smin_rhs->get_lhs() == smax->get_lhs() || smin_rhs->get_rhs() == smax->get_lhs()) {
+            smax->replace_by_new_value(smax->get_lhs());
+            return true;
+        }
+    }
+    return false;
+}
+
+[[nodiscard]]
+bool reduce_min(const std::shared_ptr<Smin> &smin, std::vector<std::shared_ptr<Instruction>> &, const size_t &) {
+    // min(a, a) = a
+    if (smin->get_lhs() == smin->get_rhs()) {
+        smin->replace_by_new_value(smin->get_lhs());
+        return true;
+    }
+    // min(max(a, b), c) = c, if a == c or b == c
+    if (const auto smax_lhs{smin->get_lhs()->is<Smax>()}) {
+        if (smax_lhs->get_lhs() == smin->get_rhs() || smax_lhs->get_rhs() == smin->get_rhs()) {
+            smin->replace_by_new_value(smin->get_rhs());
+            return true;
+        }
+    }
+    // min(a, max(b, c)) = a, if a == b or a == c
+    if (const auto smax_rhs{smin->get_rhs()->is<Smax>()}) {
+        if (smax_rhs->get_lhs() == smin->get_lhs() || smax_rhs->get_rhs() == smin->get_lhs()) {
+            smin->replace_by_new_value(smin->get_lhs());
+            return true;
+        }
+    }
+    // min(min(a, b), c) = min(a, b), if a == c or b == c
+    if (const auto smin_lhs{smin->get_lhs()->is<Smin>()}) {
+        if (smin_lhs->get_lhs() == smin->get_rhs() || smin_lhs->get_rhs() == smin->get_rhs()) {
+            smin->replace_by_new_value(smin_lhs);
+            return true;
+        }
+    }
+    // min(a, min(b, c)) = min(b, c), if a == b or a == c
+    if (const auto smin_rhs{smin->get_rhs()->is<Smin>()}) {
+        if (smin_rhs->get_lhs() == smin->get_lhs() || smin_rhs->get_rhs() == smin->get_lhs()) {
+            smin->replace_by_new_value(smin_rhs);
+            return true;
+        }
+    }
+    return false;
+}
+
+[[nodiscard]]
+bool run_on_block(const std::shared_ptr<Block> &block) {
     auto &instructions = block->get_instructions();
     bool changed = false;
     for (size_t i = 0; i < instructions.size(); ++i) {
         if (instructions[i]->get_op() != Operator::INTBINARY) {
             continue;
         }
-        if (const auto binary_inst = std::static_pointer_cast<IntBinary>(instructions[i]);
-            binary_inst->op == IntBinary::Op::ADD) {
-            const auto add = std::static_pointer_cast<Add>(binary_inst);
-            changed |= reduce_add(add, instructions, i);
-        } else if (binary_inst->op == IntBinary::Op::SUB) {
-            const auto sub = std::static_pointer_cast<Sub>(binary_inst);
-            changed |= reduce_sub(sub, instructions, i);
-        } else if (binary_inst->op == IntBinary::Op::MUL) {
-            const auto mul = std::static_pointer_cast<Mul>(binary_inst);
-            changed |= reduce_mul(mul, instructions, i);
-        } else if (binary_inst->op == IntBinary::Op::DIV) {
-            const auto div = std::static_pointer_cast<Div>(binary_inst);
-            changed |= reduce_div(div, instructions, i);
-        } else if (binary_inst->op == IntBinary::Op::MOD) {
-            const auto mod = std::static_pointer_cast<Mod>(binary_inst);
-            changed |= reduce_mod(mod, instructions, i);
-        }
+        changed |= [&]() -> bool {
+            switch (const auto binary{instructions[i]->as<IntBinary>()}; binary->intbinary_op()) {
+                case IntBinary::Op::ADD: return reduce_add(binary->as<Add>(), instructions, i);
+                case IntBinary::Op::SUB: return reduce_sub(binary->as<Sub>(), instructions, i);
+                case IntBinary::Op::MUL: return reduce_mul(binary->as<Mul>(), instructions, i);
+                case IntBinary::Op::DIV: return reduce_div(binary->as<Div>(), instructions, i);
+                case IntBinary::Op::MOD: return reduce_mod(binary->as<Mod>(), instructions, i);
+                case IntBinary::Op::SMAX: return reduce_max(binary->as<Smax>(), instructions, i);
+                case IntBinary::Op::SMIN: return reduce_min(binary->as<Smin>(), instructions, i);
+                default: return false;
+            }
+        }();
     }
     return changed;
 }
