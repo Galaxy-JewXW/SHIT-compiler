@@ -23,6 +23,7 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         // Pass::LoopSimplyForm,
         // Pass::LCSSA,
         Pass::DeadCodeEliminate,
+        Pass::BranchMerging,
         Pass::GepFolding,
         Pass::GlobalVariableLocalize,
         Pass::GlobalArrayLocalize,
@@ -34,9 +35,9 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         Pass::SimplifyControlFlow,
         Pass::TailRecursionToLoop,
         Pass::ConstexprFuncEval,
+        Pass::DeadCodeEliminate,
         Pass::DeadFuncArgEliminate,
         Pass::DeadFuncEliminate,
-        Pass::DeadReturnEliminate,
-        Pass::BranchMerging
+        Pass::DeadReturnEliminate
     >(module);
 }

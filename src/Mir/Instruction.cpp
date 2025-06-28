@@ -365,7 +365,7 @@ void Phi::modify_operand(const std::shared_ptr<Value> &old_value, const std::sha
 void Phi::remove_optional_value(const std::shared_ptr<Block> &block) {
     const auto value = optional_values[block];
     optional_values.erase(block);
-    remove_operand(block);
+    block->delete_user(shared_from_this()->as<User>());
     remove_operand(value);
 }
 

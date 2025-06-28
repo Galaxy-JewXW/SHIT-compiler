@@ -1,3 +1,4 @@
+#include <set>
 #include <unordered_set>
 
 #include "Pass/Analyses/ControlFlowGraph.h"
@@ -98,6 +99,121 @@ void cleanup_phi(const std::shared_ptr<Function> &func, const std::shared_ptr<Pa
                 ++it;
             }
         }
+    }
+}
+
+// 识别并消除那些只包含 PHI 指令和一条无条件跳转指令的“中间”基本块。
+// 将这个中间块的 PHI 指令合并到后继基本块的 PHI 指令中，并修改前驱基本块的跳转目标
+void merge_phi(const std::shared_ptr<Function> &func, const std::shared_ptr<Pass::ControlFlowGraph> &cfg_info) {
+    // ReSharper disable once CppUseStructuredBinding
+    const auto &cfg{cfg_info->graph(func)};
+    const auto get_phi_instructions = [](const std::shared_ptr<Block> &block) {
+        std::vector<std::shared_ptr<Phi>> phi_instructions;
+        for (const auto &instruction: block->get_instructions()) {
+            if (instruction->get_op() == Operator::PHI) {
+                phi_instructions.push_back(instruction->as<Phi>());
+            } else {
+                break;
+            }
+        }
+        return phi_instructions;
+    };
+
+    bool modified{false};
+    const auto run_on_block = [&](const std::shared_ptr<Block> &block) -> void {
+        const auto phis{get_phi_instructions(block)};
+        if (phis.empty()) {
+            return;
+        }
+        if (block->get_instructions().back()->get_op() != Operator::JUMP) {
+            return;
+        }
+        const auto jump{block->get_instructions().back()->as<Jump>()};
+        for (auto it{block->get_instructions().rbegin()}; it != block->get_instructions().rend(); ++it) {
+            if (*it == jump) {
+                continue;
+            }
+            if ((*it)->get_op() != Operator::PHI) {
+                return;
+            }
+        }
+        const auto target_block{jump->get_target_block()};
+        const auto target_phis{get_phi_instructions(target_block)};
+        if (target_phis.empty()) {
+            return;
+        }
+
+        // 检查当前块的前驱和目标块的前驱是否有交集
+        const auto &prev{cfg.predecessors.at(block)},
+                   &target_prev{cfg.predecessors.at(target_block)};
+        if (std::any_of(prev.begin(), prev.end(), [&](const auto &p) { return target_prev.count(p); })) {
+            return;
+        }
+
+        // 要求当前块中所有的 phi 指令，它们的所有使用者（users）必须是目标块中的 phi 指令
+        for (const auto &phi: phis) {
+            const auto users{phi->users().lock()};
+            const auto is_available_phi = [&target_block](const std::shared_ptr<User> &user)-> bool {
+                if (const auto phi_user{user->is<Phi>()}) {
+                    if (phi_user->get_block() == target_block) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+            if (!std::all_of(users.begin(), users.end(), is_available_phi)) {
+                return;
+            }
+        }
+
+        std::vector<std::shared_ptr<Block>> worklist;
+        for (const auto &[key, value]: phis.front()->get_optional_values()) {
+            worklist.push_back(key);
+        }
+
+        std::unordered_set<std::shared_ptr<Phi>> fixed_phis;
+        for (const auto &phi: phis) {
+            const auto users{phi->users().lock()};
+            for (const auto &user: users) {
+                const auto phi_user{user->as<Phi>()};
+                phi_user->remove_optional_value(target_block);
+                decltype(worklist) pre;
+                for (const auto &[key, value]: phi->get_optional_values()) {
+                    pre.push_back(key);
+                }
+                for (const auto &p: pre) {
+                    phi_user->set_optional_value(p, phi->get_optional_values()[p]);
+                }
+                fixed_phis.insert(phi_user);
+            }
+        }
+
+        // 它们之前从 block 接收一个值，现在由于 block 被绕过了
+        // 它们需要从 block 的所有前驱 pre 接收值。这个值应该和它们之前从 block 接收的值相同
+        for (const auto &phi: target_phis) {
+            if (fixed_phis.count(phi)) {
+                continue;
+            }
+            for (const auto &p: worklist) {
+                phi->set_optional_value(p, phi->get_optional_values()[block]);
+            }
+            phi->remove_optional_value(block);
+        }
+
+        block->replace_by_new_value(target_block);
+        block->set_deleted();
+        for (const auto &inst: block->get_instructions()) {
+            inst->clear_operands();
+        }
+        block->get_instructions().clear();
+        func->get_blocks().erase(std::find(func->get_blocks().begin(), func->get_blocks().end(), block));
+        modified = true;
+    };
+
+    std::for_each(func->get_blocks().begin(), func->get_blocks().end(), run_on_block);
+    if (modified) {
+        Pass::set_analysis_result_dirty<Pass::ControlFlowGraph>(func);
+        Pass::set_analysis_result_dirty<Pass::DominanceGraph>(func);
     }
 }
 }
@@ -240,8 +356,9 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
     };
 
     const auto is_single_jump_block = [&](const std::shared_ptr<Block> &block) -> std::shared_ptr<Block> {
-        if (block->get_instructions().size() != 1)
+        if (block->get_instructions().size() != 1) {
             return nullptr;
+        }
         if (predecessors.at(block).empty()) {
             return nullptr;
         }
@@ -253,8 +370,9 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
     };
 
     const auto is_single_branch_block = [&](const std::shared_ptr<Block> &block) -> std::shared_ptr<Branch> {
-        if (block->get_instructions().size() != 1)
+        if (block->get_instructions().size() != 1) {
             return nullptr;
+        }
         if (predecessors.at(block).empty()) {
             return nullptr;
         }
@@ -462,7 +580,11 @@ void SimplifyControlFlow::transform(const std::shared_ptr<Module> module) {
     for (const auto &func: *module) {
         cleanup_phi(func, cfg_info);
     }
+
+    cfg_info = get_analysis_result<ControlFlowGraph>(module);
+    for (const auto &func: *module) {
+        merge_phi(func, cfg_info);
+    }
     cfg_info = nullptr;
-    create<GlobalCodeMotion>()->run_on(module);
 }
 }
