@@ -1,3 +1,5 @@
+#include <optional>
+
 #include "Mir/Builder.h"
 #include "Pass/Transforms/Common.h"
 #include "Pass/Transforms/DCE.h"
@@ -6,13 +8,16 @@ using namespace Mir;
 
 namespace {
 // 替换指令
-void replace_instruction(const std::shared_ptr<Binary> &from, const std::shared_ptr<Value> &to,
+// 创建to时block应被设置为nullptr
+void replace_instruction(const std::shared_ptr<Instruction> &from, const std::shared_ptr<Value> &to,
                          const std::shared_ptr<Block> &current_block,
                          std::vector<std::shared_ptr<Instruction>> &instructions, const size_t &idx) {
     from->replace_by_new_value(to);
     from->clear_operands();
-    if (const auto &target_inst = std::dynamic_pointer_cast<Instruction>(to)) {
-        if (target_inst->get_block() != nullptr) { return; }
+    if (const auto target_inst{to->is<Instruction>()}) {
+        if (target_inst->get_block() != nullptr) {
+            return;
+        }
         target_inst->set_block(current_block, false);
         instructions[idx] = target_inst;
     }
@@ -600,7 +605,7 @@ bool reduce_min(const std::shared_ptr<Smin> &smin, std::vector<std::shared_ptr<I
 }
 
 [[nodiscard]]
-bool run_on_block(const std::shared_ptr<Block> &block) {
+bool handle_intbinary(const std::shared_ptr<Block> &block) {
     auto &instructions = block->get_instructions();
     bool changed = false;
     for (size_t i = 0; i < instructions.size(); ++i) {
@@ -622,6 +627,140 @@ bool run_on_block(const std::shared_ptr<Block> &block) {
     }
     return changed;
 }
+
+bool handle_float_ternary(const std::shared_ptr<Function> &func) {
+    bool changed{false};
+    static constexpr double abs_ = 1e-6f;
+
+    const auto handle_fneg = [&](const std::shared_ptr<Block> &block) -> void {
+        auto &instructions{block->get_instructions()};
+        for (size_t i{0}; i < instructions.size(); ++i) {
+            if (instructions[i]->get_op() != Operator::FLOATBINARY) [[likely]] {
+                continue;
+            }
+            const auto fb{instructions[i]->as<FloatBinary>()};
+            if (const auto t{fb->floatbinary_op()}; t == FloatBinary::Op::MUL) {
+                const auto fmul{fb->as<FMul>()};
+                const auto candidate = [&]() -> std::optional<std::shared_ptr<Value>> {
+                    if (fmul->get_lhs()->is_constant() && std::fabs(**fmul->get_lhs()->as<ConstFloat>() + 1.0) < abs_) {
+                        return fmul->get_rhs();
+                    }
+                    if (fmul->get_rhs()->is_constant() && std::fabs(**fmul->get_rhs()->as<ConstFloat>() + 1.0) < abs_) {
+                        return fmul->get_lhs();
+                    }
+                    return std::nullopt;
+                }();
+                if (candidate.has_value()) {
+                    const auto fneg{FNeg::create("fneg", candidate.value(), nullptr)};
+                    replace_instruction(fb, fneg, block, instructions, i);
+                    changed = true;
+                }
+            } else if (t == FloatBinary::Op::SUB) {
+                if (const auto fsub{fb->as<FSub>()};
+                    fsub->get_lhs()->is_constant() && std::fabs(**fsub->get_lhs()->as<ConstFloat>()) < abs_) {
+                    const auto fneg{FNeg::create("fneg", fsub->get_rhs(), nullptr)};
+                    replace_instruction(fb, fneg, block, instructions, i);
+                    changed = true;
+                }
+            } else if (t == FloatBinary::Op::DIV) {
+                if (const auto fdiv{fb->as<FDiv>()};
+                    fdiv->get_rhs()->is_constant() && std::fabs(**fdiv->get_rhs()->as<ConstFloat>() + 1.0) < abs_) {
+                    const auto fneg{FNeg::create("fneg", fdiv->get_lhs(), nullptr)};
+                    replace_instruction(fb, fneg, block, instructions, i);
+                    changed = true;
+                }
+            }
+        }
+    };
+
+    const auto handle_fmadd_fmsub = [&](const std::shared_ptr<Block> &block) -> void {
+        auto &instructions{block->get_instructions()};
+        for (size_t i{0}; i < instructions.size(); ++i) {
+            if (instructions[i]->get_op() != Operator::FLOATBINARY) [[likely]] {
+                continue;
+            }
+            const auto fb{instructions[i]->as<FloatBinary>()};
+            if (const auto t{fb->floatbinary_op()}; t == FloatBinary::Op::ADD) {
+                const auto fadd{fb->as<FAdd>()};
+                const auto new_inst = [&]() -> std::optional<std::shared_ptr<Instruction>> {
+                    if (const auto fmul1{fadd->get_lhs()->is<FMul>()}) {
+                        // (fa * fb) + fc = fmadd(fa, fb, fc)
+                        return std::make_optional(FMadd::create("fmadd", fmul1->get_lhs(),
+                                                                fmul1->get_rhs(), fadd->get_rhs(), nullptr));
+                    }
+                    if (const auto fmul2{fadd->get_rhs()->is<FMul>()}) {
+                        // fa + (fb * fc) = fmadd(fb, fc, fa)
+                        return std::make_optional(FMadd::create("fmadd", fmul2->get_lhs(),
+                                                                fmul2->get_rhs(), fadd->get_lhs(), nullptr));
+                    }
+                    return std::nullopt;
+                }();
+                if (new_inst.has_value()) {
+                    replace_instruction(fb, new_inst.value(), block, instructions, i);
+                    changed = true;
+                }
+            } else if (t == FloatBinary::Op::SUB) {
+                const auto fsub{fb->as<FSub>()};
+                const auto new_inst = [&]() -> std::optional<std::shared_ptr<Instruction>> {
+                    if (const auto fmul1{fsub->get_lhs()->is<FMul>()}) {
+                        // (fa * fb) - fc = fmsub(fa, fb, fc)
+                        return std::make_optional(FMsub::create("fmsub", fmul1->get_lhs(),
+                                                                fmul1->get_rhs(), fsub->get_rhs(), nullptr));
+                    }
+                    return std::nullopt;
+                }();
+                if (new_inst.has_value()) {
+                    replace_instruction(fb, new_inst.value(), block, instructions, i);
+                    changed = true;
+                }
+            }
+        }
+    };
+
+    const auto handle_fnmadd_fnmsub = [&](const std::shared_ptr<Block> &block) -> void {
+        auto &instructions{block->get_instructions()};
+        for (size_t i{0}; i < instructions.size(); ++i) {
+            if (instructions[i]->get_op() == Operator::FLOATBINARY) {
+                if (const auto fb{instructions[i]->as<FloatBinary>()};
+                    fb->floatbinary_op() == FloatBinary::Op::SUB) {
+                    const auto fsub{fb->as<FSub>()};
+                    if (const auto fmul{fsub->get_rhs()->is<FMul>()}) {
+                        // fa - (fb * fc) = fnmsub(fb, fc, fa) = -fmsub(fb, fc, fa)
+                        const auto fnmsub = FNmsub::create("fnmsub", fmul->get_lhs(),
+                                                           fmul->get_rhs(), fsub->get_lhs(), nullptr);
+                        replace_instruction(fb, fnmsub, block, instructions, i);
+                        changed = true;
+                    }
+                }
+            } else if (instructions[i]->get_op() == Operator::FNEG) {
+                const auto fneg{instructions[i]->as<FNeg>()};
+                if (const auto fmadd{fneg->get_value()->is<FMadd>()}) {
+                    // -fmadd(fa, fb, fc) = fnmadd(fa, fb, fc)
+                    const auto fnmadd = FNmadd::create("fnmadd", fmadd->get_x(),
+                                                       fmadd->get_y(), fmadd->get_z(), nullptr);
+                    replace_instruction(fneg, fnmadd, block, instructions, i);
+                    changed = true;
+                } else if (const auto fmsub{fneg->get_value()->is<FNmsub>()}) {
+                    // -fmsub(fa, fb, fc) = fnmsub(fa, fb, fc)
+                    const auto fnmsub = FNmsub::create("fnmsub", fmsub->get_x(),
+                                                       fmsub->get_y(), fmsub->get_z(), nullptr);
+                    replace_instruction(fneg, fnmsub, block, instructions, i);
+                    changed = true;
+                }
+            }
+        }
+    };
+
+    do {
+        changed = false;
+        std::for_each(func->get_blocks().begin(), func->get_blocks().end(), [&](const auto &block) {
+            handle_fmadd_fmsub(block);
+            handle_fneg(block);
+            handle_fnmadd_fnmsub(block);
+        });
+    } while (changed);
+    return changed;
+}
 }
 
 void Pass::AlgebraicSimplify::transform(const std::shared_ptr<Module> module) {
@@ -631,12 +770,17 @@ void Pass::AlgebraicSimplify::transform(const std::shared_ptr<Module> module) {
         // 对于每一条满足交换律的IntBinary，满足常数均位于运算符右侧
         const auto standardize_binary = create<StandardizeBinary>();
         standardize_binary->run_on(module);
-        for (const auto &func: *module) {
-            for (const auto &block: func->get_blocks()) {
-                changed |= run_on_block(block);
-            }
+        std::for_each(module->get_functions().begin(), module->get_functions().end(), [&](const auto &func) {
+            std::for_each(func->get_blocks().begin(), func->get_blocks().end(), [&](const auto &b) {
+                changed |= handle_intbinary(b);
+            });
+        });
+        std::for_each(module->get_functions().begin(), module->get_functions().end(), [&](const auto &func) {
+            changed |= handle_float_ternary(func);
+        });
+        if (changed) [[likely]] {
+            create<DeadInstEliminate>()->run_on(module);
         }
-        create<DeadInstEliminate>()->run_on(module);
     } while (changed);
     create<DeadInstEliminate>()->run_on(module);
 }

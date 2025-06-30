@@ -200,9 +200,9 @@ BINARY_DO_INTERPRET(FSmax, return std::max(a, b);, double)
 BINARY_DO_INTERPRET(FSmin, return std::min(a, b);, double)
 
 TERNARY_DO_INTERPRET(FMadd, return x * y + z;, double)
-TERNARY_DO_INTERPRET(FNmadd, return -(x * y) + z;, double)
+TERNARY_DO_INTERPRET(FNmadd, return -(x * y + z);, double)
 TERNARY_DO_INTERPRET(FMsub, return x * y - z;, double)
-TERNARY_DO_INTERPRET(FNmsub, return -(x * y) - z;, double)
+TERNARY_DO_INTERPRET(FNmsub, return -(x * y - z);, double)
 
 void FNeg::do_interpret(Interpreter *interpreter) {
     interpreter->frame->value_map[this] = -interpreter->get_runtime_value(this->get_value());

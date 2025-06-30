@@ -254,9 +254,9 @@ bool evaluate_float_ternary(const std::shared_ptr<FloatTernary> &inst, double &r
     res = [&]() -> double {
         switch (inst->floatternary_op()) {
             case FloatTernary::Op::FMADD: return x_val * y_val + z_val;
-            case FloatTernary::Op::FNMADD: return -(x_val * y_val) + z_val;
+            case FloatTernary::Op::FNMADD: return -(x_val * y_val + z_val);
             case FloatTernary::Op::FMSUB: return x_val * y_val - z_val;
-            case FloatTernary::Op::FNMSUB: return -(x_val * y_val) - z_val;
+            case FloatTernary::Op::FNMSUB: return -(x_val * y_val - z_val);
         }
         log_error("Invalid float ternary op");
     }();
