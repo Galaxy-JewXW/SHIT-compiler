@@ -50,6 +50,19 @@ std::string get_hash(const std::shared_ptr<FloatBinary> &instruction) {
            lhs_hash + " " + rhs_hash;
 }
 
+std::string get_hash(const std::shared_ptr<FloatTernary> &instruction) {
+    const auto &x_hash = instruction->get_x()->get_name(),
+               &y_hash = instruction->get_y()->get_name(),
+               &z_hash = instruction->get_z()->get_name();
+    return "floatternary " + std::to_string(static_cast<int>(instruction->floatternary_op())) + " " +
+           x_hash + " " + y_hash + " " + z_hash;
+}
+
+std::string get_hash(const std::shared_ptr<FNeg> &instruction) {
+    const auto &value_hash = instruction->get_value()->get_name();
+    return "fneg " + value_hash;
+}
+
 std::string get_hash(const std::shared_ptr<Zext> &instruction) {
     return "zext " + instruction->get_value()->get_name() + " "
            + instruction->get_value()->get_type()->to_string() + " " + instruction->get_type()->to_string();
@@ -90,6 +103,8 @@ std::string get_instruction_hash(const InstructionPtr &instruction,
         case Operator::ICMP: return get_hash(instruction->as<Icmp>());
         case Operator::INTBINARY: return get_hash(instruction->as<IntBinary>());
         case Operator::FLOATBINARY: return get_hash(instruction->as<FloatBinary>());
+        case Operator::FLOATTERNARY: return get_hash(instruction->as<FloatTernary>());
+        case Operator::FNEG: return get_hash(instruction->as<FNeg>());
         case Operator::ZEXT: return get_hash(instruction->as<Zext>());
         case Operator::SITOFP: return get_hash(instruction->as<Sitofp>());
         case Operator::FPTOSI: return get_hash(instruction->as<Fptosi>());
@@ -125,7 +140,7 @@ bool evaluate_binary(const std::shared_ptr<Binary> &inst, typename binary_traits
     using T = typename binary_traits<Binary>::value_type;
     using ConstType = typename binary_traits<Binary>::constant_type;
     // 如果任一操作数不是常量，则无法进行常量折叠，返回false
-    const auto lhs = inst->get_lhs(), rhs = inst->get_rhs();
+    const auto &lhs = inst->get_lhs(), &rhs = inst->get_rhs();
     if (!lhs->is_constant() || !rhs->is_constant()) return false;
     if constexpr (std::is_same_v<T, int>) {
         if (!lhs->get_type()->is_int32() || !rhs->get_type()->is_int32()) {
@@ -195,7 +210,7 @@ bool evaluate_cmp(const std::shared_ptr<Cmp> &inst, int &res) {
     using T = typename cmp_traits<Cmp>::value_type;
     using ConstType = typename cmp_traits<Cmp>::constant_type;
     // 如果任一操作数不是常量，则无法进行折叠，返回false
-    const auto lhs = inst->get_lhs(), rhs = inst->get_rhs();
+    const auto &lhs = inst->get_lhs(), &rhs = inst->get_rhs();
     if (!lhs->is_constant() || !rhs->is_constant()) return false;
     // 检查左右操作数的类型是否合法
     if constexpr (std::is_same_v<T, int>) {
@@ -224,6 +239,37 @@ bool evaluate_cmp(const std::shared_ptr<Cmp> &inst, int &res) {
     } catch (const std::exception &) {
         return false;
     }
+    return true;
+}
+
+bool evaluate_float_ternary(const std::shared_ptr<FloatTernary> &inst, double &res) {
+    const auto &x = inst->get_x(), &y = inst->get_y(), &z = inst->get_z();
+    if (!x->is_constant() || !y->is_constant() || !z->is_constant()) return false;
+    if (!x->get_type()->is_float() || !y->get_type()->is_float() || !z->get_type()->is_float()) {
+        log_error("Illegal operator type for %s", inst->to_string().c_str());
+    }
+    const auto x_val = **x->as<ConstFloat>(),
+               y_val = **y->as<ConstFloat>(),
+               z_val = **z->as<ConstFloat>();
+    res = [&]() -> double {
+        switch (inst->floatternary_op()) {
+            case FloatTernary::Op::FMADD: return x_val * y_val + z_val;
+            case FloatTernary::Op::FNMADD: return -(x_val * y_val) + z_val;
+            case FloatTernary::Op::FMSUB: return x_val * y_val - z_val;
+            case FloatTernary::Op::FNMSUB: return -(x_val * y_val) - z_val;
+        }
+        log_error("Invalid float ternary op");
+    }();
+    return true;
+}
+
+bool evaluate_fneg(const std::shared_ptr<FNeg> &inst, double &res) {
+    const auto &value{inst->get_value()};
+    if (!value->is_constant()) return false;
+    if (!value->get_type()->is_float()) {
+        log_error("Illegal operator type for %s", inst->to_string().c_str());
+    }
+    res = -value->as<ConstFloat>()->get_constant_value().get<double>();
     return true;
 }
 }
@@ -293,6 +339,23 @@ bool GlobalValueNumbering::fold_instruction(const std::shared_ptr<Instruction> &
                 return true;
             }
             break;
+        }
+        case Operator::FLOATTERNARY: {
+            const auto float_ternary = instruction->as<FloatTernary>();
+            if (double res_val; evaluate_float_ternary(float_ternary, res_val)) {
+                const auto const_float = ConstFloat::create(res_val);
+                float_ternary->replace_by_new_value(const_float);
+                return true;
+            }
+            break;
+        }
+        case Operator::FNEG: {
+            const auto fneg = instruction->as<FNeg>();
+            if (double res_val; evaluate_fneg(fneg, res_val)) {
+                const auto const_float = ConstFloat::create(res_val);
+                fneg->replace_by_new_value(const_float);
+                return true;
+            }
         }
         default: break;
     }

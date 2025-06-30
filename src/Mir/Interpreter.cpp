@@ -44,7 +44,8 @@ void Interpreter::interpret_function(const std::shared_ptr<Function> &func, cons
             if (const auto &instruction = instructions[i];
                 instruction->get_op() == Operator::PHI) {
                 interpret_instruction(instruction->as<Phi>());
-                if (i + 1 < instructions.size() && instructions[i + 1]->get_op() == Operator::PHI) {
+                if (i + 1 < instructions.size()
+                    && instructions[i + 1]->get_op() == Operator::PHI) {
                     continue;
                 }
                 for (const auto &[phi, eval_value]: frame->phi_cache) {
@@ -137,7 +138,8 @@ void Call::do_interpret(Interpreter *const interpreter) {
         log_error("Unhandled runtime function: %s", called_func->get_name().c_str());
     }
     eval_t sub_ret_value;
-    if (const Interpreter::Key key{called_func->get_name(), real_args}; interpreter->cache.lock()->contains(key)) {
+    if (const Interpreter::Key key{called_func->get_name(), real_args};
+        interpreter->cache.lock()->contains(key)) {
         sub_ret_value = interpreter->cache.lock()->get(key);
     } else {
         const auto prev_frame{interpreter->frame};
@@ -156,10 +158,24 @@ void Phi::do_interpret(Interpreter *const interpreter) {
         this->optional_values.at(interpreter->frame->prev_block));
 }
 
-#define BINARY_DO_INTERPRET(Class, Calc, Type) \
-void Class::do_interpret(Interpreter *const interpreter)  { \
-    const eval_t left{interpreter->get_runtime_value(this->get_lhs())}, right{interpreter->get_runtime_value(this->get_rhs())}; \
-    interpreter->frame->value_map[this] = [](const Type a, const Type b) {Calc} (left.get<Type>(), right.get<Type>()); \
+#define BINARY_DO_INTERPRET(Class, Calc, Type)                                 \
+void Class::do_interpret(Interpreter *const interpreter) {                     \
+    const eval_t left{interpreter->get_runtime_value(this->get_lhs())},        \
+                 right{interpreter->get_runtime_value(this->get_rhs())};       \
+    interpreter->frame->value_map[this] = [](const Type a, const Type b) {     \
+        Calc                                                                   \
+    } (left.get<Type>(), right.get<Type>());                                   \
+}
+
+#define TERNARY_DO_INTERPRET(Class, Calc, Type)                                \
+void Class::do_interpret(Interpreter *const interpreter) {                     \
+    const eval_t x{interpreter->get_runtime_value(this->get_x())},             \
+                 y{interpreter->get_runtime_value(this->get_y())},             \
+                 z{interpreter->get_runtime_value(this->get_z())};             \
+    interpreter->frame->value_map[this] =                                      \
+    [](const int x, const Type y, const Type z) {                              \
+        Calc                                                                   \
+    }(x.get<Type>(), y.get<Type>(), z.get<Type>());                            \
 }
 
 // 整数运算
@@ -183,7 +199,18 @@ BINARY_DO_INTERPRET(FMod, return std::fmod(a, b);, double)
 BINARY_DO_INTERPRET(FSmax, return std::max(a, b);, double)
 BINARY_DO_INTERPRET(FSmin, return std::min(a, b);, double)
 
+TERNARY_DO_INTERPRET(FMadd, return x * y + z;, double)
+TERNARY_DO_INTERPRET(FNmadd, return -(x * y) + z;, double)
+TERNARY_DO_INTERPRET(FMsub, return x * y - z;, double)
+TERNARY_DO_INTERPRET(FNmsub, return -(x * y) - z;, double)
+
+void FNeg::do_interpret(Interpreter *interpreter) {
+    interpreter->frame->value_map[this] = -interpreter->get_runtime_value(this->get_value());
+}
+
+
 #undef BINARY_DO_INTERPRET
+#undef TERNARY_DO_INTERPRET
 
 void Select::do_interpret(Interpreter *interpreter) {
     const eval_t condition{interpreter->get_runtime_value(this->get_cond())};

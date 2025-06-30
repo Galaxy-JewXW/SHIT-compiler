@@ -276,18 +276,40 @@ std::shared_ptr<Call> Call::create(const std::shared_ptr<Function> &function,
     return instruction;
 }
 
-#define CREATE_BINARY(Type, TypeCheck) \
-std::shared_ptr<Type> Type::create(const std::string &name, \
-    const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs, \
-    const std::shared_ptr<Block> &block) { \
-    if (!lhs->get_type()->TypeCheck() || !rhs->get_type()->TypeCheck()) { \
-        log_error("Operands does not fit %s", #TypeCheck); \
-    } \
-    const auto instruction = std::make_shared<Type>(name, lhs, rhs); \
-    if (block != nullptr) [[likely]] { instruction->set_block(block); } \
-    instruction->add_operand(lhs); \
-    instruction->add_operand(rhs); \
-    return instruction; \
+#define CREATE_BINARY(Type, TypeCheck)                                         \
+std::shared_ptr<Type> Type::create(const std::string &name,                    \
+                                 const std::shared_ptr<Value> &lhs,            \
+                                 const std::shared_ptr<Value> &rhs,            \
+                                 const std::shared_ptr<Block> &block) {        \
+    if (!lhs->get_type()->TypeCheck() || !rhs->get_type()->TypeCheck()) {      \
+        log_error("Operands does not fit %s", #TypeCheck);                     \
+    }                                                                          \
+    const auto instruction = std::make_shared<Type>(name, lhs, rhs);           \
+    if (block != nullptr) [[likely]] {                                         \
+        instruction->set_block(block);                                         \
+    }                                                                          \
+    instruction->add_operand(lhs);                                             \
+    instruction->add_operand(rhs);                                             \
+    return instruction;                                                        \
+}
+
+#define CREATE_TERNARY(Type, TypeCheck)                                        \
+std::shared_ptr<Type> Type::create(                                            \
+    const std::string &name, const std::shared_ptr<Value> &x,                  \
+    const std::shared_ptr<Value> &y, const std::shared_ptr<Value> &z,          \
+    const std::shared_ptr<Block> &block) {                                     \
+    if (!x->get_type()->TypeCheck() || !y->get_type()->TypeCheck() ||          \
+        !z->get_type()->TypeCheck()) {                                         \
+        log_error("Operands does not fit %s", #TypeCheck);                     \
+    }                                                                          \
+    const auto instruction = std::make_shared<Type>(name, x, y, z);            \
+    if (block != nullptr) [[likely]] {                                         \
+        instruction->set_block(block);                                         \
+    }                                                                          \
+    instruction->add_operand(x);                                               \
+    instruction->add_operand(y);                                               \
+    instruction->add_operand(z);                                               \
+    return instruction;                                                        \
 }
 
 CREATE_BINARY(Add, is_int32)
@@ -309,7 +331,21 @@ CREATE_BINARY(FMod, is_float)
 CREATE_BINARY(FSmax, is_float)
 CREATE_BINARY(FSmin, is_float)
 
+CREATE_TERNARY(FMadd, is_float)
+CREATE_TERNARY(FMsub, is_float)
+CREATE_TERNARY(FNmadd, is_float)
+CREATE_TERNARY(FNmsub, is_float)
+
+std::shared_ptr<FNeg> FNeg::create(const std::string &name, const std::shared_ptr<Value> &value,
+                                   const std::shared_ptr<Block> &block) {
+    const auto instruction = std::make_shared<FNeg>(name, value);
+    if (block != nullptr) [[likely]] { instruction->set_block(block); }
+    instruction->add_operand(value);
+    return instruction;
+}
+
 #undef CREATE_BINARY
+#undef CREATE_TERNARY
 
 std::shared_ptr<Phi> Phi::create(const std::string &name, const std::shared_ptr<Type::Type> &type,
                                  const std::shared_ptr<Block> &block,

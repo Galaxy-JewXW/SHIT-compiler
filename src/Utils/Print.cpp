@@ -767,6 +767,49 @@ std::string FSmin::to_string() const {
     return oss.str();
 }
 
+std::string FMadd::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = call float @shit_fmadd_s("
+            << get_x()->get_type()->to_string() << " " << get_x()->get_name() << ", "
+            << get_y()->get_type()->to_string() << " " << get_y()->get_name() << ", "
+            << get_z()->get_type()->to_string() << " " << get_z()->get_name() << ")";
+    return oss.str();
+}
+
+std::string FNmadd::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = call float @shit_fnmadd_s("
+            << get_x()->get_type()->to_string() << " " << get_x()->get_name() << ", "
+            << get_y()->get_type()->to_string() << " " << get_y()->get_name() << ", "
+            << get_z()->get_type()->to_string() << " " << get_z()->get_name() << ")";
+    return oss.str();
+}
+
+std::string FMsub::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = call float @shit_fmsub_s("
+            << get_x()->get_type()->to_string() << " " << get_x()->get_name() << ", "
+            << get_y()->get_type()->to_string() << " " << get_y()->get_name() << ", "
+            << get_z()->get_type()->to_string() << " " << get_z()->get_name() << ")";
+    return oss.str();
+}
+
+std::string FNmsub::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = call float @shit_fnmsub_s("
+            << get_x()->get_type()->to_string() << " " << get_x()->get_name() << ", "
+            << get_y()->get_type()->to_string() << " " << get_y()->get_name() << ", "
+            << get_z()->get_type()->to_string() << " " << get_z()->get_name() << ")";
+    return oss.str();
+}
+
+std::string FNeg::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = call float @shit_fneg_s("
+            << get_value()->get_type()->to_string() << " " << get_value()->get_name() << ")";
+    return oss.str();
+}
+
 #undef BINARY_TO_STRING
 
 [[nodiscard]] std::string Phi::to_string() const {

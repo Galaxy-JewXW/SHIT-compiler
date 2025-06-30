@@ -47,6 +47,22 @@ struct eval_t : std::variant<int, double> {
         }
         return op(lhs.get<double>(), rhs.get<double>());
     }
+
+    eval_t operator-() const {
+        return holds<int>() ? eval_t{-get<int>()} : eval_t{-get<double>()};
+    }
+
+    explicit operator int() const {
+        return get<int>();
+    }
+
+    explicit operator double() const {
+        return get<double>();
+    }
+
+    explicit operator float() const {
+        return static_cast<float>(get<double>());
+    }
 };
 
 inline eval_t operator+(const eval_t &lhs, const eval_t &rhs) {
