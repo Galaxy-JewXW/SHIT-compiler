@@ -1,7 +1,10 @@
 #include <optional>
+#include <type_traits>
 
 #include "Mir/Builder.h"
+#include "Pass/Util.h"
 #include "Pass/Transforms/Common.h"
+#include "Pass/Transforms/DataFlow.h"
 #include "Pass/Transforms/DCE.h"
 
 using namespace Mir;
@@ -31,7 +34,124 @@ void insert_instruction(const std::shared_ptr<Instruction> &instruction,
     instructions.insert(instructions.begin() + static_cast<long>(idx), instruction);
     ++idx;
 }
+}
 
+namespace {
+template<typename>
+struct always_false : std::false_type {};
+
+template<typename Compare>
+struct Trait {
+    static_assert(always_false<Compare>::value, "Trait not implemented for this type");
+};
+
+template<>
+struct Trait<Icmp> {
+    using Binary = IntBinary;
+    using AddInst = Add;
+    using SubInst = Sub;
+    using MulInst = Mul;
+    using DivInst = Div;
+    using ConstantType = ConstInt;
+    using Base = int;
+};
+
+template<>
+struct Trait<Fcmp> {
+    using Binary = FloatBinary;
+    using AddInst = FAdd;
+    using SubInst = FSub;
+    using MulInst = FMul;
+    using DivInst = FDiv;
+    using ConstantType = ConstFloat;
+    using Base = double;
+};
+
+template<typename Compare>
+bool reduce_cmp_with_mul(const std::shared_ptr<Compare> &cmp, std::vector<std::shared_ptr<Instruction>> &instructions,
+                         const size_t &idx, const std::shared_ptr<Block> &current_block) {
+    return false;
+}
+
+template<typename Compare>
+bool reduce_cmp_with_div(const std::shared_ptr<Compare> &cmp, std::vector<std::shared_ptr<Instruction>> &instructions,
+                         const size_t &idx, const std::shared_ptr<Block> &current_block) {
+    return false;
+}
+
+template<typename Compare>
+bool reduce_cmp(std::vector<std::shared_ptr<Instruction>> &instructions, const size_t &idx,
+                const std::shared_ptr<Block> &current_block) {
+    const auto cmp{instructions[idx]->as<Compare>()};
+    int cnt{0};
+    cnt += static_cast<int>(cmp->get_lhs()->is_constant());
+    cnt += static_cast<int>(cmp->get_rhs()->is_constant());
+    if (cnt != 1) {
+        return false;
+    }
+
+    using ConstantType = typename Trait<Compare>::ConstantType;
+    using Base = typename Trait<Compare>::Base;
+
+    const auto &lhs{cmp->get_lhs()}, &rhs{cmp->get_rhs()};
+    if (lhs->is_constant() || !rhs->is_constant()) {
+        log_fatal("Should handle before");
+    }
+    const auto inst{lhs->template is<typename Trait<Compare>::Binary>()};
+    const Base constant_value{**rhs->template as<ConstantType>()};
+    if (inst == nullptr) {
+        return false;
+    }
+    if (const auto t{inst->op}; t == Trait<Compare>::Binary::Op::ADD) {
+        const auto add_inst{inst->template as<typename Trait<Compare>::AddInst>()};
+        // (3 + a) > 6 -> a > 3
+        if (const auto &x{add_inst->get_lhs()}, &y{add_inst->get_rhs()};
+            x->is_constant()) {
+            const auto cx{**x->template as<ConstantType>()};
+            if (const auto ans{Pass::Utils::safe_cal(constant_value, cx, std::minus<>{})}) {
+                const auto new_cmp = Compare::create("cmp", cmp->op, y, ConstantType::create(ans.value()), nullptr);
+                replace_instruction(cmp, new_cmp, current_block, instructions, idx);
+                return true;
+            }
+        } else if (y->is_constant()) {
+            const auto cy{**y->template as<ConstantType>()};
+            if (const auto ans{Pass::Utils::safe_cal(constant_value, cy, std::minus<>{})}) {
+                const auto new_cmp = Compare::create("cmp", cmp->op, x, ConstantType::create(ans.value()), nullptr);
+                replace_instruction(cmp, new_cmp, current_block, instructions, idx);
+                return true;
+            }
+        }
+    } else if (t == Trait<Compare>::Binary::Op::SUB) {
+        const auto sub_inst{inst->template as<typename Trait<Compare>::SubInst>()};
+        // (a - 3) > 6 -> a > 9
+        // (3 - a) > 6 -> a < -3
+        if (const auto &x{sub_inst->get_lhs()}, &y{sub_inst->get_rhs()};
+            x->is_constant()) {
+            const auto cx{**x->template as<ConstantType>()};
+            if (const auto ans{Pass::Utils::safe_cal(cx, constant_value, std::minus<>{})}) {
+                const auto new_cmp = Compare::create("cmp", Compare::swap_op(cmp->op),
+                                                     y, ConstantType::create(ans.value()), nullptr);
+                replace_instruction(cmp, new_cmp, current_block, instructions, idx);
+                return true;
+            }
+        } else if (y->is_constant()) {
+            const auto cy{**y->template as<ConstantType>()};
+            if (const auto ans{Pass::Utils::safe_cal(constant_value, cy, std::plus<>{})}) {
+                const auto new_cmp = Compare::create("cmp", cmp->op, x, ConstantType::create(ans.value()), nullptr);
+                replace_instruction(cmp, new_cmp, current_block, instructions, idx);
+                return true;
+            }
+        }
+    } else if (t == Trait<Compare>::Binary::Op::MUL) {
+        return reduce_cmp_with_mul<Compare>(cmp, instructions, idx, current_block);
+    } else if (t == Trait<Compare>::Binary::Op::DIV) {
+        return reduce_cmp_with_div<Compare>(cmp, instructions, idx, current_block);
+    }
+    return false;
+}
+}
+
+namespace {
 [[nodiscard]]
 bool reduce_add(const std::shared_ptr<Add> &add, std::vector<std::shared_ptr<Instruction>> &instructions,
                 size_t &idx) {
@@ -605,25 +725,26 @@ bool reduce_min(const std::shared_ptr<Smin> &smin, std::vector<std::shared_ptr<I
 }
 
 [[nodiscard]]
-bool handle_intbinary(const std::shared_ptr<Block> &block) {
+bool handle_intbinary_icmp(const std::shared_ptr<Block> &block) {
     auto &instructions = block->get_instructions();
     bool changed = false;
     for (size_t i = 0; i < instructions.size(); ++i) {
-        if (instructions[i]->get_op() != Operator::INTBINARY) {
-            continue;
+        if (const auto t{instructions[i]->get_op()}; t == Operator::INTBINARY) {
+            changed |= [&]() -> bool {
+                switch (const auto binary{instructions[i]->as<IntBinary>()}; binary->intbinary_op()) {
+                    case IntBinary::Op::ADD: return reduce_add(binary->as<Add>(), instructions, i);
+                    case IntBinary::Op::SUB: return reduce_sub(binary->as<Sub>(), instructions, i);
+                    case IntBinary::Op::MUL: return reduce_mul(binary->as<Mul>(), instructions, i);
+                    case IntBinary::Op::DIV: return reduce_div(binary->as<Div>(), instructions, i);
+                    case IntBinary::Op::MOD: return reduce_mod(binary->as<Mod>(), instructions, i);
+                    case IntBinary::Op::SMAX: return reduce_max(binary->as<Smax>(), instructions, i);
+                    case IntBinary::Op::SMIN: return reduce_min(binary->as<Smin>(), instructions, i);
+                    default: return false;
+                }
+            }();
+        } else if (t == Operator::ICMP) {
+            changed |= reduce_cmp<Icmp>(instructions, i, block);
         }
-        changed |= [&]() -> bool {
-            switch (const auto binary{instructions[i]->as<IntBinary>()}; binary->intbinary_op()) {
-                case IntBinary::Op::ADD: return reduce_add(binary->as<Add>(), instructions, i);
-                case IntBinary::Op::SUB: return reduce_sub(binary->as<Sub>(), instructions, i);
-                case IntBinary::Op::MUL: return reduce_mul(binary->as<Mul>(), instructions, i);
-                case IntBinary::Op::DIV: return reduce_div(binary->as<Div>(), instructions, i);
-                case IntBinary::Op::MOD: return reduce_mod(binary->as<Mod>(), instructions, i);
-                case IntBinary::Op::SMAX: return reduce_max(binary->as<Smax>(), instructions, i);
-                case IntBinary::Op::SMIN: return reduce_min(binary->as<Smin>(), instructions, i);
-                default: return false;
-            }
-        }();
     }
     return changed;
 }
@@ -772,7 +893,10 @@ void Pass::AlgebraicSimplify::transform(const std::shared_ptr<Module> module) {
         standardize_binary->run_on(module);
         std::for_each(module->get_functions().begin(), module->get_functions().end(), [&](const auto &func) {
             std::for_each(func->get_blocks().begin(), func->get_blocks().end(), [&](const auto &b) {
-                changed |= handle_intbinary(b);
+                std::for_each(b->get_instructions().begin(), b->get_instructions().end(), [&](const auto &inst) {
+                    changed |= GlobalValueNumbering::fold_instruction(inst);
+                });
+                changed |= handle_intbinary_icmp(b);
             });
         });
         std::for_each(module->get_functions().begin(), module->get_functions().end(), [&](const auto &func) {

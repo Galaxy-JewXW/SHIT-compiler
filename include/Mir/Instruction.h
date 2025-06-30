@@ -252,7 +252,6 @@ public:
         }
     }
 
-private:
     static Op swap_op(const Op op) {
         switch (op) {
             case Op::GT: return Op::LT;
@@ -263,7 +262,6 @@ private:
         }
     }
 
-public:
     void reverse_op() {
         this->op = swap_op(this->op);
         std::swap(operands_[0], operands_[1]);
@@ -298,7 +296,6 @@ public:
         }
     }
 
-private:
     static Op swap_op(const Op op) {
         switch (op) {
             case Op::GT: return Op::LT;
@@ -309,7 +306,6 @@ private:
         }
     }
 
-public:
     void reverse_op() {
         this->op = swap_op(this->op);
         std::swap(operands_[0], operands_[1]);

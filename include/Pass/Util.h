@@ -1,6 +1,7 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <limits>
 #include <optional>
 #include <unordered_set>
 
@@ -58,6 +59,89 @@ protected:
 
 // 实用函数
 namespace Pass::Utils {
+// 模板方法
+// 安全计算
+template<typename Op>
+std::optional<int> safe_calculate_int(const int a, const int b, Op) {
+    constexpr int INT_MAX_VAL = std::numeric_limits<int>::max();
+    constexpr int INT_MIN_VAL = std::numeric_limits<int>::min();
+
+    if constexpr (std::is_same_v<Op, std::plus<>>) {
+        if (b > 0 && a > INT_MAX_VAL - b) return std::nullopt;
+        if (b < 0 && a < INT_MIN_VAL - b) return std::nullopt;
+        return a + b;
+    } else if constexpr (std::is_same_v<Op, std::minus<>>) {
+        if (b < 0 && a > INT_MAX_VAL + b) return std::nullopt;
+        if (b > 0 && a < INT_MIN_VAL + b) return std::nullopt;
+        return a - b;
+    } else if constexpr (std::is_same_v<Op, std::multiplies<>>) {
+        if (a == 0 || b == 0) return 0;
+        if ((a == -1 && b == INT_MIN_VAL) || (b == -1 && a == INT_MIN_VAL)) {
+            return std::nullopt;
+        }
+        if (a > 0) {
+            if (b > 0) {
+                if (a > INT_MAX_VAL / b) return std::nullopt;
+            } else {
+                if (b < INT_MIN_VAL / a) return std::nullopt;
+            }
+        } else {
+            if (b > 0) {
+                if (a < INT_MIN_VAL / b) return std::nullopt;
+            } else {
+                if (a < INT_MAX_VAL / b) return std::nullopt;
+            }
+        }
+        return a * b;
+    } else if constexpr (std::is_same_v<Op, std::divides<>>) {
+        if (b == 0) return std::nullopt;
+        if (a == INT_MIN_VAL && b == -1) return std::nullopt;
+        return a / b;
+    }
+    return std::nullopt;
+}
+
+template<typename Op>
+std::optional<double> safe_calculate_double(const double a, const double b, Op) {
+    constexpr double DOUBLE_MAX_VAL = std::numeric_limits<double>::max();
+    constexpr double DOUBLE_MIN_VAL = std::numeric_limits<double>::lowest();
+
+    if constexpr (std::is_same_v<Op, std::plus<>>) {
+        if (b > 0 && a > DOUBLE_MAX_VAL - b) return std::nullopt;
+        if (b < 0 && a < DOUBLE_MIN_VAL - b) return std::nullopt;
+        return a + b;
+    } else if constexpr (std::is_same_v<Op, std::minus<>>) {
+        if (b < 0 && a > DOUBLE_MAX_VAL + b) return std::nullopt;
+        if (b > 0 && a < DOUBLE_MIN_VAL + b) return std::nullopt;
+        return a - b;
+    } else if constexpr (std::is_same_v<Op, std::multiplies<>>) {
+        if (a == 0.0 || b == 0.0) return 0.0;
+        const double abs_a = std::abs(a);
+        if (const double abs_b = std::abs(b); abs_a > DOUBLE_MAX_VAL / abs_b) return std::nullopt;
+        return a * b;
+    } else if constexpr (std::is_same_v<Op, std::divides<>>) {
+        if (b == 0.0) return std::nullopt;
+        const double abs_a = std::abs(a);
+        if (const double abs_b = std::abs(b); abs_b < 1.0) {
+            if (abs_a > DOUBLE_MAX_VAL * abs_b) return std::nullopt;
+        }
+        return a / b;
+    }
+    return std::nullopt;
+}
+
+template<typename T, typename Op>
+std::optional<T> safe_cal(const T &a, const T &b, Op op) {
+    static_assert(std::is_same_v<T, int> || std::is_same_v<T, double>,
+                  "Type must be int or double");
+
+    if constexpr (std::is_same_v<T, int>) {
+        return safe_calculate_int(a, b, op);
+    } else {
+        return safe_calculate_double(a, b, op);
+    }
+}
+
 // 输出基本块集合的辅助方法
 std::string format_blocks(const std::unordered_set<std::shared_ptr<Mir::Block>> &blocks);
 
