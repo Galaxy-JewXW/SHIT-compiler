@@ -72,7 +72,6 @@ void localize(const std::shared_ptr<Module> &module) {
             }
         }
         Pass::Pass::create<Pass::Mem2Reg>()->run_on(module);
-        Pass::Pass::create<Pass::GlobalValueNumbering>()->run_on(module);
     }
 }
 }

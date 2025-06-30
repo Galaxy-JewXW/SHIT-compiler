@@ -76,6 +76,21 @@ private:
     std::shared_ptr<ControlFlowGraph> cfg_info;
     std::shared_ptr<DominanceGraph> dom_info;
 };
+
+// 将 if-elif-else 链转换为 switch
+class IfChainToSwitch final : public Transform {
+public:
+    explicit IfChainToSwitch() : Transform("IfChainToSwitch") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+    void run_on_func(const std::shared_ptr<Mir::Function> &func);
+
+private:
+    std::shared_ptr<ControlFlowGraph> cfg_info;
+    std::shared_ptr<DominanceGraph> dom_info;
+};
 }
 
 #endif //CONTROLFLOW_H

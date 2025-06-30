@@ -18,8 +18,6 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
     apply<
         Pass::Mem2Reg,
         Pass::TreeHeightBalance,
-        Pass::DeadFuncEliminate,
-        Pass::GlobalValueNumbering,
         // Pass::LoopSimplyForm,
         // Pass::LCSSA,
         Pass::DeadCodeEliminate,
@@ -30,7 +28,6 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         Pass::LoadEliminate,
         Pass::StoreEliminate,
         Pass::SROA,
-        Pass::GlobalValueNumbering,
         Pass::BlockPositioning,
         Pass::SimplifyControlFlow,
         Pass::TailRecursionToLoop,
@@ -38,6 +35,7 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         Pass::DeadCodeEliminate,
         Pass::DeadFuncArgEliminate,
         Pass::DeadFuncEliminate,
-        Pass::DeadReturnEliminate
+        Pass::DeadReturnEliminate,
+        Pass::GlobalValueNumbering
     >(module);
 }

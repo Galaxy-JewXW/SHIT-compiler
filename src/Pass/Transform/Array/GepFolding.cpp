@@ -96,6 +96,5 @@ void GepFolding::transform(const std::shared_ptr<Module> module) {
     }
     module->update_id();
     dom_graph = nullptr;
-    create<GlobalValueNumbering>()->run_on(module);
 }
 }

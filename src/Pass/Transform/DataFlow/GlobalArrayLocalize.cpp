@@ -78,14 +78,14 @@ bool array_can_localized(const std::shared_ptr<GlobalVariable> &gv) {
 // TODO: 非 main 函数的情况下将全局变量作为参数进行传递
 void localize(const std::shared_ptr<Module> &module) {
     const auto func_analysis = Pass::get_analysis_result<Pass::FunctionAnalysis>(module);
-    std::unordered_set<std::shared_ptr<GlobalVariable>> can_replaced;
+    std::unordered_set<std::shared_ptr<GlobalVariable>> can_replace, replaced;
     for (const auto &gv: module->get_global_variables()) {
         if (const auto gv_type = gv->get_type()->as<Type::Pointer>()->get_contain_type();
             gv_type->is_array()) {
-            can_replaced.insert(gv);
+            can_replace.insert(gv);
         }
     }
-    for (const auto &gv: can_replaced) {
+    for (const auto &gv: can_replace) {
         std::unordered_set<std::shared_ptr<Function>> use_function;
         for (const auto &user: gv->users()) {
             if (const auto inst = std::dynamic_pointer_cast<Instruction>(user)) {
@@ -122,10 +122,11 @@ void localize(const std::shared_ptr<Module> &module) {
         gv->replace_by_new_value(new_alloc);
         Jump::create(current_entry, new_entry);
         Pass::set_analysis_result_dirty<Pass::ControlFlowGraph>(func);
+        replaced.insert(gv);
     }
-    if (!can_replaced.empty()) {
+    if (!replaced.empty()) {
         for (auto it = module->get_global_variables().begin(); it != module->get_global_variables().end();) {
-            if (can_replaced.find(*it) == can_replaced.end()) {
+            if (replaced.find(*it) == replaced.end()) {
                 ++it;
             } else {
                 it = module->get_global_variables().erase(it);

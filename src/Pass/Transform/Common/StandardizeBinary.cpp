@@ -1,3 +1,5 @@
+#include <type_traits>
+
 #include "Mir/Builder.h"
 #include "Mir/Const.h"
 #include "Pass/Transforms/Common.h"
@@ -39,13 +41,16 @@ void reverse_sign(std::vector<std::shared_ptr<Instruction>> &instructions, const
     auto replace_instruction = [&](const std::shared_ptr<Instruction> &from, const std::shared_ptr<Value> &to) {
         from->replace_by_new_value(to);
         from->clear_operands();
-        if (const auto &target_inst = std::dynamic_pointer_cast<Instruction>(to)) {
+        if (const auto target_inst = to->is<Instruction>()) {
             target_inst->set_block(current_block, false);
             instructions[idx] = target_inst;
         }
     };
+
     const auto binary = std::static_pointer_cast<IntBinary>(instructions[idx]);
-    if (!binary->get_rhs()->is_constant()) { return; }
+    if (!binary->get_rhs()->is_constant()) {
+        return;
+    }
     if (binary->op == IntBinary::Op::ADD) {
         if (const int int_rhs = binary->get_rhs()->as<ConstInt>()->get<int>(); int_rhs < 0) {
             const auto c = ConstInt::create(-int_rhs);
@@ -61,26 +66,86 @@ void reverse_sign(std::vector<std::shared_ptr<Instruction>> &instructions, const
     }
 }
 
-void run_on_block(const std::shared_ptr<Block> &block) {
-    for (const auto &instruction: block->get_instructions()) {
-        try_exchange_operands(instruction);
+template<typename>
+struct always_false : std::false_type {};
+
+template<typename Compare>
+struct Trait {
+    static_assert(always_false<Compare>::value, "Trait not implemented for this type");
+};
+
+template<>
+struct Trait<Icmp> {
+    using Binary = IntBinary;
+    using AddInst = Add;
+    using SubInst = Sub;
+    using MulInst = Mul;
+    using DivInst = Div;
+
+    using ConstantType = ConstInt;
+    using Base = int;
+};
+
+template<>
+struct Trait<Fcmp> {
+    using Binary = FloatBinary;
+    using AddInst = FAdd;
+    using SubInst = FSub;
+    using MulInst = FMul;
+    using DivInst = FDiv;
+
+    using ConstantType = ConstFloat;
+    using Base = double;
+};
+
+template<typename Compare>
+void handle_cmp(std::vector<std::shared_ptr<Instruction>> &instructions, const size_t &idx,
+                const std::shared_ptr<Block> &current_block) {
+    const auto cmp{instructions[idx]->as<Compare>()};
+    int cnt{0};
+    cnt += static_cast<int>(cmp->get_lhs()->is_constant());
+    cnt += static_cast<int>(cmp->get_rhs()->is_constant());
+    if (cnt != 1) {
+        return;
     }
+
+    const auto &lhs{cmp->get_lhs()}, &rhs{cmp->get_rhs()};
+    if (lhs->is_constant() || !rhs->is_constant()) {
+        log_fatal("Should handle before");
+    }
+    const auto inst{lhs->template is<typename Trait<Compare>::Binary>()};
+    const auto constant_value{rhs->template as<typename Trait<Compare>::ConstantType>()};
+    if (inst == nullptr) {
+        return;
+    }
+    if (const auto t{inst->op}; t == Trait<Compare>::Binary::Op::ADD) {
+        const auto add_inst{inst->template as<typename Trait<Compare>::AddInst>()};
+    } else if (t == Trait<Compare>::Binary::Op::SUB) {
+        const auto sub_inst{inst->template as<typename Trait<Compare>::SubInst>()};
+    } else if (t == Trait<Compare>::Binary::Op::MUL) {
+        const auto mul_inst{inst->template as<typename Trait<Compare>::MulInst>()};
+    } else if (t == Trait<Compare>::Binary::Op::DIV) {
+        const auto div_inst{inst->template as<typename Trait<Compare>::DivInst>()};
+    }
+}
+
+void run_on_block(const std::shared_ptr<Block> &block) {
+    std::for_each(block->get_instructions().begin(), block->get_instructions().end(), try_exchange_operands);
     auto &instructions = block->get_instructions();
     for (size_t i = 0; i < instructions.size(); ++i) {
-        if (instructions[i]->get_op() != Operator::INTBINARY) {
-            continue;
+        if (const auto t{instructions[i]->get_op()}; t == Operator::INTBINARY) {
+            reverse_sign(instructions, i, block);
+        } else if (t == Operator::ICMP) {
+            handle_cmp<Icmp>(instructions, i, block);
         }
-        reverse_sign(instructions, i, block);
     }
 }
 }
 
 namespace Pass {
 void StandardizeBinary::transform(const std::shared_ptr<Module> module) {
-    for (const auto &function: *module) {
-        for (const auto &block: function->get_blocks()) {
-            run_on_block(block);
-        }
-    }
+    std::for_each(module->get_functions().begin(), module->get_functions().end(), [&](const auto &func) {
+        std::for_each(func->get_blocks().begin(), func->get_blocks().end(), run_on_block);
+    });
 }
 }

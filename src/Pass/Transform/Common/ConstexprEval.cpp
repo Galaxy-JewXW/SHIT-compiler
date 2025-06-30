@@ -97,7 +97,6 @@ void ConstexprFuncEval::transform(const std::shared_ptr<Module> module) {
         std::for_each(module->get_functions().begin(), module->get_functions().end(), run_on_func);
         if (changed) {
             create<DeadInstEliminate>()->run_on(module);
-            create<GlobalValueNumbering>()->run_on(module);
         }
     } while (changed);
 
