@@ -352,7 +352,7 @@ std::shared_ptr<Phi> Phi::create(const std::string &name, const std::shared_ptr<
                                  const Optional_Values &optional_values) {
     const auto instruction = std::make_shared<Phi>(name, type, optional_values);
     for (const auto &[block, value]: optional_values) {
-        // block不是phi指令的操作数，在此只维护使用关系
+        // block 和 value 均视为 phi 指令的操作数
         instruction->add_operand(block);
         instruction->add_operand(value);
     }
@@ -361,7 +361,9 @@ std::shared_ptr<Phi> Phi::create(const std::string &name, const std::shared_ptr<
     return instruction;
 }
 
-
+// 为 phi 指令设置 optional_values
+// 1. block不是键
+// 2. block是键，且value是nullptr
 void Phi::set_optional_value(const std::shared_ptr<Block> &block, const std::shared_ptr<Value> &optional_value) {
     if (*optional_value->get_type() != *type_) {
         log_error("Phi operand type must be same");
@@ -387,12 +389,9 @@ void Phi::modify_operand(const std::shared_ptr<Value> &old_value, const std::sha
             log_error("Phi operand not found");
         }
         const auto value = it->second;
-        old_block->remove_user(std::static_pointer_cast<User>(shared_from_this()));
         optional_values.erase(it);
         optional_values[new_block] = value;
-        new_block->add_user(std::static_pointer_cast<User>(shared_from_this()));
     } else {
-        
         for (auto &[block, value]: optional_values) {
             if (value == old_value) [[likely]] {
                 value = new_value;
@@ -401,19 +400,18 @@ void Phi::modify_operand(const std::shared_ptr<Value> &old_value, const std::sha
     }
 }
 
-
 void Phi::remove_optional_value(const std::shared_ptr<Block> &block) {
-    const auto value = optional_values[block];
+    const auto value = optional_values.at(block);
     optional_values.erase(block);
     remove_operand(block);
     remove_operand(value);
 }
 
- std::shared_ptr<Block> Phi::find_optional_block(const std::shared_ptr<Value> &value) {
-     const auto it = std::find_if(optional_values.begin(), optional_values.end(),
-                                  [&](const auto &pair) { return pair.second == value; });
-     return it != optional_values.end() ? it->first : nullptr;
- }
+std::shared_ptr<Block> Phi::find_optional_block(const std::shared_ptr<Value> &value) {
+    const auto it = std::find_if(optional_values.begin(), optional_values.end(),
+                                 [&](const auto &pair) { return pair.second == value; });
+    return it != optional_values.end() ? it->first : nullptr;
+}
 
 std::shared_ptr<Select> Select::create(const std::string &name, const std::shared_ptr<Value> &condition,
                                        const std::shared_ptr<Value> &true_value,

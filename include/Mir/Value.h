@@ -18,8 +18,6 @@ protected:
     std::shared_ptr<Type::Type> type_;
     std::vector<std::weak_ptr<User>> users_{};
 
-
-
 public:
     Value(std::string name, const std::shared_ptr<Type::Type> &type)
         : name_{std::move(name)}, type_(type) {}
@@ -46,12 +44,14 @@ public:
     // 因此需要在增删user时清理users_，防止出现访存异常
     void cleanup_users();
 
-   
+    // 双向维护关系
     void add_user(const std::shared_ptr<User> &user);
 
- 
     void remove_user(const std::shared_ptr<User> &user);
+
+    // 单向维护关系
     void _remove_user(const std::shared_ptr<User> &user);
+
     void _add_user(const std::shared_ptr<User> &user);
 
     void replace_by_new_value(const std::shared_ptr<Value> &new_value);
@@ -119,10 +119,15 @@ public:
 
 class User : public Value {
     friend class Value;
+
 protected:
     std::vector<std::shared_ptr<Value>> operands_;
+
+    // 单向维护关系
     void _add_operand(const std::shared_ptr<Value> &value);
+
     void _remove_operand(const std::shared_ptr<Value> &value);
+
 public:
     User(const std::string &name, const std::shared_ptr<Type::Type> &type)
         : Value{name, type} {}
@@ -144,8 +149,10 @@ public:
 
     const std::vector<std::shared_ptr<Value>> &get_operands() const { return operands_; }
 
+    // 双向维护关系
     void add_operand(const std::shared_ptr<Value> &value);
-    
+
+    void remove_operand(const std::shared_ptr<Value> &value);
 
     void clear_operands();
 
@@ -155,9 +162,6 @@ public:
     auto end() { return operands_.end(); }
     auto begin() const { return operands_.begin(); }
     auto end() const { return operands_.end(); }
-
-    void remove_operand(const std::shared_ptr<Value> &value);
-
 };
 }
 

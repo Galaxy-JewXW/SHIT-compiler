@@ -70,17 +70,16 @@ void cleanup_phi(const std::shared_ptr<Function> &func, const std::shared_ptr<Pa
             }
             return false;
         };
-        for (auto it = phi->get_optional_values().begin(); it != phi->get_optional_values().end();) {
-            if (auto &[block, value] = *it; block_is_unreachable(block)) {
-                // remove_operand包括了delete_user的步骤
-                phi->remove_operand(value);
-                // block不是phi的操作数，这里只需要delete_user即可
-                block->remove_user(phi);
-                it = phi->get_optional_values().erase(it);
-            } else {
-                ++it;
+        std::vector<std::shared_ptr<Block>> to_be_deleted;
+        for (auto &[block, value]: phi->get_optional_values()) {
+            if (block_is_unreachable(block)) {
+                to_be_deleted.push_back(block);
             }
         }
+        // 同时维护 operands 列表和 phi 指令自身持有的 optional_values
+        std::for_each(to_be_deleted.begin(), to_be_deleted.end(), [&](const auto &block) {
+            phi->remove_optional_value(block);
+        });
     };
 
     const auto &blocks = func->get_blocks();
@@ -435,8 +434,7 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
                         phi->set_optional_value(pre, value);
                         pre->add_user(phi);
                     }
-                    block->remove_user(phi);
-                    options.erase(it);
+                    phi->remove_optional_value(block);
                 } else {
                     user->modify_operand(block, target);
                 }
@@ -521,8 +519,7 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
                         phi->set_optional_value(pre, value);
                         pre->add_user(phi);
                     }
-                    block->remove_user(phi);
-                    options.erase(it);
+                    phi->remove_optional_value(block);
                 }
             }
             // 手动维护cfg
