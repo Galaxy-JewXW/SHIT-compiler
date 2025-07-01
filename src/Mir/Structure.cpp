@@ -22,15 +22,12 @@ void Function::update_id() const {
 }
 
 void Block::modify_successor(const std::shared_ptr<Block> &old_successor, const std::shared_ptr<Block> &new_successor) const {
-    for (auto &instruction: instructions) {
-        if (dynamic_cast<Branch*>(instruction.get()) != nullptr) {
-            const auto branch = std::static_pointer_cast<Branch>(instruction);
-            branch->modify_operand(old_successor, new_successor);
-        }
-        if (dynamic_cast<Jump*>(instruction.get()) != nullptr) {
-            const auto jump = std::static_pointer_cast<Jump>(instruction);
-            jump->modify_operand(old_successor, new_successor);
-        }
+    auto terminator = instructions.back();
+    if (dynamic_cast<Branch*>(terminator.get()) != nullptr) {        
+        terminator->modify_operand(old_successor, new_successor);
+    }
+    if (dynamic_cast<Jump*>(terminator.get()) != nullptr) {        
+        terminator->modify_operand(old_successor, new_successor);
     }
 }
 

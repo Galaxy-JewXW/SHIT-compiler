@@ -353,12 +353,14 @@ std::shared_ptr<Phi> Phi::create(const std::string &name, const std::shared_ptr<
     const auto instruction = std::make_shared<Phi>(name, type, optional_values);
     for (const auto &[block, value]: optional_values) {
         // block不是phi指令的操作数，在此只维护使用关系
-        block->add_user(std::static_pointer_cast<User>(instruction));
+        instruction->add_operand(block);
+        instruction->add_operand(value);
     }
     // block 为nullptr时，不进行自动插入
     if (block != nullptr) [[likely]] { instruction->set_block(block); }
     return instruction;
 }
+
 
 void Phi::set_optional_value(const std::shared_ptr<Block> &block, const std::shared_ptr<Value> &optional_value) {
     if (*optional_value->get_type() != *type_) {
@@ -367,13 +369,14 @@ void Phi::set_optional_value(const std::shared_ptr<Block> &block, const std::sha
     if (optional_values.find(block) == optional_values.end()) [[likely]] {
         block->add_user(shared_from_this()->as<User>());
     } else if (optional_values.at(block) != nullptr) {
-        log_error("Should be nullptr");
+        log_error("Should be nullptr: When setting optional value, there should be a new block");
     }
     optional_values[block] = optional_value;
     add_operand(optional_value);
 }
 
 void Phi::modify_operand(const std::shared_ptr<Value> &old_value, const std::shared_ptr<Value> &new_value) {
+    User::modify_operand(old_value, new_value);
     if (const auto old_block = std::dynamic_pointer_cast<Block>(old_value)) {
         const auto new_block = std::dynamic_pointer_cast<Block>(new_value);
         if (new_block == nullptr) {
@@ -384,12 +387,12 @@ void Phi::modify_operand(const std::shared_ptr<Value> &old_value, const std::sha
             log_error("Phi operand not found");
         }
         const auto value = it->second;
-        old_block->delete_user(std::static_pointer_cast<User>(shared_from_this()));
+        old_block->remove_user(std::static_pointer_cast<User>(shared_from_this()));
         optional_values.erase(it);
         optional_values[new_block] = value;
         new_block->add_user(std::static_pointer_cast<User>(shared_from_this()));
     } else {
-        User::modify_operand(old_value, new_value);
+        
         for (auto &[block, value]: optional_values) {
             if (value == old_value) [[likely]] {
                 value = new_value;
@@ -398,18 +401,19 @@ void Phi::modify_operand(const std::shared_ptr<Value> &old_value, const std::sha
     }
 }
 
+
 void Phi::remove_optional_value(const std::shared_ptr<Block> &block) {
     const auto value = optional_values[block];
     optional_values.erase(block);
-    block->delete_user(shared_from_this()->as<User>());
+    remove_operand(block);
     remove_operand(value);
 }
 
-std::shared_ptr<Block> Phi::find_optional_block(const std::shared_ptr<Value> &value) {
-    const auto it = std::find_if(optional_values.begin(), optional_values.end(),
-                                 [&](const auto &pair) { return pair.second == value; });
-    return it != optional_values.end() ? it->first : nullptr;
-}
+ std::shared_ptr<Block> Phi::find_optional_block(const std::shared_ptr<Value> &value) {
+     const auto it = std::find_if(optional_values.begin(), optional_values.end(),
+                                  [&](const auto &pair) { return pair.second == value; });
+     return it != optional_values.end() ? it->first : nullptr;
+ }
 
 std::shared_ptr<Select> Select::create(const std::string &name, const std::shared_ptr<Value> &condition,
                                        const std::shared_ptr<Value> &true_value,

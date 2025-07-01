@@ -40,6 +40,14 @@ private:
     std::shared_ptr<ControlFlowGraph> cfg_info_;
     std::shared_ptr<DominanceGraph> dom_info_;
 };
+
+class LoopInvariantCodeMotion final : public Transform {
+    public:
+        explicit LoopInvariantCodeMotion() : Transform("LoopInvariantCodeMotion") {}
+
+    protected:
+        void transform(std::shared_ptr<Mir::Module> module) override;
+    };
 }
 
 #endif //LOOP_H

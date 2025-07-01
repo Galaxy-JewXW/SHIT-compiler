@@ -36,8 +36,8 @@ void LCSSA::runOnNode(const std::shared_ptr<LoopNodeTreeNode>& loop_node) {
 
 void LCSSA::addPhi4Exit(const std::shared_ptr<Mir::Instruction>& inst, const std::shared_ptr<Mir::Block>& exit,
                         const std::shared_ptr<Loop>& loop) {
-    Mir::Phi::Optional_Values values;
-    auto new_phi = Mir::Phi::create("phi", inst->get_type(), nullptr, values);
+   
+    auto new_phi = Mir::Phi::create("phi", inst->get_type(), nullptr, {});
     new_phi->set_block(exit, false);
     exit->get_instructions().insert(exit->get_instructions().begin(), new_phi);
 

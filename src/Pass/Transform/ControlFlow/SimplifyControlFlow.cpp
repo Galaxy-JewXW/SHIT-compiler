@@ -75,7 +75,7 @@ void cleanup_phi(const std::shared_ptr<Function> &func, const std::shared_ptr<Pa
                 // remove_operand包括了delete_user的步骤
                 phi->remove_operand(value);
                 // block不是phi的操作数，这里只需要delete_user即可
-                block->delete_user(phi);
+                block->remove_user(phi);
                 it = phi->get_optional_values().erase(it);
             } else {
                 ++it;
@@ -435,7 +435,7 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
                         phi->set_optional_value(pre, value);
                         pre->add_user(phi);
                     }
-                    block->delete_user(phi);
+                    block->remove_user(phi);
                     options.erase(it);
                 } else {
                     user->modify_operand(block, target);
@@ -521,7 +521,7 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
                         phi->set_optional_value(pre, value);
                         pre->add_user(phi);
                     }
-                    block->delete_user(phi);
+                    block->remove_user(phi);
                     options.erase(it);
                 }
             }

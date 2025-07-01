@@ -784,8 +784,7 @@ public:
     void modify_operand(const std::shared_ptr<Value> &old_value,
                         const std::shared_ptr<Value> &new_value) override;
 
-    std::shared_ptr<Block>
-    find_optional_block(const std::shared_ptr<Value> &value);
+    [[deprecated]] std::shared_ptr<Block> find_optional_block(const std::shared_ptr<Value> &value);
 
     void do_interpret(Interpreter *interpreter) override;
 
