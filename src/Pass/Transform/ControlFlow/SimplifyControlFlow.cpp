@@ -287,7 +287,7 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
     bool graph_modified{false}, changed{false};
 
     // 合并冗余分支：分支指令的两个目标为同一个块，或者分支指令的条件变量为常数
-    const auto fold_redundant_branch = [&]() -> void {
+    [[maybe_unused]] const auto fold_redundant_branch = [&]() -> void {
         for (const auto &block: func->get_blocks()) {
             auto &last_instruction = block->get_instructions().back();
             if (last_instruction->get_op() != Operator::BRANCH) {
@@ -306,6 +306,14 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
                 jump->set_block(block, false);
                 last_instruction->replace_by_new_value(jump);
                 last_instruction = jump;
+                // 手动更新
+                if (target_block == branch->get_true_block()) {
+                    successors.at(block).erase(branch->get_false_block());
+                    predecessors.at(branch->get_false_block()).erase(block);
+                } else {
+                    successors.at(block).erase(branch->get_true_block());
+                    predecessors.at(branch->get_true_block()).erase(block);
+                }
                 continue;
             }
             if (branch->get_true_block() == branch->get_false_block()) {
@@ -318,7 +326,7 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
     };
 
     // 合并基本块：如果一个块有唯一的前驱，是前驱的唯一后继，则将当前块合并到前驱块
-    const auto combine_blocks = [&]() -> void {
+    [[maybe_unused]] const auto combine_blocks = [&]() -> void {
         const auto &blocks = func->get_blocks();
         auto modified{false};
         for (const auto &block: blocks) {
@@ -344,6 +352,10 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
             // 手动维护cfg
             successors.at(block).erase(child);
             successors.at(block).insert(successors.at(child).begin(), successors.at(child).end());
+            std::for_each(successors.at(child).begin(), successors.at(child).end(), [&](const auto &b) {
+                predecessors.at(b).erase(child);
+                predecessors.at(b).insert(block);
+            });
             predecessors.erase(child);
             successors.erase(child);
         }
@@ -396,7 +408,7 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
     };
 
     // 移除"空"块：消除只包含单个无条件跳转的基本块
-    const auto remove_empty_blocks = [&]() -> void {
+    [[maybe_unused]] const auto remove_empty_blocks = [&]() -> void {
         const auto &blocks = func->get_blocks();
         auto modified{false};
         for (const auto &block: blocks) {
@@ -462,7 +474,7 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
     };
 
     // 提升分支指令：消除只包含单个有条件跳转的基本块
-    const auto hoist_branch = [&]() -> void {
+    [[maybe_unused]] const auto hoist_branch = [&]() -> void {
         const auto &blocks = func->get_blocks();
         auto modified{false};
         for (const auto &block: blocks) {

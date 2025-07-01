@@ -1,6 +1,7 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <cmath>
 #include <limits>
 #include <optional>
 #include <unordered_set>
@@ -97,6 +98,10 @@ std::optional<int> safe_calculate_int(const int a, const int b, Op) {
         if (b == 0) return std::nullopt;
         if (a == INT_MIN_VAL && b == -1) return std::nullopt;
         return a / b;
+    } else if constexpr (std::is_same_v<Op, std::modulus<>>) {
+        if (b == 0) return std::nullopt;
+        if (a == INT_MIN_VAL && b == -1) return std::nullopt;
+        return a % b;
     }
     return std::nullopt;
 }
@@ -126,6 +131,12 @@ std::optional<double> safe_calculate_double(const double a, const double b, Op) 
             if (abs_a > DOUBLE_MAX_VAL * abs_b) return std::nullopt;
         }
         return a / b;
+    } else if constexpr (std::is_same_v<Op, std::modulus<>>) {
+        if (b == 0.0) return std::nullopt;
+        if (!std::isfinite(a) || !std::isfinite(b)) return std::nullopt;
+        double result = std::fmod(a, b);
+        if (!std::isfinite(result)) return std::nullopt;
+        return result;
     }
     return std::nullopt;
 }

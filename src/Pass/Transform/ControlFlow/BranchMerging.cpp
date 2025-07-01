@@ -334,6 +334,5 @@ void BranchMerging::transform(const std::shared_ptr<Module> module) {
     }
     cfg_info = nullptr;
     dom_info = nullptr;
-    create<SimplifyControlFlow>()->run_on(module);
 }
 }

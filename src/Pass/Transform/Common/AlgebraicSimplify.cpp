@@ -68,14 +68,185 @@ struct Trait<Fcmp> {
 };
 
 template<typename Compare>
-bool reduce_cmp_with_mul(const std::shared_ptr<Compare> &cmp, std::vector<std::shared_ptr<Instruction>> &instructions,
-                         const size_t &idx, const std::shared_ptr<Block> &current_block) {
+bool _reduce_cmp_with_mul(const std::shared_ptr<Compare> &cmp, std::vector<std::shared_ptr<Instruction>> &instructions,
+                          const size_t &idx, const std::shared_ptr<Block> &current_block) {
+    using ConstantType = typename Trait<Compare>::ConstantType;
+    using Base = typename Trait<Compare>::Base;
+    constexpr auto abs_ = 1e-7;
+    constexpr auto zero{static_cast<Base>(false)}, one{static_cast<Base>(true)};
+
+    if constexpr (!std::is_same_v<Compare, Icmp>) {
+        return false;
+    }
+
+    const auto &lhs{cmp->get_lhs()}, &rhs{cmp->get_rhs()};
+    const auto mul{lhs->template as<typename Trait<Compare>::MulInst>()};
+
+    Base m{zero}, n{**rhs->template as<ConstantType>()};
+    std::shared_ptr<Value> x{nullptr};
+    if (mul->get_lhs()->is_constant()) {
+        m = **mul->get_lhs()->template as<ConstantType>();
+        x = mul->get_rhs();
+    } else if (mul->get_rhs()->is_constant()) {
+        m = **mul->get_rhs()->template as<ConstantType>();
+        x = mul->get_lhs();
+    }
+
+    auto cmp_type{cmp->op};
+    // m < 0
+    if (std::abs(m) >= abs_ && m < zero) {
+        m *= -one;
+        n *= -one;
+        cmp_type = Compare::opposite_op(cmp_type);
+    }
+
+    switch (cmp_type) {
+        case Compare::Op::EQ: {
+            if (std::abs(m) < abs_) {
+                cmp->replace_by_new_value(ConstBool::create(static_cast<int>(std::abs(n) < abs_)));
+                return true;
+            }
+            if (const auto ans{Pass::Utils::safe_cal(n, m, std::modulus<>{})}) {
+                if (const auto res{ans.value()}; std::abs(res) < abs_) {
+                    const auto new_cmp = Compare::create("cmp", cmp_type, x, ConstantType::create(res), nullptr);
+                    replace_instruction(cmp, new_cmp, current_block, instructions, idx);
+                    return true;
+                }
+                cmp->replace_by_new_value(ConstBool::create(0));
+                return true;
+            }
+            break;
+        }
+        case Compare::Op::NE: {
+            if (std::abs(m) < abs_) {
+                cmp->replace_by_new_value(ConstBool::create(static_cast<int>(std::abs(n) >= abs_)));
+                return true;
+            }
+            if (const auto ans{Pass::Utils::safe_cal(n, m, std::modulus<>{})}) {
+                if (const auto res{ans.value()}; std::abs(res) < abs_) {
+                    const auto new_cmp = Compare::create("cmp", cmp_type, x, ConstantType::create(res), nullptr);
+                    replace_instruction(cmp, new_cmp, current_block, instructions, idx);
+                    return true;
+                }
+                cmp->replace_by_new_value(ConstBool::create(1));
+                return true;
+            }
+            break;
+        }
+        case Compare::Op::LT: {
+            // m * x < n -> x <= (n - 1) / m
+            if (const auto ans{Pass::Utils::safe_cal(n - one, m, std::divides<>{})}) {
+                const auto new_cmp = Compare::create("cmp", Compare::Op::LE, x, ConstantType::create(ans.value()),
+                                                     nullptr);
+                replace_instruction(cmp, new_cmp, current_block, instructions, idx);
+                return true;
+            }
+            break;
+        }
+        case Compare::Op::GT: {
+            // m * x > n -> x >= (n + m) / m
+            if (const auto ans{Pass::Utils::safe_cal(n + m, m, std::divides<>{})}) {
+                const auto new_cmp = Compare::create("cmp", Compare::Op::GE, x, ConstantType::create(ans.value()),
+                                                     nullptr);
+                replace_instruction(cmp, new_cmp, current_block, instructions, idx);
+                return true;
+            }
+            break;
+        }
+        case Compare::Op::LE: {
+            // m * x <= n -> x <= n / m
+            if (const auto ans{Pass::Utils::safe_cal(n, m, std::divides<>{})}) {
+                const auto new_cmp = Compare::create("cmp", Compare::Op::LE, x, ConstantType::create(ans.value()),
+                                                     nullptr);
+                replace_instruction(cmp, new_cmp, current_block, instructions, idx);
+                return true;
+            }
+            break;
+        }
+        case Compare::Op::GE: {
+            // m * x >= n -> x >= (m + n - 1) / m
+            if (const auto ans{Pass::Utils::safe_cal(m + n - one, m, std::divides<>{})}) {
+                const auto new_cmp = Compare::create("cmp", Compare::Op::GE, x, ConstantType::create(ans.value()),
+                                                     nullptr);
+                replace_instruction(cmp, new_cmp, current_block, instructions, idx);
+                return true;
+            }
+            break;
+        }
+        default: break;
+    }
     return false;
 }
 
 template<typename Compare>
-bool reduce_cmp_with_div(const std::shared_ptr<Compare> &cmp, std::vector<std::shared_ptr<Instruction>> &instructions,
-                         const size_t &idx, const std::shared_ptr<Block> &current_block) {
+bool _reduce_cmp_with_div(const std::shared_ptr<Compare> &cmp, std::vector<std::shared_ptr<Instruction>> &instructions,
+                          const size_t &idx, const std::shared_ptr<Block> &current_block) {
+    using ConstantType = typename Trait<Compare>::ConstantType;
+    using Base = typename Trait<Compare>::Base;
+    constexpr auto abs_ = 1e-7;
+    constexpr auto zero{static_cast<Base>(false)}, one{static_cast<Base>(true)};
+
+    if constexpr (!std::is_same_v<Compare, Icmp>) {
+        return false;
+    }
+
+    const auto &lhs{cmp->get_lhs()}, &rhs{cmp->get_rhs()};
+    const auto div{lhs->template as<typename Trait<Compare>::DivInst>()};
+    Base m{zero}, n{**rhs->template as<ConstantType>()};
+    std::shared_ptr<Value> x{nullptr};
+    if (div->get_rhs()->is_constant()) {
+        m = **div->get_rhs()->template as<ConstantType>();
+        x = div->get_lhs();
+    } else if (div->get_rhs()->is_constant()) {
+        return false;
+    }
+
+    if (std::abs(m) < abs_) {
+        return false;
+    }
+
+    switch (const bool great_than_zero{m > zero}; const auto &cmp_type{cmp->op}) {
+        case Compare::Op::EQ:
+        case Compare::Op::NE:
+            return false;
+        case Compare::Op::LT: {
+            if (const auto ans{Pass::Utils::safe_cal(n, m, std::multiplies<>{})}) {
+                const auto t{great_than_zero ? Compare::Op::LT : Compare::Op::GT};
+                const auto new_cmp = Compare::create("cmp", t, x, ConstantType::create(ans.value()), nullptr);
+                replace_instruction(cmp, new_cmp, current_block, instructions, idx);
+                return true;
+            }
+            break;
+        }
+        case Compare::Op::GT: {
+            if (const auto ans{Pass::Utils::safe_cal(n + one, m, std::multiplies<>{})}) {
+                const auto t{great_than_zero ? Compare::Op::GE : Compare::Op::LE};
+                const auto new_cmp = Compare::create("cmp", t, x, ConstantType::create(ans.value()), nullptr);
+                replace_instruction(cmp, new_cmp, current_block, instructions, idx);
+                return true;
+            }
+            break;
+        }
+        case Compare::Op::LE: {
+            if (const auto ans{Pass::Utils::safe_cal(n + one, m, std::multiplies<>{})}) {
+                const auto t{great_than_zero ? Compare::Op::LT : Compare::Op::GT};
+                const auto new_cmp = Compare::create("cmp", t, x, ConstantType::create(ans.value()), nullptr);
+                replace_instruction(cmp, new_cmp, current_block, instructions, idx);
+                return true;
+            }
+            break;
+        }
+        case Compare::Op::GE: {
+            if (const auto ans{Pass::Utils::safe_cal(n, m, std::multiplies<>{})}) {
+                const auto t{great_than_zero ? Compare::Op::GE : Compare::Op::LE};
+                const auto new_cmp = Compare::create("cmp", t, x, ConstantType::create(ans.value()), nullptr);
+                replace_instruction(cmp, new_cmp, current_block, instructions, idx);
+                return true;
+            }
+            break;
+        }
+        default: break;
+    }
     return false;
 }
 
@@ -143,9 +314,9 @@ bool reduce_cmp(std::vector<std::shared_ptr<Instruction>> &instructions, const s
             }
         }
     } else if (t == Trait<Compare>::Binary::Op::MUL) {
-        return reduce_cmp_with_mul<Compare>(cmp, instructions, idx, current_block);
+        return _reduce_cmp_with_mul<Compare>(cmp, instructions, idx, current_block);
     } else if (t == Trait<Compare>::Binary::Op::DIV) {
-        return reduce_cmp_with_div<Compare>(cmp, instructions, idx, current_block);
+        return _reduce_cmp_with_div<Compare>(cmp, instructions, idx, current_block);
     }
     return false;
 }
