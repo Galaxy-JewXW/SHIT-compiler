@@ -108,8 +108,19 @@ void run_on_block(const std::shared_ptr<Block> &block, std::unordered_set<std::s
     })) {
         return;
     }
-
-
+    block->get_instructions().pop_back();
+    const auto switch_{Switch::create(base_value, default_block, block)};
+    for (const auto &inst: default_block->get_instructions()) {
+        if (inst->get_op() == Operator::PHI) {
+            const auto phi{inst->as<Phi>()};
+            phi->set_optional_value(block, phi->get_optional_values()[parent_block]);
+        } else {
+            break;
+        }
+    }
+    std::for_each(chain_map.begin(), chain_map.end(), [&](const auto &pair) {
+        switch_->set_case(ConstInt::create(pair.first), pair.second);
+    });
 }
 }
 

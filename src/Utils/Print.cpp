@@ -681,6 +681,18 @@ namespace Mir {
     return oss.str();
 }
 
+[[nodiscard]] std::string Switch::to_string() const {
+    std::ostringstream oss;
+    oss << "switch " << get_base()->get_type()->to_string() << " " << get_base()->get_name() << ", ";
+    oss << "label %" << get_default_block()->get_name() << " [";
+    for (const auto &[value, block]: cases()) {
+        oss << "\n\t\t" << value->get_type()->to_string() << " "
+                << value->get_name() << ", label %" << block->get_name();
+    }
+    oss << "\n\t]";
+    return oss.str();
+}
+
 [[nodiscard]] std::string Call::to_string() const {
     auto params_to_string = [&] {
         std::ostringstream oss;

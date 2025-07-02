@@ -255,6 +255,12 @@ void SimplifyControlFlow::remove_unreachable_blocks(const std::shared_ptr<Functi
             const auto branch = last_instruction->as<Branch>();
             self(self, branch->get_true_block());
             self(self, branch->get_false_block());
+        } else if (op == Operator::SWITCH) {
+            const auto switch_ = last_instruction->as<Switch>();
+            self(self, switch_->get_default_block());
+            for (const auto &[value, block]: switch_->cases()) {
+                self(self, block);
+            }
         } else if (op != Operator::RET) {
             log_error("Last instruction is not a terminator: %s", last_instruction->to_string().c_str());
         }
@@ -555,12 +561,34 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
         }
     };
 
+    [[maybe_unused]] const auto cleanup_switch = [&]() -> void {
+        const auto &blocks = func->get_blocks();
+        for (const auto &block: blocks) {
+            if (block->is_deleted()) {
+                continue;
+            }
+            if (block->get_instructions().back()->get_op() != Operator::SWITCH) {
+                continue;
+            }
+            const auto switch_{block->get_instructions().back()->as<Switch>()};
+            const auto default_block{switch_->get_default_block()};
+            std::vector<std::shared_ptr<Const>> values;
+            for (const auto &[value, block]: switch_->cases()) {
+                if (block == default_block) {
+                    values.push_back(value->as<Const>());
+                }
+            }
+            std::for_each(values.begin(), values.end(), [&](const auto &value) { switch_->remove_case(value); });
+        }
+    };
+
     do {
         changed = false;
         fold_redundant_branch();
         combine_blocks();
         remove_empty_blocks();
         hoist_branch();
+        cleanup_switch();
         if (changed) {
             remove_deleted_blocks(func);
         }

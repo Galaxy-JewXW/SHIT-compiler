@@ -127,6 +127,20 @@ void Ret::do_interpret(Interpreter *const interpreter) {
     interpreter->frame->ret_value = operands_.empty() ? 0 : interpreter->get_runtime_value(this->get_value());
 }
 
+void Switch::do_interpret(Interpreter *const interpreter) {
+    std::unordered_map<eval_t, std::shared_ptr<Block>> _cases;
+    for (const auto &[value, block]: cases_table) {
+        _cases[interpreter->get_runtime_value(value)] = block;
+    }
+    interpreter->frame->prev_block = interpreter->frame->current_block;
+    if (const auto base{interpreter->get_runtime_value(get_base())};
+        _cases.find(base) != _cases.end()) {
+        interpreter->frame->current_block = _cases[base];
+    } else {
+        interpreter->frame->current_block = get_default_block();
+    }
+}
+
 void Call::do_interpret(Interpreter *const interpreter) {
     std::vector<eval_t> real_args;
     real_args.reserve(this->get_params().size());

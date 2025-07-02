@@ -1,6 +1,7 @@
 #ifndef INSTRUCTION_H
 #define INSTRUCTION_H
 
+#include <optional>
 #include <utility>
 
 #include "Const.h"
@@ -26,6 +27,7 @@ enum class Operator {
     BRANCH,
     JUMP,
     RET,
+    SWITCH,
     CALL,
     INTBINARY,
     FLOATBINARY,
@@ -428,6 +430,54 @@ public:
     [[nodiscard]] std::string to_string() const override;
 
     void do_interpret(Interpreter *interpreter) override;
+};
+
+class Switch final : public Terminator {
+public:
+    Switch(const std::shared_ptr<Value> &base, const std::shared_ptr<Value> &default_block)
+        : Terminator(Type::Void::void_, Operator::SWITCH) {
+        if (!base->get_type()->is_integer() && !base->get_type()->is_float()) {
+            log_error("Not supported");
+        }
+    }
+
+    static std::shared_ptr<Switch> create(const std::shared_ptr<Value> &base,
+                                          const std::shared_ptr<Block> &default_block,
+                                          const std::shared_ptr<Block> &block);
+
+    std::shared_ptr<Value> get_base() const { return operands_[0]; }
+
+    std::shared_ptr<Block> get_default_block() const {
+        return operands_[1]->as<Block>();
+    }
+
+    [[nodiscard]] std::string to_string() const override;
+
+    void do_interpret(Interpreter *interpreter) override;
+
+    const std::unordered_map<std::shared_ptr<Value>, std::shared_ptr<Block>> &cases() const {
+        return cases_table;
+    }
+
+    std::optional<std::shared_ptr<Block>> get_case(const std::shared_ptr<Value> &value) const {
+        if (cases_table.find(value) != cases_table.end()) {
+            return std::make_optional(cases_table.at(value));
+        }
+        return std::nullopt;
+    }
+
+    void set_case(const std::shared_ptr<Const> &value, const std::shared_ptr<Block> &block);
+
+    void set_case(const std::pair<const std::shared_ptr<Const>, std::shared_ptr<Block>> &pair);
+
+    void remove_case(const std::shared_ptr<Const> &value);
+
+    void modify_operand(const std::shared_ptr<Value> &old_value,
+                        const std::shared_ptr<Value> &new_value) override;
+
+private:
+    // 跳转表
+    std::unordered_map<std::shared_ptr<Value>, std::shared_ptr<Block>> cases_table;
 };
 
 class Call final : public Instruction {

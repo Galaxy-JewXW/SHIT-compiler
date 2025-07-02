@@ -20,7 +20,25 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         Pass::TreeHeightBalance,
         Pass::AlgebraicSimplify,
         Pass::SimplifyControlFlow,
-        Pass::EmitModule<true>,
-        Pass::IfChainToSwitch
+        Pass::IfChainToSwitch,
+        // Pass::LoopSimplyForm,
+        // Pass::LCSSA,
+        Pass::DeadCodeEliminate,
+        Pass::BranchMerging,
+        Pass::GepFolding,
+        Pass::GlobalVariableLocalize,
+        Pass::GlobalArrayLocalize,
+        Pass::LoadEliminate,
+        Pass::StoreEliminate,
+        Pass::SROA,
+        Pass::BlockPositioning,
+        Pass::SimplifyControlFlow,
+        Pass::TailRecursionToLoop,
+        Pass::ConstexprFuncEval,
+        Pass::DeadCodeEliminate,
+        // Pass::DeadFuncArgEliminate,
+        // Pass::DeadFuncEliminate,
+        Pass::DeadReturnEliminate,
+        Pass::GlobalValueNumbering
     >(module);
 }

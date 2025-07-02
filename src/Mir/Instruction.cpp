@@ -224,6 +224,62 @@ std::shared_ptr<Ret> Ret::create(const std::shared_ptr<Block> &block) {
     return instruction;
 }
 
+std::shared_ptr<Switch> Switch::create(const std::shared_ptr<Value> &base, const std::shared_ptr<Block> &default_block,
+                                       const std::shared_ptr<Block> &block) {
+    const auto instruction = std::make_shared<Switch>(base, default_block);
+    if (block != nullptr) [[likely]] { instruction->set_block(block); }
+    instruction->add_operands(base, default_block);
+    return instruction;
+}
+
+void Switch::set_case(const std::shared_ptr<Const> &value, const std::shared_ptr<Block> &block) {
+    if (*value->get_type() != *get_base()->get_type()) [[unlikely]] {
+        log_error("Unmatched type");
+    }
+    cases_table[value] = block;
+    add_operands(value, block);
+}
+
+void Switch::set_case(const std::pair<const std::shared_ptr<Const>, std::shared_ptr<Block>> &pair) {
+    if (*pair.first->get_type() != *get_base()->get_type()) [[unlikely]] {
+        log_error("Unmatched type");
+    }
+    cases_table.insert(pair);
+    add_operands(pair.first, pair.second);
+}
+
+void Switch::remove_case(const std::shared_ptr<Const> &value) {
+    const auto block{cases_table.at(value)};
+    remove_operands(value, block);
+    cases_table.erase(value);
+}
+
+void Switch::modify_operand(const std::shared_ptr<Value> &old_value, const std::shared_ptr<Value> &new_value) {
+    User::modify_operand(old_value, new_value);
+    if (const auto old_block{old_value->is<Block>()}) {
+        const auto new_block{new_value->is<Block>()};
+        if (new_block == nullptr) [[unlikely]] {
+            log_error("Should be a Block");
+        }
+        for (auto &[value, block]: cases_table) {
+            if (block == old_block) {
+                block = new_block;
+            }
+        }
+    } else {
+        const auto it{cases_table.find(old_value)};
+        if (it == cases_table.end()) [[unlikely]] {
+            log_error("Should in cases table");
+        }
+        if (!new_value->is_constant()) [[unlikely]] {
+            log_error("new value should be constant as key");
+        }
+        const auto block{it->second};
+        cases_table.erase(it);
+        cases_table[new_value] = block;
+    }
+}
+
 std::shared_ptr<Call> Call::create(const std::string &name,
                                    const std::shared_ptr<Function> &function,
                                    const std::vector<std::shared_ptr<Value>> &params,

@@ -44,6 +44,9 @@ void Value::replace_by_new_value(const std::shared_ptr<Value> &new_value) {
                   new_value->get_type()->to_string().c_str());
     }
     cleanup_users();
+    if (is_constant()) [[unlikely]] {
+        log_error("Cannot replace from a constant");
+    }
     const auto copied_users = users_;
     for (const auto &user: copied_users) {
         if (const auto sp = user.lock()) {
@@ -89,12 +92,7 @@ void User::clear_operands() {
 
 void User::remove_operand(const std::shared_ptr<Value> &value) {
     if (!value) return;
-    this->operands_.erase(
-        std::remove_if(operands_.begin(), operands_.end(),
-                       [&value](const std::shared_ptr<Value> &operand) {
-                           return operand == value;
-                       }),
-        operands_.end());
+    _remove_operand(value);
     value->_remove_user(std::static_pointer_cast<User>(shared_from_this()));
 }
 

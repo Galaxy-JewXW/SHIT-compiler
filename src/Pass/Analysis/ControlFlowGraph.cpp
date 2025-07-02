@@ -21,14 +21,20 @@ void build_predecessors_successors(const FunctionPtr &func,
                       last_instruction->to_string().c_str());
         }
         std::unordered_set<BlockPtr> successors;
-        if (terminator->get_op() == Mir::Operator::BRANCH) {
+        if (const auto t = terminator->get_op(); t == Mir::Operator::BRANCH) {
             const auto branch = std::static_pointer_cast<Mir::Branch>(terminator);
             successors.insert(branch->get_true_block());
             successors.insert(branch->get_false_block());
-        } else if (terminator->get_op() == Mir::Operator::JUMP) {
+        } else if (t == Mir::Operator::JUMP) {
             const auto jump = std::static_pointer_cast<Mir::Jump>(terminator);
             successors.insert(jump->get_target_block());
-        } else if (terminator->get_op() != Mir::Operator::RET) {
+        } else if (t == Mir::Operator::SWITCH) {
+            const auto switch_ = std::static_pointer_cast<Mir::Switch>(terminator);
+            successors.insert(switch_->get_default_block());
+            for (const auto &[value, block]: switch_->cases()) {
+                successors.insert(block);
+            }
+        } else if (t != Mir::Operator::RET) {
             log_error("Last instruction of block %s is not a terminator: %s", block->get_name().c_str(),
                       last_instruction->to_string().c_str());
         }

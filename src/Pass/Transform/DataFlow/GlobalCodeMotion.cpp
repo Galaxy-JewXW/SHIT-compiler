@@ -84,6 +84,7 @@ bool GlobalCodeMotion::is_pinned(const InstructionPtr &instruction) const {
         case Operator::BRANCH:
         case Operator::JUMP:
         case Operator::RET:
+        case Operator::SWITCH:
         case Operator::PHI:
         case Operator::STORE:
         case Operator::LOAD:
