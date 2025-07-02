@@ -137,7 +137,7 @@ std::shared_ptr<Value> Fcmp::create(const std::string &name, Op op, std::shared_
     }
     if (lhs->is_constant() && !rhs->is_constant()) {
         std::swap(lhs, rhs);
-        op = opposite_op(op);
+        op = swap_op(op);
     }
     const auto instruction = std::make_shared<Fcmp>(name, op, lhs, rhs);
     if (block != nullptr) [[likely]] { instruction->set_block(block); }
@@ -166,7 +166,7 @@ std::shared_ptr<Value> Icmp::create(const std::string &name, Op op, std::shared_
     }
     if (lhs->is_constant() && !rhs->is_constant()) {
         std::swap(lhs, rhs);
-        op = opposite_op(op);
+        op = swap_op(op);
     }
     const auto instruction = std::make_shared<Icmp>(name, op, lhs, rhs);
     if (block != nullptr) [[likely]] { instruction->set_block(block); }

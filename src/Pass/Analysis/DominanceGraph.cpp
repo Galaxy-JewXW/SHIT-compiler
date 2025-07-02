@@ -323,6 +323,24 @@ void DominanceGraph::set_dirty(const FunctionPtr &func) {
     set_analysis_result_dirty<ControlFlowGraph>(func);
 }
 
+std::vector<BlockPtr> DominanceGraph::pre_order_blocks(const FunctionPtr &func) {
+    std::unordered_set<BlockPtr> visited;
+    std::vector<BlockPtr> post_order;
+    auto dfs = [&](auto &&self, const BlockPtr &block) -> void {
+        if (visited.count(block)) {
+            return;
+        }
+        visited.insert(block);
+        post_order.push_back(block);
+        for (const auto &child: graphs_[func].dominance_children.at(block)) {
+            self(self, child);
+        }
+    };
+    dfs(dfs, func->get_blocks().front());
+    return post_order;
+}
+
+
 std::vector<BlockPtr> DominanceGraph::post_order_blocks(const FunctionPtr &func) {
     std::unordered_set<BlockPtr> visited;
     std::vector<BlockPtr> post_order;

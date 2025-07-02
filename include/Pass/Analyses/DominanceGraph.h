@@ -38,6 +38,8 @@ public:
 
     std::vector<BlockPtr> dom_tree_layer(const FunctionPtr &func);
 
+    std::vector<BlockPtr> pre_order_blocks(const FunctionPtr &func);
+
     std::vector<BlockPtr> post_order_blocks(const FunctionPtr &func);
 
     bool is_dirty() const override;

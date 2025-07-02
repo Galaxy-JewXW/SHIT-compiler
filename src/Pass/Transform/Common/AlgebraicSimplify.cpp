@@ -97,7 +97,7 @@ bool _reduce_cmp_with_mul(const std::shared_ptr<Compare> &cmp, std::vector<std::
     if (std::abs(m) >= abs_ && m < zero) {
         m *= -one;
         n *= -one;
-        cmp_type = Compare::opposite_op(cmp_type);
+        cmp_type = Compare::swap_op(cmp_type);
     }
 
     switch (cmp_type) {

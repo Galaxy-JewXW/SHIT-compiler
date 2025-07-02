@@ -262,18 +262,8 @@ public:
         }
     }
 
-    static Op opposite_op(const Op op) {
-        switch (op) {
-            case Op::GT: return Op::LE;
-            case Op::LT: return Op::GE;
-            case Op::GE: return Op::LT;
-            case Op::LE: return Op::GT;
-            default: return op;
-        }
-    }
-
     void reverse_op() {
-        this->op = opposite_op(this->op);
+        this->op = swap_op(this->op);
         std::swap(operands_[0], operands_[1]);
     }
 
@@ -316,18 +306,8 @@ public:
         }
     }
 
-    static Op opposite_op(const Op op) {
-        switch (op) {
-            case Op::GT: return Op::LE;
-            case Op::LT: return Op::GE;
-            case Op::GE: return Op::LT;
-            case Op::LE: return Op::GT;
-            default: return op;
-        }
-    }
-
     void reverse_op() {
-        this->op = opposite_op(this->op);
+        this->op = swap_op(this->op);
         std::swap(operands_[0], operands_[1]);
     }
 
