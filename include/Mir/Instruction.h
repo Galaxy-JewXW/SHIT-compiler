@@ -483,6 +483,8 @@ private:
 class Call final : public Instruction {
     int const_string_index{-1};
 
+    bool is_tail_call_{false};
+
 public:
     explicit Call(const std::string &name,
                   const std::shared_ptr<Function> &function,
@@ -539,6 +541,10 @@ public:
     [[nodiscard]] std::string to_string() const override;
 
     void do_interpret(Interpreter *interpreter) override;
+
+    [[nodiscard]] bool is_tail_call() const { return is_tail_call_; }
+
+    void set_tail_call(const bool flag = true) { is_tail_call_ = flag; }
 };
 
 class Binary : public Instruction {

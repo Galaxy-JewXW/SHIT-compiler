@@ -712,11 +712,13 @@ namespace Mir {
             oss << "call void @putf(i8* @.str_" << const_string_index << ", " << params_to_string() << ")";
         }
     } else {
+        constexpr auto tail = std::string_view{"tail "};
         if (get_function()->get_type()->is_void()) {
-            oss << "call " << get_function()->get_type()->to_string() << " @" << get_function()->get_name() << "(";
+            oss << (is_tail_call() ? tail : "") << "call " << get_function()->get_type()->to_string()
+                    << " @" << get_function()->get_name() << "(";
             oss << params_to_string() << ")";
         } else {
-            oss << name_ << " = call " << get_function()->get_type()->to_string()
+            oss << name_ << " = " << (is_tail_call() ? tail : "") << "call " << get_function()->get_type()->to_string()
                     << " @" << get_function()->get_name() << "(";
             oss << params_to_string() << ")";
         }
@@ -781,7 +783,7 @@ std::string FSmin::to_string() const {
 
 std::string FMadd::to_string() const {
     std::ostringstream oss;
-    oss << name_ << " = call float @shit_fmadd_s("
+    oss << name_ << " = call float @__shit_fmadd_s("
             << get_x()->get_type()->to_string() << " " << get_x()->get_name() << ", "
             << get_y()->get_type()->to_string() << " " << get_y()->get_name() << ", "
             << get_z()->get_type()->to_string() << " " << get_z()->get_name() << ")";
@@ -790,7 +792,7 @@ std::string FMadd::to_string() const {
 
 std::string FNmadd::to_string() const {
     std::ostringstream oss;
-    oss << name_ << " = call float @shit_fnmadd_s("
+    oss << name_ << " = call float @__shit_fnmadd_s("
             << get_x()->get_type()->to_string() << " " << get_x()->get_name() << ", "
             << get_y()->get_type()->to_string() << " " << get_y()->get_name() << ", "
             << get_z()->get_type()->to_string() << " " << get_z()->get_name() << ")";
@@ -799,7 +801,7 @@ std::string FNmadd::to_string() const {
 
 std::string FMsub::to_string() const {
     std::ostringstream oss;
-    oss << name_ << " = call float @shit_fmsub_s("
+    oss << name_ << " = call float @__shit_fmsub_s("
             << get_x()->get_type()->to_string() << " " << get_x()->get_name() << ", "
             << get_y()->get_type()->to_string() << " " << get_y()->get_name() << ", "
             << get_z()->get_type()->to_string() << " " << get_z()->get_name() << ")";
@@ -808,7 +810,7 @@ std::string FMsub::to_string() const {
 
 std::string FNmsub::to_string() const {
     std::ostringstream oss;
-    oss << name_ << " = call float @shit_fnmsub_s("
+    oss << name_ << " = call float @__shit_fnmsub_s("
             << get_x()->get_type()->to_string() << " " << get_x()->get_name() << ", "
             << get_y()->get_type()->to_string() << " " << get_y()->get_name() << ", "
             << get_z()->get_type()->to_string() << " " << get_z()->get_name() << ")";
@@ -817,7 +819,7 @@ std::string FNmsub::to_string() const {
 
 std::string FNeg::to_string() const {
     std::ostringstream oss;
-    oss << name_ << " = call float @shit_fneg_s("
+    oss << name_ << " = call float @__shit_fneg_s("
             << get_value()->get_type()->to_string() << " " << get_value()->get_name() << ")";
     return oss.str();
 }
