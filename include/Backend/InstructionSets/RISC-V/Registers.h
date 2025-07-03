@@ -17,9 +17,8 @@ namespace RISCV::Registers {
         SP,
         GP,
         TP,
-        T0,
-        T1, T2,
-        FP,
+        T0, T1, T2,
+        S0, // FP
         S1,
         A0, A1,
         A2, A3, A4, A5, A6, A7,

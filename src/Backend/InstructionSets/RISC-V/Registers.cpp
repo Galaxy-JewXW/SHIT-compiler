@@ -10,7 +10,7 @@
         case ABI::T0:    return "t0";
         case ABI::T1:    return "t1";
         case ABI::T2:    return "t2";
-        case ABI::FP:    return "fp";
+        case ABI::S0:    return "s0";
         case ABI::S1:    return "s1";
         case ABI::A0:    return "a0";
         case ABI::A1:    return "a1";

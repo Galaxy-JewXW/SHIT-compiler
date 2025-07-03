@@ -1,6 +1,6 @@
 #include "Backend/MIR/Instructions.h"
 
-std::string Backend::MIR::InstructionType_to_string(Backend::MIR::InstructionType type) {
+std::string Backend::Utils::to_string(const Backend::MIR::InstructionType &type) {
     switch (type) {
         case Backend::MIR::InstructionType::ADD: return "+";
         case Backend::MIR::InstructionType::FADD: return "+";
