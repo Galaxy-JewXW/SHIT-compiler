@@ -33,12 +33,13 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         Pass::SROA,
         Pass::BlockPositioning,
         Pass::SimplifyControlFlow,
-        Pass::TailRecursionToLoop,
         Pass::ConstexprFuncEval,
         Pass::DeadCodeEliminate,
         // Pass::DeadFuncArgEliminate,
         // Pass::DeadFuncEliminate,
         Pass::DeadReturnEliminate,
-        Pass::GlobalValueNumbering
+        Pass::GlobalValueNumbering,
+        Pass::EmitModule<true>,
+        Pass::TailCallOptimize
     >(module);
 }

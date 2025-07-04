@@ -94,11 +94,11 @@ void run_on_block(const std::shared_ptr<Block> &block, std::unordered_set<std::s
 
     make_chain(make_chain, block, true);
 
-    log_info("switch: %s", base_value->to_string().c_str());
-    for (const auto &[key, block]: chain_map) {
-        log_info("  %d -> %s", key, block->get_name().c_str());
-    }
-    log_info("  default: %s", default_block->get_name().c_str());
+    // log_info("switch: %s", base_value->to_string().c_str());
+    // for (const auto &[key, block]: chain_map) {
+    //     log_info("  %d -> %s", key, block->get_name().c_str());
+    // }
+    // log_info("  default: %s", default_block->get_name().c_str());
 
     if (chain_map.size() <= 1)
         return;

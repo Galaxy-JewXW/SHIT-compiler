@@ -273,7 +273,8 @@ bool reduce_cmp(std::vector<std::shared_ptr<Instruction>> &instructions, const s
     if (inst == nullptr) {
         return false;
     }
-    if (const auto t{inst->op}; t == Trait<Compare>::Binary::Op::ADD) {
+    const auto t{inst->op};
+    if (t == Trait<Compare>::Binary::Op::ADD) {
         const auto add_inst{inst->template as<typename Trait<Compare>::AddInst>()};
         // (3 + a) > 6 -> a > 3
         if (const auto &x{add_inst->get_lhs()}, &y{add_inst->get_rhs()};
@@ -318,6 +319,7 @@ bool reduce_cmp(std::vector<std::shared_ptr<Instruction>> &instructions, const s
     } else if (t == Trait<Compare>::Binary::Op::DIV) {
         return _reduce_cmp_with_div<Compare>(cmp, instructions, idx, current_block);
     }
+    // TODO: mod处理：x % 2 == 1 -> x & 1 == 1
     return false;
 }
 }
