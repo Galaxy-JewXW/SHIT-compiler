@@ -6,6 +6,8 @@
 using namespace Mir;
 
 namespace {
+// 检查从 call 到 end_block 的所有路径是否都不含栈访问
+// 如果安全，返回 true；否则返回 false
 bool path_without_stack_access(const std::shared_ptr<Call> &call, const std::shared_ptr<Block> &end_block,
                                const std::unordered_set<std::shared_ptr<Value>> &stack_allocs,
                                const Pass::ControlFlowGraph::Graph &cfg) {
@@ -13,19 +15,15 @@ bool path_without_stack_access(const std::shared_ptr<Call> &call, const std::sha
     std::unordered_set<std::shared_ptr<Block>> visited;
 
     const auto access_stack = [&stack_allocs](auto &&self, const std::shared_ptr<Value> &value) -> bool {
-        // 直接检查是否是栈分配的内存
         if (stack_allocs.count(value)) {
             return true;
         }
-        // 检查通过 getelementptr 访问的栈内存
         if (const auto gep{value->is<GetElementPtr>()}) {
             return self(self, gep->get_addr());
         }
-        // 检查通过 BitCast 访问的栈内存
         if (const auto bitcast{value->is<BitCast>()}) {
             return self(self, bitcast->get_value());
         }
-        // 检查通过 Load 访问的栈内存
         if (const auto load{value->is<Load>()}) {
             return self(self, load->get_addr());
         }
@@ -57,37 +55,59 @@ bool path_without_stack_access(const std::shared_ptr<Call> &call, const std::sha
         return std::any_of(instructions.begin(), instructions.end(), stack_access_in_inst);
     };
 
-    // dfs 查找从 start_block 到 end_block 的路径
-    const auto dfs = [&](auto &&self, const std::shared_ptr<Block> &current) -> bool {
-        if (visited.count(current))
+    // 如果找到一条带有栈访问的路径，则返回 true
+    // 如果从 current 到 end_block 的所有路径都安全，则返回 false
+    const auto has_stack_access_on_path = [&](auto &&self, const std::shared_ptr<Block> &current) -> bool {
+        // 环路检测：如果我们已经访问过此节点，可以认为这个环是安全的
+        //（否则在第一次进入环时就应该已经检测到栈访问了）
+        if (visited.count(current)) {
             return false;
+        }
         visited.insert(current);
-        // 检查当前块是否包含对栈内存的访问
+        // 当前块包含栈访问，我们已经找到了一条不安全的路径
         if (stack_access_in_block(current)) {
-            visited.erase(current);
+            visited.erase(current); // 为了其他路径的探索，回溯
+            return true;
+        }
+        // 递归步骤：检查所有后继块，只要【任何一个】后继块导向不安全路径，那么当前路径就是不安全的
+        if (current == end_block) {
             return false;
         }
         const auto &successors{cfg.successors.at(current)};
         for (const auto &succ: successors) {
             if (self(self, succ)) {
-                return true;
+                visited.erase(current);
+                return true; // 向上层传播“不安全”信号 (true)
             }
         }
         visited.erase(current);
+        // 如果从这里出发的所有路径都是安全的，那么此子路径是安全的
         return false;
     };
 
+    // 1. 首先检查在【同一个块内】，`call` 指令之后的指令是否有栈访问
     const auto call_iter{Pass::Utils::inst_as_iter(call)};
     if (!call_iter) [[unlikely]] {
         log_error("Call should in block");
+        return false; // 如果调用不在块内，无法优化
     }
-
-    if (std::any_of(std::next(call_iter.value()), start_block->get_instructions().end(), stack_access_in_inst)) {
+    if (std::any_of(std::next(call_iter.value()), start_block->get_instructions().end(),
+                    stack_access_in_inst)) {
+        return false; // 如果在同一块的后续指令中有访问，则不安全
+    }
+    // 2. 检查从当前块的【后继块】开始的所有路径。
+    // 使用 `std::any_of`，因为只要【任何一条】后续路径不安全，优化就失败了
+    // `has_stack_access_on_path` 在路径不安全时返回 true
+    if (const auto &succs{cfg.successors.at(start_block)};
+        std::any_of(succs.begin(), succs.end(), [&](const auto &succ) {
+            // visited 集合的管理通过递归中的 insert/erase 来完成，
+            return has_stack_access_on_path(has_stack_access_on_path, succ);
+        })) {
+        // 找到了一条不安全的路径
         return false;
     }
-
-    const auto &succs{cfg.successors.at(start_block)};
-    return std::none_of(succs.begin(), succs.end(), [&](const auto &succ) { return dfs(dfs, succ); });
+    // 如果当前块的后续指令和所有后续路径都安全，则此调用是安全的
+    return true;
 }
 }
 
@@ -132,23 +152,9 @@ void TailCallOptimize::run_on_func(const std::shared_ptr<Function> &func) const 
             }
         }
         // 检查从 call 块到每个 ret 块的路径
-        if (std::any_of(ret_blocks.begin(), ret_blocks.end(), [&](const auto &ret_block) {
-            return !path_without_stack_access(call, ret_block, stack_allocs, cfg);
-        })) {
-            return false;
-        }
-
-        // 检查返回值处理：如果 call 有返回值，那么这个返回值只能被用于：
-        // a. 直接作为调用者函数的返回值（例如 call 后面紧跟 ret）。
-        // b.
-        // 通过一系列计算（如算术运算、类型转换等），但这些计算的最终结果必须是调用者函数的返回值，
-        //    并且计算过程中不能依赖栈上的局部变量。
-        // c. 通过 phi 节点传递，并最终成为函数的返回值。
-        if (!call->get_type()->is_void()) {
-            // TODO
-        }
-
-        return true;
+        return std::all_of(ret_blocks.begin(), ret_blocks.end(), [&](const auto &ret_block) {
+            return path_without_stack_access(call, ret_block, stack_allocs, cfg);
+        });
     };
 
     // 过滤出可以进行尾调用优化的候选调用
