@@ -13,8 +13,6 @@ namespace Pass {
                 for(auto &inst : block->get_instructions()) {
                     if (auto phi = inst->is<Mir::Phi>()) {
                         if (phi->get_optional_values().size() == 2) {
-                            //fixme: 参照 NEL 的写法，loop 为 null 时这里必须保证 phi 指令中 block 按序排列，否则需参考 CMMC 进行两次重试
-                            // 这里的逻辑可以再验证下
                             auto initial_value = get_initial(phi, loop);
                             auto next_value = get_next(phi, loop);
                             if (next_value->is<Mir::Const>() || !next_value->is<Mir::IntBinary>()) return;
@@ -72,9 +70,6 @@ namespace Pass {
     }
 
     std::shared_ptr<Loop> SCEVAnalysis::find_loop(std::shared_ptr<Mir::Block> block, std::vector<std::shared_ptr<LoopNodeTreeNode>> loop_forest) {
-        //fixme: 这种写法虽然简洁，但是效率不高
-
-
         for (auto top_node : loop_forest) {
             if(auto node = loop_contains(top_node, block)) return node->get_loop();
         }
@@ -174,6 +169,7 @@ namespace Pass {
             for (auto & operand : operands) scev->add_operand(operand);
             return scev;
         }
+        // fixme: 这里可以参照 CMMC 的方式，实现更强的 fold_mul
     }
 
     bool SCEVAnalysis::in_same_loop(std::shared_ptr<SCEVExpr> lhs, std::shared_ptr<SCEVExpr> rhs) {
