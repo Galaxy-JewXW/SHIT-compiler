@@ -169,7 +169,40 @@ namespace Pass {
             for (auto & operand : operands) scev->add_operand(operand);
             return scev;
         }
-        // fixme: 这里可以参照 CMMC 的方式，实现更强的 fold_mul
+        if (lhs->get_type() == SCEVExpr::SCEVTYPE::AddRec && rhs->get_type() == SCEVExpr::SCEVTYPE::AddRec) {
+            std::vector<std::shared_ptr<SCEVExpr>> operands;
+            auto n = lhs->get_operands().size() + rhs->get_operands().size() - 1;
+            operands.reserve(n);
+
+            for (int i = 0;i < n;i++) {
+                int sum = 0;
+                for(int j = i; j <= 2 * i; j++) {
+                    int coe_1 = bin_coe(i, 2 * i - j);
+
+                    int init_1 = lhs->get_operands().size() - 1;
+                    int limit_1 = rhs->get_operands().size() - 1;
+                    for (int k = std::max(j - i, j - init_1); k < std::min(i + 1, limit_1);k++) {
+                        int coe_2 = bin_coe(2 * i - j, i - k);
+                        int coe = coe_1 * coe_2;
+                        auto lhs_term = lhs->get_operands()[j - k];
+                        auto rhs_term = rhs->get_operands()[k];
+                        if (lhs_term->get_type() == SCEVExpr::SCEVTYPE::Constant && rhs_term->get_type() == SCEVExpr::SCEVTYPE::Constant) {
+                            sum += coe * lhs_term->get_constant() * rhs_term->get_constant();
+                        }
+                        else return nullptr;
+                    }
+                }
+
+                auto scev_1 = std::make_shared<SCEVExpr>(sum);
+                operands.push_back(scev_1);
+            }
+
+            auto scev = std::make_shared<SCEVExpr>();
+            scev->set_loop(lhs->get_loop());
+            for (auto & operand : operands) scev->add_operand(operand);
+            return scev;
+        }
+        return nullptr;
     }
 
     bool SCEVAnalysis::in_same_loop(std::shared_ptr<SCEVExpr> lhs, std::shared_ptr<SCEVExpr> rhs) {
@@ -177,4 +210,27 @@ namespace Pass {
     }
 
 
+    int SCEVAnalysis::bin_coe(int n, int k) {
+        if (k > n) return 0;
+        if (k == 0 || k == n) return 1;
+
+        static std::vector<std::vector<int>> coe;
+        while(coe.size() <= n) {
+            const auto _n = coe.size();
+            if(_n == 0) {
+                coe.push_back({1});
+                continue;
+            }
+
+            std::vector<int> res;
+            auto& last = coe.back();
+            res.reserve(_n + 1);
+            res.push_back(1);
+            for (int idx = 1; idx < _n; idx++) res.push_back(last[idx - 1] + last[idx]);
+            res.push_back(1);
+            coe.push_back(std::move(res));
+        }
+
+        return coe[n][k];
+    }
 }

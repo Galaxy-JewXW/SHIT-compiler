@@ -24,6 +24,8 @@ namespace Pass {
     private:
         std::unordered_map<std::shared_ptr<Mir::Value>, std::shared_ptr<SCEVExpr>> SCEVinfo;
 
+        static int bin_coe(int n, int k);
+
         std::shared_ptr<Loop> find_loop(std::shared_ptr<Mir::Block> block, std::vector<std::shared_ptr<LoopNodeTreeNode>> loop_info);
         std::shared_ptr<LoopNodeTreeNode> loop_contains(std::shared_ptr<LoopNodeTreeNode> node, std::shared_ptr<Mir::Block> block);
 
