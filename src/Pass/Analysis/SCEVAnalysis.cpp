@@ -9,7 +9,7 @@ namespace Pass {
 
             // BIV Analysis
             for (auto& block : func->get_blocks()) {
-                auto loop = find_loop(block, loop_info);
+                auto loop = find_loop(block, loop_forest);
                 for(auto &inst : block->get_instructions()) {
                     if (auto phi = inst->is<Mir::Phi>()) {
                         if (phi->get_optional_values().size() == 2) {
@@ -71,13 +71,21 @@ namespace Pass {
         }
     }
 
-    std::shared_ptr<Loop> SCEVAnalysis::find_loop(std::shared_ptr<Mir::Block> block, std::shared_ptr<LoopAnalysis> loop_info) {
+    std::shared_ptr<Loop> SCEVAnalysis::find_loop(std::shared_ptr<Mir::Block> block, std::vector<std::shared_ptr<LoopNodeTreeNode>> loop_forest) {
         //fixme: 这种写法虽然简洁，但是效率不高
-        auto loop_node = loop_info->find_block_in_forest(block->get_function(), block);
-        if(loop_node) {
-            auto loop = loop_node->get_loop();
-            if (loop->get_header() == block) return loop;
+
+
+        for (auto top_node : loop_forest) {
+            if(auto node = loop_contains(top_node, block)) return node->get_loop();
         }
+        return nullptr;
+    }
+
+    std::shared_ptr<LoopNodeTreeNode> SCEVAnalysis::loop_contains(std::shared_ptr<LoopNodeTreeNode> node, std::shared_ptr<Mir::Block> block) {
+        for (auto child: node->get_children()) {
+            if (auto child_node = loop_contains(child, block)) return child_node;
+        }
+        if (node->get_loop()->get_header() == block) return node;
         return nullptr;
     }
 
