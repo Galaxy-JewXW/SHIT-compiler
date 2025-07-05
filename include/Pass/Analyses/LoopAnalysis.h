@@ -109,6 +109,9 @@ public:
 
     int get_block_depth(const FunctionPtr &func, const std::shared_ptr<Mir::Block> &block);
 
+    std::shared_ptr<LoopNodeTreeNode> find_block_in_forest(const FunctionPtr &func,
+                                                           const std::shared_ptr<Mir::Block> &block);
+
 private:
     using FunctLoopsMap = std::unordered_map<std::shared_ptr<Mir::Function>, std::vector<std::shared_ptr<Loop>>>;
     FunctLoopsMap loops_;
@@ -116,8 +119,6 @@ private:
             std::unordered_map<std::shared_ptr<Mir::Function>, std::vector<std::shared_ptr<LoopNodeTreeNode>>>;
     FunctLoopForestMap loop_forest_;
 
-    std::shared_ptr<LoopNodeTreeNode> find_block_in_forest(const FunctionPtr &func,
-                                                           const std::shared_ptr<Mir::Block> &block);
 };
 } // namespace Pass
 

@@ -448,11 +448,15 @@ void Phi::remove_optional_value(const std::shared_ptr<Block> &block) {
     remove_operand(value);
 }
 
+std::shared_ptr<Value> Phi::get_value_by_block(const std::shared_ptr<Block>& block) {
+    return optional_values.at(block);
+}
 std::shared_ptr<Block> Phi::find_optional_block(const std::shared_ptr<Value> &value) {
     const auto it = std::find_if(optional_values.begin(), optional_values.end(),
                                  [&](const auto &pair) { return pair.second == value; });
     return it != optional_values.end() ? it->first : nullptr;
 }
+
 
 std::shared_ptr<Select> Select::create(const std::string &name, const std::shared_ptr<Value> &condition,
                                        const std::shared_ptr<Value> &true_value,

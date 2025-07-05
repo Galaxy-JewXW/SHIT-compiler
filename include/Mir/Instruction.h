@@ -753,6 +753,8 @@ public:
 
     [[nodiscard]] Optional_Values &get_optional_values() { return optional_values; }
 
+    [[nodiscard]] std::shared_ptr<Value> get_value_by_block(const std::shared_ptr<Block> &block);
+
     void set_optional_value(const std::shared_ptr<Block> &block, const std::shared_ptr<Value> &optional_value);
 
     void remove_optional_value(const std::shared_ptr<Block> &block);
