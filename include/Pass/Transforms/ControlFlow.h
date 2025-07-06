@@ -90,6 +90,10 @@ protected:
 
     void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
 
+    void tail_call_detect(const std::shared_ptr<Mir::Function> &func) const;
+
+    void tail_call_eliminate(const std::shared_ptr<Mir::Function> &func) const;
+
 private:
     std::shared_ptr<ControlFlowGraph> cfg_info;
     std::shared_ptr<FunctionAnalysis> func_info;

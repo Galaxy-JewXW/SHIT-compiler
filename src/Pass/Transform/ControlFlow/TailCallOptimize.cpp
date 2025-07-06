@@ -1,7 +1,7 @@
 #include <unordered_set>
 
-#include "Pass/Util.h"
 #include "Pass/Transforms/ControlFlow.h"
+#include "Pass/Util.h"
 
 using namespace Mir;
 
@@ -41,11 +41,11 @@ bool path_without_stack_access(const std::shared_ptr<Call> &call, const std::sha
             case Operator::CALL: {
                 const auto _call{inst->as<Call>()};
                 const auto params{_call->get_params()};
-                return std::any_of(params.begin(), params.end(), [&](const auto &param) {
-                    return access_stack(access_stack, param);
-                });
+                return std::any_of(params.begin(), params.end(),
+                                   [&](const auto &param) { return access_stack(access_stack, param); });
             }
-            default: break;
+            default:
+                break;
         }
         return false;
     };
@@ -59,7 +59,7 @@ bool path_without_stack_access(const std::shared_ptr<Call> &call, const std::sha
     // 如果从 current 到 end_block 的所有路径都安全，则返回 false
     const auto has_stack_access_on_path = [&](auto &&self, const std::shared_ptr<Block> &current) -> bool {
         // 环路检测：如果我们已经访问过此节点，可以认为这个环是安全的
-        //（否则在第一次进入环时就应该已经检测到栈访问了）
+        // （否则在第一次进入环时就应该已经检测到栈访问了）
         if (visited.count(current)) {
             return false;
         }
@@ -91,8 +91,7 @@ bool path_without_stack_access(const std::shared_ptr<Call> &call, const std::sha
         log_error("Call should in block");
         return false; // 如果调用不在块内，无法优化
     }
-    if (std::any_of(std::next(call_iter.value()), start_block->get_instructions().end(),
-                    stack_access_in_inst)) {
+    if (std::any_of(std::next(call_iter.value()), start_block->get_instructions().end(), stack_access_in_inst)) {
         return false; // 如果在同一块的后续指令中有访问，则不安全
     }
     // 2. 检查从当前块的【后继块】开始的所有路径。
@@ -109,10 +108,10 @@ bool path_without_stack_access(const std::shared_ptr<Call> &call, const std::sha
     // 如果当前块的后续指令和所有后续路径都安全，则此调用是安全的
     return true;
 }
-}
+} // namespace
 
 namespace Pass {
-void TailCallOptimize::run_on_func(const std::shared_ptr<Function> &func) const {
+void TailCallOptimize::tail_call_detect(const std::shared_ptr<Function> &func) const {
     std::vector<std::shared_ptr<Call>> candidates;
     for (const auto &block: func->get_blocks()) {
         for (const auto &inst: block->get_instructions()) {
@@ -146,8 +145,7 @@ void TailCallOptimize::run_on_func(const std::shared_ptr<Function> &func) const 
         // 收集所有包含 ret 指令的块
         std::vector<std::shared_ptr<Block>> ret_blocks;
         for (const auto &block: func->get_blocks()) {
-            if (const auto last_inst = block->get_instructions().back();
-                last_inst->get_op() == Operator::RET) {
+            if (const auto last_inst = block->get_instructions().back(); last_inst->get_op() == Operator::RET) {
                 ret_blocks.push_back(block);
             }
         }
@@ -168,6 +166,26 @@ void TailCallOptimize::run_on_func(const std::shared_ptr<Function> &func) const 
     std::for_each(valid_calls.begin(), valid_calls.end(), [](const auto &call) { call->set_tail_call(); });
 }
 
+// 参见：https://github.com/llvm/llvm-project/blob/main/llvm/lib/Transforms/Scalar/TailRecursionElimination.cpp
+void TailCallOptimize::tail_call_eliminate(const std::shared_ptr<Function> &func) const {
+    const auto &func_data{func_info->func_info(func)};
+    if (!func_data.is_recursive) {
+        return;
+    }
+    if (func_data.memory_alloc || func_data.has_side_effect || func_data.memory_write || !func_data.no_state) {
+        return;
+    }
+    // 第一个基本块不应该存在尾递归调用
+    if (const auto &entry{func->get_blocks().front()}; entry->get_instructions().empty()) {
+        return;
+    }
+}
+
+void TailCallOptimize::run_on_func(const std::shared_ptr<Function> &func) const {
+    tail_call_eliminate(func);
+    tail_call_detect(func);
+}
+
 void TailCallOptimize::transform(const std::shared_ptr<Module> module) {
     cfg_info = get_analysis_result<ControlFlowGraph>(module);
     func_info = get_analysis_result<FunctionAnalysis>(module);
@@ -177,4 +195,4 @@ void TailCallOptimize::transform(const std::shared_ptr<Module> module) {
     cfg_info = nullptr;
     func_info = nullptr;
 }
-}
+} // namespace Pass
