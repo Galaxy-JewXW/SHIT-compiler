@@ -3,7 +3,7 @@
 #include "Pass/Analysis.h"
 #include "Pass/Transforms/Loop.h"
 
-namespace Pass{
+namespace Pass {
 
 void LoopInvariantCodeMotion::transform(std::shared_ptr<Mir::Module> module) {
     module->update_id(); // DEBUG
@@ -14,14 +14,13 @@ void LoopInvariantCodeMotion::transform(std::shared_ptr<Mir::Module> module) {
     module->update_id(); // DEBUG
     loop_info->run_on(module);
 
-    for(auto &func : * module) {
+    for (auto &func: *module) {
         auto loops = loop_info->loops(func);
-        for(auto &loop : loops) {
-            if(loop->get_latch() == loop->get_header()) {
-
+        for (auto &loop: loops) {
+            if (loop->get_latch() == loop->get_header()) {
             }
         }
     }
 }
 
-}
+} // namespace Pass

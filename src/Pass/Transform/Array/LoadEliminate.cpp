@@ -1,5 +1,5 @@
-#include "Pass/Util.h"
 #include "Pass/Transforms/Array.h"
+#include "Pass/Util.h"
 
 using namespace Mir;
 
@@ -15,7 +15,7 @@ std::shared_ptr<Value> base_addr(const std::shared_ptr<Value> &inst) {
     }
     return ret;
 }
-}
+} // namespace
 
 namespace Pass {
 void LoadEliminate::handle_load(const std::shared_ptr<Load> &load) {
@@ -29,8 +29,8 @@ void LoadEliminate::handle_load(const std::shared_ptr<Load> &load) {
     }
     if (const auto gep = addr->is<GetElementPtr>()) {
         addr = gep->get_addr();
-        const auto &array_store = store_indexes.
-                                  try_emplace(addr, std::unordered_map<ValuePtr, ValuePtr>{}).first->second;
+        const auto &array_store =
+                store_indexes.try_emplace(addr, std::unordered_map<ValuePtr, ValuePtr>{}).first->second;
         auto &array_load = load_indexes.try_emplace(addr, std::unordered_map<ValuePtr, ValuePtr>{}).first->second;
         if (const auto index = gep->get_index(); array_store.count(index)) {
             // 直接替换为 store 的值
@@ -132,10 +132,8 @@ void LoadEliminate::handle_call(const std::shared_ptr<Call> &call) {
 
 void LoadEliminate::dfs(const std::shared_ptr<Block> &block) {
     // 在进入基本块前克隆当前状态（存储和加载映射），处理完子块后恢复状态
-    const auto cur_load_indexes = load_indexes,
-               cur_store_indexes = store_indexes;
-    const auto cur_load_global = load_global,
-               cur_store_global = store_global;
+    const auto cur_load_indexes = load_indexes, cur_store_indexes = store_indexes;
+    const auto cur_load_global = load_global, cur_store_global = store_global;
     // 控制流合并可能引入不确定性，基本块有多个前驱时清空状态
     try {
         if (cfg_info->graph(block->get_function()).predecessors.at(block).size() > 1) {
@@ -145,8 +143,7 @@ void LoadEliminate::dfs(const std::shared_ptr<Block> &block) {
         log_error("%s", block->get_function()->to_string().c_str());
     }
     for (const auto &instruction: block->get_instructions()) {
-        if (const auto op = instruction->get_op();
-            op == Operator::LOAD) {
+        if (const auto op = instruction->get_op(); op == Operator::LOAD) {
             // 检查冗余并标记删除
             handle_load(instruction->as<Load>());
         } else if (op == Operator::STORE) {
@@ -185,4 +182,4 @@ void LoadEliminate::transform(const std::shared_ptr<Module> module) {
     function_analysis = nullptr;
     deleted_instructions.clear();
 }
-}
+} // namespace Pass

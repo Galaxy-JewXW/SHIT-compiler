@@ -15,9 +15,7 @@ class Util : public Pass {
 public:
     explicit Util(const std::string &name) : Pass(PassType::UTIL, name) {}
 
-    void run_on(const std::shared_ptr<Mir::Module> module) override {
-        util_impl(module);
-    }
+    void run_on(const std::shared_ptr<Mir::Module> module) override { util_impl(module); }
 
 protected:
     virtual void util_impl(std::shared_ptr<Mir::Module> module) = 0;
@@ -30,7 +28,9 @@ public:
 
 protected:
     void util_impl(const std::shared_ptr<Mir::Module> module) override {
-        if (update_id) { module->update_id(); }
+        if (update_id) {
+            module->update_id();
+        }
         log_info("IR info as follows:\n%s", module->to_string().c_str());
     }
 };
@@ -44,9 +44,7 @@ public:
     }
 
 protected:
-    void util_impl(const std::shared_ptr<Mir::Module> module) override {
-        log_set_level(log_level);
-    }
+    void util_impl(const std::shared_ptr<Mir::Module> module) override { log_set_level(log_level); }
 };
 
 class CheckUninitialized final : public Util {
@@ -56,7 +54,7 @@ public:
 protected:
     void util_impl(std::shared_ptr<Mir::Module> module) override;
 };
-}
+} // namespace Pass
 
 // 实用函数
 namespace Pass::Utils {
@@ -68,39 +66,52 @@ std::optional<int> safe_calculate_int(const int a, const int b, Op) {
     constexpr int INT_MIN_VAL = std::numeric_limits<int>::min();
 
     if constexpr (std::is_same_v<Op, std::plus<>>) {
-        if (b > 0 && a > INT_MAX_VAL - b) return std::nullopt;
-        if (b < 0 && a < INT_MIN_VAL - b) return std::nullopt;
+        if (b > 0 && a > INT_MAX_VAL - b)
+            return std::nullopt;
+        if (b < 0 && a < INT_MIN_VAL - b)
+            return std::nullopt;
         return a + b;
     } else if constexpr (std::is_same_v<Op, std::minus<>>) {
-        if (b < 0 && a > INT_MAX_VAL + b) return std::nullopt;
-        if (b > 0 && a < INT_MIN_VAL + b) return std::nullopt;
+        if (b < 0 && a > INT_MAX_VAL + b)
+            return std::nullopt;
+        if (b > 0 && a < INT_MIN_VAL + b)
+            return std::nullopt;
         return a - b;
     } else if constexpr (std::is_same_v<Op, std::multiplies<>>) {
-        if (a == 0 || b == 0) return 0;
+        if (a == 0 || b == 0)
+            return 0;
         if ((a == -1 && b == INT_MIN_VAL) || (b == -1 && a == INT_MIN_VAL)) {
             return std::nullopt;
         }
         if (a > 0) {
             if (b > 0) {
-                if (a > INT_MAX_VAL / b) return std::nullopt;
+                if (a > INT_MAX_VAL / b)
+                    return std::nullopt;
             } else {
-                if (b < INT_MIN_VAL / a) return std::nullopt;
+                if (b < INT_MIN_VAL / a)
+                    return std::nullopt;
             }
         } else {
             if (b > 0) {
-                if (a < INT_MIN_VAL / b) return std::nullopt;
+                if (a < INT_MIN_VAL / b)
+                    return std::nullopt;
             } else {
-                if (a < INT_MAX_VAL / b) return std::nullopt;
+                if (a < INT_MAX_VAL / b)
+                    return std::nullopt;
             }
         }
         return a * b;
     } else if constexpr (std::is_same_v<Op, std::divides<>>) {
-        if (b == 0) return std::nullopt;
-        if (a == INT_MIN_VAL && b == -1) return std::nullopt;
+        if (b == 0)
+            return std::nullopt;
+        if (a == INT_MIN_VAL && b == -1)
+            return std::nullopt;
         return a / b;
     } else if constexpr (std::is_same_v<Op, std::modulus<>>) {
-        if (b == 0) return std::nullopt;
-        if (a == INT_MIN_VAL && b == -1) return std::nullopt;
+        if (b == 0)
+            return std::nullopt;
+        if (a == INT_MIN_VAL && b == -1)
+            return std::nullopt;
         return a % b;
     }
     return std::nullopt;
@@ -112,30 +123,41 @@ std::optional<double> safe_calculate_double(const double a, const double b, Op) 
     constexpr double DOUBLE_MIN_VAL = std::numeric_limits<double>::lowest();
 
     if constexpr (std::is_same_v<Op, std::plus<>>) {
-        if (b > 0 && a > DOUBLE_MAX_VAL - b) return std::nullopt;
-        if (b < 0 && a < DOUBLE_MIN_VAL - b) return std::nullopt;
+        if (b > 0 && a > DOUBLE_MAX_VAL - b)
+            return std::nullopt;
+        if (b < 0 && a < DOUBLE_MIN_VAL - b)
+            return std::nullopt;
         return a + b;
     } else if constexpr (std::is_same_v<Op, std::minus<>>) {
-        if (b < 0 && a > DOUBLE_MAX_VAL + b) return std::nullopt;
-        if (b > 0 && a < DOUBLE_MIN_VAL + b) return std::nullopt;
+        if (b < 0 && a > DOUBLE_MAX_VAL + b)
+            return std::nullopt;
+        if (b > 0 && a < DOUBLE_MIN_VAL + b)
+            return std::nullopt;
         return a - b;
     } else if constexpr (std::is_same_v<Op, std::multiplies<>>) {
-        if (a == 0.0 || b == 0.0) return 0.0;
+        if (a == 0.0 || b == 0.0)
+            return 0.0;
         const double abs_a = std::abs(a);
-        if (const double abs_b = std::abs(b); abs_a > DOUBLE_MAX_VAL / abs_b) return std::nullopt;
+        if (const double abs_b = std::abs(b); abs_a > DOUBLE_MAX_VAL / abs_b)
+            return std::nullopt;
         return a * b;
     } else if constexpr (std::is_same_v<Op, std::divides<>>) {
-        if (b == 0.0) return std::nullopt;
+        if (b == 0.0)
+            return std::nullopt;
         const double abs_a = std::abs(a);
         if (const double abs_b = std::abs(b); abs_b < 1.0) {
-            if (abs_a > DOUBLE_MAX_VAL * abs_b) return std::nullopt;
+            if (abs_a > DOUBLE_MAX_VAL * abs_b)
+                return std::nullopt;
         }
         return a / b;
     } else if constexpr (std::is_same_v<Op, std::modulus<>>) {
-        if (b == 0.0) return std::nullopt;
-        if (!std::isfinite(a) || !std::isfinite(b)) return std::nullopt;
+        if (b == 0.0)
+            return std::nullopt;
+        if (!std::isfinite(a) || !std::isfinite(b))
+            return std::nullopt;
         double result = std::fmod(a, b);
-        if (!std::isfinite(result)) return std::nullopt;
+        if (!std::isfinite(result))
+            return std::nullopt;
         return result;
     }
     return std::nullopt;
@@ -143,8 +165,7 @@ std::optional<double> safe_calculate_double(const double a, const double b, Op) 
 
 template<typename T, typename Op>
 std::optional<T> safe_cal(const T &a, const T &b, Op op) {
-    static_assert(std::is_same_v<T, int> || std::is_same_v<T, double>,
-                  "Type must be int or double");
+    static_assert(std::is_same_v<T, int> || std::is_same_v<T, double>, "Type must be int or double");
 
     if constexpr (std::is_same_v<T, int>) {
         return safe_calculate_int(a, b, op);
@@ -166,6 +187,6 @@ void delete_instruction_set(const std::shared_ptr<Mir::Module> &module,
 
 std::optional<std::vector<std::shared_ptr<Mir::Instruction>>::iterator>
 inst_as_iter(const std::shared_ptr<Mir::Instruction> &inst);
-}
+} // namespace Pass::Utils
 
-#endif //UTIL_H
+#endif // UTIL_H

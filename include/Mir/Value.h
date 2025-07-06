@@ -21,8 +21,7 @@ protected:
     std::vector<std::weak_ptr<User>> users_{};
 
 public:
-    Value(std::string name, const std::shared_ptr<Type::Type> &type)
-        : name_{std::move(name)}, type_(type) {}
+    Value(std::string name, const std::shared_ptr<Type::Type> &type) : name_{std::move(name)}, type_(type) {}
 
     Value(const Value &other) = delete;
 
@@ -52,18 +51,16 @@ public:
     void remove_user(const std::shared_ptr<User> &user);
 
     template<typename... Args>
-    void add_users(Args &&... args) {
-        static_assert(
-            (std::is_convertible_v<Args, std::shared_ptr<User>> && ...),
-            "All arguments must be convertible to std::shared_ptr<User>");
+    void add_users(Args &&...args) {
+        static_assert((std::is_convertible_v<Args, std::shared_ptr<User>> && ...),
+                      "All arguments must be convertible to std::shared_ptr<User>");
         (add_user(std::forward<Args>(args)), ...);
     }
 
     template<typename... Args>
-    void remove_users(Args &&... args) {
-        static_assert(
-            (std::is_convertible_v<Args, std::shared_ptr<User>> && ...),
-            "All arguments must be convertible to std::shared_ptr<User>");
+    void remove_users(Args &&...args) {
+        static_assert((std::is_convertible_v<Args, std::shared_ptr<User>> && ...),
+                      "All arguments must be convertible to std::shared_ptr<User>");
         (remove_user(std::forward<Args>(args)), ...);
     }
 
@@ -90,14 +87,11 @@ public:
         struct Iterator {
             std::vector<UserPtr>::iterator current;
 
-            explicit Iterator(const std::vector<UserPtr>::iterator current)
-                : current(current) {}
+            explicit Iterator(const std::vector<UserPtr>::iterator current) : current(current) {}
 
             std::shared_ptr<User> operator*() const { return current->lock(); }
 
-            bool operator!=(const Iterator &other) const {
-                return current != other.current;
-            }
+            bool operator!=(const Iterator &other) const { return current != other.current; }
 
             Iterator &operator++() {
                 ++current;
@@ -128,15 +122,13 @@ public:
 
     template<typename T>
     std::shared_ptr<T> as() {
-        static_assert(std::is_base_of_v<Value, T>,
-                      "T must be a derived class of Value or Value itself");
+        static_assert(std::is_base_of_v<Value, T>, "T must be a derived class of Value or Value itself");
         return std::static_pointer_cast<T>(shared_from_this());
     }
 
     template<typename T>
     std::shared_ptr<T> is() {
-        static_assert(std::is_base_of_v<Value, T>,
-                      "T must be a derived class of Value or Value itself");
+        static_assert(std::is_base_of_v<Value, T>, "T must be a derived class of Value or Value itself");
         return std::dynamic_pointer_cast<T>(shared_from_this());
     }
 };
@@ -153,8 +145,7 @@ protected:
     void _remove_operand(const std::shared_ptr<Value> &value);
 
 public:
-    User(const std::string &name, const std::shared_ptr<Type::Type> &type)
-        : Value{name, type} {}
+    User(const std::string &name, const std::shared_ptr<Type::Type> &type) : Value{name, type} {}
 
     User(const User &other) = delete;
 
@@ -171,9 +162,7 @@ public:
         operands_.clear();
     }
 
-    const std::vector<std::shared_ptr<Value>> &get_operands() const {
-        return operands_;
-    }
+    const std::vector<std::shared_ptr<Value>> &get_operands() const { return operands_; }
 
     // 双向维护关系
     void add_operand(const std::shared_ptr<Value> &value);
@@ -181,18 +170,16 @@ public:
     void remove_operand(const std::shared_ptr<Value> &value);
 
     template<typename... Args>
-    void add_operands(Args &&... args) {
-        static_assert(
-            (std::is_convertible_v<Args, std::shared_ptr<Value>> && ...),
-            "All arguments must be convertible to std::shared_ptr<Value>");
+    void add_operands(Args &&...args) {
+        static_assert((std::is_convertible_v<Args, std::shared_ptr<Value>> && ...),
+                      "All arguments must be convertible to std::shared_ptr<Value>");
         (add_operand(std::forward<Args>(args)), ...);
     }
 
     template<typename... Args>
-    void remove_operands(Args &&... args) {
-        static_assert(
-            (std::is_convertible_v<Args, std::shared_ptr<Value>> && ...),
-            "All arguments must be convertible to std::shared_ptr<Value>");
+    void remove_operands(Args &&...args) {
+        static_assert((std::is_convertible_v<Args, std::shared_ptr<Value>> && ...),
+                      "All arguments must be convertible to std::shared_ptr<Value>");
         (remove_operand(std::forward<Args>(args)), ...);
     }
 

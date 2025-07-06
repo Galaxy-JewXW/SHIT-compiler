@@ -14,7 +14,7 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
     std::shared_ptr<Mir::Module> mutable_module = std::const_pointer_cast<Mir::Module>(module);
     cfg_info->run_on(mutable_module);
 
-    //TODO: 这里的逻辑也稍有混乱了，好好设计整理一下
+    // TODO: 这里的逻辑也稍有混乱了，好好设计整理一下
     for (const auto &func: *module) {
         auto block_predecessors = cfg_info->graph(func).predecessors;
         auto block_successors = cfg_info->graph(func).successors;
@@ -37,7 +37,7 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
                 if (block_dominators[predecessor].find(header_block) != block_dominators[predecessor].end()) {
                     latching_blocks.push_back(predecessor);
                 }
-            } //确认 latching_blocks,接下来 latching 节点的支配节点组成该循环
+            } // 确认 latching_blocks,接下来 latching 节点的支配节点组成该循环
 
             std::vector<BlockPtr> working_set;
             std::vector<BlockPtr> visited_blocks;
@@ -48,14 +48,14 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
             for (const auto &latching_block: latching_blocks) {
                 working_set.push_back(latching_block);
                 visited_blocks.push_back(latching_block);
-            } //将 latch 节点加入循环，并使用工作集算法，寻找其支配结点，直至 header
+            } // 将 latch 节点加入循环，并使用工作集算法，寻找其支配结点，直至 header
             while (!working_set.empty()) {
                 auto current_block = working_set.back();
                 working_set.pop_back();
                 if (current_block != header_block) {
                     for (const auto &predecessor: block_predecessors[current_block]) {
-                        if (std::find(visited_blocks.begin(), visited_blocks.end(), predecessor) == visited_blocks.
-                            end()) {
+                        if (std::find(visited_blocks.begin(), visited_blocks.end(), predecessor) ==
+                            visited_blocks.end()) {
                             working_set.push_back(predecessor);
                             visited_blocks.push_back(predecessor);
                         }
@@ -64,10 +64,12 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
                 if (auto sub_loop_node = find_block_in_forest(func, current_block)) {
                     auto ancestor = sub_loop_node->get_ancestor();
                     child_loop_node.push_back(ancestor);
-                    loop_forest_[func].erase(std::remove(loop_forest_[func].begin(), loop_forest_[func].end(),
-                                                         ancestor), loop_forest_[func].end());
-                } else loop_blocks.push_back(current_block);
-            } //将结点的所有前驱结点加入循环结点集（自然循环中，循环所有结点被 header 支配）
+                    loop_forest_[func].erase(
+                            std::remove(loop_forest_[func].begin(), loop_forest_[func].end(), ancestor),
+                            loop_forest_[func].end());
+                } else
+                    loop_blocks.push_back(current_block);
+            } // 将结点的所有前驱结点加入循环结点集（自然循环中，循环所有结点被 header 支配）
 
             for (auto &block: loop_blocks) {
                 for (auto &succ: block_successors[block]) {
@@ -79,8 +81,8 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
                 }
             }
 
-            auto new_loop = std::make_shared<Loop>(header_block, loop_blocks, latching_blocks, exiting_blocks,
-                                                   exit_block);
+            auto new_loop =
+                    std::make_shared<Loop>(header_block, loop_blocks, latching_blocks, exiting_blocks, exit_block);
             auto new_loop_node = std::make_shared<LoopNodeTreeNode>(new_loop);
             loops_[func].push_back(new_loop);
             loop_forest_[func].push_back(new_loop_node);
@@ -92,8 +94,7 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
         }
 
         std::ostringstream oss;
-        oss << "\n▷▷ loops in func: ["
-                << func->get_name() << "]\n";
+        oss << "\n▷▷ loops in func: [" << func->get_name() << "]\n";
         for (const auto &loop: loops_[func]) {
             oss << "  ■ header: \"" << loop->get_header()->get_name() << "\"\n";
             for (const auto &block: loop->get_blocks()) {
@@ -159,18 +160,21 @@ std::shared_ptr<Mir::Block> Loop::find_block(const std::shared_ptr<Mir::Block> &
 }
 
 bool Loop::contain_block(const std::shared_ptr<Mir::Block> &block) {
-    if (find_block(block)) return true;
+    if (find_block(block))
+        return true;
     return false;
 }
 
 void LoopNodeTreeNode::add_block4ancestors(const std::shared_ptr<Mir::Block> &block) {
     this->loop_->add_block(block);
-    if (this->get_parent() != nullptr) this->get_parent()->add_block4ancestors(block);
+    if (this->get_parent() != nullptr)
+        this->get_parent()->add_block4ancestors(block);
 }
 
 int LoopAnalysis::get_block_depth(const FunctionPtr &func, const std::shared_ptr<Mir::Block> &block) {
     auto loop_node = find_block_in_forest(func, block);
-    if (nullptr == loop_node) return 0;
+    if (nullptr == loop_node)
+        return 0;
 
     int depth = 0;
     while (loop_node != nullptr) {
@@ -179,4 +183,4 @@ int LoopAnalysis::get_block_depth(const FunctionPtr &func, const std::shared_ptr
     }
     return depth;
 }
-}
+} // namespace Pass

@@ -34,9 +34,7 @@ std::shared_ptr<ConstInt> ConstInt::create(const int value, const std::shared_pt
         int value;
         std::shared_ptr<Type::Type> type;
 
-        bool operator==(const Key &other) const {
-            return value == other.value && type == other.type;
-        }
+        bool operator==(const Key &other) const { return value == other.value && type == other.type; }
     };
 
     struct KeyHash {
@@ -103,4 +101,4 @@ std::shared_ptr<Undef> Undef::create(const std::shared_ptr<Type::Type> &type) {
     cache[type] = new_const;
     return new_const;
 }
-}
+} // namespace Mir

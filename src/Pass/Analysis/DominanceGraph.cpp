@@ -1,9 +1,9 @@
 #include <queue>
 
-#include "Pass/Analyses/DominanceGraph.h"
 #include "Mir/Instruction.h"
-#include "Pass/Util.h"
 #include "Pass/Analyses/ControlFlowGraph.h"
+#include "Pass/Analyses/DominanceGraph.h"
+#include "Pass/Util.h"
 
 using FunctionPtr = std::shared_ptr<Mir::Function>;
 using BlockPtr = std::shared_ptr<Mir::Block>;
@@ -17,14 +17,17 @@ void build_dominators_dominated(const FunctionPtr &func,
     const auto &blocks = func->get_blocks();
     const std::unordered_set all_blocks(blocks.begin(), blocks.end());
     for (const auto &block: blocks) {
-        if (block == blocks.front()) dominator[block] = {block};
-        else dominator[block] = all_blocks;
+        if (block == blocks.front())
+            dominator[block] = {block};
+        else
+            dominator[block] = all_blocks;
     }
     bool changed = true;
     while (changed) {
         changed = false;
         for (const auto &block: blocks) {
-            if (block == blocks.front()) continue;
+            if (block == blocks.front())
+                continue;
             // 新支配集为其所有前驱支配集的交集，再加上自身
             std::unordered_set<BlockPtr> new_dom;
             bool first = true;
@@ -35,7 +38,8 @@ void build_dominators_dominated(const FunctionPtr &func,
                 } else {
                     std::unordered_set<BlockPtr> temp;
                     for (const auto &d: new_dom) {
-                        if (dominator.at(pred).count(d)) temp.insert(d);
+                        if (dominator.at(pred).count(d))
+                            temp.insert(d);
                     }
                     new_dom = std::move(temp);
                 }
@@ -49,7 +53,8 @@ void build_dominators_dominated(const FunctionPtr &func,
     }
     for (const auto &b: blocks) {
         for (const auto &c: blocks) {
-            if (dominator.at(c).count(b)) dominated[b].insert(c);
+            if (dominator.at(c).count(b))
+                dominated[b].insert(c);
         }
     }
     std::ostringstream oss;
@@ -57,7 +62,7 @@ void build_dominators_dominated(const FunctionPtr &func,
     for (const auto &block: func->get_blocks()) {
         const auto &dominated_blocks = dominated[block];
         oss << "  ■ Block: \"" << block->get_name() << "\"\n"
-                << "    └─ Dominates: " << Pass::Utils::format_blocks(dominated_blocks) << "\n";
+            << "    └─ Dominates: " << Pass::Utils::format_blocks(dominated_blocks) << "\n";
     }
     log_debug("%s", oss.str().c_str());
 }
@@ -67,10 +72,12 @@ void build_immediate_dominators(const FunctionPtr &func,
                                 const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &dominator,
                                 std::unordered_map<BlockPtr, BlockPtr> &imm_dom_map) {
     const auto &blocks = func->get_blocks();
-    if (blocks.empty()) return;
+    if (blocks.empty())
+        return;
     const BlockPtr entry_block = blocks.front();
     for (const auto &block: blocks) {
-        if (block == entry_block) continue; // 入口块没有直接支配者
+        if (block == entry_block)
+            continue; // 入口块没有直接支配者
         const auto &dominators = dominator.at(block);
         std::unordered_set<BlockPtr> strict_dominators;
         for (const auto &d: dominators) {
@@ -82,9 +89,9 @@ void build_immediate_dominators(const FunctionPtr &func,
         for (const auto &d_candidate: strict_dominators) {
             bool valid = true;
             for (const auto &d_prime: strict_dominators) {
-                if (d_prime == d_candidate) continue;
-                if (const auto &dom_of_candidate = dominator.at(d_candidate);
-                    !dom_of_candidate.count(d_prime)) {
+                if (d_prime == d_candidate)
+                    continue;
+                if (const auto &dom_of_candidate = dominator.at(d_candidate); !dom_of_candidate.count(d_prime)) {
                     valid = false;
                     break;
                 }
@@ -112,8 +119,8 @@ struct LengauerTarjan {
     std::unordered_map<BlockPtr, std::vector<BlockPtr>> bucket;
     const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &succ_map;
 
-    explicit LengauerTarjan(const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &succ_map)
-        : succ_map(succ_map) {}
+    explicit LengauerTarjan(const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &succ_map) :
+        succ_map(succ_map) {}
 
     void dfs(const BlockPtr &v) {
         dfs_num[v] = dfs_order.size();
@@ -129,14 +136,15 @@ struct LengauerTarjan {
     }
 
     BlockPtr find(BlockPtr v) {
-        if (!ancestor.count(v) || ancestor[v] == nullptr) return v;
+        if (!ancestor.count(v) || ancestor[v] == nullptr)
+            return v;
         compress(v);
         return best[v];
     }
 
     void compress(const BlockPtr &v) {
-        if (ancestor.count(v) && ancestor[v] != nullptr &&
-            ancestor.count(ancestor[v]) && ancestor[ancestor[v]] != nullptr) {
+        if (ancestor.count(v) && ancestor[v] != nullptr && ancestor.count(ancestor[v]) &&
+            ancestor[ancestor[v]] != nullptr) {
             compress(ancestor[v]);
             if (dfs_num[semi[best[ancestor[v]]]] < dfs_num[semi[best[v]]]) {
                 best[v] = best[ancestor[v]];
@@ -202,8 +210,7 @@ struct LengauerTarjan {
 };
 
 // 构建支配子树中的直接子节点映射
-void build_dominance_children(const FunctionPtr &func,
-                              const std::unordered_map<BlockPtr, BlockPtr> &imm_dom_map,
+void build_dominance_children(const FunctionPtr &func, const std::unordered_map<BlockPtr, BlockPtr> &imm_dom_map,
                               std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &dominance_children_map) {
     dominance_children_map.clear();
     for (const auto &block: func->get_blocks()) {
@@ -213,12 +220,11 @@ void build_dominance_children(const FunctionPtr &func,
         dominance_children_map[idom].insert(child);
     }
     std::ostringstream oss;
-    oss << "\n▷▷ Dominance children for function: ["
-            << func->get_name() << "]\n";
+    oss << "\n▷▷ Dominance children for function: [" << func->get_name() << "]\n";
     for (const auto &block: func->get_blocks()) {
         const auto &children = dominance_children_map[block];
         oss << "  ■ Block: \"" << block->get_name() << "\"\n"
-                << "    └─ Children: " << Pass::Utils::format_blocks(children) << "\n";
+            << "    └─ Children: " << Pass::Utils::format_blocks(children) << "\n";
     }
     log_debug("%s", oss.str().c_str());
 }
@@ -250,7 +256,8 @@ void build_dominance_frontier(const FunctionPtr &func,
             while (runner != x_idom) {
                 dominance_frontier[runner].insert(x_block);
                 // 处理入口块的边界情况
-                if (runner == entry_block) break; // 入口无法继续回溯
+                if (runner == entry_block)
+                    break; // 入口无法继续回溯
                 // 获取当前runner的直接支配者
                 const auto runner_it = imm_dom_map.find(runner);
                 if (runner_it == imm_dom_map.end()) {
@@ -261,16 +268,15 @@ void build_dominance_frontier(const FunctionPtr &func,
         }
     }
     std::ostringstream oss;
-    oss << "\n▷▷ Dominance frontier for function: ["
-            << func->get_name() << "]\n";
+    oss << "\n▷▷ Dominance frontier for function: [" << func->get_name() << "]\n";
     for (const auto &block: func->get_blocks()) {
         const auto &frontier = dominance_frontier[block];
         oss << "  ■ Block: \"" << block->get_name() << "\"\n"
-                << "    └─ Frontier: " << Pass::Utils::format_blocks(frontier) << "\n";
+            << "    └─ Frontier: " << Pass::Utils::format_blocks(frontier) << "\n";
     }
     log_debug("%s", oss.str().c_str());
 }
-}
+} // namespace
 
 namespace Pass {
 void DominanceGraph::analyze(const std::shared_ptr<const Mir::Module> module) {
@@ -287,10 +293,10 @@ void DominanceGraph::analyze(const std::shared_ptr<const Mir::Module> module) {
         }
         graphs_.try_emplace(func, Graph{});
         auto &dominator_map = graphs_[func].dominator_blocks, // 支配该块的所有块集合（含自身）
-             &dominated_map = graphs_[func].dominated_blocks; // 被该块支配的所有块集合（含自身）
+                &dominated_map = graphs_[func].dominated_blocks; // 被该块支配的所有块集合（含自身）
         auto &imm_dom_map = graphs_[func].immediate_dominator; // 该块的唯一直接支配者（支配树中的父节点）
         auto &dominance_children_map = graphs_[func].dominance_children, // 该块在支配树中的直接子节点
-             &dominance_frontier_map = graphs_[func].dominance_frontier; // 该块的支配边界
+                &dominance_frontier_map = graphs_[func].dominance_frontier; // 该块的支配边界
         build_dominators_dominated(func, cfg->graph(func).predecessors, dominator_map, dominated_map);
         LengauerTarjan lt(cfg->graph(func).successors);
         lt.compute(func);
@@ -305,9 +311,7 @@ void DominanceGraph::analyze(const std::shared_ptr<const Mir::Module> module) {
 }
 
 bool DominanceGraph::is_dirty() const {
-    return std::any_of(dirty_funcs_.begin(), dirty_funcs_.end(), [](const auto &pair) {
-        return pair.second;
-    });
+    return std::any_of(dirty_funcs_.begin(), dirty_funcs_.end(), [](const auto &pair) { return pair.second; });
 }
 
 bool DominanceGraph::is_dirty(const std::shared_ptr<Mir::Function> &function) const {
@@ -384,4 +388,4 @@ std::vector<BlockPtr> DominanceGraph::dom_tree_layer(const FunctionPtr &func) {
 
     return dom_tree_layer_order;
 }
-}
+} // namespace Pass

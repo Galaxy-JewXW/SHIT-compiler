@@ -7,35 +7,31 @@
 
 namespace Mir {
 void Value::_add_user(const std::shared_ptr<User> &user) {
-    if (!user) return;
+    if (!user)
+        return;
     cleanup_users();
     if (std::none_of(users_.begin(), users_.end(),
-                     [&user](const std::weak_ptr<User> &wp) {
-                         return wp.lock() == user;
-                     })) {
+                     [&user](const std::weak_ptr<User> &wp) { return wp.lock() == user; })) {
         users_.emplace_back(user);
     }
 }
 
 void Value::_remove_user(const std::shared_ptr<User> &user) {
-    if (!user) return;
+    if (!user)
+        return;
     cleanup_users();
-    users_.erase(
-        std::remove_if(users_.begin(), users_.end(),
-                       [&user](const std::weak_ptr<User> &wp) {
-                           const auto sp = wp.lock();
-                           return sp && sp.get() == user.get();
-                       }),
-        users_.end());
+    users_.erase(std::remove_if(users_.begin(), users_.end(),
+                                [&user](const std::weak_ptr<User> &wp) {
+                                    const auto sp = wp.lock();
+                                    return sp && sp.get() == user.get();
+                                }),
+                 users_.end());
 }
 
 void Value::cleanup_users() {
     users_.erase(
-        std::remove_if(users_.begin(), users_.end(),
-                       [](const std::weak_ptr<User> &wp) {
-                           return wp.expired();
-                       }),
-        users_.end());
+            std::remove_if(users_.begin(), users_.end(), [](const std::weak_ptr<User> &wp) { return wp.expired(); }),
+            users_.end());
 }
 
 void Value::replace_by_new_value(const std::shared_ptr<Value> &new_value) {
@@ -91,24 +87,24 @@ void User::clear_operands() {
 }
 
 void User::remove_operand(const std::shared_ptr<Value> &value) {
-    if (!value) return;
+    if (!value)
+        return;
     _remove_operand(value);
     value->_remove_user(std::static_pointer_cast<User>(shared_from_this()));
 }
 
 void User::_remove_operand(const std::shared_ptr<Value> &value) {
-    if (!value) return;
-    this->operands_.erase(
-        std::remove_if(operands_.begin(), operands_.end(),
-                       [&value](const std::shared_ptr<Value> &operand) {
-                           return operand == value;
-                       }),
-        operands_.end());
+    if (!value)
+        return;
+    this->operands_.erase(std::remove_if(operands_.begin(), operands_.end(),
+                                         [&value](const std::shared_ptr<Value> &operand) { return operand == value; }),
+                          operands_.end());
 }
 
-void User::modify_operand(const std::shared_ptr<Value> &old_value,
-                          const std::shared_ptr<Value> &new_value) {
-    if (*old_value->get_type() != *new_value->get_type()) { log_error("type mismatch"); }
+void User::modify_operand(const std::shared_ptr<Value> &old_value, const std::shared_ptr<Value> &new_value) {
+    if (*old_value->get_type() != *new_value->get_type()) {
+        log_error("type mismatch");
+    }
     for (auto &operand: operands_) {
         if (operand == old_value) {
             operand->_remove_user(std::static_pointer_cast<User>(shared_from_this()));
@@ -117,4 +113,4 @@ void User::modify_operand(const std::shared_ptr<Value> &old_value,
         }
     }
 }
-}
+} // namespace Mir

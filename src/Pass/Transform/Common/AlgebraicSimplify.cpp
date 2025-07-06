@@ -2,10 +2,10 @@
 #include <type_traits>
 
 #include "Mir/Builder.h"
-#include "Pass/Util.h"
 #include "Pass/Transforms/Common.h"
-#include "Pass/Transforms/DataFlow.h"
 #include "Pass/Transforms/DCE.h"
+#include "Pass/Transforms/DataFlow.h"
+#include "Pass/Util.h"
 
 using namespace Mir;
 
@@ -27,14 +27,13 @@ void replace_instruction(const std::shared_ptr<Instruction> &from, const std::sh
 }
 
 // 在idx的位置插入指令
-void insert_instruction(const std::shared_ptr<Instruction> &instruction,
-                        const std::shared_ptr<Block> &current_block,
+void insert_instruction(const std::shared_ptr<Instruction> &instruction, const std::shared_ptr<Block> &current_block,
                         std::vector<std::shared_ptr<Instruction>> &instructions, size_t &idx) {
     instruction->set_block(current_block, false);
     instructions.insert(instructions.begin() + static_cast<long>(idx), instruction);
     ++idx;
 }
-}
+} // namespace
 
 namespace {
 template<typename>
@@ -136,8 +135,8 @@ bool _reduce_cmp_with_mul(const std::shared_ptr<Compare> &cmp, std::vector<std::
         case Compare::Op::LT: {
             // m * x < n -> x <= (n - 1) / m
             if (const auto ans{Pass::Utils::safe_cal(n - one, m, std::divides<>{})}) {
-                const auto new_cmp = Compare::create("cmp", Compare::Op::LE, x, ConstantType::create(ans.value()),
-                                                     nullptr);
+                const auto new_cmp =
+                        Compare::create("cmp", Compare::Op::LE, x, ConstantType::create(ans.value()), nullptr);
                 replace_instruction(cmp, new_cmp, current_block, instructions, idx);
                 return true;
             }
@@ -146,8 +145,8 @@ bool _reduce_cmp_with_mul(const std::shared_ptr<Compare> &cmp, std::vector<std::
         case Compare::Op::GT: {
             // m * x > n -> x >= (n + m) / m
             if (const auto ans{Pass::Utils::safe_cal(n + m, m, std::divides<>{})}) {
-                const auto new_cmp = Compare::create("cmp", Compare::Op::GE, x, ConstantType::create(ans.value()),
-                                                     nullptr);
+                const auto new_cmp =
+                        Compare::create("cmp", Compare::Op::GE, x, ConstantType::create(ans.value()), nullptr);
                 replace_instruction(cmp, new_cmp, current_block, instructions, idx);
                 return true;
             }
@@ -156,8 +155,8 @@ bool _reduce_cmp_with_mul(const std::shared_ptr<Compare> &cmp, std::vector<std::
         case Compare::Op::LE: {
             // m * x <= n -> x <= n / m
             if (const auto ans{Pass::Utils::safe_cal(n, m, std::divides<>{})}) {
-                const auto new_cmp = Compare::create("cmp", Compare::Op::LE, x, ConstantType::create(ans.value()),
-                                                     nullptr);
+                const auto new_cmp =
+                        Compare::create("cmp", Compare::Op::LE, x, ConstantType::create(ans.value()), nullptr);
                 replace_instruction(cmp, new_cmp, current_block, instructions, idx);
                 return true;
             }
@@ -166,14 +165,15 @@ bool _reduce_cmp_with_mul(const std::shared_ptr<Compare> &cmp, std::vector<std::
         case Compare::Op::GE: {
             // m * x >= n -> x >= (m + n - 1) / m
             if (const auto ans{Pass::Utils::safe_cal(m + n - one, m, std::divides<>{})}) {
-                const auto new_cmp = Compare::create("cmp", Compare::Op::GE, x, ConstantType::create(ans.value()),
-                                                     nullptr);
+                const auto new_cmp =
+                        Compare::create("cmp", Compare::Op::GE, x, ConstantType::create(ans.value()), nullptr);
                 replace_instruction(cmp, new_cmp, current_block, instructions, idx);
                 return true;
             }
             break;
         }
-        default: break;
+        default:
+            break;
     }
     return false;
 }
@@ -245,7 +245,8 @@ bool _reduce_cmp_with_div(const std::shared_ptr<Compare> &cmp, std::vector<std::
             }
             break;
         }
-        default: break;
+        default:
+            break;
     }
     return false;
 }
@@ -277,8 +278,7 @@ bool reduce_cmp(std::vector<std::shared_ptr<Instruction>> &instructions, const s
     if (t == Trait<Compare>::Binary::Op::ADD) {
         const auto add_inst{inst->template as<typename Trait<Compare>::AddInst>()};
         // (3 + a) > 6 -> a > 3
-        if (const auto &x{add_inst->get_lhs()}, &y{add_inst->get_rhs()};
-            x->is_constant()) {
+        if (const auto &x{add_inst->get_lhs()}, &y{add_inst->get_rhs()}; x->is_constant()) {
             const auto cx{**x->template as<ConstantType>()};
             if (const auto ans{Pass::Utils::safe_cal(constant_value, cx, std::minus<>{})}) {
                 const auto new_cmp = Compare::create("cmp", cmp->op, y, ConstantType::create(ans.value()), nullptr);
@@ -297,12 +297,11 @@ bool reduce_cmp(std::vector<std::shared_ptr<Instruction>> &instructions, const s
         const auto sub_inst{inst->template as<typename Trait<Compare>::SubInst>()};
         // (a - 3) > 6 -> a > 9
         // (3 - a) > 6 -> a < -3
-        if (const auto &x{sub_inst->get_lhs()}, &y{sub_inst->get_rhs()};
-            x->is_constant()) {
+        if (const auto &x{sub_inst->get_lhs()}, &y{sub_inst->get_rhs()}; x->is_constant()) {
             const auto cx{**x->template as<ConstantType>()};
             if (const auto ans{Pass::Utils::safe_cal(cx, constant_value, std::minus<>{})}) {
-                const auto new_cmp = Compare::create("cmp", Compare::swap_op(cmp->op),
-                                                     y, ConstantType::create(ans.value()), nullptr);
+                const auto new_cmp = Compare::create("cmp", Compare::swap_op(cmp->op), y,
+                                                     ConstantType::create(ans.value()), nullptr);
                 replace_instruction(cmp, new_cmp, current_block, instructions, idx);
                 return true;
             }
@@ -322,12 +321,11 @@ bool reduce_cmp(std::vector<std::shared_ptr<Instruction>> &instructions, const s
     // TODO: mod处理：x % 2 == 1 -> x & 1 == 1
     return false;
 }
-}
+} // namespace
 
 namespace {
 [[nodiscard]]
-bool reduce_add(const std::shared_ptr<Add> &add, std::vector<std::shared_ptr<Instruction>> &instructions,
-                size_t &idx) {
+bool reduce_add(const std::shared_ptr<Add> &add, std::vector<std::shared_ptr<Instruction>> &instructions, size_t &idx) {
     const auto current_block = add->get_block();
     const auto lhs = add->get_lhs(), rhs = add->get_rhs();
     // a + a = 2 * a
@@ -394,8 +392,7 @@ bool reduce_add(const std::shared_ptr<Add> &add, std::vector<std::shared_ptr<Ins
     // b * a + a * c = (b + c) * a
     if (const auto mul_lhs = std::dynamic_pointer_cast<Mul>(lhs), mul_rhs = std::dynamic_pointer_cast<Mul>(rhs);
         mul_lhs != nullptr && mul_rhs != nullptr) {
-        const auto x = mul_lhs->get_lhs(), y = mul_lhs->get_rhs(),
-                   z = mul_rhs->get_lhs(), w = mul_rhs->get_rhs();
+        const auto x = mul_lhs->get_lhs(), y = mul_lhs->get_rhs(), z = mul_rhs->get_lhs(), w = mul_rhs->get_rhs();
         if (y == w) {
             const auto new_add = Add::create(Builder::gen_variable_name(), x, z, nullptr);
             insert_instruction(new_add, current_block, instructions, idx);
@@ -469,8 +466,7 @@ bool reduce_add(const std::shared_ptr<Add> &add, std::vector<std::shared_ptr<Ins
 }
 
 [[nodiscard]]
-bool reduce_sub(const std::shared_ptr<Sub> &sub, std::vector<std::shared_ptr<Instruction>> &instructions,
-                size_t &idx) {
+bool reduce_sub(const std::shared_ptr<Sub> &sub, std::vector<std::shared_ptr<Instruction>> &instructions, size_t &idx) {
     const auto current_block = sub->get_block();
     const auto lhs = sub->get_lhs(), rhs = sub->get_rhs();
     // a - a = 0
@@ -609,8 +605,7 @@ bool reduce_sub(const std::shared_ptr<Sub> &sub, std::vector<std::shared_ptr<Ins
     // b * a - a * c = (b - c) * a
     if (const auto mul_lhs = std::dynamic_pointer_cast<Mul>(lhs), mul_rhs = std::dynamic_pointer_cast<Mul>(rhs);
         mul_lhs != nullptr && mul_rhs != nullptr) {
-        const auto x = mul_lhs->get_lhs(), y = mul_lhs->get_rhs(),
-                   z = mul_rhs->get_lhs(), w = mul_rhs->get_rhs();
+        const auto x = mul_lhs->get_lhs(), y = mul_lhs->get_rhs(), z = mul_rhs->get_lhs(), w = mul_rhs->get_rhs();
         if (y == w) {
             const auto new_sub = Sub::create(Builder::gen_variable_name(), x, z, nullptr);
             insert_instruction(new_sub, current_block, instructions, idx);
@@ -755,8 +750,7 @@ bool reduce_div(const std::shared_ptr<Div> &div, std::vector<std::shared_ptr<Ins
     }
     // (-a) / a = 1
     if (const auto sub_lhs = std::dynamic_pointer_cast<Sub>(lhs)) {
-        if (const auto c1 = std::dynamic_pointer_cast<ConstInt>(sub_lhs->get_lhs());
-            c1 != nullptr && c1->is_zero()) {
+        if (const auto c1 = std::dynamic_pointer_cast<ConstInt>(sub_lhs->get_lhs()); c1 != nullptr && c1->is_zero()) {
             if (sub_lhs->get_rhs() == rhs) {
                 div->replace_by_new_value(ConstInt::create(1));
                 return true;
@@ -905,14 +899,22 @@ bool handle_intbinary_icmp(const std::shared_ptr<Block> &block) {
         if (const auto t{instructions[i]->get_op()}; t == Operator::INTBINARY) {
             changed |= [&]() -> bool {
                 switch (const auto binary{instructions[i]->as<IntBinary>()}; binary->intbinary_op()) {
-                    case IntBinary::Op::ADD: return reduce_add(binary->as<Add>(), instructions, i);
-                    case IntBinary::Op::SUB: return reduce_sub(binary->as<Sub>(), instructions, i);
-                    case IntBinary::Op::MUL: return reduce_mul(binary->as<Mul>(), instructions, i);
-                    case IntBinary::Op::DIV: return reduce_div(binary->as<Div>(), instructions, i);
-                    case IntBinary::Op::MOD: return reduce_mod(binary->as<Mod>(), instructions, i);
-                    case IntBinary::Op::SMAX: return reduce_max(binary->as<Smax>(), instructions, i);
-                    case IntBinary::Op::SMIN: return reduce_min(binary->as<Smin>(), instructions, i);
-                    default: return false;
+                    case IntBinary::Op::ADD:
+                        return reduce_add(binary->as<Add>(), instructions, i);
+                    case IntBinary::Op::SUB:
+                        return reduce_sub(binary->as<Sub>(), instructions, i);
+                    case IntBinary::Op::MUL:
+                        return reduce_mul(binary->as<Mul>(), instructions, i);
+                    case IntBinary::Op::DIV:
+                        return reduce_div(binary->as<Div>(), instructions, i);
+                    case IntBinary::Op::MOD:
+                        return reduce_mod(binary->as<Mod>(), instructions, i);
+                    case IntBinary::Op::SMAX:
+                        return reduce_max(binary->as<Smax>(), instructions, i);
+                    case IntBinary::Op::SMIN:
+                        return reduce_min(binary->as<Smin>(), instructions, i);
+                    default:
+                        return false;
                 }
             }();
         } else if (t == Operator::ICMP) {
@@ -979,13 +981,13 @@ bool handle_float_ternary(const std::shared_ptr<Function> &func) {
                 const auto new_inst = [&]() -> std::optional<std::shared_ptr<Instruction>> {
                     if (const auto fmul1{fadd->get_lhs()->is<FMul>()}) {
                         // (fa * fb) + fc = fmadd(fa, fb, fc)
-                        return std::make_optional(FMadd::create("fmadd", fmul1->get_lhs(),
-                                                                fmul1->get_rhs(), fadd->get_rhs(), nullptr));
+                        return std::make_optional(
+                                FMadd::create("fmadd", fmul1->get_lhs(), fmul1->get_rhs(), fadd->get_rhs(), nullptr));
                     }
                     if (const auto fmul2{fadd->get_rhs()->is<FMul>()}) {
                         // fa + (fb * fc) = fmadd(fb, fc, fa)
-                        return std::make_optional(FMadd::create("fmadd", fmul2->get_lhs(),
-                                                                fmul2->get_rhs(), fadd->get_lhs(), nullptr));
+                        return std::make_optional(
+                                FMadd::create("fmadd", fmul2->get_lhs(), fmul2->get_rhs(), fadd->get_lhs(), nullptr));
                     }
                     return std::nullopt;
                 }();
@@ -998,8 +1000,8 @@ bool handle_float_ternary(const std::shared_ptr<Function> &func) {
                 const auto new_inst = [&]() -> std::optional<std::shared_ptr<Instruction>> {
                     if (const auto fmul1{fsub->get_lhs()->is<FMul>()}) {
                         // (fa * fb) - fc = fmsub(fa, fb, fc)
-                        return std::make_optional(FMsub::create("fmsub", fmul1->get_lhs(),
-                                                                fmul1->get_rhs(), fsub->get_rhs(), nullptr));
+                        return std::make_optional(
+                                FMsub::create("fmsub", fmul1->get_lhs(), fmul1->get_rhs(), fsub->get_rhs(), nullptr));
                     }
                     return std::nullopt;
                 }();
@@ -1015,13 +1017,12 @@ bool handle_float_ternary(const std::shared_ptr<Function> &func) {
         auto &instructions{block->get_instructions()};
         for (size_t i{0}; i < instructions.size(); ++i) {
             if (instructions[i]->get_op() == Operator::FLOATBINARY) {
-                if (const auto fb{instructions[i]->as<FloatBinary>()};
-                    fb->floatbinary_op() == FloatBinary::Op::SUB) {
+                if (const auto fb{instructions[i]->as<FloatBinary>()}; fb->floatbinary_op() == FloatBinary::Op::SUB) {
                     const auto fsub{fb->as<FSub>()};
                     if (const auto fmul{fsub->get_rhs()->is<FMul>()}) {
                         // fa - (fb * fc) = fnmsub(fb, fc, fa) = -fmsub(fb, fc, fa)
-                        const auto fnmsub = FNmsub::create("fnmsub", fmul->get_lhs(),
-                                                           fmul->get_rhs(), fsub->get_lhs(), nullptr);
+                        const auto fnmsub =
+                                FNmsub::create("fnmsub", fmul->get_lhs(), fmul->get_rhs(), fsub->get_lhs(), nullptr);
                         replace_instruction(fb, fnmsub, block, instructions, i);
                         changed = true;
                     }
@@ -1030,14 +1031,14 @@ bool handle_float_ternary(const std::shared_ptr<Function> &func) {
                 const auto fneg{instructions[i]->as<FNeg>()};
                 if (const auto fmadd{fneg->get_value()->is<FMadd>()}) {
                     // -fmadd(fa, fb, fc) = fnmadd(fa, fb, fc)
-                    const auto fnmadd = FNmadd::create("fnmadd", fmadd->get_x(),
-                                                       fmadd->get_y(), fmadd->get_z(), nullptr);
+                    const auto fnmadd =
+                            FNmadd::create("fnmadd", fmadd->get_x(), fmadd->get_y(), fmadd->get_z(), nullptr);
                     replace_instruction(fneg, fnmadd, block, instructions, i);
                     changed = true;
                 } else if (const auto fmsub{fneg->get_value()->is<FNmsub>()}) {
                     // -fmsub(fa, fb, fc) = fnmsub(fa, fb, fc)
-                    const auto fnmsub = FNmsub::create("fnmsub", fmsub->get_x(),
-                                                       fmsub->get_y(), fmsub->get_z(), nullptr);
+                    const auto fnmsub =
+                            FNmsub::create("fnmsub", fmsub->get_x(), fmsub->get_y(), fmsub->get_z(), nullptr);
                     replace_instruction(fneg, fnmsub, block, instructions, i);
                     changed = true;
                 }
@@ -1055,7 +1056,7 @@ bool handle_float_ternary(const std::shared_ptr<Function> &func) {
     } while (changed);
     return changed;
 }
-}
+} // namespace
 
 void Pass::AlgebraicSimplify::transform(const std::shared_ptr<Module> module) {
     bool changed = false;
@@ -1066,15 +1067,13 @@ void Pass::AlgebraicSimplify::transform(const std::shared_ptr<Module> module) {
         standardize_binary->run_on(module);
         std::for_each(module->get_functions().begin(), module->get_functions().end(), [&](const auto &func) {
             std::for_each(func->get_blocks().begin(), func->get_blocks().end(), [&](const auto &b) {
-                std::for_each(b->get_instructions().begin(), b->get_instructions().end(), [&](const auto &inst) {
-                    changed |= GlobalValueNumbering::fold_instruction(inst);
-                });
+                std::for_each(b->get_instructions().begin(), b->get_instructions().end(),
+                              [&](const auto &inst) { changed |= GlobalValueNumbering::fold_instruction(inst); });
                 changed |= handle_intbinary_icmp(b);
             });
         });
-        std::for_each(module->get_functions().begin(), module->get_functions().end(), [&](const auto &func) {
-            changed |= handle_float_ternary(func);
-        });
+        std::for_each(module->get_functions().begin(), module->get_functions().end(),
+                      [&](const auto &func) { changed |= handle_float_ternary(func); });
         if (changed) [[likely]] {
             create<DeadInstEliminate>()->run_on(module);
         }

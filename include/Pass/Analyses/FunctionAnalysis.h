@@ -46,19 +46,25 @@ public:
 
     const FunctionSet &call_graph_func(const FunctionPtr &func) const {
         const auto it = call_graph_.find(func);
-        if (it == call_graph_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
+        if (it == call_graph_.end()) {
+            log_error("Function not existed: %s", func->get_name().c_str());
+        }
         return it->second;
     }
 
     const FunctionSet &call_graph_reverse_func(const FunctionPtr &func) const {
         const auto it = call_graph_reverse_.find(func);
-        if (it == call_graph_reverse_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
+        if (it == call_graph_reverse_.end()) {
+            log_error("Function not existed: %s", func->get_name().c_str());
+        }
         return it->second;
     }
 
     FunctionInfo func_info(const FunctionPtr &func) const {
         const auto it = infos_.find(func);
-        if (it == infos_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
+        if (it == infos_.end()) {
+            log_error("Function not existed: %s", func->get_name().c_str());
+        }
         return it->second;
     }
 
@@ -83,6 +89,6 @@ private:
 
     void transmit_attribute(const std::vector<FunctionPtr> &topo);
 };
-}
+} // namespace Pass
 
-#endif //FUNCTIONANALYSIS_H
+#endif // FUNCTIONANALYSIS_H

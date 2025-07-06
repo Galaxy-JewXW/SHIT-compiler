@@ -1,7 +1,7 @@
 #include <set>
 
-#include "Pass/Analyses/AliasAnalysis.h"
 #include "Mir/Instruction.h"
+#include "Pass/Analyses/AliasAnalysis.h"
 
 namespace {
 size_t gen_alloc_id() {
@@ -20,16 +20,14 @@ bool tbaa_distinct(const std::shared_ptr<Mir::Type::Type> &a, const std::shared_
         }
         if (x->is_array()) {
             const auto array_type = x->as<Mir::Type::Array>();
-            const auto next = y->is_array()
-                                  ? array_type->get_element_type()
-                                  : array_type->get_atomic_type();
+            const auto next = y->is_array() ? array_type->get_element_type() : array_type->get_atomic_type();
             return self(self, next, y);
         }
         log_error("Unexpected tbaa include: %s %s", x->to_string().c_str(), y->to_string().c_str());
     };
     return !tbaa_include(tbaa_include, a, b) && !tbaa_include(tbaa_include, b, a);
 }
-}
+} // namespace
 
 namespace Pass {
 void AliasAnalysis::run_on_func(const std::shared_ptr<Mir::Function> &func) {
@@ -104,8 +102,7 @@ void AliasAnalysis::run_on_func(const std::shared_ptr<Mir::Function> &func) {
                     std::vector<size_t> attrs;
                     auto cur = gep;
                     while (true) {
-                        const auto base = gep->get_addr(),
-                                   index = gep->get_index();
+                        const auto base = gep->get_addr(), index = gep->get_index();
                         if (index->is_constant()) {
                             if (**index->as<Mir::ConstInt>() == 0) {
                                 // gep的索引为0，则该 gep 的结果与 gep 的 base 指向相同的内存地址
@@ -116,8 +113,7 @@ void AliasAnalysis::run_on_func(const std::shared_ptr<Mir::Function> &func) {
                         if (cur == gep && index->is_constant()) {
                             if (**index->as<Mir::ConstInt>() != 0) {
                                 // gep的索引不为0，则该 gep 的结果与 gep 的 base 不可能别名
-                                const auto id1 = gen_alloc_id(),
-                                           id2 = gen_alloc_id();
+                                const auto id1 = gen_alloc_id(), id2 = gen_alloc_id();
                                 alias_result->add_distinct_pair_id(id1, id2);
                                 attrs.push_back(id1);
                                 alias_result->add_value_attrs(cur->get_addr(), id2);
@@ -132,7 +128,8 @@ void AliasAnalysis::run_on_func(const std::shared_ptr<Mir::Function> &func) {
                     }
                     break;
                 }
-                default: break;
+                default:
+                    break;
             }
         }
     }
@@ -186,13 +183,11 @@ void AliasAnalysis::run_on_func(const std::shared_ptr<Mir::Function> &func) {
         bool changed = false;
         for (const auto &edge: inherit_graph) {
             if (edge.src2 != nullptr) {
-                auto vec1 = alias_result->inherit_from(edge.src1),
-                     vec2 = alias_result->inherit_from(edge.src2);
+                auto vec1 = alias_result->inherit_from(edge.src1), vec2 = alias_result->inherit_from(edge.src2);
                 std::sort(vec1.begin(), vec1.end());
                 std::sort(vec2.begin(), vec2.end());
                 std::vector<size_t> intersect;
-                std::set_intersection(vec1.begin(), vec1.end(),
-                                      vec2.begin(), vec2.end(),
+                std::set_intersection(vec1.begin(), vec1.end(), vec2.begin(), vec2.end(),
                                       std::back_inserter(intersect));
                 changed |= alias_result->add_value_attrs(edge.dst, intersect);
             } else {
@@ -214,4 +209,4 @@ void AliasAnalysis::analyze(const std::shared_ptr<const Mir::Module> module) {
         run_on_func(func);
     }
 }
-}
+} // namespace Pass

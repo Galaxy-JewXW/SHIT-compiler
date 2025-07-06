@@ -10,15 +10,12 @@ std::shared_ptr<Array> Array::create(const size_t size, const std::shared_ptr<Ty
         size_t size;
         std::shared_ptr<Type> element_type;
 
-        bool operator==(const Key &other) const {
-            return size == other.size && element_type == other.element_type;
-        }
+        bool operator==(const Key &other) const { return size == other.size && element_type == other.element_type; }
     };
 
     struct KeyHash {
         size_t operator()(const Key &key) const {
-            return std::hash<size_t>{}(key.size) ^
-                   std::hash<std::shared_ptr<Type>>{}(key.element_type);
+            return std::hash<size_t>{}(key.size) ^ std::hash<std::shared_ptr<Type>>{}(key.element_type);
         }
     };
     static std::unordered_map<Key, std::weak_ptr<Array>, KeyHash> cache;
@@ -77,12 +74,11 @@ size_t Array::get_dimensions() const {
 
 [[nodiscard]] std::shared_ptr<Type> get_type(const Token::Type &token_type) {
     static const std::unordered_map<Token::Type, std::shared_ptr<Type>> type_map = {
-        {Token::Type::INT, Integer::i32},
-        {Token::Type::FLOAT, Float::f32},
-        {Token::Type::VOID, Void::void_}
-    };
+            {Token::Type::INT, Integer::i32}, {Token::Type::FLOAT, Float::f32}, {Token::Type::VOID, Void::void_}};
     const auto it = type_map.find(token_type);
-    if (it == type_map.end()) { return nullptr; }
+    if (it == type_map.end()) {
+        return nullptr;
+    }
     return it->second;
 }
-}
+} // namespace Mir::Type

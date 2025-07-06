@@ -29,8 +29,7 @@ void localize(const std::shared_ptr<Module> &module) {
     const auto func_analysis = Pass::get_analysis_result<Pass::FunctionAnalysis>(module);
     std::unordered_set<std::shared_ptr<GlobalVariable>> can_replaced;
     for (const auto &gv: module->get_global_variables()) {
-        if (const auto gv_type = gv->get_type()->as<Type::Pointer>()->get_contain_type();
-            !gv_type->is_array()) {
+        if (const auto gv_type = gv->get_type()->as<Type::Pointer>()->get_contain_type(); !gv_type->is_array()) {
             can_replaced.insert(gv);
         }
     }
@@ -54,9 +53,8 @@ void localize(const std::shared_ptr<Module> &module) {
         const auto &entry = func->get_blocks().front();
         const auto new_alloc = Alloc::create(Builder::gen_variable_name(),
                                              gv->get_type()->as<Type::Pointer>()->get_contain_type(), nullptr);
-        const auto new_store = Store::create(new_alloc,
-                                             gv->get_init_value()->as<Init::Constant>()->get_const_value(),
-                                             nullptr);
+        const auto new_store =
+                Store::create(new_alloc, gv->get_init_value()->as<Init::Constant>()->get_const_value(), nullptr);
         new_alloc->set_block(entry, false);
         new_store->set_block(entry, false);
         entry->get_instructions().insert(entry->get_instructions().begin(), new_store);
@@ -74,11 +72,11 @@ void localize(const std::shared_ptr<Module> &module) {
         Pass::Pass::create<Pass::Mem2Reg>()->run_on(module);
     }
 }
-}
+} // namespace
 
 namespace Pass {
 void GlobalVariableLocalize::transform(const std::shared_ptr<Module> module) {
     replace_const_normal_gv(module);
     localize(module);
 }
-}
+} // namespace Pass

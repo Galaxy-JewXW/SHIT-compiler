@@ -1,8 +1,8 @@
 #include <algorithm>
 
 #include "Pass/Analysis.h"
-#include "Pass/Util.h"
 #include "Pass/Transforms/DataFlow.h"
+#include "Pass/Util.h"
 
 using namespace Mir;
 using FunctionPtr = std::shared_ptr<Function>;
@@ -30,7 +30,7 @@ void move_instruction(const InstructionPtr &instruction, const BlockPtr &target_
     }
     target_instructions.insert(target_instructions.end() - 1, instruction);
 }
-}
+} // namespace
 
 namespace Pass {
 // 计算给定基本块在支配树深度
@@ -167,13 +167,17 @@ void GlobalCodeMotion::schedule_late(const InstructionPtr &instruction) {
         }
         BlockPtr select = lca;
         while (lca != instruction->get_block() && lca != current_function->get_blocks().front()) {
-            if (lca == nullptr) { log_error("lca cannot be nullptr"); }
+            if (lca == nullptr) {
+                log_error("lca cannot be nullptr");
+            }
             lca = dom_info->graph(current_function).immediate_dominator.at(lca);
-            if (lca == nullptr) { log_error("lca cannot be nullptr"); }
+            if (lca == nullptr) {
+                log_error("lca cannot be nullptr");
+            }
             if (loop_depth(lca) < loop_depth(select) || [&] {
-                const auto &succ = cfg_info->graph(current_function).successors.at(lca);
-                return succ.size() == 1 && succ.find(select) != succ.end();
-            }()) {
+                    const auto &succ = cfg_info->graph(current_function).successors.at(lca);
+                    return succ.size() == 1 && succ.find(select) != succ.end();
+                }()) {
                 select = lca;
             }
         }
@@ -239,4 +243,4 @@ void GlobalCodeMotion::transform(const std::shared_ptr<Module> module) {
     current_function = nullptr;
     visited_instructions.clear();
 }
-}
+} // namespace Pass

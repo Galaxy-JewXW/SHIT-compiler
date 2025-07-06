@@ -13,24 +13,18 @@ struct Interpreter {
         std::string func_name;
         std::vector<eval_t> func_args;
 
-        Key(std::string name, const std::vector<eval_t> &args)
-            : func_name(std::move(name)), func_args(args) {}
+        Key(std::string name, const std::vector<eval_t> &args) : func_name(std::move(name)), func_args(args) {}
 
-        bool operator==(const Key &other) const {
-            return func_name == other.func_name && func_args == other.func_args;
-        }
+        bool operator==(const Key &other) const { return func_name == other.func_name && func_args == other.func_args; }
 
-        bool operator!=(const Key &other) const {
-            return !this->operator==(other);
-        }
+        bool operator!=(const Key &other) const { return !this->operator==(other); }
 
         struct Hash {
             std::size_t operator()(const Key &key) const {
                 std::size_t hash = std::hash<std::string>{}(key.func_name);
                 for (const auto &arg: key.func_args) {
-                    const size_t arg_hash = std::visit([](auto &&v) {
-                        return std::hash<std::decay_t<decltype(v)>>{}(v);
-                    }, arg);
+                    const size_t arg_hash =
+                            std::visit([](auto &&v) { return std::hash<std::decay_t<decltype(v)>>{}(v); }, arg);
                     hash ^= arg_hash + 0x9e3779b9 + (hash << 6) + (hash >> 2);
                 }
                 return hash;
@@ -46,12 +40,16 @@ struct Interpreter {
         void put(const Key &key, const eval_t &value) { cache_map[key] = value; }
 
         [[nodiscard]]
-        size_t size() const { return cache_map.size(); }
+        size_t size() const {
+            return cache_map.size();
+        }
 
         void clear() { cache_map.clear(); }
 
         [[nodiscard]]
-        bool contains(const Key &key) { return cache_map.find(key) != cache_map.end(); }
+        bool contains(const Key &key) {
+            return cache_map.find(key) != cache_map.end();
+        }
 
         [[nodiscard]]
         eval_t get(const Key &key) const {
@@ -97,6 +95,6 @@ private:
     // 程序计数器
     size_t counter{0};
 };
-}
+} // namespace Mir
 
 #endif

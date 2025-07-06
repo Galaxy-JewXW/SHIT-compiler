@@ -2,9 +2,7 @@
 #include "Utils/Log.h"
 
 namespace Mir::Symbol {
-void Table::push_scope() {
-    symbols.emplace_back();
-}
+void Table::push_scope() { symbols.emplace_back(); }
 
 void Table::pop_scope() {
     if (symbols.empty()) {
@@ -38,4 +36,4 @@ std::shared_ptr<Symbol> Table::lookup_in_all_scopes(const std::string &name) con
     }
     return nullptr;
 }
-}
+} // namespace Mir::Symbol

@@ -24,7 +24,9 @@ eval_t eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_ptr<S
         if (!std::holds_alternative<int>(eval_result)) {
             log_warn("Index of non-integer: %f", std::get<double>(eval_result));
         }
-        if (idx < 0) { log_error("Index out of bounds: %d", idx); }
+        if (idx < 0) {
+            log_error("Index out of bounds: %d", idx);
+        }
         indexes.push_back(idx);
     }
     if (init_value->is_constant_init()) {
@@ -32,14 +34,20 @@ eval_t eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_ptr<S
             log_error("Non-array variable %s", ident.c_str());
         }
         const auto &constant_value = std::static_pointer_cast<Init::Constant>(init_value)->get_const_value();
-        if (!constant_value->is_constant()) { log_error("Non-constant expression"); }
+        if (!constant_value->is_constant()) {
+            log_error("Non-constant expression");
+        }
         return constant_value->as<Const>()->get_constant_value();
     }
     if (init_value->is_array_init()) {
         init_value = std::static_pointer_cast<Init::Array>(init_value)->get_init_value(indexes);
-        if (!init_value->is_constant_init()) { log_error("Non-constant expression"); }
+        if (!init_value->is_constant_init()) {
+            log_error("Non-constant expression");
+        }
         const auto &constant_value = std::static_pointer_cast<Init::Constant>(init_value)->get_const_value();
-        if (!constant_value->is_constant()) { log_error("Non-constant expression"); }
+        if (!constant_value->is_constant()) {
+            log_error("Non-constant expression");
+        }
         return constant_value->as<Const>()->get_constant_value();
     }
     log_error("Unknown constant type");
@@ -47,12 +55,18 @@ eval_t eval_lVal(const std::shared_ptr<AST::LVal> &lVal, const std::shared_ptr<S
 
 eval_t eval(const eval_t lhs, const eval_t rhs, const Token::Type type) {
     switch (type) {
-        case Token::Type::ADD: return lhs + rhs;
-        case Token::Type::SUB: return lhs - rhs;
-        case Token::Type::MUL: return lhs * rhs;
-        case Token::Type::DIV: return lhs / rhs;
-        case Token::Type::MOD: return lhs % rhs;
-        default: log_fatal("Unknown operator");
+        case Token::Type::ADD:
+            return lhs + rhs;
+        case Token::Type::SUB:
+            return lhs - rhs;
+        case Token::Type::MUL:
+            return lhs * rhs;
+        case Token::Type::DIV:
+            return lhs / rhs;
+        case Token::Type::MOD:
+            return lhs % rhs;
+        default:
+            log_fatal("Unknown operator");
     }
 }
 
@@ -96,7 +110,8 @@ eval_t eval_unaryExp(const std::shared_ptr<AST::UnaryExp> &unaryExp, const std::
         const auto [op, unary] = std::get<opExp>(unaryExp->get_value());
         const auto val = eval_unaryExp(unary, table);
         switch (op) {
-            case Token::Type::ADD: return val;
+            case Token::Type::ADD:
+                return val;
             case Token::Type::SUB: {
                 if (val.holds<int>()) {
                     return -val.get<int>();
@@ -107,7 +122,8 @@ eval_t eval_unaryExp(const std::shared_ptr<AST::UnaryExp> &unaryExp, const std::
                 const bool is_zero = val.holds<int>() ? val.get<int>() == 0 : val.get<double>() == 0.0f;
                 return is_zero ? 1 : 0;
             }
-            default: log_fatal("Unknown operator");
+            default:
+                log_fatal("Unknown operator");
         }
     }
     log_fatal("Fatal at eval unaryExp");

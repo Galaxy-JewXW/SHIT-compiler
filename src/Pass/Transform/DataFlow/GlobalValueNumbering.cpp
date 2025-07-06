@@ -2,8 +2,8 @@
 
 #include "Mir/Builder.h"
 #include "Pass/Transforms/Common.h"
-#include "Pass/Transforms/DataFlow.h"
 #include "Pass/Transforms/DCE.h"
+#include "Pass/Transforms/DataFlow.h"
 
 using namespace Mir;
 using FunctionPtr = std::shared_ptr<Function>;
@@ -21,41 +21,36 @@ std::string get_hash(const std::shared_ptr<GetElementPtr> &instruction) {
 }
 
 std::string get_hash(const std::shared_ptr<Fcmp> &instruction) {
-    return "fcmp " + std::to_string(static_cast<int>(instruction->op)) + " " +
-           instruction->get_lhs()->get_name() + " " + instruction->get_rhs()->get_name();
+    return "fcmp " + std::to_string(static_cast<int>(instruction->op)) + " " + instruction->get_lhs()->get_name() +
+           " " + instruction->get_rhs()->get_name();
 }
 
 std::string get_hash(const std::shared_ptr<Icmp> &instruction) {
-    return "icmp " + std::to_string(static_cast<int>(instruction->op)) + " " +
-           instruction->get_lhs()->get_name() + " " + instruction->get_rhs()->get_name();
+    return "icmp " + std::to_string(static_cast<int>(instruction->op)) + " " + instruction->get_lhs()->get_name() +
+           " " + instruction->get_rhs()->get_name();
 }
 
 std::string get_hash(const std::shared_ptr<IntBinary> &instruction) {
-    auto lhs_hash = instruction->get_lhs()->get_name(),
-         rhs_hash = instruction->get_rhs()->get_name();
+    auto lhs_hash = instruction->get_lhs()->get_name(), rhs_hash = instruction->get_rhs()->get_name();
     if (instruction->is_commutative() && lhs_hash >= rhs_hash) {
         std::swap(lhs_hash, rhs_hash);
     }
-    return "intbinary " + std::to_string(static_cast<int>(instruction->op)) + " " +
-           lhs_hash + " " + rhs_hash;
+    return "intbinary " + std::to_string(static_cast<int>(instruction->op)) + " " + lhs_hash + " " + rhs_hash;
 }
 
 std::string get_hash(const std::shared_ptr<FloatBinary> &instruction) {
-    auto lhs_hash = instruction->get_lhs()->get_name(),
-         rhs_hash = instruction->get_rhs()->get_name();
+    auto lhs_hash = instruction->get_lhs()->get_name(), rhs_hash = instruction->get_rhs()->get_name();
     if (instruction->is_commutative() && lhs_hash >= rhs_hash) {
         std::swap(lhs_hash, rhs_hash);
     }
-    return "floatbinary " + std::to_string(static_cast<int>(instruction->op)) + " " +
-           lhs_hash + " " + rhs_hash;
+    return "floatbinary " + std::to_string(static_cast<int>(instruction->op)) + " " + lhs_hash + " " + rhs_hash;
 }
 
 std::string get_hash(const std::shared_ptr<FloatTernary> &instruction) {
-    const auto &x_hash = instruction->get_x()->get_name(),
-               &y_hash = instruction->get_y()->get_name(),
+    const auto &x_hash = instruction->get_x()->get_name(), &y_hash = instruction->get_y()->get_name(),
                &z_hash = instruction->get_z()->get_name();
-    return "floatternary " + std::to_string(static_cast<int>(instruction->floatternary_op())) + " " +
-           x_hash + " " + y_hash + " " + z_hash;
+    return "floatternary " + std::to_string(static_cast<int>(instruction->floatternary_op())) + " " + x_hash + " " +
+           y_hash + " " + z_hash;
 }
 
 std::string get_hash(const std::shared_ptr<FNeg> &instruction) {
@@ -64,18 +59,18 @@ std::string get_hash(const std::shared_ptr<FNeg> &instruction) {
 }
 
 std::string get_hash(const std::shared_ptr<Zext> &instruction) {
-    return "zext " + instruction->get_value()->get_name() + " "
-           + instruction->get_value()->get_type()->to_string() + " " + instruction->get_type()->to_string();
+    return "zext " + instruction->get_value()->get_name() + " " + instruction->get_value()->get_type()->to_string() +
+           " " + instruction->get_type()->to_string();
 }
 
 std::string get_hash(const std::shared_ptr<Fptosi> &instruction) {
-    return "fptosi " + instruction->get_value()->get_name() + " "
-           + instruction->get_value()->get_type()->to_string() + " " + instruction->get_type()->to_string();
+    return "fptosi " + instruction->get_value()->get_name() + " " + instruction->get_value()->get_type()->to_string() +
+           " " + instruction->get_type()->to_string();
 }
 
 std::string get_hash(const std::shared_ptr<Sitofp> &instruction) {
-    return "sitofp " + instruction->get_value()->get_name() + " "
-           + instruction->get_value()->get_type()->to_string() + " " + instruction->get_type()->to_string();
+    return "sitofp " + instruction->get_value()->get_name() + " " + instruction->get_value()->get_type()->to_string() +
+           " " + instruction->get_type()->to_string();
 }
 
 std::string get_hash(const std::shared_ptr<Call> &instruction,
@@ -98,18 +93,30 @@ std::string get_hash(const std::shared_ptr<Call> &instruction,
 std::string get_instruction_hash(const InstructionPtr &instruction,
                                  const std::shared_ptr<Pass::FunctionAnalysis> &func_analysis) {
     switch (instruction->get_op()) {
-        case Operator::GEP: return get_hash(instruction->as<GetElementPtr>());
-        case Operator::FCMP: return get_hash(instruction->as<Fcmp>());
-        case Operator::ICMP: return get_hash(instruction->as<Icmp>());
-        case Operator::INTBINARY: return get_hash(instruction->as<IntBinary>());
-        case Operator::FLOATBINARY: return get_hash(instruction->as<FloatBinary>());
-        case Operator::FLOATTERNARY: return get_hash(instruction->as<FloatTernary>());
-        case Operator::FNEG: return get_hash(instruction->as<FNeg>());
-        case Operator::ZEXT: return get_hash(instruction->as<Zext>());
-        case Operator::SITOFP: return get_hash(instruction->as<Sitofp>());
-        case Operator::FPTOSI: return get_hash(instruction->as<Fptosi>());
-        case Operator::CALL: return get_hash(instruction->as<Call>(), func_analysis);
-        default: return "";
+        case Operator::GEP:
+            return get_hash(instruction->as<GetElementPtr>());
+        case Operator::FCMP:
+            return get_hash(instruction->as<Fcmp>());
+        case Operator::ICMP:
+            return get_hash(instruction->as<Icmp>());
+        case Operator::INTBINARY:
+            return get_hash(instruction->as<IntBinary>());
+        case Operator::FLOATBINARY:
+            return get_hash(instruction->as<FloatBinary>());
+        case Operator::FLOATTERNARY:
+            return get_hash(instruction->as<FloatTernary>());
+        case Operator::FNEG:
+            return get_hash(instruction->as<FNeg>());
+        case Operator::ZEXT:
+            return get_hash(instruction->as<Zext>());
+        case Operator::SITOFP:
+            return get_hash(instruction->as<Sitofp>());
+        case Operator::FPTOSI:
+            return get_hash(instruction->as<Fptosi>());
+        case Operator::CALL:
+            return get_hash(instruction->as<Call>(), func_analysis);
+        default:
+            return "";
     }
 }
 
@@ -141,7 +148,8 @@ bool evaluate_binary(const std::shared_ptr<Binary> &inst, typename binary_traits
     using ConstType = typename binary_traits<Binary>::constant_type;
     // 如果任一操作数不是常量，则无法进行常量折叠，返回false
     const auto &lhs = inst->get_lhs(), &rhs = inst->get_rhs();
-    if (!lhs->is_constant() || !rhs->is_constant()) return false;
+    if (!lhs->is_constant() || !rhs->is_constant())
+        return false;
     if constexpr (std::is_same_v<T, int>) {
         if (!lhs->get_type()->is_int32() || !rhs->get_type()->is_int32()) {
             log_error("Illegal operator type for %s", inst->to_string().c_str());
@@ -158,23 +166,35 @@ bool evaluate_binary(const std::shared_ptr<Binary> &inst, typename binary_traits
             static_assert(std::is_same_v<T, int>);
             res = [&]() -> T {
                 switch (inst->op) {
-                    case IntBinary::Op::AND: return lhs_val.template get<T>() & rhs_val.template get<T>();
-                    case IntBinary::Op::OR: return lhs_val.template get<T>() | rhs_val.template get<T>();
-                    case IntBinary::Op::XOR: return lhs_val.template get<T>() ^ rhs_val.template get<T>();
-                    default: return 0;
+                    case IntBinary::Op::AND:
+                        return lhs_val.template get<T>() & rhs_val.template get<T>();
+                    case IntBinary::Op::OR:
+                        return lhs_val.template get<T>() | rhs_val.template get<T>();
+                    case IntBinary::Op::XOR:
+                        return lhs_val.template get<T>() ^ rhs_val.template get<T>();
+                    default:
+                        return 0;
                 }
             }();
         }
         const auto _res = [&]() -> eval_t {
             switch (inst->op) {
-                case Binary::Op::ADD: return lhs_val + rhs_val;
-                case Binary::Op::SUB: return lhs_val - rhs_val;
-                case Binary::Op::MUL: return lhs_val * rhs_val;
-                case Binary::Op::DIV: return lhs_val / rhs_val;
-                case Binary::Op::MOD: return lhs_val % rhs_val;
-                case Binary::Op::SMAX: return std::max(lhs_val, rhs_val);
-                case Binary::Op::SMIN: return std::min(lhs_val, rhs_val);
-                default: throw std::runtime_error("");
+                case Binary::Op::ADD:
+                    return lhs_val + rhs_val;
+                case Binary::Op::SUB:
+                    return lhs_val - rhs_val;
+                case Binary::Op::MUL:
+                    return lhs_val * rhs_val;
+                case Binary::Op::DIV:
+                    return lhs_val / rhs_val;
+                case Binary::Op::MOD:
+                    return lhs_val % rhs_val;
+                case Binary::Op::SMAX:
+                    return std::max(lhs_val, rhs_val);
+                case Binary::Op::SMIN:
+                    return std::min(lhs_val, rhs_val);
+                default:
+                    throw std::runtime_error("");
             }
         }();
         res = _res.template get<T>();
@@ -211,7 +231,8 @@ bool evaluate_cmp(const std::shared_ptr<Cmp> &inst, int &res) {
     using ConstType = typename cmp_traits<Cmp>::constant_type;
     // 如果任一操作数不是常量，则无法进行折叠，返回false
     const auto &lhs = inst->get_lhs(), &rhs = inst->get_rhs();
-    if (!lhs->is_constant() || !rhs->is_constant()) return false;
+    if (!lhs->is_constant() || !rhs->is_constant())
+        return false;
     // 检查左右操作数的类型是否合法
     if constexpr (std::is_same_v<T, int>) {
         if (!lhs->get_type()->is_int32() || !rhs->get_type()->is_int32()) {
@@ -222,18 +243,24 @@ bool evaluate_cmp(const std::shared_ptr<Cmp> &inst, int &res) {
             log_error("Illegal operator type for %s", inst->to_string().c_str());
         }
     }
-    const auto lhs_val = **lhs->template as<ConstType>(),
-               rhs_val = **rhs->template as<ConstType>();
+    const auto lhs_val = **lhs->template as<ConstType>(), rhs_val = **rhs->template as<ConstType>();
     try {
         res = [&]() -> int {
             switch (inst->op) {
-                case Cmp::Op::EQ: return lhs_val == rhs_val;
-                case Cmp::Op::NE: return lhs_val != rhs_val;
-                case Cmp::Op::GT: return lhs_val > rhs_val;
-                case Cmp::Op::GE: return lhs_val >= rhs_val;
-                case Cmp::Op::LT: return lhs_val < rhs_val;
-                case Cmp::Op::LE: return lhs_val <= rhs_val;
-                default: throw std::runtime_error("");
+                case Cmp::Op::EQ:
+                    return lhs_val == rhs_val;
+                case Cmp::Op::NE:
+                    return lhs_val != rhs_val;
+                case Cmp::Op::GT:
+                    return lhs_val > rhs_val;
+                case Cmp::Op::GE:
+                    return lhs_val >= rhs_val;
+                case Cmp::Op::LT:
+                    return lhs_val < rhs_val;
+                case Cmp::Op::LE:
+                    return lhs_val <= rhs_val;
+                default:
+                    throw std::runtime_error("");
             }
         }();
     } catch (const std::exception &) {
@@ -244,19 +271,22 @@ bool evaluate_cmp(const std::shared_ptr<Cmp> &inst, int &res) {
 
 bool evaluate_float_ternary(const std::shared_ptr<FloatTernary> &inst, double &res) {
     const auto &x = inst->get_x(), &y = inst->get_y(), &z = inst->get_z();
-    if (!x->is_constant() || !y->is_constant() || !z->is_constant()) return false;
+    if (!x->is_constant() || !y->is_constant() || !z->is_constant())
+        return false;
     if (!x->get_type()->is_float() || !y->get_type()->is_float() || !z->get_type()->is_float()) {
         log_error("Illegal operator type for %s", inst->to_string().c_str());
     }
-    const auto x_val = **x->as<ConstFloat>(),
-               y_val = **y->as<ConstFloat>(),
-               z_val = **z->as<ConstFloat>();
+    const auto x_val = **x->as<ConstFloat>(), y_val = **y->as<ConstFloat>(), z_val = **z->as<ConstFloat>();
     res = [&]() -> double {
         switch (inst->floatternary_op()) {
-            case FloatTernary::Op::FMADD: return x_val * y_val + z_val;
-            case FloatTernary::Op::FNMADD: return -(x_val * y_val + z_val);
-            case FloatTernary::Op::FMSUB: return x_val * y_val - z_val;
-            case FloatTernary::Op::FNMSUB: return -(x_val * y_val - z_val);
+            case FloatTernary::Op::FMADD:
+                return x_val * y_val + z_val;
+            case FloatTernary::Op::FNMADD:
+                return -(x_val * y_val + z_val);
+            case FloatTernary::Op::FMSUB:
+                return x_val * y_val - z_val;
+            case FloatTernary::Op::FNMSUB:
+                return -(x_val * y_val - z_val);
         }
         log_error("Invalid float ternary op");
     }();
@@ -265,14 +295,15 @@ bool evaluate_float_ternary(const std::shared_ptr<FloatTernary> &inst, double &r
 
 bool evaluate_fneg(const std::shared_ptr<FNeg> &inst, double &res) {
     const auto &value{inst->get_value()};
-    if (!value->is_constant()) return false;
+    if (!value->is_constant())
+        return false;
     if (!value->get_type()->is_float()) {
         log_error("Illegal operator type for %s", inst->to_string().c_str());
     }
     res = -value->as<ConstFloat>()->get_constant_value().get<double>();
     return true;
 }
-}
+} // namespace
 
 namespace Pass {
 bool GlobalValueNumbering::fold_instruction(const std::shared_ptr<Instruction> &instruction) {
@@ -357,13 +388,13 @@ bool GlobalValueNumbering::fold_instruction(const std::shared_ptr<Instruction> &
                 return true;
             }
         }
-        default: break;
+        default:
+            break;
     }
     return false;
 }
 
-bool GlobalValueNumbering::run_on_block(const FunctionPtr &func,
-                                        const BlockPtr &block,
+bool GlobalValueNumbering::run_on_block(const FunctionPtr &func, const BlockPtr &block,
                                         std::unordered_map<std::string, InstructionPtr> &value_hashmap) {
     bool changed = false;
     for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
@@ -426,4 +457,4 @@ void GlobalValueNumbering::transform(const std::shared_ptr<Module> module) {
     create<AlgebraicSimplify>()->run_on(module);
     create<DeadInstEliminate>()->run_on(module);
 }
-}
+} // namespace Pass

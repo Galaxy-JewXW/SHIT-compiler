@@ -1,8 +1,8 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#include "Pass/Transform.h"
 #include "Pass/Analyses/FunctionAnalysis.h"
+#include "Pass/Transform.h"
 
 namespace Pass {
 // 对指令进行代数优化恒等式变形
@@ -35,6 +35,6 @@ private:
     std::shared_ptr<FunctionAnalysis> func_analysis;
 };
 
-}
+} // namespace Pass
 
-#endif //COMMON_H
+#endif // COMMON_H

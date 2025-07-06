@@ -17,16 +17,17 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
     for (auto &func: *module) {
         auto loops = loop_info->loops(func);
         auto block_predecessors = cfg_info->graph(func).predecessors;
-        auto block_dominators = dom_info->graph(func).dominator_blocks;;
-        //TODO:以下为了分割三种动作的逻辑，拆分出了三个循环，之后需要把这个架构重构一下
+        auto block_dominators = dom_info->graph(func).dominator_blocks;
+        ;
+        // TODO:以下为了分割三种动作的逻辑，拆分出了三个循环，之后需要把这个架构重构一下
 
         for (auto &loop: loops) {
-            //首先进行 entering 单一化：对于 header, 如果存在多个 entering, 则新建一个 , 将所有 entering 的跳转都指向它
+            // 首先进行 entering 单一化：对于 header, 如果存在多个 entering, 则新建一个 , 将所有 entering 的跳转都指向它
             auto predecessors = block_predecessors[loop->get_header()];
             std::vector<std::shared_ptr<Mir::Block>> entering;
             for (auto &predecessor: predecessors) {
-                if (block_dominators[predecessor].find(loop->get_header()) == block_dominators[loop->get_header()].
-                    end())
+                if (block_dominators[predecessor].find(loop->get_header()) ==
+                    block_dominators[loop->get_header()].end())
                     entering.push_back(predecessor);
             }
 
@@ -44,7 +45,7 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
                     parent_loop_node->add_block4ancestors(block);
                 }
                 cfg_info->set_dirty(func);
-            } //循环位于 function 头部，或位于不可达处，需补上头节点
+            } // 循环位于 function 头部，或位于不可达处，需补上头节点
 
             if (entering.size() > 1) {
                 auto pre_header = Mir::Block::create(Mir::Builder::gen_block_name(), func);
@@ -57,14 +58,15 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
 
                 for (auto &enter: entering) {
                     enter->modify_successor(loop->get_header(), pre_header);
-                } //先改变跳转关系
+                } // 先改变跳转关系
 
                 cfg_info->set_dirty(func);
-                //TODO: 这里本来还应该有 PHI 指令的前提操作，但因为中端翻译 while 指令的奇怪做法，目前认为 pre-header 的单一性被保证，暂时认为无需补足该方法
+                // TODO: 这里本来还应该有 PHI 指令的前提操作，但因为中端翻译 while 指令的奇怪做法，目前认为 pre-header
+                // 的单一性被保证，暂时认为无需补足该方法
             } /*
-                   *  多个 pre_header, 则新建一个 pre_header, 将所有 pre_header 的跳转都指向它
-                   *  在将原来 header 节点中的 phi 指令转移到该 pre_header 中
-                   * */
+               *  多个 pre_header, 则新建一个 pre_header, 将所有 pre_header 的跳转都指向它
+               *  在将原来 header 节点中的 phi 指令转移到该 pre_header 中
+               * */
         }
 
         for (auto &loop: loops) {
@@ -74,7 +76,7 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
                 loop->get_latch_blocks().clear();
                 continue;
             }
-            //两步：改变跳转关系，header 与 latch 相关的 phi 指令移到 latch 中
+            // 两步：改变跳转关系，header 与 latch 相关的 phi 指令移到 latch 中
             else {
                 auto header = loop->get_header();
 
@@ -92,7 +94,7 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
                 auto phis = header->get_phis();
                 for (auto &phi_: *phis) {
                     auto phi = std::dynamic_pointer_cast<Mir::Phi>(phi_);
-                    
+
                     auto new_phi = Mir::Phi::create(phi->get_name(), phi->get_type(), nullptr, {});
                     new_phi->set_block(latch_block, false);
                     latch_block->get_instructions().insert(latch_block->get_instructions().begin(), new_phi);
@@ -127,7 +129,7 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
                     auto phis = exit->get_phis();
                     for (auto &phi_: *phis) {
                         auto phi = std::dynamic_pointer_cast<Mir::Phi>(phi_);
-                       
+
                         auto new_phi = Mir::Phi::create(phi->get_name(), phi->get_type(), nullptr, {});
                         new_phi->set_block(new_exit_block, false);
                         new_exit_block->get_instructions().insert(new_exit_block->get_instructions().begin(), new_phi);
@@ -143,4 +145,4 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
         }
     }
 }
-}
+} // namespace Pass

@@ -25,15 +25,15 @@ void run_on_block(const std::shared_ptr<Block> &block, std::unordered_set<std::s
 
     [[maybe_unused]] const auto make_chain = [&](auto &&self, decltype(block) cur_block, const bool is_head) -> void {
         /**
-        * A: if (x == 1) goto B else goto C
-        * C: if (x == 2) goto D else goto E
-        * E: if (x == 3) goto F else goto G
-        * G: [others]
-        * 从块A开始，匹配x == 1，添加映射 1 -> B
-        * 递归处理块C，匹配x == 2，添加映射 2 -> D
-        * 递归处理块E，匹配x == 3，添加映射 3 -> F
-        * 递归处理块G，无匹配，将G设为defaultBlock
-        * 最终构建映射 {1:B, 2:D, 3:F} 和默认目标G
+         * A: if (x == 1) goto B else goto C
+         * C: if (x == 2) goto D else goto E
+         * E: if (x == 3) goto F else goto G
+         * G: [others]
+         * 从块A开始，匹配x == 1，添加映射 1 -> B
+         * 递归处理块C，匹配x == 2，添加映射 2 -> D
+         * 递归处理块E，匹配x == 3，添加映射 3 -> F
+         * 递归处理块G，无匹配，将G设为defaultBlock
+         * 最终构建映射 {1:B, 2:D, 3:F} 和默认目标G
          */
         visited.insert(cur_block);
         const auto &_insts{cur_block->get_instructions()};
@@ -104,8 +104,8 @@ void run_on_block(const std::shared_ptr<Block> &block, std::unordered_set<std::s
         return;
 
     if (std::any_of(chain_map.begin(), chain_map.end(), [](const auto &pair) {
-        return pair.second->get_instructions().front()->get_op() == Operator::PHI;
-    })) {
+            return pair.second->get_instructions().front()->get_op() == Operator::PHI;
+        })) {
         return;
     }
     block->get_instructions().pop_back();
@@ -118,11 +118,10 @@ void run_on_block(const std::shared_ptr<Block> &block, std::unordered_set<std::s
             break;
         }
     }
-    std::for_each(chain_map.begin(), chain_map.end(), [&](const auto &pair) {
-        switch_->set_case(ConstInt::create(pair.first), pair.second);
-    });
+    std::for_each(chain_map.begin(), chain_map.end(),
+                  [&](const auto &pair) { switch_->set_case(ConstInt::create(pair.first), pair.second); });
 }
-}
+} // namespace
 
 namespace Pass {
 void IfChainToSwitch::run_on_func(const std::shared_ptr<Function> &func) const {
@@ -145,4 +144,4 @@ void IfChainToSwitch::transform(const std::shared_ptr<Module> module) {
     cfg_info = nullptr;
     dom_info = nullptr;
 }
-}
+} // namespace Pass

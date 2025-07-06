@@ -1,8 +1,8 @@
 #include <type_traits>
 
 #include "Mir/Instruction.h"
-#include "Pass/Util.h"
 #include "Pass/Transforms/DataFlow.h"
+#include "Pass/Util.h"
 
 using namespace Mir;
 
@@ -42,10 +42,9 @@ struct BinaryTypeOp<FMul> {
 };
 
 template<typename BinaryType>
-std::shared_ptr<BinaryType> build_balanced(const std::shared_ptr<Block> &block,
-                                           const std::shared_ptr<Instruction> &root,
-                                           const std::vector<std::shared_ptr<Value>> &leaves,
-                                           const size_t lo, const size_t hi) {
+std::shared_ptr<BinaryType>
+build_balanced(const std::shared_ptr<Block> &block, const std::shared_ptr<Instruction> &root,
+               const std::vector<std::shared_ptr<Value>> &leaves, const size_t lo, const size_t hi) {
     const size_t cnt = hi - lo;
     if (cnt == 1) {
         return leaves[lo]->as<BinaryType>();
@@ -66,16 +65,18 @@ std::optional<std::shared_ptr<BinaryType>> is_binary_type(const std::shared_ptr<
     } else {
         static_assert(std::is_base_of_v<Value, T>);
         inst = value->template is<Instruction>();
-        if (!inst) { return std::nullopt; }
+        if (!inst) {
+            return std::nullopt;
+        }
     }
     if constexpr (std::is_base_of_v<IntBinary, BinaryType>) {
-        if (inst->get_op() == Operator::INTBINARY
-            && inst->as<BinaryType>()->intbinary_op() == BinaryTypeOp<BinaryType>::type_op) {
+        if (inst->get_op() == Operator::INTBINARY &&
+            inst->as<BinaryType>()->intbinary_op() == BinaryTypeOp<BinaryType>::type_op) {
             return inst->as<BinaryType>();
         }
     } else if constexpr (std::is_base_of_v<FloatBinary, BinaryType>) {
-        if (inst->get_op() == Operator::FLOATBINARY
-            && inst->as<BinaryType>()->floatbinary_op() == BinaryTypeOp<BinaryType>::type_op) {
+        if (inst->get_op() == Operator::FLOATBINARY &&
+            inst->as<BinaryType>()->floatbinary_op() == BinaryTypeOp<BinaryType>::type_op) {
             return inst->as<BinaryType>();
         }
     }
@@ -102,8 +103,7 @@ void handle(const std::shared_ptr<Block> &block) {
         std::vector<BinaryInst> cluster;
         auto dfs = [&](auto &&self, const std::shared_ptr<Value> &value) -> void {
             if (const auto ans{is_binary_type<BinaryType>(value)}) {
-                if (const auto &b = ans.value();
-                    visited.insert(b).second) {
+                if (const auto &b = ans.value(); visited.insert(b).second) {
                     cluster.push_back(b);
                     self(self, b->get_lhs());
                     self(self, b->get_rhs());
@@ -121,7 +121,7 @@ void handle(const std::shared_ptr<Block> &block) {
         root->replace_by_new_value(new_root);
     }
 }
-}
+} // namespace
 
 namespace Pass {
 void TreeHeightBalance::run_on_func(const std::shared_ptr<Function> &func) {
@@ -136,4 +136,4 @@ void TreeHeightBalance::transform(const std::shared_ptr<Module> module) {
         run_on_func(func);
     }
 }
-}
+} // namespace Pass

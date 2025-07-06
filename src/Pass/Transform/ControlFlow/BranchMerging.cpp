@@ -1,8 +1,8 @@
 #include <optional>
 #include <type_traits>
 
-#include "Pass/Util.h"
 #include "Pass/Transforms/ControlFlow.h"
+#include "Pass/Util.h"
 
 using namespace Mir;
 
@@ -29,7 +29,7 @@ struct Trait<Fcmp> {
     using MaxInst = FSmax;
     using MinInst = FSmin;
 };
-}
+} // namespace
 
 namespace {
 // int max_value(int a, int b) {
@@ -80,7 +80,8 @@ void select_handle(const std::shared_ptr<Block> &end_block, const std::shared_pt
                     }
                     return MinInst::create("min", lhs, rhs, end_block);
                 }
-                default: log_error("Invalid cmp instruction: %s", cmp->to_string().c_str());
+                default:
+                    log_error("Invalid cmp instruction: %s", cmp->to_string().c_str());
             }
         }();
         to_be_added_instructions.push_back(new_inst);
@@ -119,12 +120,12 @@ void select_to_min_max(const std::shared_ptr<Function> &func, const std::shared_
         if (compare->op == Compare::Op::NE || compare->op == Compare::Op::EQ) {
             continue;
         }
-        if (cfg->graph(func).predecessors.at(true_block).size() == 1
-            && cfg->graph(func).predecessors.at(false_block).size() == 1) {
-            if (true_block->get_instructions().back()->get_op() == Operator::JUMP
-                && false_block->get_instructions().back()->get_op() == Operator::JUMP) {
+        if (cfg->graph(func).predecessors.at(true_block).size() == 1 &&
+            cfg->graph(func).predecessors.at(false_block).size() == 1) {
+            if (true_block->get_instructions().back()->get_op() == Operator::JUMP &&
+                false_block->get_instructions().back()->get_op() == Operator::JUMP) {
                 const auto true_jump{true_block->get_instructions().back()->as<Jump>()},
-                           false_jump{false_block->get_instructions().back()->as<Jump>()};
+                        false_jump{false_block->get_instructions().back()->as<Jump>()};
                 if (true_jump->get_target_block() != false_jump->get_target_block()) {
                     continue;
                 }
@@ -135,15 +136,14 @@ void select_to_min_max(const std::shared_ptr<Function> &func, const std::shared_
                 }
                 select_handle<Compare>(end_block, true_block, compare);
                 if (std::none_of(end_block->get_instructions().begin(), end_block->get_instructions().end(),
-                                 [&](const auto &inst) { return inst->get_op() == Operator::PHI; })
-                    && true_block->get_instructions().size() == 1
-                    && false_block->get_instructions().size() == 1) {
+                                 [&](const auto &inst) { return inst->get_op() == Operator::PHI; }) &&
+                    true_block->get_instructions().size() == 1 && false_block->get_instructions().size() == 1) {
                     block->get_instructions().pop_back();
                     Jump::create(end_block, block);
                 }
             }
         } else if (const auto flag{cfg->graph(func).predecessors.at(true_block).size() == 2};
-            flag || cfg->graph(func).predecessors.at(false_block).size() == 2) {
+                   flag || cfg->graph(func).predecessors.at(false_block).size() == 2) {
             const auto end_block{flag ? true_block : false_block}, pass_block{flag ? false_block : true_block};
             if (!cfg->graph(func).successors.at(pass_block).count(end_block)) {
                 continue;
@@ -160,8 +160,8 @@ void select_to_min_max(const std::shared_ptr<Function> &func, const std::shared_
             }
             select_handle<Compare>(end_block, true_block, compare);
             if (std::none_of(end_block->get_instructions().begin(), end_block->get_instructions().end(),
-                             [&](const auto &inst) { return inst->get_op() == Operator::PHI; })
-                && pass_block->get_instructions().size() == 1) {
+                             [&](const auto &inst) { return inst->get_op() == Operator::PHI; }) &&
+                pass_block->get_instructions().size() == 1) {
                 block->get_instructions().pop_back();
                 Jump::create(end_block, block);
             }
@@ -188,8 +188,8 @@ void select_to_min_max(const std::shared_ptr<Function> &func, const std::shared_
 //     goto Y;
 // }
 bool _branch_to_min_max(const std::shared_ptr<Block> &block) {
-    const auto is_valid_block = [&](const std::shared_ptr<Block> &b) ->
-        std::optional<std::pair<std::shared_ptr<Branch>, std::shared_ptr<Icmp>>> {
+    const auto is_valid_block = [&](const std::shared_ptr<Block> &b)
+            -> std::optional<std::pair<std::shared_ptr<Branch>, std::shared_ptr<Icmp>>> {
         if (b->get_instructions().back()->get_op() != Operator::BRANCH) {
             return std::nullopt;
         }
@@ -285,7 +285,7 @@ bool _branch_to_min_max(const std::shared_ptr<Block> &block) {
     }
     return false;
 }
-}
+} // namespace
 
 namespace Pass {
 void BranchMerging::run_on_func(const std::shared_ptr<Function> &func) {
@@ -335,4 +335,4 @@ void BranchMerging::transform(const std::shared_ptr<Module> module) {
     cfg_info = nullptr;
     dom_info = nullptr;
 }
-}
+} // namespace Pass

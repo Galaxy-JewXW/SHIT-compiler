@@ -1,6 +1,6 @@
-#include "Pass/Util.h"
 #include "Pass/Transforms/Array.h"
 #include "Pass/Transforms/DataFlow.h"
+#include "Pass/Util.h"
 
 using namespace Mir;
 
@@ -58,8 +58,7 @@ void SROA::run_on_func(const std::shared_ptr<Function> &func) {
                 continue;
             }
             index_use = IndexMap{};
-            if (const auto alloca = instruction->as<Alloc>();
-                can_be_split(alloca)) {
+            if (const auto alloca = instruction->as<Alloc>(); can_be_split(alloca)) {
                 alloc_index_geps[alloca] = index_use;
                 deleted_instructions.insert(alloca);
             }
@@ -68,8 +67,8 @@ void SROA::run_on_func(const std::shared_ptr<Function> &func) {
     for (const auto &[alloc, index_geps]: alloc_index_geps) {
         const auto block = alloc->get_block();
         for (const auto &[index, geps]: index_geps) {
-            const auto atomic_type = alloc->get_type()->as<Type::Pointer>()->
-                                            get_contain_type()->as<Type::Array>()->get_atomic_type();
+            const auto atomic_type =
+                    alloc->get_type()->as<Type::Pointer>()->get_contain_type()->as<Type::Array>()->get_atomic_type();
             const auto new_alloc = Alloc::create("alloc", atomic_type, block);
             Utils::move_instruction_before(new_alloc, alloc);
             for (const auto &gep: geps) {
@@ -88,4 +87,4 @@ void SROA::transform(const std::shared_ptr<Module> module) {
     module->update_id();
     create<Mem2Reg>()->run_on(module);
 }
-}
+} // namespace Pass

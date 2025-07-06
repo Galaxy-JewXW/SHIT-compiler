@@ -9,8 +9,7 @@ namespace {
 // 判断一个指令是否满足交换律，即调换两个操作数的顺序不会改变操作结果
 void try_exchange_operands(const std::shared_ptr<Instruction> &instruction) {
     if (const auto op = instruction->get_op(); op == Operator::INTBINARY) {
-        if (const auto int_binary = std::static_pointer_cast<IntBinary>(instruction);
-            int_binary->is_commutative()) {
+        if (const auto int_binary = std::static_pointer_cast<IntBinary>(instruction); int_binary->is_commutative()) {
             if (int_binary->get_lhs()->is_constant() && !int_binary->get_rhs()->is_constant()) {
                 int_binary->swap_operands();
             }
@@ -79,7 +78,7 @@ void run_on_block(const std::shared_ptr<Block> &block) {
         }
     }
 }
-}
+} // namespace
 
 namespace Pass {
 void StandardizeBinary::transform(const std::shared_ptr<Module> module) {
@@ -87,4 +86,4 @@ void StandardizeBinary::transform(const std::shared_ptr<Module> module) {
         std::for_each(func->get_blocks().begin(), func->get_blocks().end(), run_on_block);
     });
 }
-}
+} // namespace Pass

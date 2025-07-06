@@ -29,9 +29,7 @@ void DeadFuncEliminate::transform(const std::shared_ptr<Module> module) {
             const auto func = *it;
             for (const auto &block: func->get_blocks()) {
                 std::for_each(block->get_instructions().begin(), block->get_instructions().end(),
-                              [&](const std::shared_ptr<Instruction> &instruction) {
-                                  instruction->clear_operands();
-                              });
+                              [&](const std::shared_ptr<Instruction> &instruction) { instruction->clear_operands(); });
                 block->clear_operands();
                 block->set_deleted();
                 block->get_instructions().clear();
@@ -44,4 +42,4 @@ void DeadFuncEliminate::transform(const std::shared_ptr<Module> module) {
         }
     }
 }
-}
+} // namespace Pass

@@ -18,7 +18,7 @@ class Block;
 class Alloc;
 class Store;
 class GetElementPtr;
-}
+} // namespace Mir
 
 namespace Mir::Symbol {
 class Table;
@@ -32,18 +32,14 @@ template<>
 struct InitValTrait<AST::ConstInitVal> {
     using ExpType = AST::ConstExp;
 
-    static bool is_array_vals(const std::shared_ptr<AST::ConstInitVal> &node) {
-        return node->is_constInitVals();
-    }
+    static bool is_array_vals(const std::shared_ptr<AST::ConstInitVal> &node) { return node->is_constInitVals(); }
 
     static std::vector<std::shared_ptr<AST::ConstInitVal>>
     get_array_vals(const std::shared_ptr<AST::ConstInitVal> &node) {
         return std::get<std::vector<std::shared_ptr<AST::ConstInitVal>>>(node->get_value());
     }
 
-    static bool is_exp(const std::shared_ptr<AST::ConstInitVal> &node) {
-        return node->is_constExp();
-    }
+    static bool is_exp(const std::shared_ptr<AST::ConstInitVal> &node) { return node->is_constExp(); }
 
     static std::shared_ptr<AST::AddExp> get_addExp(const std::shared_ptr<AST::ConstInitVal> &node) {
         return std::get<std::shared_ptr<AST::ConstExp>>(node->get_value())->addExp();
@@ -55,17 +51,13 @@ template<>
 struct InitValTrait<AST::InitVal> {
     using ExpType = AST::Exp;
 
-    static bool is_array_vals(const std::shared_ptr<AST::InitVal> &node) {
-        return node->is_initVals();
-    }
+    static bool is_array_vals(const std::shared_ptr<AST::InitVal> &node) { return node->is_initVals(); }
 
     static std::vector<std::shared_ptr<AST::InitVal>> get_array_vals(const std::shared_ptr<AST::InitVal> &node) {
         return std::get<std::vector<std::shared_ptr<AST::InitVal>>>(node->get_value());
     }
 
-    static bool is_exp(const std::shared_ptr<AST::InitVal> &node) {
-        return node->is_exp();
-    }
+    static bool is_exp(const std::shared_ptr<AST::InitVal> &node) { return node->is_exp(); }
 
     static std::shared_ptr<AST::AddExp> get_addExp(const std::shared_ptr<AST::InitVal> &node) {
         return std::get<std::shared_ptr<AST::Exp>>(node->get_value())->addExp();
@@ -101,8 +93,8 @@ class Constant final : public Init {
     std::shared_ptr<Const> const_value;
 
 public:
-    explicit Constant(const std::shared_ptr<Type::Type> &type, const std::shared_ptr<Const> &const_value)
-        : Init{type}, const_value{const_value} {}
+    explicit Constant(const std::shared_ptr<Type::Type> &type, const std::shared_ptr<Const> &const_value) :
+        Init{type}, const_value{const_value} {}
 
     [[nodiscard]] bool is_constant_init() const override { return true; }
     [[nodiscard]] std::shared_ptr<Const> get_const_value() const { return const_value; }
@@ -123,8 +115,8 @@ class Exp final : public Init {
     std::shared_ptr<Value> exp_value;
 
 public:
-    explicit Exp(const std::shared_ptr<Type::Type> &type, const std::shared_ptr<Value> &exp_value)
-        : Init{type}, exp_value{exp_value} {}
+    explicit Exp(const std::shared_ptr<Type::Type> &type, const std::shared_ptr<Value> &exp_value) :
+        Init{type}, exp_value{exp_value} {}
 
     [[nodiscard]] bool is_exp_init() const override { return true; }
 
@@ -132,9 +124,7 @@ public:
 
     void gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared_ptr<Block> &block);
 
-    [[nodiscard]] std::string to_string() const override {
-        log_error("ExpInit cannot be output as a string");
-    }
+    [[nodiscard]] std::string to_string() const override { log_error("ExpInit cannot be output as a string"); }
 
     static std::shared_ptr<Init> create_exp_init_value(const std::shared_ptr<Type::Type> &type,
                                                        const std::shared_ptr<Value> &exp_value);
@@ -145,10 +135,9 @@ class Array final : public Init {
     const std::vector<std::shared_ptr<Init>> init_values;
 
 public:
-    explicit Array(const std::shared_ptr<Type::Type> &type,
-                   const std::vector<std::shared_ptr<Init>> &init_values,
-                   const bool is_zero_initialized = false)
-        : Init{type}, is_zero_initialized{is_zero_initialized}, init_values{init_values} {}
+    explicit Array(const std::shared_ptr<Type::Type> &type, const std::vector<std::shared_ptr<Init>> &init_values,
+                   const bool is_zero_initialized = false) :
+        Init{type}, is_zero_initialized{is_zero_initialized}, init_values{init_values} {}
 
     [[nodiscard]] bool is_array_init() const override { return true; }
 
@@ -163,8 +152,7 @@ public:
     template<typename TVal>
     static std::shared_ptr<Array> create_array_init_value(const std::shared_ptr<Type::Type> &type,
                                                           const std::shared_ptr<TVal> &initVal,
-                                                          const std::shared_ptr<Symbol::Table> &table,
-                                                          bool is_constant,
+                                                          const std::shared_ptr<Symbol::Table> &table, bool is_constant,
                                                           const Builder *builder = nullptr);
 
     void gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared_ptr<Block> &block,
@@ -174,10 +162,8 @@ public:
 };
 
 template<typename TVal>
-bool is_zero_array(const std::shared_ptr<Type::Type> &type,
-                   const std::shared_ptr<TVal> &initVal,
-                   const std::shared_ptr<Symbol::Table> &table, bool is_constant,
-                   const Builder *const builder) {
+bool is_zero_array(const std::shared_ptr<Type::Type> &type, const std::shared_ptr<TVal> &initVal,
+                   const std::shared_ptr<Symbol::Table> &table, bool is_constant, const Builder *const builder) {
     using Trait = InitValTrait<TVal>;
     if (!type->is_array()) {
         return false;
@@ -189,8 +175,7 @@ bool is_zero_array(const std::shared_ptr<Type::Type> &type,
         return true;
     }
     const auto &array_type = std::static_pointer_cast<Type::Array>(type);
-    const auto element_type = array_type->get_element_type(),
-               atomic_type = array_type->get_atomic_type();
+    const auto element_type = array_type->get_element_type(), atomic_type = array_type->get_atomic_type();
     for (const auto &val: Trait::get_array_vals(initVal)) {
         if (Trait::is_exp(val)) {
             if (is_constant) {
@@ -228,8 +213,7 @@ template<typename TVal>
 std::shared_ptr<Array> Array::create_array_init_value(const std::shared_ptr<Type::Type> &type,
                                                       const std::shared_ptr<TVal> &initVal,
                                                       const std::shared_ptr<Symbol::Table> &table,
-                                                      const bool is_constant,
-                                                      const Builder *const builder) {
+                                                      const bool is_constant, const Builder *const builder) {
     using Trait = InitValTrait<TVal>;
     if (!type->is_array()) {
         log_error("%s is not an array type", type->to_string().c_str());
@@ -246,11 +230,14 @@ std::shared_ptr<Array> Array::create_array_init_value(const std::shared_ptr<Type
     const auto &vals = Trait::get_array_vals(initVal);
     for (size_t i = 0; i < vals.size(); ++i) {
         const auto &val = vals[i];
-        if (init_values.size() >= array_type->get_size()) break;
+        if (init_values.size() >= array_type->get_size())
+            break;
         if (Trait::is_array_vals(val)) {
-            if (!element_type->is_array()) { log_error("Element not an array"); }
-            init_values.emplace_back(Array::create_array_init_value<TVal>(
-                element_type, val, table, is_constant, builder));
+            if (!element_type->is_array()) {
+                log_error("Element not an array");
+            }
+            init_values.emplace_back(
+                    Array::create_array_init_value<TVal>(element_type, val, table, is_constant, builder));
         } else if (Trait::is_exp(val)) {
             if (element_type->is_array()) {
                 auto basic_type = array_type->get_atomic_type();
@@ -259,7 +246,8 @@ std::shared_ptr<Array> Array::create_array_init_value(const std::shared_ptr<Type
                 std::vector<std::shared_ptr<TVal>> sub_vals;
                 size_t cnt = 0;
                 for (size_t j = 0; j < flatten_size;) {
-                    if (i + cnt >= vals.size()) break;
+                    if (i + cnt >= vals.size())
+                        break;
                     sub_vals.emplace_back(vals[i + cnt]);
                     if (!Trait::is_array_vals(vals[i + cnt])) {
                         ++j;
@@ -270,17 +258,16 @@ std::shared_ptr<Array> Array::create_array_init_value(const std::shared_ptr<Type
                 }
                 TVal ast_val{sub_vals};
                 std::shared_ptr<TVal> wrapped_val = std::make_shared<TVal>(ast_val);
-                init_values.emplace_back(Array::create_array_init_value<TVal>(
-                    element_type, wrapped_val, table, is_constant, builder));
+                init_values.emplace_back(
+                        Array::create_array_init_value<TVal>(element_type, wrapped_val, table, is_constant, builder));
                 i += cnt - 1;
             } else {
                 if (is_constant) {
                     init_values.emplace_back(
-                        Constant::create_constant_init_value(element_type, Trait::get_addExp(val), table));
+                            Constant::create_constant_init_value(element_type, Trait::get_addExp(val), table));
                 } else {
                     const auto &exp_value = builder->visit_addExp(Trait::get_addExp(val));
-                    init_values.emplace_back(
-                        Exp::create_exp_init_value(element_type, exp_value));
+                    init_values.emplace_back(Exp::create_exp_init_value(element_type, exp_value));
                 }
             }
         }
@@ -294,6 +281,6 @@ std::shared_ptr<Array> Array::create_array_init_value(const std::shared_ptr<Type
     }
     return std::make_shared<Array>(type, init_values);
 }
-}
+} // namespace Mir::Init
 
 #endif

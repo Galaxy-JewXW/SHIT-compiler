@@ -28,13 +28,9 @@ class Module {
 public:
     explicit Module() = default;
 
-    static void set_instance(const std::shared_ptr<Module> &module) {
-        instance_ = module;
-    }
+    static void set_instance(const std::shared_ptr<Module> &module) { instance_ = module; }
 
-    static std::shared_ptr<Module> instance() {
-        return instance_;
-    }
+    static std::shared_ptr<Module> instance() { return instance_; }
 
     void add_global_variable(const std::shared_ptr<GlobalVariable> &global_variable) {
         global_variables.emplace_back(global_variable);
@@ -45,8 +41,8 @@ public:
     [[nodiscard]] size_t get_const_string_size() const { return const_strings.size(); }
 
     void add_used_runtime_functions(const std::shared_ptr<Function> &function) {
-        if (std::find(used_runtime_functions.begin(), used_runtime_functions.end(), function)
-            == used_runtime_functions.end()) {
+        if (std::find(used_runtime_functions.begin(), used_runtime_functions.end(), function) ==
+            used_runtime_functions.end()) {
             used_runtime_functions.emplace_back(function);
         }
     }
@@ -59,10 +55,10 @@ public:
 
     [[nodiscard]] std::shared_ptr<Function> get_function(const std::string &name) {
         const auto it = std::find_if(functions.begin(), functions.end(),
-                                     [&name](const auto &function) {
-                                         return function->get_name() == name;
-                                     });
-        if (it != functions.end()) { return *it; }
+                                     [&name](const auto &function) { return function->get_name() == name; });
+        if (it != functions.end()) {
+            return *it;
+        }
         return nullptr;
     }
 
@@ -87,8 +83,8 @@ class GlobalVariable final : public Value {
 
 public:
     GlobalVariable(const std::string &name, const std::shared_ptr<Type::Type> &type, const bool is_constant,
-                   const std::shared_ptr<Init::Init> &init_value)
-        : Value{"@" + name, Type::Pointer::create(type)}, is_constant{is_constant}, init_value{init_value} {}
+                   const std::shared_ptr<Init::Init> &init_value) :
+        Value{"@" + name, Type::Pointer::create(type)}, is_constant{is_constant}, init_value{init_value} {}
 
     [[nodiscard]] bool is_constant_gv() const { return is_constant; }
 
@@ -101,8 +97,8 @@ class Argument final : public Value {
     int index;
 
 public:
-    Argument(const std::string &name, const std::shared_ptr<Type::Type> &type, const int index)
-        : Value{name, type}, index{index} {}
+    Argument(const std::string &name, const std::shared_ptr<Type::Type> &type, const int index) :
+        Value{name, type}, index{index} {}
 
     [[nodiscard]] int get_index() const { return index; }
 
@@ -120,12 +116,11 @@ class Function final : public User {
 
 public:
     Function(const std::string &name, const std::shared_ptr<Type::Type> &return_type,
-             const bool is_runtime_function = false)
-        : User(name, return_type), is_runtime_function{is_runtime_function} {}
+             const bool is_runtime_function = false) :
+        User(name, return_type), is_runtime_function{is_runtime_function} {}
 
     template<typename... Types>
-    static std::shared_ptr<Function> create(const std::string &name,
-                                            const std::shared_ptr<Type::Type> &return_type,
+    static std::shared_ptr<Function> create(const std::string &name, const std::shared_ptr<Type::Type> &return_type,
                                             Types... argument_types) {
         const auto &func = std::make_shared<Function>(name, return_type, true);
         std::vector<std::shared_ptr<Type::Type>> arguments_types{argument_types...};
@@ -171,7 +166,7 @@ class Block final : public User {
     bool deleted{false};
 
 public:
-    explicit Block(const std::string &name): User(name, Type::Label::label) {}
+    explicit Block(const std::string &name) : User(name, Type::Label::label) {}
 
     static std::shared_ptr<Block> create(const std::string &name, const std::shared_ptr<Function> &function = nullptr) {
         const auto block = std::make_shared<Block>(name);
@@ -200,10 +195,11 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    void modify_successor(const std::shared_ptr<Block> &old_successor, const std::shared_ptr<Block> &new_successor) const;
+    void modify_successor(const std::shared_ptr<Block> &old_successor,
+                          const std::shared_ptr<Block> &new_successor) const;
 
     std::shared_ptr<std::vector<std::shared_ptr<Instruction>>> get_phis();
 };
-}
+} // namespace Mir
 
 #endif

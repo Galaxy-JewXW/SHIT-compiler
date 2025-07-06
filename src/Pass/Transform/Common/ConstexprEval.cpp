@@ -1,7 +1,7 @@
 #include "Mir/Eval.h"
 #include "Pass/Transforms/Common.h"
-#include "Pass/Transforms/DataFlow.h"
 #include "Pass/Transforms/DCE.h"
+#include "Pass/Transforms/DataFlow.h"
 
 using namespace Mir;
 
@@ -102,4 +102,4 @@ void ConstexprFuncEval::transform(const std::shared_ptr<Module> module) {
 
     func_analysis = nullptr;
 }
-}
+} // namespace Pass
