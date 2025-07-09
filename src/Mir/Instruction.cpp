@@ -71,20 +71,9 @@ std::shared_ptr<Type::Type> GetElementPtr::calc_type_(const std::shared_ptr<Valu
     log_error("Invalid indexes size %d", indexes.size());
 }
 
-std::shared_ptr<Value> GetElementPtr::create(const std::string &name, const std::shared_ptr<Value> &addr,
-                                             const std::vector<std::shared_ptr<Value>> &indexes,
-                                             const std::shared_ptr<Block> &block) {
-    if (indexes.size() == 1) {
-        if (const auto &idx = indexes[0]; idx->is_constant()) {
-            const auto constant_idx = std::dynamic_pointer_cast<ConstInt>(idx);
-            if (constant_idx == nullptr) {
-                log_error("Index should be constant");
-            }
-            if (**constant_idx == 0) {
-                return addr;
-            }
-        }
-    }
+std::shared_ptr<GetElementPtr> GetElementPtr::create(const std::string &name, const std::shared_ptr<Value> &addr,
+                                                     const std::vector<std::shared_ptr<Value>> &indexes,
+                                                     const std::shared_ptr<Block> &block) {
     const auto instruction = std::make_shared<GetElementPtr>(name, addr, indexes);
     if (block != nullptr) [[likely]] {
         instruction->set_block(block);
@@ -130,30 +119,10 @@ std::shared_ptr<Sitofp> Sitofp::create(const std::string &name, const std::share
     return instruction;
 }
 
-std::shared_ptr<Value> Fcmp::create(const std::string &name, Op op, std::shared_ptr<Value> lhs,
-                                    std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block) {
+std::shared_ptr<Fcmp> Fcmp::create(const std::string &name, Op op, std::shared_ptr<Value> lhs,
+                                   std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block) {
     if (!lhs->get_type()->is_float() || !rhs->get_type()->is_float()) {
         log_error("Operands must be a float");
-    }
-    if (lhs->is_constant() && rhs->is_constant()) {
-        const auto left = std::dynamic_pointer_cast<ConstFloat>(lhs),
-                   right = std::dynamic_pointer_cast<ConstFloat>(rhs);
-        switch (op) {
-            case Op::EQ:
-                return ConstBool::create(*left == *right);
-            case Op::NE:
-                return ConstBool::create(*left != *right);
-            case Op::GT:
-                return ConstBool::create(*left > *right);
-            case Op::LT:
-                return ConstBool::create(*left < *right);
-            case Op::GE:
-                return ConstBool::create(*left >= *right);
-            case Op::LE:
-                return ConstBool::create(*left <= *right);
-            default:
-                break;
-        }
     }
     if (lhs->is_constant() && !rhs->is_constant()) {
         std::swap(lhs, rhs);
@@ -168,29 +137,10 @@ std::shared_ptr<Value> Fcmp::create(const std::string &name, Op op, std::shared_
     return instruction;
 }
 
-std::shared_ptr<Value> Icmp::create(const std::string &name, Op op, std::shared_ptr<Value> lhs,
-                                    std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block) {
+std::shared_ptr<Icmp> Icmp::create(const std::string &name, Op op, std::shared_ptr<Value> lhs,
+                                   std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block) {
     if (!lhs->get_type()->is_int32() || !rhs->get_type()->is_int32()) {
         log_error("Operands must be an integer 32");
-    }
-    if (lhs->is_constant() && rhs->is_constant()) {
-        const auto left = std::dynamic_pointer_cast<ConstInt>(lhs), right = std::dynamic_pointer_cast<ConstInt>(rhs);
-        switch (op) {
-            case Op::EQ:
-                return ConstBool::create(*left == *right);
-            case Op::NE:
-                return ConstBool::create(*left != *right);
-            case Op::GT:
-                return ConstBool::create(*left > *right);
-            case Op::LT:
-                return ConstBool::create(*left < *right);
-            case Op::GE:
-                return ConstBool::create(*left >= *right);
-            case Op::LE:
-                return ConstBool::create(*left <= *right);
-            default:
-                break;
-        }
     }
     if (lhs->is_constant() && !rhs->is_constant()) {
         std::swap(lhs, rhs);
@@ -224,16 +174,10 @@ std::shared_ptr<Jump> Jump::create(const std::shared_ptr<Block> &target_block, c
     return instruction;
 }
 
-std::shared_ptr<Value> Branch::create(const std::shared_ptr<Value> &cond, const std::shared_ptr<Block> &true_block,
-                                      const std::shared_ptr<Block> &false_block, const std::shared_ptr<Block> &block) {
+std::shared_ptr<Branch> Branch::create(const std::shared_ptr<Value> &cond, const std::shared_ptr<Block> &true_block,
+                                       const std::shared_ptr<Block> &false_block, const std::shared_ptr<Block> &block) {
     if (!cond->get_type()->is_int1()) {
         log_error("Cond must be an integer 1");
-    }
-    if (cond->is_constant()) {
-        if (const auto value = cond->as<ConstBool>()->get<int>(); value == 1) {
-            return Jump::create(true_block, block);
-        }
-        return Jump::create(false_block, block);
     }
     const auto instruction = std::make_shared<Branch>(cond, true_block, false_block);
     if (block != nullptr) [[likely]] {

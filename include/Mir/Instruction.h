@@ -1,6 +1,7 @@
 #ifndef INSTRUCTION_H
 #define INSTRUCTION_H
 
+#include <memory>
 #include <optional>
 #include <utility>
 
@@ -130,9 +131,9 @@ public:
         }
     }
 
-    static std::shared_ptr<Value> create(const std::string &name, const std::shared_ptr<Value> &addr,
-                                         const std::vector<std::shared_ptr<Value>> &indexes,
-                                         const std::shared_ptr<Block> &block);
+    static std::shared_ptr<GetElementPtr> create(const std::string &name, const std::shared_ptr<Value> &addr,
+                                                 const std::vector<std::shared_ptr<Value>> &indexes,
+                                                 const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::shared_ptr<Value> get_addr() const { return operands_[0]; }
 
@@ -239,8 +240,8 @@ public:
         std::swap(operands_[0], operands_[1]);
     }
 
-    static std::shared_ptr<Value> create(const std::string &name, Op op, std::shared_ptr<Value> lhs,
-                                         std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
+    static std::shared_ptr<Fcmp> create(const std::string &name, Op op, std::shared_ptr<Value> lhs,
+                                        std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::shared_ptr<Value> get_lhs() const { return operands_[0]; }
     [[nodiscard]] std::shared_ptr<Value> get_rhs() const { return operands_[1]; }
@@ -285,8 +286,8 @@ public:
         std::swap(operands_[0], operands_[1]);
     }
 
-    static std::shared_ptr<Value> create(const std::string &name, Op op, std::shared_ptr<Value> lhs,
-                                         std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
+    static std::shared_ptr<Icmp> create(const std::string &name, Op op, std::shared_ptr<Value> lhs,
+                                        std::shared_ptr<Value> rhs, const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::shared_ptr<Value> get_lhs() const { return operands_[0]; }
     [[nodiscard]] std::shared_ptr<Value> get_rhs() const { return operands_[1]; }
@@ -347,9 +348,9 @@ public:
         }
     }
 
-    static std::shared_ptr<Value> create(const std::shared_ptr<Value> &cond, const std::shared_ptr<Block> &true_block,
-                                         const std::shared_ptr<Block> &false_block,
-                                         const std::shared_ptr<Block> &block);
+    static std::shared_ptr<Branch> create(const std::shared_ptr<Value> &cond, const std::shared_ptr<Block> &true_block,
+                                          const std::shared_ptr<Block> &false_block,
+                                          const std::shared_ptr<Block> &block);
 
     void swap() { std::swap(operands_[0], operands_[1]); }
 
@@ -794,6 +795,11 @@ public:
 
     void do_interpret(Interpreter *interpreter) override;
 };
+
+template<typename T, typename... Ts>
+std::shared_ptr<T> make_instruction(Ts &&...args) {
+    return T::create(std::forward<Ts>(args)...);
+}
 } // namespace Mir
 
 #endif
