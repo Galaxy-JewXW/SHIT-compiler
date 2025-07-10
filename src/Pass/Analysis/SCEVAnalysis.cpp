@@ -162,9 +162,10 @@ std::shared_ptr<SCEVExpr> SCEVAnalysis::fold_add(std::shared_ptr<SCEVExpr> lhs, 
             scev->add_operand(operand);
         return scev;
     }
+    return nullptr;
 }
 
-std::shared_ptr<SCEVExpr> SCEVAnalysis::fold_mul(std::shared_ptr<SCEVExpr> lhs, std::shared_ptr<SCEVExpr> rhs) {
+std::shared_ptr<SCEVExpr> SCEVAnalysis::fold_mul(std::shared_ptr<SCEVExpr>& lhs,std::shared_ptr<SCEVExpr>& rhs) {
     if (!lhs || !rhs)
         return nullptr;
     if (lhs->get_type() == SCEVExpr::SCEVTYPE::Constant && rhs->get_type() == SCEVExpr::SCEVTYPE::Constant) {
