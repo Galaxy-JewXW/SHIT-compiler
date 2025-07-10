@@ -1,10 +1,10 @@
 #ifndef LOOP_H
 #define LOOP_H
 
-#include "Pass/Transform.h"
 #include "Pass/Analyses/ControlFlowGraph.h"
 #include "Pass/Analyses/DominanceGraph.h"
 #include "Pass/Analyses/LoopAnalysis.h"
+#include "Pass/Transform.h"
 
 namespace Pass {
 class LoopSimplyForm final : public Transform {
@@ -40,6 +40,14 @@ private:
     std::shared_ptr<ControlFlowGraph> cfg_info_;
     std::shared_ptr<DominanceGraph> dom_info_;
 };
-}
 
-#endif //LOOP_H
+class LoopInvariantCodeMotion final : public Transform {
+public:
+    explicit LoopInvariantCodeMotion() : Transform("LoopInvariantCodeMotion") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+};
+} // namespace Pass
+
+#endif // LOOP_H

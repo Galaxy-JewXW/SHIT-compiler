@@ -36,7 +36,9 @@ void replace_const_array_gv(const std::shared_ptr<Module> &module) {
         };
         for (const auto &user: gv->users()) {
             const auto gep = std::dynamic_pointer_cast<GetElementPtr>(user);
-            if (gep == nullptr) { continue; }
+            if (gep == nullptr) {
+                continue;
+            }
             do_replace(do_replace, gep);
         }
     }
@@ -78,14 +80,13 @@ bool array_can_localized(const std::shared_ptr<GlobalVariable> &gv) {
 // TODO: 非 main 函数的情况下将全局变量作为参数进行传递
 void localize(const std::shared_ptr<Module> &module) {
     const auto func_analysis = Pass::get_analysis_result<Pass::FunctionAnalysis>(module);
-    std::unordered_set<std::shared_ptr<GlobalVariable>> can_replaced;
+    std::unordered_set<std::shared_ptr<GlobalVariable>> can_replace, replaced;
     for (const auto &gv: module->get_global_variables()) {
-        if (const auto gv_type = gv->get_type()->as<Type::Pointer>()->get_contain_type();
-            gv_type->is_array()) {
-            can_replaced.insert(gv);
+        if (const auto gv_type = gv->get_type()->as<Type::Pointer>()->get_contain_type(); gv_type->is_array()) {
+            can_replace.insert(gv);
         }
     }
-    for (const auto &gv: can_replaced) {
+    for (const auto &gv: can_replace) {
         std::unordered_set<std::shared_ptr<Function>> use_function;
         for (const auto &user: gv->users()) {
             if (const auto inst = std::dynamic_pointer_cast<Instruction>(user)) {
@@ -105,8 +106,7 @@ void localize(const std::shared_ptr<Module> &module) {
         if (!array_can_localized(gv)) {
             continue;
         }
-        const auto new_entry = Block::create(Builder::gen_block_name()),
-                   current_entry = func->get_blocks().front();
+        const auto new_entry = Block::create(Builder::gen_block_name()), current_entry = func->get_blocks().front();
         new_entry->set_function(func, false);
         func->get_blocks().insert(func->get_blocks().begin(), new_entry);
         const auto new_alloc = Alloc::create(Builder::gen_variable_name(),
@@ -122,10 +122,11 @@ void localize(const std::shared_ptr<Module> &module) {
         gv->replace_by_new_value(new_alloc);
         Jump::create(current_entry, new_entry);
         Pass::set_analysis_result_dirty<Pass::ControlFlowGraph>(func);
+        replaced.insert(gv);
     }
-    if (!can_replaced.empty()) {
+    if (!replaced.empty()) {
         for (auto it = module->get_global_variables().begin(); it != module->get_global_variables().end();) {
-            if (can_replaced.find(*it) == can_replaced.end()) {
+            if (replaced.find(*it) == replaced.end()) {
                 ++it;
             } else {
                 it = module->get_global_variables().erase(it);
@@ -133,10 +134,8 @@ void localize(const std::shared_ptr<Module> &module) {
         }
     }
 }
-}
+} // namespace
 
 namespace Pass {
-void GlobalArrayLocalize::transform(const std::shared_ptr<Module> module) {
-    localize(module);
-}
-}
+void GlobalArrayLocalize::transform(const std::shared_ptr<Module> module) { localize(module); }
+} // namespace Pass

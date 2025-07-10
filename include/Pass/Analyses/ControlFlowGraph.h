@@ -36,9 +36,7 @@ public:
 
     void set_dirty(const FunctionPtr &func);
 
-    void remove(const FunctionPtr &func) {
-        graphs_.erase(func);
-    }
+    void remove(const FunctionPtr &func) { graphs_.erase(func); }
 
 protected:
     void analyze(std::shared_ptr<const Mir::Module> module) override;
@@ -48,6 +46,6 @@ private:
 
     std::unordered_map<FunctionPtr, bool> dirty_funcs_;
 };
-}
+} // namespace Pass
 
-#endif //CONTROLFLOWGRAPH_H
+#endif // CONTROLFLOWGRAPH_H

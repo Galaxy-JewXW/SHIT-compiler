@@ -18,57 +18,96 @@ void join_and_append(std::ostringstream &oss, const std::vector<std::shared_ptr<
 std::string Token::type_to_string(const Type type) {
     switch (type) {
         // 关键词
-        case Type::CONST: return "CONST";
-        case Type::INT: return "INT";
-        case Type::FLOAT: return "FLOAT";
-        case Type::VOID: return "VOID";
-        case Type::IF: return "IF";
-        case Type::ELSE: return "ELSE";
-        case Type::WHILE: return "WHILE";
-        case Type::BREAK: return "BREAK";
-        case Type::CONTINUE: return "CONTINUE";
-        case Type::RETURN: return "RETURN";
+        case Type::CONST:
+            return "CONST";
+        case Type::INT:
+            return "INT";
+        case Type::FLOAT:
+            return "FLOAT";
+        case Type::VOID:
+            return "VOID";
+        case Type::IF:
+            return "IF";
+        case Type::ELSE:
+            return "ELSE";
+        case Type::WHILE:
+            return "WHILE";
+        case Type::BREAK:
+            return "BREAK";
+        case Type::CONTINUE:
+            return "CONTINUE";
+        case Type::RETURN:
+            return "RETURN";
 
         // 标识符
-        case Type::IDENTIFIER: return "IDENTIFIER";
+        case Type::IDENTIFIER:
+            return "IDENTIFIER";
 
         // 字面量
-        case Type::INT_CONST: return "INT_CONST";
-        case Type::FLOAT_CONST: return "FLOAT_CONST";
-        case Type::STRING_CONST: return "STRING_CONST";
+        case Type::INT_CONST:
+            return "INT_CONST";
+        case Type::FLOAT_CONST:
+            return "FLOAT_CONST";
+        case Type::STRING_CONST:
+            return "STRING_CONST";
 
         // 运算符
-        case Type::ADD: return "ADD";
-        case Type::SUB: return "SUB";
-        case Type::NOT: return "NOT";
-        case Type::MUL: return "MUL";
-        case Type::DIV: return "DIV";
-        case Type::MOD: return "MOD";
-        case Type::LT: return "LT";
-        case Type::GT: return "GT";
-        case Type::LE: return "LE";
-        case Type::GE: return "GE";
-        case Type::EQ: return "EQ";
-        case Type::NE: return "NE";
-        case Type::AND: return "AND";
-        case Type::OR: return "OR";
+        case Type::ADD:
+            return "ADD";
+        case Type::SUB:
+            return "SUB";
+        case Type::NOT:
+            return "NOT";
+        case Type::MUL:
+            return "MUL";
+        case Type::DIV:
+            return "DIV";
+        case Type::MOD:
+            return "MOD";
+        case Type::LT:
+            return "LT";
+        case Type::GT:
+            return "GT";
+        case Type::LE:
+            return "LE";
+        case Type::GE:
+            return "GE";
+        case Type::EQ:
+            return "EQ";
+        case Type::NE:
+            return "NE";
+        case Type::AND:
+            return "AND";
+        case Type::OR:
+            return "OR";
 
         // 分隔符
-        case Type::SEMICOLON: return "SEMICOLON";
-        case Type::COMMA: return "COMMA";
-        case Type::ASSIGN: return "ASSIGN";
-        case Type::LPAREN: return "LPAREN";
-        case Type::RPAREN: return "RPAREN";
-        case Type::LBRACE: return "LBRACE";
-        case Type::RBRACE: return "RBRACE";
-        case Type::LBRACKET: return "LBRACKET";
-        case Type::RBRACKET: return "RBRACKET";
+        case Type::SEMICOLON:
+            return "SEMICOLON";
+        case Type::COMMA:
+            return "COMMA";
+        case Type::ASSIGN:
+            return "ASSIGN";
+        case Type::LPAREN:
+            return "LPAREN";
+        case Type::RPAREN:
+            return "RPAREN";
+        case Type::LBRACE:
+            return "LBRACE";
+        case Type::RBRACE:
+            return "RBRACE";
+        case Type::LBRACKET:
+            return "LBRACKET";
+        case Type::RBRACKET:
+            return "RBRACKET";
 
         // 结束符
-        case Type::END_OF_FILE: return "EOF";
+        case Type::END_OF_FILE:
+            return "EOF";
 
         // 未知
-        default: return "UNKNOWN";
+        default:
+            return "UNKNOWN";
     }
 }
 
@@ -82,9 +121,7 @@ namespace AST {
 [[nodiscard]] std::string CompUnit::to_string() const {
     std::ostringstream oss;
     for (auto &unit: compunits_) {
-        std::visit([&oss](auto &item) {
-            oss << item->to_string() << "\n";
-        }, unit);
+        std::visit([&oss](auto &item) { oss << item->to_string() << "\n"; }, unit);
     }
     oss << "<CompUnit>\n";
     return oss.str();
@@ -119,8 +156,7 @@ namespace AST {
         const auto &constExp = std::get<std::shared_ptr<ConstExp>>(value_);
         oss << constExp->to_string() << "\n";
     } else if (is_constInitVals()) {
-        const auto &constInitVals
-                = std::get<std::vector<std::shared_ptr<ConstInitVal>>>(value_);
+        const auto &constInitVals = std::get<std::vector<std::shared_ptr<ConstInitVal>>>(value_);
         oss << "{\n";
         for (size_t i = 0u; i < constInitVals.size(); ++i) {
             oss << constInitVals[i]->to_string();
@@ -168,8 +204,7 @@ namespace AST {
         const auto &exp = std::get<std::shared_ptr<Exp>>(value_);
         oss << exp->to_string() << "\n";
     } else if (is_initVals()) {
-        const auto &initVals
-                = std::get<std::vector<std::shared_ptr<InitVal>>>(value_);
+        const auto &initVals = std::get<std::vector<std::shared_ptr<InitVal>>>(value_);
         oss << "{\n";
         for (size_t i = 0u; i < initVals.size(); ++i) {
             oss << initVals[i]->to_string();
@@ -224,9 +259,7 @@ namespace AST {
 [[nodiscard]] std::string Block::to_string() const {
     std::ostringstream oss;
     for (auto &unit: items_) {
-        std::visit([&oss](const auto &item) {
-            oss << item->to_string() << "\n";
-        }, unit);
+        std::visit([&oss](const auto &item) { oss << item->to_string() << "\n"; }, unit);
     }
     oss << "<Block>";
     return oss.str();
@@ -275,13 +308,9 @@ namespace AST {
     return oss.str();
 }
 
-[[nodiscard]] std::string BreakStmt::to_string() const {
-    return "<BreakStmt>";
-}
+[[nodiscard]] std::string BreakStmt::to_string() const { return "<BreakStmt>"; }
 
-[[nodiscard]] std::string ContinueStmt::to_string() const {
-    return "<ContinueStmt>";
-}
+[[nodiscard]] std::string ContinueStmt::to_string() const { return "<ContinueStmt>"; }
 
 [[nodiscard]] std::string ReturnStmt::to_string() const {
     std::ostringstream oss;
@@ -339,13 +368,9 @@ namespace AST {
     return oss.str();
 }
 
-[[nodiscard]] std::string IntNumber::to_string() const {
-    return std::to_string(value_);
-}
+[[nodiscard]] std::string IntNumber::to_string() const { return std::to_string(value_); }
 
-[[nodiscard]] std::string FloatNumber::to_string() const {
-    return std::to_string(value_);
-}
+[[nodiscard]] std::string FloatNumber::to_string() const { return std::to_string(value_); }
 
 [[nodiscard]] std::string UnaryExp::to_string() const {
     std::ostringstream oss;
@@ -453,7 +478,7 @@ namespace AST {
     oss << addExp_->to_string() << "\n<ConstExp>";
     return oss.str();
 }
-}
+} // namespace AST
 
 std::string str_to_llvm_ir(const std::string &str) {
     auto s = str;
@@ -471,15 +496,23 @@ namespace Mir {
     for (size_t i = 0; i < const_strings.size(); ++i) {
         oss << "@.str_" << i + 1 << " = private unnamed_addr constant [" << str_to_llvm_ir(const_strings[i]) << "\n";
     }
-    if (!const_strings.empty()) { oss << "\n"; }
+    if (!const_strings.empty()) {
+        oss << "\n";
+    }
     join_and_append(oss, used_runtime_functions, "\n");
-    if (!used_runtime_functions.empty()) { oss << "\n"; }
+    if (!used_runtime_functions.empty()) {
+        oss << "\n";
+    }
     // 拼接全局变量
     join_and_append(oss, global_variables, "\n");
-    if (!global_variables.empty()) { oss << "\n"; }
+    if (!global_variables.empty()) {
+        oss << "\n";
+    }
     // 拼接函数
     join_and_append(oss, functions, "\n");
-    if (!functions.empty()) { oss << "\n"; }
+    if (!functions.empty()) {
+        oss << "\n";
+    }
     oss << "\ndeclare void @llvm.memset.p0i8.i32(i8* nocapture writeonly, i8, i32, i1 immarg)\n";
     return oss.str();
 }
@@ -487,8 +520,7 @@ namespace Mir {
 
 [[nodiscard]] std::string GlobalVariable::to_string() const {
     std::ostringstream oss;
-    oss << name_ << " = dso_local " << (is_constant ? "constant " : "global ")
-            << init_value->to_string();
+    oss << name_ << " = dso_local " << (is_constant ? "constant " : "global ") << init_value->to_string();
     return oss.str();
 }
 
@@ -522,10 +554,8 @@ namespace Mir {
         }
     }
     std::ostringstream function_info;
-    function_info << "define dso_local " << type_->to_string() << " @" << name_
-            << "(" << param_info.str() << ") {\n"
-            << block_info.str()
-            << "\n}";
+    function_info << "define dso_local " << type_->to_string() << " @" << name_ << "(" << param_info.str() << ") {\n"
+                  << block_info.str() << "\n}";
     return function_info.str();
 }
 
@@ -572,8 +602,8 @@ namespace Mir {
     const auto ptr_type = std::static_pointer_cast<Type::Pointer>(addr->get_type());
     const auto target_type = ptr_type->get_contain_type();
     std::ostringstream oss;
-    oss << name_ << " = getelementptr inbounds " << target_type->to_string()
-            << ", " << ptr_type->to_string() << " " << addr->get_name();
+    oss << name_ << " = getelementptr inbounds " << target_type->to_string() << ", " << ptr_type->to_string() << " "
+        << addr->get_name();
     for (size_t i = 1; i < operands_.size(); ++i) {
         oss << ", " << operands_[i]->get_type()->to_string() << " " << operands_[i]->get_name();
     }
@@ -612,13 +642,20 @@ namespace Mir {
     const auto op_str = [&] {
         const std::string id = "fcmp";
         switch (op) {
-            case Op::EQ: return id + " oeq";
-            case Op::NE: return id + " one";
-            case Op::LT: return id + " olt";
-            case Op::LE: return id + " ole";
-            case Op::GT: return id + " ogt";
-            case Op::GE: return id + " oge";
-            default: log_error("Unknown op");
+            case Op::EQ:
+                return id + " oeq";
+            case Op::NE:
+                return id + " one";
+            case Op::LT:
+                return id + " olt";
+            case Op::LE:
+                return id + " ole";
+            case Op::GT:
+                return id + " ogt";
+            case Op::GE:
+                return id + " oge";
+            default:
+                log_error("Unknown op");
         }
     }();
     std::ostringstream oss;
@@ -631,13 +668,20 @@ namespace Mir {
     const auto op_str = [&] {
         const std::string id = "icmp";
         switch (op) {
-            case Op::EQ: return id + " eq";
-            case Op::NE: return id + " ne";
-            case Op::LT: return id + " slt";
-            case Op::LE: return id + " sle";
-            case Op::GT: return id + " sgt";
-            case Op::GE: return id + " sge";
-            default: log_error("Unknown op");
+            case Op::EQ:
+                return id + " eq";
+            case Op::NE:
+                return id + " ne";
+            case Op::LT:
+                return id + " slt";
+            case Op::LE:
+                return id + " sle";
+            case Op::GT:
+                return id + " sgt";
+            case Op::GE:
+                return id + " sge";
+            default:
+                log_error("Unknown op");
         }
     }();
     std::ostringstream oss;
@@ -681,31 +725,48 @@ namespace Mir {
     return oss.str();
 }
 
+[[nodiscard]] std::string Switch::to_string() const {
+    std::ostringstream oss;
+    oss << "switch " << get_base()->get_type()->to_string() << " " << get_base()->get_name() << ", ";
+    oss << "label %" << get_default_block()->get_name() << " [";
+    for (const auto &[value, block]: cases()) {
+        oss << "\n\t\t" << value->get_type()->to_string() << " " << value->get_name() << ", label %"
+            << block->get_name();
+    }
+    oss << "\n\t]";
+    return oss.str();
+}
+
 [[nodiscard]] std::string Call::to_string() const {
     auto params_to_string = [&] {
         std::ostringstream oss;
         for (size_t i = 0; i < get_params().size(); ++i) {
             const auto param = get_params()[i];
             oss << param->get_type()->to_string() << " " << param->get_name();
-            if (i != get_params().size() - 1) oss << ", ";
+            if (i != get_params().size() - 1)
+                oss << ", ";
         }
         return oss.str();
     };
     std::ostringstream oss;
     if (const_string_index != -1) {
-        if (get_function()->get_name() != "putf") { log_error("Unknown const string index"); }
+        if (get_function()->get_name() != "putf") {
+            log_error("Unknown const string index");
+        }
         if (get_params().empty()) {
             oss << "call void @putf(i8* @.str_" << const_string_index << ")";
         } else {
             oss << "call void @putf(i8* @.str_" << const_string_index << ", " << params_to_string() << ")";
         }
     } else {
+        constexpr auto tail = std::string_view{"tail "};
         if (get_function()->get_type()->is_void()) {
-            oss << "call " << get_function()->get_type()->to_string() << " @" << get_function()->get_name() << "(";
+            oss << (is_tail_call() ? tail : "") << "call " << get_function()->get_type()->to_string() << " @"
+                << get_function()->get_name() << "(";
             oss << params_to_string() << ")";
         } else {
-            oss << name_ << " = call " << get_function()->get_type()->to_string()
-                    << " @" << get_function()->get_name() << "(";
+            oss << name_ << " = " << (is_tail_call() ? tail : "") << "call " << get_function()->get_type()->to_string()
+                << " @" << get_function()->get_name() << "(";
             oss << params_to_string() << ")";
         }
     }
@@ -713,13 +774,14 @@ namespace Mir {
 }
 
 
-#define BINARY_TO_STRING(op_name, instr_name) \
-[[nodiscard]] std::string op_name::to_string() const { \
-    std::ostringstream oss; \
-    oss << name_ << " = "; \
-    oss << #instr_name << " " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", " << get_rhs()->get_name(); \
-    return oss.str(); \
-}
+#define BINARY_TO_STRING(op_name, instr_name)                                                                          \
+    [[nodiscard]] std::string op_name::to_string() const {                                                             \
+        std::ostringstream oss;                                                                                        \
+        oss << name_ << " = ";                                                                                         \
+        oss << #instr_name << " " << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", "        \
+            << get_rhs()->get_name();                                                                                  \
+        return oss.str();                                                                                              \
+    }
 
 BINARY_TO_STRING(Add, add)
 BINARY_TO_STRING(Sub, sub)
@@ -737,33 +799,68 @@ BINARY_TO_STRING(FMod, frem)
 
 std::string Smax::to_string() const {
     std::ostringstream oss;
-    oss << name_ << " = call i32 @llvm.smax.i32("
-            << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", "
-            << get_rhs()->get_type()->to_string() << " " << get_rhs()->get_name() << ")";
+    oss << name_ << " = call i32 @llvm.smax.i32(" << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name()
+        << ", " << get_rhs()->get_type()->to_string() << " " << get_rhs()->get_name() << ")";
     return oss.str();
 }
 
 std::string Smin::to_string() const {
     std::ostringstream oss;
-    oss << name_ << " = call i32 @llvm.smin.i32("
-            << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", "
-            << get_rhs()->get_type()->to_string() << " " << get_rhs()->get_name() << ")";
+    oss << name_ << " = call i32 @llvm.smin.i32(" << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name()
+        << ", " << get_rhs()->get_type()->to_string() << " " << get_rhs()->get_name() << ")";
     return oss.str();
 }
 
 std::string FSmax::to_string() const {
     std::ostringstream oss;
-    oss << name_ << " = call float @llvm.smax.float("
-            << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", "
-            << get_rhs()->get_type()->to_string() << " " << get_rhs()->get_name() << ")";
+    oss << name_ << " = call float @llvm.smax.float(" << get_lhs()->get_type()->to_string() << " "
+        << get_lhs()->get_name() << ", " << get_rhs()->get_type()->to_string() << " " << get_rhs()->get_name() << ")";
     return oss.str();
 }
 
 std::string FSmin::to_string() const {
     std::ostringstream oss;
-    oss << name_ << " = call float @llvm.smin.float("
-            << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name() << ", "
-            << get_rhs()->get_type()->to_string() << " " << get_rhs()->get_name() << ")";
+    oss << name_ << " = call float @llvm.smin.float(" << get_lhs()->get_type()->to_string() << " "
+        << get_lhs()->get_name() << ", " << get_rhs()->get_type()->to_string() << " " << get_rhs()->get_name() << ")";
+    return oss.str();
+}
+
+std::string FMadd::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = call float @__shit_fmadd_s(" << get_x()->get_type()->to_string() << " " << get_x()->get_name()
+        << ", " << get_y()->get_type()->to_string() << " " << get_y()->get_name() << ", "
+        << get_z()->get_type()->to_string() << " " << get_z()->get_name() << ")";
+    return oss.str();
+}
+
+std::string FNmadd::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = call float @__shit_fnmadd_s(" << get_x()->get_type()->to_string() << " " << get_x()->get_name()
+        << ", " << get_y()->get_type()->to_string() << " " << get_y()->get_name() << ", "
+        << get_z()->get_type()->to_string() << " " << get_z()->get_name() << ")";
+    return oss.str();
+}
+
+std::string FMsub::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = call float @__shit_fmsub_s(" << get_x()->get_type()->to_string() << " " << get_x()->get_name()
+        << ", " << get_y()->get_type()->to_string() << " " << get_y()->get_name() << ", "
+        << get_z()->get_type()->to_string() << " " << get_z()->get_name() << ")";
+    return oss.str();
+}
+
+std::string FNmsub::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = call float @__shit_fnmsub_s(" << get_x()->get_type()->to_string() << " " << get_x()->get_name()
+        << ", " << get_y()->get_type()->to_string() << " " << get_y()->get_name() << ", "
+        << get_z()->get_type()->to_string() << " " << get_z()->get_name() << ")";
+    return oss.str();
+}
+
+std::string FNeg::to_string() const {
+    std::ostringstream oss;
+    oss << name_ << " = call float @__shit_fneg_s(" << get_value()->get_type()->to_string() << " "
+        << get_value()->get_name() << ")";
     return oss.str();
 }
 
@@ -789,15 +886,13 @@ std::string Select::to_string() const {
     std::ostringstream oss;
     oss << name_ << " = select " << get_cond()->get_type()->to_string() << " " << get_cond()->get_name() << ", ";
     oss << get_true_value()->get_type()->to_string() << " " << get_true_value()->get_name() << ", "
-            << get_false_value()->get_type()->to_string() << " " << get_false_value()->get_name();
+        << get_false_value()->get_type()->to_string() << " " << get_false_value()->get_name();
     return oss.str();
 }
 
 
 namespace Init {
-    [[nodiscard]] std::string Constant::to_string() const {
-        return type->to_string() + " " + const_value->to_string();
-    }
+    [[nodiscard]] std::string Constant::to_string() const { return type->to_string() + " " + const_value->to_string(); }
 
     [[nodiscard]] std::string Array::to_string() const {
         std::ostringstream oss;
@@ -815,5 +910,5 @@ namespace Init {
         oss << "]";
         return oss.str();
     }
-}
-}
+} // namespace Init
+} // namespace Mir

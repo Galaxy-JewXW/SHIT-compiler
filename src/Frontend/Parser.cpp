@@ -23,7 +23,8 @@ bool Parser::panic_on(Types... expected_types) {
 template<typename... Types>
 bool Parser::match(Types... expected_types) {
     std::unordered_set<Token::Type> types = {expected_types...};
-    if (const Token::Type current_type = peek().type; types.find(current_type) == types.end()) return false;
+    if (const Token::Type current_type = peek().type; types.find(current_type) == types.end())
+        return false;
     pos++;
     return true;
 }
@@ -176,9 +177,7 @@ std::shared_ptr<AST::Block> Parser::parseBlock() {
     panic_on(Token::Type::LBRACE);
     std::vector<std::variant<std::shared_ptr<AST::Decl>, std::shared_ptr<AST::Stmt>>> items;
     while (!match(Token::Type::RBRACE)) {
-        if (peek().type == Token::Type::CONST
-            || peek().type == Token::Type::INT
-            || peek().type == Token::Type::FLOAT) {
+        if (peek().type == Token::Type::CONST || peek().type == Token::Type::INT || peek().type == Token::Type::FLOAT) {
             items.emplace_back(parseDecl());
         } else {
             items.emplace_back(parseStmt());

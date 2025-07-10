@@ -4,9 +4,7 @@
 
 using namespace Mir;
 
-void Interpreter::abort() {
-    throw std::runtime_error("Interpreter abort");
-}
+void Interpreter::abort() { throw std::runtime_error("Interpreter abort"); }
 
 eval_t Interpreter::get_runtime_value(Value *const value) const {
     if (value->is_constant()) {
@@ -41,8 +39,7 @@ void Interpreter::interpret_function(const std::shared_ptr<Function> &func, cons
         const auto original_block = frame->current_block;
         const auto &instructions = original_block->get_instructions();
         for (size_t i{0}; i < instructions.size(); ++i) {
-            if (const auto &instruction = instructions[i];
-                instruction->get_op() == Operator::PHI) {
+            if (const auto &instruction = instructions[i]; instruction->get_op() == Operator::PHI) {
                 interpret_instruction(instruction->as<Phi>());
                 if (i + 1 < instructions.size() && instructions[i + 1]->get_op() == Operator::PHI) {
                     continue;
@@ -72,35 +69,53 @@ void Sitofp::do_interpret(Interpreter *const interpreter) {
 
 void Fcmp::do_interpret(Interpreter *const interpreter) {
     const eval_t left{interpreter->get_runtime_value(this->get_lhs())},
-                 right{interpreter->get_runtime_value(this->get_rhs())};
-    const eval_t res = std::visit([&](const eval_t &l, const eval_t &r) -> eval_t {
-        switch (this->op) {
-            case Op::EQ: return l == r;
-            case Op::NE: return l != r;
-            case Op::GT: return l > r;
-            case Op::GE: return l >= r;
-            case Op::LT: return l < r;
-            case Op::LE: return l <= r;
-            default: log_error("Unhandled binary operator");
-        }
-    }, left, right);
+            right{interpreter->get_runtime_value(this->get_rhs())};
+    const eval_t res = std::visit(
+            [&](const eval_t &l, const eval_t &r) -> eval_t {
+                switch (this->op) {
+                    case Op::EQ:
+                        return l == r;
+                    case Op::NE:
+                        return l != r;
+                    case Op::GT:
+                        return l > r;
+                    case Op::GE:
+                        return l >= r;
+                    case Op::LT:
+                        return l < r;
+                    case Op::LE:
+                        return l <= r;
+                    default:
+                        log_error("Unhandled binary operator");
+                }
+            },
+            left, right);
     interpreter->frame->value_map[this] = res;
 }
 
 void Icmp::do_interpret(Interpreter *const interpreter) {
     const eval_t left{interpreter->get_runtime_value(this->get_lhs())},
-                 right{interpreter->get_runtime_value(this->get_rhs())};
-    const eval_t res = std::visit([&](const eval_t &l, const eval_t &r) -> eval_t {
-        switch (this->op) {
-            case Op::EQ: return l == r;
-            case Op::NE: return l != r;
-            case Op::GT: return l > r;
-            case Op::GE: return l >= r;
-            case Op::LT: return l < r;
-            case Op::LE: return l <= r;
-            default: log_error("Unhandled binary operator");
-        }
-    }, left, right);
+            right{interpreter->get_runtime_value(this->get_rhs())};
+    const eval_t res = std::visit(
+            [&](const eval_t &l, const eval_t &r) -> eval_t {
+                switch (this->op) {
+                    case Op::EQ:
+                        return l == r;
+                    case Op::NE:
+                        return l != r;
+                    case Op::GT:
+                        return l > r;
+                    case Op::GE:
+                        return l >= r;
+                    case Op::LT:
+                        return l < r;
+                    case Op::LE:
+                        return l <= r;
+                    default:
+                        log_error("Unhandled binary operator");
+                }
+            },
+            left, right);
     interpreter->frame->value_map[this] = res;
 }
 
@@ -111,8 +126,8 @@ void Zext::do_interpret(Interpreter *const interpreter) {
 void Branch::do_interpret(Interpreter *const interpreter) {
     interpreter->frame->prev_block = interpreter->frame->current_block;
     interpreter->frame->current_block = interpreter->get_runtime_value(this->get_cond()).get<int>()
-                                            ? this->get_true_block()
-                                            : this->get_false_block();
+                                                ? this->get_true_block()
+                                                : this->get_false_block();
 }
 
 void Jump::do_interpret(Interpreter *const interpreter) {
@@ -124,6 +139,19 @@ void Ret::do_interpret(Interpreter *const interpreter) {
     interpreter->frame->prev_block = interpreter->frame->current_block;
     interpreter->frame->current_block = nullptr;
     interpreter->frame->ret_value = operands_.empty() ? 0 : interpreter->get_runtime_value(this->get_value());
+}
+
+void Switch::do_interpret(Interpreter *const interpreter) {
+    std::unordered_map<eval_t, std::shared_ptr<Block>> _cases;
+    for (const auto &[value, block]: cases_table) {
+        _cases[interpreter->get_runtime_value(value)] = block;
+    }
+    interpreter->frame->prev_block = interpreter->frame->current_block;
+    if (const auto base{interpreter->get_runtime_value(get_base())}; _cases.find(base) != _cases.end()) {
+        interpreter->frame->current_block = _cases[base];
+    } else {
+        interpreter->frame->current_block = get_default_block();
+    }
 }
 
 void Call::do_interpret(Interpreter *const interpreter) {
@@ -152,15 +180,26 @@ void Call::do_interpret(Interpreter *const interpreter) {
 }
 
 void Phi::do_interpret(Interpreter *const interpreter) {
-    interpreter->frame->phi_cache[this] = interpreter->get_runtime_value(
-        this->optional_values.at(interpreter->frame->prev_block));
+    interpreter->frame->phi_cache[this] =
+            interpreter->get_runtime_value(this->optional_values.at(interpreter->frame->prev_block));
 }
 
-#define BINARY_DO_INTERPRET(Class, Calc, Type) \
-void Class::do_interpret(Interpreter *const interpreter)  { \
-    const eval_t left{interpreter->get_runtime_value(this->get_lhs())}, right{interpreter->get_runtime_value(this->get_rhs())}; \
-    interpreter->frame->value_map[this] = [](const Type a, const Type b) {Calc} (left.get<Type>(), right.get<Type>()); \
-}
+#define BINARY_DO_INTERPRET(Class, Calc, Type)                                                                         \
+    void Class::do_interpret(Interpreter *const interpreter) {                                                         \
+        const eval_t left{interpreter->get_runtime_value(this->get_lhs())},                                            \
+                right{interpreter->get_runtime_value(this->get_rhs())};                                                \
+        interpreter->frame->value_map[this] = [](const Type a, const Type b) { Calc }(left.get<Type>(),                \
+                                                                                      right.get<Type>());              \
+    }
+
+#define TERNARY_DO_INTERPRET(Class, Calc, Type)                                                                        \
+    void Class::do_interpret(Interpreter *const interpreter) {                                                         \
+        const eval_t x{interpreter->get_runtime_value(this->get_x())},                                                 \
+                y{interpreter->get_runtime_value(this->get_y())}, z{interpreter->get_runtime_value(this->get_z())};    \
+        interpreter->frame->value_map[this] = [](const int x, const Type y, const Type z) {                            \
+            Calc                                                                                                       \
+        }(x.get<Type>(), y.get<Type>(), z.get<Type>());                                                                \
+    }
 
 // 整数运算
 BINARY_DO_INTERPRET(Add, return a + b;, int)
@@ -183,11 +222,22 @@ BINARY_DO_INTERPRET(FMod, return std::fmod(a, b);, double)
 BINARY_DO_INTERPRET(FSmax, return std::max(a, b);, double)
 BINARY_DO_INTERPRET(FSmin, return std::min(a, b);, double)
 
+TERNARY_DO_INTERPRET(FMadd, return x * y + z;, double)
+TERNARY_DO_INTERPRET(FNmadd, return -(x * y + z);, double)
+TERNARY_DO_INTERPRET(FMsub, return x * y - z;, double)
+TERNARY_DO_INTERPRET(FNmsub, return -(x * y - z);, double)
+
+void FNeg::do_interpret(Interpreter *interpreter) {
+    interpreter->frame->value_map[this] = -interpreter->get_runtime_value(this->get_value());
+}
+
+
 #undef BINARY_DO_INTERPRET
+#undef TERNARY_DO_INTERPRET
 
 void Select::do_interpret(Interpreter *interpreter) {
     const eval_t condition{interpreter->get_runtime_value(this->get_cond())};
     interpreter->frame->value_map[this] = condition.get<int>()
-                                              ? interpreter->get_runtime_value(this->get_true_value())
-                                              : interpreter->get_runtime_value(this->get_false_value());
+                                                  ? interpreter->get_runtime_value(this->get_true_value())
+                                                  : interpreter->get_runtime_value(this->get_false_value());
 }

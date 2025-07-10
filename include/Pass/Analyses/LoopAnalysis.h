@@ -16,11 +16,9 @@ class Loop {
     std::vector<BlockPtr> exits_;
 
 public:
-    Loop(BlockPtr header, const std::vector<BlockPtr> &blocks,
-         const std::vector<BlockPtr> &latch_blocks, const std::vector<BlockPtr> &exitings,
-         const std::vector<BlockPtr> &exits)
-        : header_{std::move(header)}, blocks_{blocks}, latch_blocks_{latch_blocks},
-          exitings_{exitings}, exits_{exits} {}
+    Loop(BlockPtr header, const std::vector<BlockPtr> &blocks, const std::vector<BlockPtr> &latch_blocks,
+         const std::vector<BlockPtr> &exitings, const std::vector<BlockPtr> &exits) :
+        header_{std::move(header)}, blocks_{blocks}, latch_blocks_{latch_blocks}, exitings_{exitings}, exits_{exits} {}
 
     [[nodiscard]] BlockPtr get_header() const { return header_; }
     [[nodiscard]] BlockPtr get_preheader() const { return preheader_; }
@@ -42,11 +40,9 @@ public:
 
 class LoopNodeTreeNode : public std::enable_shared_from_this<LoopNodeTreeNode> {
 public:
-    explicit LoopNodeTreeNode(std::shared_ptr<Loop> loop): loop_{std::move(loop)} {}
+    explicit LoopNodeTreeNode(std::shared_ptr<Loop> loop) : loop_{std::move(loop)} {}
 
-    void add_child(std::shared_ptr<LoopNodeTreeNode> child) {
-        children_.push_back(std::move(child));
-    }
+    void add_child(std::shared_ptr<LoopNodeTreeNode> child) { children_.push_back(std::move(child)); }
 
     void remove_child(const std::shared_ptr<LoopNodeTreeNode> &child) {
         if (const auto it = std::find(children_.begin(), children_.end(), child); it != children_.end()) {
@@ -54,27 +50,21 @@ public:
         }
     }
 
-    void set_parent(std::shared_ptr<LoopNodeTreeNode> parent) {
-        parent_ = std::move(parent);
-    }
+    void set_parent(std::shared_ptr<LoopNodeTreeNode> parent) { parent_ = std::move(parent); }
 
-    std::vector<std::shared_ptr<LoopNodeTreeNode>> &get_children() {
-        return children_;
-    }
+    std::vector<std::shared_ptr<LoopNodeTreeNode>> &get_children() { return children_; }
 
-    std::shared_ptr<LoopNodeTreeNode> get_parent() {
-        return parent_;
-    }
+    std::shared_ptr<LoopNodeTreeNode> get_parent() { return parent_; }
 
     std::shared_ptr<LoopNodeTreeNode> get_ancestor() {
-        if (this->get_parent() == nullptr) { return shared_from_this(); } else {
+        if (this->get_parent() == nullptr) {
+            return shared_from_this();
+        } else {
             return this->get_parent()->get_ancestor();
         }
     }
 
-    std::shared_ptr<Loop> get_loop() {
-        return loop_;
-    }
+    std::shared_ptr<Loop> get_loop() { return loop_; }
 
     void add_block4ancestors(const std::shared_ptr<Mir::Block> &block);
 
@@ -100,7 +90,9 @@ public:
 
     const std::vector<std::shared_ptr<Loop>> &loops(const FunctionPtr &func) const {
         const auto it = loops_.find(func);
-        if (it == loops_.end()) { log_error("Function not existed: %s", func->get_name().c_str()); }
+        if (it == loops_.end()) {
+            log_error("Function not existed: %s", func->get_name().c_str());
+        }
         return it->second;
     }
 
@@ -117,16 +109,17 @@ public:
 
     int get_block_depth(const FunctionPtr &func, const std::shared_ptr<Mir::Block> &block);
 
+    std::shared_ptr<LoopNodeTreeNode> find_block_in_forest(const FunctionPtr &func,
+                                                           const std::shared_ptr<Mir::Block> &block);
+
 private:
     using FunctLoopsMap = std::unordered_map<std::shared_ptr<Mir::Function>, std::vector<std::shared_ptr<Loop>>>;
     FunctLoopsMap loops_;
-    using FunctLoopForestMap = std::unordered_map<std::shared_ptr<Mir::Function>, std::vector<std::shared_ptr<
-        LoopNodeTreeNode>>>;
+    using FunctLoopForestMap =
+            std::unordered_map<std::shared_ptr<Mir::Function>, std::vector<std::shared_ptr<LoopNodeTreeNode>>>;
     FunctLoopForestMap loop_forest_;
 
-    std::shared_ptr<LoopNodeTreeNode> find_block_in_forest(const FunctionPtr &func,
-                                                           const std::shared_ptr<Mir::Block> &block);
 };
-}
+} // namespace Pass
 
-#endif //LOOPANALYSIS_H
+#endif // LOOPANALYSIS_H

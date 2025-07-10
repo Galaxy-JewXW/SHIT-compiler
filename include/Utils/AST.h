@@ -56,20 +56,15 @@ public:
 
     explicit PrimaryExp(const std::shared_ptr<Number> &number) : value_{number} {}
 
-    [[nodiscard]] std::variant<std::shared_ptr<Exp>, std::shared_ptr<LVal>,
-        std::shared_ptr<Number>> get_value() const { return value_; }
-
-    [[nodiscard]] bool is_exp() const {
-        return std::holds_alternative<std::shared_ptr<Exp>>(value_);
+    [[nodiscard]] std::variant<std::shared_ptr<Exp>, std::shared_ptr<LVal>, std::shared_ptr<Number>> get_value() const {
+        return value_;
     }
 
-    [[nodiscard]] bool is_lVal() const {
-        return std::holds_alternative<std::shared_ptr<LVal>>(value_);
-    }
+    [[nodiscard]] bool is_exp() const { return std::holds_alternative<std::shared_ptr<Exp>>(value_); }
 
-    [[nodiscard]] bool is_number() const {
-        return std::holds_alternative<std::shared_ptr<Number>>(value_);
-    }
+    [[nodiscard]] bool is_lVal() const { return std::holds_alternative<std::shared_ptr<LVal>>(value_); }
+
+    [[nodiscard]] bool is_number() const { return std::holds_alternative<std::shared_ptr<Number>>(value_); }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -104,17 +99,11 @@ public:
 
     [[nodiscard]] std::variant<call, opExp, std::shared_ptr<PrimaryExp>> get_value() const { return value_; }
 
-    [[nodiscard]] bool is_primaryExp() const {
-        return std::holds_alternative<std::shared_ptr<PrimaryExp>>(value_);
-    }
+    [[nodiscard]] bool is_primaryExp() const { return std::holds_alternative<std::shared_ptr<PrimaryExp>>(value_); }
 
-    [[nodiscard]] bool is_call() const {
-        return std::holds_alternative<call>(value_);
-    }
+    [[nodiscard]] bool is_call() const { return std::holds_alternative<call>(value_); }
 
-    [[nodiscard]] bool is_opExp() const {
-        return std::holds_alternative<opExp>(value_);
-    }
+    [[nodiscard]] bool is_opExp() const { return std::holds_alternative<opExp>(value_); }
 
     [[nodiscard]] std::string to_string() const override;
 };
@@ -125,8 +114,8 @@ class MulExp final : public Node {
     const std::vector<Token::Type> operators_;
 
 public:
-    MulExp(const std::vector<std::shared_ptr<UnaryExp>> &unaryExps,
-           const std::vector<Token::Type> &operators) : unaryExps_{unaryExps}, operators_{operators} {
+    MulExp(const std::vector<std::shared_ptr<UnaryExp>> &unaryExps, const std::vector<Token::Type> &operators) :
+        unaryExps_{unaryExps}, operators_{operators} {
         if (operators_.size() != unaryExps_.size() - 1) {
             throw std::invalid_argument("MulExp: Unexpected number of operators");
         }
@@ -145,8 +134,8 @@ class AddExp final : public Node {
     const std::vector<Token::Type> operators_;
 
 public:
-    AddExp(const std::vector<std::shared_ptr<MulExp>> &mulExps,
-           const std::vector<Token::Type> &operators) : mulExps_{mulExps}, operators_{operators} {
+    AddExp(const std::vector<std::shared_ptr<MulExp>> &mulExps, const std::vector<Token::Type> &operators) :
+        mulExps_{mulExps}, operators_{operators} {
         if (operators_.size() != mulExps_.size() - 1) {
             throw std::invalid_argument("AddExp: Unexpected number of operators");
         }
@@ -165,8 +154,8 @@ class RelExp final : public Node {
     const std::vector<Token::Type> operators_;
 
 public:
-    RelExp(const std::vector<std::shared_ptr<AddExp>> &addExps,
-           const std::vector<Token::Type> &operators) : addExps_{addExps}, operators_{operators} {
+    RelExp(const std::vector<std::shared_ptr<AddExp>> &addExps, const std::vector<Token::Type> &operators) :
+        addExps_{addExps}, operators_{operators} {
         if (operators_.size() != addExps_.size() - 1) {
             throw std::invalid_argument("RelExp: Unexpected number of operators");
         }
@@ -185,8 +174,8 @@ class EqExp final : public Node {
     const std::vector<Token::Type> operators_;
 
 public:
-    EqExp(const std::vector<std::shared_ptr<RelExp>> &relExps,
-          const std::vector<Token::Type> &operators) : relExps_{relExps}, operators_{operators} {
+    EqExp(const std::vector<std::shared_ptr<RelExp>> &relExps, const std::vector<Token::Type> &operators) :
+        relExps_{relExps}, operators_{operators} {
         if (operators_.size() != relExps_.size() - 1) {
             throw std::invalid_argument("EqExp: Unexpected number of operators");
         }
@@ -347,8 +336,8 @@ class IfStmt final : public Stmt {
     const std::shared_ptr<Stmt> else_;
 
 public:
-    IfStmt(const std::shared_ptr<Cond> &cond, const std::shared_ptr<Stmt> &then,
-           const std::shared_ptr<Stmt> &else_) : cond_{cond}, then_{then}, else_{else_} {}
+    IfStmt(const std::shared_ptr<Cond> &cond, const std::shared_ptr<Stmt> &then, const std::shared_ptr<Stmt> &else_) :
+        cond_{cond}, then_{then}, else_{else_} {}
 
     [[nodiscard]] std::shared_ptr<Cond> cond() const { return cond_; }
 
@@ -404,11 +393,11 @@ public:
     explicit ConstInitVal(const std::vector<std::shared_ptr<ConstInitVal>> &constInitVals) : value_{constInitVals} {}
 
     [[nodiscard]] std::variant<std::shared_ptr<ConstExp>, std::vector<std::shared_ptr<ConstInitVal>>>
-    get_value() const { return value_; }
-
-    [[nodiscard]] bool is_constExp() const {
-        return std::holds_alternative<std::shared_ptr<ConstExp>>(value_);
+    get_value() const {
+        return value_;
     }
+
+    [[nodiscard]] bool is_constExp() const { return std::holds_alternative<std::shared_ptr<ConstExp>>(value_); }
 
     [[nodiscard]] bool is_constInitVals() const {
         return std::holds_alternative<std::vector<std::shared_ptr<ConstInitVal>>>(value_);
@@ -465,9 +454,7 @@ public:
         return value_;
     }
 
-    [[nodiscard]] bool is_exp() const {
-        return std::holds_alternative<std::shared_ptr<Exp>>(value_);
-    }
+    [[nodiscard]] bool is_exp() const { return std::holds_alternative<std::shared_ptr<Exp>>(value_); }
 
     [[nodiscard]] bool is_initVals() const {
         return std::holds_alternative<std::vector<std::shared_ptr<InitVal>>>(value_);
@@ -521,8 +508,7 @@ class FuncFParam final : public Node {
     const std::vector<std::shared_ptr<Exp>> exps_;
 
 public:
-    FuncFParam(const Token::Type &bType, std::string ident,
-               const std::vector<std::shared_ptr<Exp>> &exps) :
+    FuncFParam(const Token::Type &bType, std::string ident, const std::vector<std::shared_ptr<Exp>> &exps) :
         bType_{bType}, ident_{std::move(ident)}, exps_{exps} {}
 
     [[nodiscard]] Token::Type bType() const { return bType_; }
@@ -540,8 +526,7 @@ class FuncDef final : public Node {
     const std::shared_ptr<Block> block_;
 
 public:
-    FuncDef(const Token::Type &funcType, std::string ident,
-            const std::vector<std::shared_ptr<FuncFParam>> &funcParams,
+    FuncDef(const Token::Type &funcType, std::string ident, const std::vector<std::shared_ptr<FuncFParam>> &funcParams,
             const std::shared_ptr<Block> &block) :
         funcType_{funcType}, ident_{std::move(ident)}, funcParams_{funcParams}, block_{block} {}
 
@@ -558,8 +543,7 @@ class CompUnit final : public Node {
     const std::vector<std::variant<std::shared_ptr<Decl>, std::shared_ptr<FuncDef>>> compunits_;
 
 public:
-    explicit CompUnit(const std::vector<std::variant<std::shared_ptr<Decl>,
-        std::shared_ptr<FuncDef>>> &compunits) :
+    explicit CompUnit(const std::vector<std::variant<std::shared_ptr<Decl>, std::shared_ptr<FuncDef>>> &compunits) :
         compunits_{compunits} {}
 
     [[nodiscard]] std::string to_string() const override;
@@ -568,5 +552,5 @@ public:
         return compunits_;
     }
 };
-}
+} // namespace AST
 #endif

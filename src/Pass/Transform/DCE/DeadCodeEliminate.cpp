@@ -11,7 +11,7 @@ void add_all_operands(const std::shared_ptr<Instruction> &instruction,
         }
     }
 }
-}
+} // namespace
 
 namespace Pass {
 void DeadCodeEliminate::init_useful_instruction(const std::shared_ptr<Function> &function) {
@@ -54,8 +54,7 @@ void DeadCodeEliminate::update_useful_instruction(const std::shared_ptr<Instruct
             if (inst == nullptr) {
                 continue;
             }
-            if (const auto op = inst->get_op();
-                op == Operator::STORE || op == Operator::GEP || op == Operator::CALL) {
+            if (const auto op = inst->get_op(); op == Operator::STORE || op == Operator::GEP || op == Operator::CALL) {
                 useful_instructions_.insert(inst);
             } else if (inst->users().size() > 0) {
                 useful_instructions_.insert(inst);
@@ -117,4 +116,4 @@ void DeadCodeEliminate::transform(const std::shared_ptr<Module> module) {
     dead_global_variable_eliminate(module);
     function_analysis_ = nullptr;
 }
-}
+} // namespace Pass

@@ -40,7 +40,7 @@ void pettis_hansen_placement(const std::shared_ptr<Function> &func,
 [[maybe_unused]]
 void static_probability_placement(const std::shared_ptr<Function> &func,
                                   const std::shared_ptr<Pass::ControlFlowGraph> &cfg) {}
-}
+} // namespace
 
 namespace Pass {
 void BlockPositioning::run_on_func(const std::shared_ptr<Function> &func) const {
@@ -54,4 +54,4 @@ void BlockPositioning::transform(const std::shared_ptr<Module> module) {
     }
     cfg_info = nullptr;
 }
-}
+} // namespace Pass

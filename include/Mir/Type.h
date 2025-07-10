@@ -156,5 +156,5 @@ public:
 };
 
 [[nodiscard]] std::shared_ptr<Type> get_type(const Token::Type &token_type);
-}
+} // namespace Mir::Type
 #endif

@@ -1,8 +1,8 @@
 #ifndef DCE_H
 #define DCE_H
 
-#include "Pass/Transform.h"
 #include "Pass/Analyses/FunctionAnalysis.h"
+#include "Pass/Transform.h"
 
 namespace Pass {
 // 删除未被使用的指令
@@ -77,6 +77,6 @@ private:
 
     static void run_on_func(const std::shared_ptr<Mir::Function> &func);
 };
-}
+} // namespace Pass
 
-#endif //DCE_H
+#endif // DCE_H

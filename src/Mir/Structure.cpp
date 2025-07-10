@@ -4,7 +4,9 @@
 
 namespace Mir {
 void Module::update_id() const {
-    for (const auto &function: functions) { function->update_id(); }
+    for (const auto &function: functions) {
+        function->update_id();
+    }
 }
 
 void Function::update_id() const {
@@ -16,21 +18,21 @@ void Function::update_id() const {
     for (const auto &block: blocks) {
         block->set_name(Builder::gen_block_name());
         for (const auto &instruction: block->get_instructions()) {
-            if (!instruction->get_name().empty()) { instruction->set_name(Builder::gen_variable_name()); }
+            if (!instruction->get_name().empty()) {
+                instruction->set_name(Builder::gen_variable_name());
+            }
         }
     }
 }
 
-void Block::modify_successor(const std::shared_ptr<Block> &old_successor, const std::shared_ptr<Block> &new_successor) const {
-    for (auto &instruction: instructions) {
-        if (dynamic_cast<Branch*>(instruction.get()) != nullptr) {
-            const auto branch = std::static_pointer_cast<Branch>(instruction);
-            branch->modify_operand(old_successor, new_successor);
-        }
-        if (dynamic_cast<Jump*>(instruction.get()) != nullptr) {
-            const auto jump = std::static_pointer_cast<Jump>(instruction);
-            jump->modify_operand(old_successor, new_successor);
-        }
+void Block::modify_successor(const std::shared_ptr<Block> &old_successor,
+                             const std::shared_ptr<Block> &new_successor) const {
+    auto terminator = instructions.back();
+    if (dynamic_cast<Branch *>(terminator.get()) != nullptr) {
+        terminator->modify_operand(old_successor, new_successor);
+    }
+    if (dynamic_cast<Jump *>(terminator.get()) != nullptr) {
+        terminator->modify_operand(old_successor, new_successor);
     }
 }
 
@@ -45,4 +47,4 @@ std::shared_ptr<std::vector<std::shared_ptr<Instruction>>> Block::get_phis() {
     return phis;
 }
 
-}
+} // namespace Mir

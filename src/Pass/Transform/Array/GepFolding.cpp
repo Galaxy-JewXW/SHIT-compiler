@@ -1,6 +1,6 @@
-#include "Pass/Util.h"
 #include "Pass/Transforms/Array.h"
 #include "Pass/Transforms/DataFlow.h"
+#include "Pass/Util.h"
 
 using namespace Mir;
 
@@ -70,7 +70,7 @@ void try_fold_gep(const std::shared_ptr<GetElementPtr> &gep) {
         gep->replace_by_new_value(new_inst);
     }
 }
-}
+} // namespace
 
 namespace Pass {
 void GepFolding::run_on_func(const std::shared_ptr<Function> &func) const {
@@ -96,6 +96,5 @@ void GepFolding::transform(const std::shared_ptr<Module> module) {
     }
     module->update_id();
     dom_graph = nullptr;
-    create<GlobalValueNumbering>()->run_on(module);
 }
-}
+} // namespace Pass

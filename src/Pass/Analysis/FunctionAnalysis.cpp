@@ -43,7 +43,7 @@ std::vector<FunctionPtr> topo_order(const FunctionPtr &main, const FunctionMap &
     dfs(dfs, main);
     return order;
 }
-}
+} // namespace
 
 namespace Pass {
 void FunctionAnalysis::build_call_graph(const FunctionPtr &func) {
@@ -89,8 +89,7 @@ void FunctionAnalysis::build_func_attribute(const FunctionPtr &func) {
                 const auto &call = inst->as<Mir::Call>();
                 if (const auto &called_func = call->get_function()->as<Mir::Function>();
                     called_func->is_runtime_func()) {
-                    if (const auto name = called_func->get_name();
-                        name.find("get") != std::string::npos) {
+                    if (const auto name = called_func->get_name(); name.find("get") != std::string::npos) {
                         io_read = true;
                     } else if (name.find("put") != std::string::npos) {
                         io_write = true;
@@ -129,13 +128,13 @@ void FunctionAnalysis::transmit_attribute(const std::vector<FunctionPtr> &topo) 
             infos_[func].io_write |= infos_[callee].io_write;
             infos_[func].has_side_effect |= infos_[callee].has_side_effect;
             // infos_[func].used_global_variables;
-            std::set_union(infos_[func].used_global_variables.begin(), infos_[func].used_global_variables.end(),
-                           infos_[callee].used_global_variables.begin(), infos_[callee].used_global_variables.end(),
-                           std::inserter(infos_[func].used_global_variables,
-                                         infos_[func].used_global_variables.begin()));
+            std::set_union(
+                    infos_[func].used_global_variables.begin(), infos_[func].used_global_variables.end(),
+                    infos_[callee].used_global_variables.begin(), infos_[callee].used_global_variables.end(),
+                    std::inserter(infos_[func].used_global_variables, infos_[func].used_global_variables.begin()));
         }
-        infos_[func].no_state = infos_[func].no_state && !infos_[func].has_side_effect &&
-                                !infos_[func].memory_read && !infos_[func].memory_write;
+        infos_[func].no_state = infos_[func].no_state && !infos_[func].has_side_effect && !infos_[func].memory_read &&
+                                !infos_[func].memory_write;
     }
 }
 
@@ -160,9 +159,8 @@ static void print_function_analysis(const FunctionPtr &func, const FunctionMap &
     } else {
         oss << "  (None)" << std::endl;
     }
-    const auto &[is_recursive, is_leaf, memory_read, memory_write,
-        memory_alloc, io_read, io_write, has_return,
-        has_side_effect, no_state, used_global_variables] = infos.at(func);
+    const auto &[is_recursive, is_leaf, memory_read, memory_write, memory_alloc, io_read, io_write, has_return,
+                 has_side_effect, no_state, used_global_variables] = infos.at(func);
     oss << "Function attributes:" << std::endl;
     oss << "  is_recursive    : " << (is_recursive ? "true" : "false") << std::endl;
     oss << "  is_leaf         : " << (is_leaf ? "true" : "false") << std::endl;
@@ -199,4 +197,4 @@ void FunctionAnalysis::analyze(const std::shared_ptr<const Mir::Module> module) 
         print_function_analysis(func, call_graph_, call_graph_reverse_, infos_);
     }
 }
-}
+} // namespace Pass

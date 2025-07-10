@@ -103,7 +103,7 @@ public:
 // 用于自动类型转换
 std::shared_ptr<Value> type_cast(const std::shared_ptr<Value> &v, const std::shared_ptr<Type::Type> &target_type,
                                  const std::shared_ptr<Block> &block);
-}
+} // namespace Mir
 
 // 用于在编译期内计算常数
 eval_t eval_exp(const std::shared_ptr<AST::AddExp> &exp, const std::shared_ptr<Mir::Symbol::Table> &table);

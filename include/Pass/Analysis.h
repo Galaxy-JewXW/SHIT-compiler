@@ -1,8 +1,8 @@
 #ifndef ANALYSIS_H
 #define ANALYSIS_H
 
-#include <typeindex>
 #include <type_traits>
+#include <typeindex>
 #include <utility>
 
 #include "Pass.h"
@@ -20,15 +20,17 @@ public:
         analyze(const_module);
     }
 
-    void run_on(const std::shared_ptr<const Mir::Module> &module) {
-        analyze(module);
+    void run_on(const std::shared_ptr<const Mir::Module> &module) { analyze(module); }
+
+    [[nodiscard]]
+    virtual bool is_dirty() const {
+        return true;
     }
 
     [[nodiscard]]
-    virtual bool is_dirty() const { return true; }
-
-    [[nodiscard]]
-    virtual bool is_dirty(const std::shared_ptr<Mir::Function> &function) const { return true; }
+    virtual bool is_dirty(const std::shared_ptr<Mir::Function> &function) const {
+        return true;
+    }
 
 protected:
     // 子类必须实现的纯虚函数（只读版本）
@@ -44,8 +46,9 @@ template<typename, typename = void>
 struct has_set_dirty : std::false_type {};
 
 template<typename T>
-struct has_set_dirty<T, std::void_t<decltype(std::declval<T>().set_dirty(std::declval<std::shared_ptr<Mir::Function>>())
-        )>> : std::true_type {};
+struct has_set_dirty<T,
+                     std::void_t<decltype(std::declval<T>().set_dirty(std::declval<std::shared_ptr<Mir::Function>>()))>>
+    : std::true_type {};
 
 template<typename T>
 inline constexpr bool has_set_dirty_v = has_set_dirty<T>::value;
@@ -62,11 +65,10 @@ void set_analysis_result_dirty(const std::shared_ptr<Mir::Function> &function) {
 }
 
 template<typename T, typename... Args>
-std::shared_ptr<T> get_analysis_result(const std::shared_ptr<Mir::Module> module, Args &&... args) {
+std::shared_ptr<T> get_analysis_result(const std::shared_ptr<Mir::Module> module, Args &&...args) {
     static_assert(std::is_base_of_v<Analysis, T>, "T must be a subclass of Analysis");
     const std::type_index idx(typeid(T));
-    if (const auto it = _analysis_results().find(idx);
-        it != _analysis_results().end() && !it->second->is_dirty()) {
+    if (const auto it = _analysis_results().find(idx); it != _analysis_results().end() && !it->second->is_dirty()) {
         return std::static_pointer_cast<T>(it->second);
     }
     // 检查 PassType 是否是 Pass 的派生类
@@ -80,10 +82,10 @@ std::shared_ptr<T> get_analysis_result(const std::shared_ptr<Mir::Module> module
 }
 
 template<typename T, typename... Args>
-std::shared_ptr<T> get_analysis_result(const std::shared_ptr<const Mir::Module> &module, Args &&... args) {
+std::shared_ptr<T> get_analysis_result(const std::shared_ptr<const Mir::Module> &module, Args &&...args) {
     static_assert(std::is_base_of_v<Analysis, T>, "T must be a subclass of Analysis");
     return get_analysis_result<T, Args...>(std::const_pointer_cast<Mir::Module>(module), std::forward<Args>(args)...);
 }
-}
+} // namespace Pass
 
-#endif //ANALYSIS_H
+#endif // ANALYSIS_H

@@ -16,15 +16,13 @@ void Mem2Reg::init_mem2reg() {
     for (const auto &user: current_alloc->users()) {
         auto inst = std::dynamic_pointer_cast<Instruction>(user);
         if (inst == nullptr) {
-            log_error("User of %s is not instruction: %s",
-                      current_alloc->to_string().c_str(), user->to_string().c_str());
+            log_error("User of %s is not instruction: %s", current_alloc->to_string().c_str(),
+                      user->to_string().c_str());
         }
-        if (const auto load = std::dynamic_pointer_cast<Load>(inst);
-            load && !load->get_block()->is_deleted()) {
+        if (const auto load = std::dynamic_pointer_cast<Load>(inst); load && !load->get_block()->is_deleted()) {
             use_instructions.emplace_back(load);
         }
-        if (const auto store = std::dynamic_pointer_cast<Store>(inst);
-            store && !store->get_block()->is_deleted()) {
+        if (const auto store = std::dynamic_pointer_cast<Store>(inst); store && !store->get_block()->is_deleted()) {
             def_instructions.emplace_back(store);
             if (std::find(def_blocks.begin(), def_blocks.end(), store->get_block()) == def_blocks.end()) {
                 def_blocks.emplace_back(store->get_block());
@@ -40,15 +38,15 @@ void Mem2Reg::insert_phi() {
         const auto x = worklist.front();
         worklist.erase(worklist.begin());
         for (const auto &y: dom_info->graph(current_function).dominance_frontier.at(x)) {
-            if (processed_blocks.find(y) != processed_blocks.end()) continue;
+            if (processed_blocks.find(y) != processed_blocks.end())
+                continue;
             std::unordered_map<std::shared_ptr<Block>, std::shared_ptr<Value>> optional_map;
             for (const auto &prev_block: cfg_info->graph(current_function).predecessors.at(y)) {
                 optional_map[prev_block] = nullptr;
             }
-            const auto contain_type = std::static_pointer_cast<Type::Pointer>(current_alloc->get_type())
-                  ->get_contain_type();
-            const auto phi = Phi::create(Builder::gen_variable_name(), contain_type,
-                                         nullptr, optional_map);
+            const auto contain_type =
+                    std::static_pointer_cast<Type::Pointer>(current_alloc->get_type())->get_contain_type();
+            const auto phi = Phi::create(Builder::gen_variable_name(), contain_type, nullptr, optional_map);
             phi->set_block(y, false);
             y->get_instructions().insert(y->get_instructions().begin(), phi);
             use_instructions.emplace_back(phi);
@@ -63,13 +61,13 @@ void Mem2Reg::insert_phi() {
 
 void Mem2Reg::rename_variables(const std::shared_ptr<Block> &block) {
     int stack_depth{0};
-    const auto contain_type = std::static_pointer_cast<Type::Pointer>(current_alloc->get_type())
-          ->get_contain_type();
+    const auto contain_type = std::static_pointer_cast<Type::Pointer>(current_alloc->get_type())->get_contain_type();
     for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
         if (auto instruction = *it; instruction == current_alloc) {
             it = block->get_instructions().erase(it);
         } else if (const auto load = std::dynamic_pointer_cast<Load>(instruction);
-            load && std::find(use_instructions.begin(), use_instructions.end(), load) != use_instructions.end()) {
+                   load &&
+                   std::find(use_instructions.begin(), use_instructions.end(), load) != use_instructions.end()) {
             std::shared_ptr<Value> new_value;
             if (!def_stack.empty()) {
                 new_value = def_stack.back();
@@ -83,14 +81,15 @@ void Mem2Reg::rename_variables(const std::shared_ptr<Block> &block) {
             load->replace_by_new_value(new_value);
             it = block->get_instructions().erase(it);
         } else if (const auto store = std::dynamic_pointer_cast<Store>(instruction);
-            store && std::find(def_instructions.begin(), def_instructions.end(), store) != def_instructions.end()) {
+                   store &&
+                   std::find(def_instructions.begin(), def_instructions.end(), store) != def_instructions.end()) {
             const auto stored_value = store->get_value();
             def_stack.emplace_back(stored_value);
             store->clear_operands();
             ++stack_depth;
             it = block->get_instructions().erase(it);
         } else if (const auto phi = std::dynamic_pointer_cast<Phi>(instruction);
-            phi && std::find(def_instructions.begin(), def_instructions.end(), phi) != def_instructions.end()) {
+                   phi && std::find(def_instructions.begin(), def_instructions.end(), phi) != def_instructions.end()) {
             def_stack.emplace_back(phi);
             ++stack_depth;
             ++it;
@@ -136,8 +135,9 @@ void Mem2Reg::transform(const std::shared_ptr<Module> module) {
             for (const auto &inst: block->get_instructions()) {
                 if (inst->get_op() == Operator::ALLOC) {
                     auto alloc = std::static_pointer_cast<Alloc>(inst);
-                    if (const auto contain_type = std::static_pointer_cast<Type::Pointer>(alloc->get_type())->
-                            get_contain_type(); !contain_type->is_array()) {
+                    if (const auto contain_type =
+                                std::static_pointer_cast<Type::Pointer>(alloc->get_type())->get_contain_type();
+                        !contain_type->is_array()) {
                         valid_allocs.emplace_back(alloc);
                     }
                 }
@@ -162,4 +162,4 @@ void Mem2Reg::transform(const std::shared_ptr<Module> module) {
     def_blocks.clear();
     def_stack.clear();
 }
-}
+} // namespace Pass

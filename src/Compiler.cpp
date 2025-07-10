@@ -2,8 +2,8 @@
 
 int main(int argc, char *argv[]) {
 #ifdef SHIT_DEBUG
-    log_set_level(LOG_TRACE);
-    compiler_options options = debug_compile_options;
+    log_set_level(LOG_INFO);
+    const compiler_options &options = debug_compile_options;
 #else
     log_set_level(LOG_INFO);
     compiler_options options = parse_args(argc, argv);

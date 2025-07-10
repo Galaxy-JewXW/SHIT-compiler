@@ -10,14 +10,10 @@ class Parser {
     // 当前指针位置
     size_t pos;
     // 当前字符
-    [[nodiscard]] Token::Token peek() const {
-        return tokens.at(pos);
-    }
+    [[nodiscard]] Token::Token peek() const { return tokens.at(pos); }
 
     // 向前(后)读n个字符
-    [[nodiscard]] Token::Token next(const int offset = 1) const {
-        return tokens.at(pos + offset);
-    }
+    [[nodiscard]] Token::Token next(const int offset = 1) const { return tokens.at(pos + offset); }
 
     // 如果该位置不是符合要求的Token，抛出异常；否则pos向前移动
     template<typename... Types>
@@ -86,13 +82,9 @@ class Parser {
 public:
     explicit Parser(const std::vector<Token::Token> &tokens) : tokens{tokens}, pos{0} {}
 
-    std::shared_ptr<AST::CompUnit> parse() {
-        return parseCompUnit();
-    }
+    std::shared_ptr<AST::CompUnit> parse() { return parseCompUnit(); }
 
-    [[nodiscard]] bool eof() const {
-        return tokens[pos].type == Token::Type::END_OF_FILE;
-    }
+    [[nodiscard]] bool eof() const { return tokens[pos].type == Token::Type::END_OF_FILE; }
 };
 
-#endif //PARSER_H
+#endif // PARSER_H

@@ -1,10 +1,10 @@
 #ifndef ARRAY_H
 #define ARRAY_H
 
-#include "Pass/Transform.h"
 #include "Pass/Analyses/ControlFlowGraph.h"
 #include "Pass/Analyses/DominanceGraph.h"
 #include "Pass/Analyses/FunctionAnalysis.h"
+#include "Pass/Transform.h"
 
 namespace Pass {
 // getelementptr 折叠：将嵌套的 getelementptr 指令链折叠为单一 getelementptr 指令
@@ -132,6 +132,6 @@ public:
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 };
-}
+} // namespace Pass
 
-#endif //ARRAY_H
+#endif // ARRAY_H

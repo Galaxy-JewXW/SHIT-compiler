@@ -1,11 +1,11 @@
 #ifndef DATAFLOW_H
 #define DATAFLOW_H
 
-#include "Pass/Transform.h"
 #include "Pass/Analyses/ControlFlowGraph.h"
 #include "Pass/Analyses/DominanceGraph.h"
 #include "Pass/Analyses/FunctionAnalysis.h"
 #include "Pass/Analyses/LoopAnalysis.h"
+#include "Pass/Transform.h"
 
 namespace Pass {
 // 自动地将 alloca 变量提升为寄存器变量，将IR转化为SSA形式
@@ -86,8 +86,7 @@ protected:
 
     bool run_on_func(const std::shared_ptr<Mir::Function> &func);
 
-    bool run_on_block(const std::shared_ptr<Mir::Function> &func,
-                      const std::shared_ptr<Mir::Block> &block,
+    bool run_on_block(const std::shared_ptr<Mir::Function> &func, const std::shared_ptr<Mir::Block> &block,
                       std::unordered_map<std::string, std::shared_ptr<Mir::Instruction>> &value_hashmap);
 
 private:
@@ -124,6 +123,6 @@ protected:
 
     static void run_on_func(const std::shared_ptr<Mir::Function> &func);
 };
-}
+} // namespace Pass
 
-#endif //DATAFLOW_H
+#endif // DATAFLOW_H

@@ -1,16 +1,18 @@
 #ifndef CONTROLFLOW_H
 #define CONTROLFLOW_H
 
-#include "Pass/Transform.h"
 #include "Pass/Analyses/ControlFlowGraph.h"
 #include "Pass/Analyses/DominanceGraph.h"
 #include "Pass/Analyses/FunctionAnalysis.h"
+#include "Pass/Transform.h"
+
 
 namespace Pass {
 /**
  * 简化控制流：
  * 1. 删除没有前驱块（即无法到达）的基本块
- * 2. 如果某一个基本块只有一个前驱，且前驱的后继只有当前基本块，则将当前基本块与其前驱合并
+ * 2.
+ * 如果某一个基本块只有一个前驱，且前驱的后继只有当前基本块，则将当前基本块与其前驱合并
  * 3. 消除只有一个前驱块的phi节点
  * 4. 消除只包含单个非条件跳转的基本块
  * 5. 消除只包含单个条件跳转的基本块
@@ -47,21 +49,6 @@ private:
     std::shared_ptr<ControlFlowGraph> cfg_info;
 };
 
-// 尾递归优化：将尾递归转换为循环
-class TailRecursionToLoop final : public Transform {
-public:
-    explicit TailRecursionToLoop() : Transform("TailRecursionToLoop") {}
-
-protected:
-    void transform(std::shared_ptr<Mir::Module> module) override;
-
-    void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
-
-private:
-    std::shared_ptr<ControlFlowGraph> cfg_info;
-    std::shared_ptr<FunctionAnalysis> func_info;
-};
-
 // 合并嵌套的分支，减少控制流复杂度
 class BranchMerging final : public Transform {
 public:
@@ -76,6 +63,42 @@ private:
     std::shared_ptr<ControlFlowGraph> cfg_info;
     std::shared_ptr<DominanceGraph> dom_info;
 };
-}
 
-#endif //CONTROLFLOW_H
+// 将 if-elif-else 链转换为 switch
+class IfChainToSwitch final : public Transform {
+public:
+    explicit IfChainToSwitch() : Transform("IfChainToSwitch") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+    void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
+
+private:
+    std::shared_ptr<ControlFlowGraph> cfg_info;
+    std::shared_ptr<DominanceGraph> dom_info;
+};
+
+// 尾调用优化：将部分 call 指令标记为tail call，消除了函数返回/入栈开销
+class TailCallOptimize final : public Transform {
+public:
+    explicit TailCallOptimize() : Transform("TailCallOptimize") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+    void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
+
+    void tail_call_detect(const std::shared_ptr<Mir::Function> &func) const;
+
+    void tail_call_eliminate(const std::shared_ptr<Mir::Function> &func) const;
+
+    static bool handle_tail_call(const std::shared_ptr<Mir::Call> &call);
+
+private:
+    std::shared_ptr<ControlFlowGraph> cfg_info;
+    std::shared_ptr<FunctionAnalysis> func_info;
+};
+} // namespace Pass
+
+#endif

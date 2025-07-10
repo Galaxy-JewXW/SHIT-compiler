@@ -1,8 +1,8 @@
 #include <deque>
 
 #include "Mir/Init.h"
-#include "Pass/Util.h"
 #include "Pass/Transforms/Array.h"
+#include "Pass/Util.h"
 
 using namespace Mir;
 
@@ -70,7 +70,7 @@ void transform_global_variable(const std::shared_ptr<GlobalVariable> &gv) {
     }
     Pass::Utils::delete_instruction_set(Module::instance(), deleted_instructions);
 }
-}
+} // namespace
 
 void Pass::ConstIndexToValue::transform(const std::shared_ptr<Module> module) {
     std::for_each(module->get_global_variables().begin(), module->get_global_variables().end(),

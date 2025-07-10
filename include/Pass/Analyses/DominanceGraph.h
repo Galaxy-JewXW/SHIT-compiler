@@ -38,6 +38,8 @@ public:
 
     std::vector<BlockPtr> dom_tree_layer(const FunctionPtr &func);
 
+    std::vector<BlockPtr> pre_order_blocks(const FunctionPtr &func);
+
     std::vector<BlockPtr> post_order_blocks(const FunctionPtr &func);
 
     bool is_dirty() const override;
@@ -46,9 +48,7 @@ public:
 
     void set_dirty(const FunctionPtr &func);
 
-    void remove(const FunctionPtr &func) {
-        graphs_.erase(func);
-    }
+    void remove(const FunctionPtr &func) { graphs_.erase(func); }
 
 protected:
     void analyze(std::shared_ptr<const Mir::Module> module) override;
@@ -58,6 +58,6 @@ private:
 
     std::unordered_map<FunctionPtr, bool> dirty_funcs_;
 };
-}
+} // namespace Pass
 
-#endif //DOMINANCEGRAPH_H
+#endif // DOMINANCEGRAPH_H

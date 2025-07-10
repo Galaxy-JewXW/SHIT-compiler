@@ -1,9 +1,9 @@
 #include <queue>
 
-#include "Pass/Analyses/ControlFlowGraph.h"
 #include "Mir/Instruction.h"
-#include "Pass/Util.h"
+#include "Pass/Analyses/ControlFlowGraph.h"
 #include "Pass/Analyses/DominanceGraph.h"
+#include "Pass/Util.h"
 
 using FunctionPtr = std::shared_ptr<Mir::Function>;
 using BlockPtr = std::shared_ptr<Mir::Block>;
@@ -21,14 +21,20 @@ void build_predecessors_successors(const FunctionPtr &func,
                       last_instruction->to_string().c_str());
         }
         std::unordered_set<BlockPtr> successors;
-        if (terminator->get_op() == Mir::Operator::BRANCH) {
+        if (const auto t = terminator->get_op(); t == Mir::Operator::BRANCH) {
             const auto branch = std::static_pointer_cast<Mir::Branch>(terminator);
             successors.insert(branch->get_true_block());
             successors.insert(branch->get_false_block());
-        } else if (terminator->get_op() == Mir::Operator::JUMP) {
+        } else if (t == Mir::Operator::JUMP) {
             const auto jump = std::static_pointer_cast<Mir::Jump>(terminator);
             successors.insert(jump->get_target_block());
-        } else if (terminator->get_op() != Mir::Operator::RET) {
+        } else if (t == Mir::Operator::SWITCH) {
+            const auto switch_ = std::static_pointer_cast<Mir::Switch>(terminator);
+            successors.insert(switch_->get_default_block());
+            for (const auto &[value, block]: switch_->cases()) {
+                successors.insert(block);
+            }
+        } else if (t != Mir::Operator::RET) {
             log_error("Last instruction of block %s is not a terminator: %s", block->get_name().c_str(),
                       last_instruction->to_string().c_str());
         }
@@ -40,11 +46,10 @@ void build_predecessors_successors(const FunctionPtr &func,
     std::ostringstream oss;
     oss << "\n▷▷ Function: [" << func->get_name() << "]\n";
     for (const auto &block: func->get_blocks()) {
-        const auto &preds = pred_map[block],
-                   &succs = succ_map[block];
+        const auto &preds = pred_map[block], &succs = succ_map[block];
         oss << "  ■ Block: \"" << block->get_name() << "\"\n"
-                << "    ├─←←← " << Pass::Utils::format_blocks(preds) << "\n"
-                << "    └─→→→ " << Pass::Utils::format_blocks(succs) << "\n";
+            << "    ├─←←← " << Pass::Utils::format_blocks(preds) << "\n"
+            << "    └─→→→ " << Pass::Utils::format_blocks(succs) << "\n";
     }
     log_debug("%s", oss.str().c_str());
 }
@@ -92,7 +97,7 @@ void build_dom_tree_layer_order(const FunctionPtr &func,
         }
     }
 }
-}
+} // namespace
 
 namespace Pass {
 void ControlFlowGraph::analyze(const std::shared_ptr<const Mir::Module> module) {
@@ -107,17 +112,14 @@ void ControlFlowGraph::analyze(const std::shared_ptr<const Mir::Module> module) 
             graphs_.erase(func);
         }
         graphs_.try_emplace(func, Graph{});
-        auto &pred_map = graphs_[func].predecessors,
-             &succ_map = graphs_[func].successors;
+        auto &pred_map = graphs_[func].predecessors, &succ_map = graphs_[func].successors;
         build_predecessors_successors(func, pred_map, succ_map);
         dirty_funcs_[func] = false;
     }
 }
 
 bool ControlFlowGraph::is_dirty() const {
-    return std::any_of(dirty_funcs_.begin(), dirty_funcs_.end(), [](const auto &pair) {
-        return pair.second;
-    });
+    return std::any_of(dirty_funcs_.begin(), dirty_funcs_.end(), [](const auto &pair) { return pair.second; });
 }
 
 bool ControlFlowGraph::is_dirty(const std::shared_ptr<Mir::Function> &function) const {
@@ -131,4 +133,4 @@ void ControlFlowGraph::set_dirty(const FunctionPtr &func) {
     dirty_funcs_[func] = true;
     set_analysis_result_dirty<DominanceGraph>(func);
 }
-}
+} // namespace Pass

@@ -1,8 +1,8 @@
 #ifndef ALIASANALYSIS_H
 #define ALIASANALYSIS_H
 
-#include "Pass/Analysis.h"
 #include "Pass/Analyses/DominanceGraph.h"
+#include "Pass/Analysis.h"
 
 namespace Pass {
 // 每个指针被赋予一组属性标识符，通过比较这些属性可以判断两个指针是否可能指向同一内存位置
@@ -59,9 +59,7 @@ public:
             return add_value_attrs(value, std::vector{attr});
         }
 
-        void add_distinct_group(const std::unordered_set<size_t> &set) {
-            distinct_groups.push_back(set);
-        }
+        void add_distinct_group(const std::unordered_set<size_t> &set) { distinct_groups.push_back(set); }
 
         std::vector<size_t> inherit_from(const std::shared_ptr<Mir::Value> &value) {
             return pointer_attributes.count(value) ? pointer_attributes[value] : std::vector<size_t>{};
@@ -110,6 +108,6 @@ private:
 
     std::vector<std::shared_ptr<Result>> results{};
 };
-}
+} // namespace Pass
 
-#endif //ALIASANALYSIS_H
+#endif // ALIASANALYSIS_H
