@@ -392,7 +392,7 @@ public:
 
 class Switch final : public Terminator {
 public:
-    Switch(const std::shared_ptr<Value> &base, const std::shared_ptr<Value> &default_block) :
+    Switch(const std::shared_ptr<Value> &base, const std::shared_ptr<Value> &) :
         Terminator(Type::Void::void_, Operator::SWITCH) {
         if (!base->get_type()->is_integer() && !base->get_type()->is_float()) {
             log_error("Not supported");

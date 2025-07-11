@@ -34,7 +34,6 @@ protected:
 private:
     std::shared_ptr<FunctionAnalysis> func_analysis;
 };
-
 } // namespace Pass
 
 #endif // COMMON_H

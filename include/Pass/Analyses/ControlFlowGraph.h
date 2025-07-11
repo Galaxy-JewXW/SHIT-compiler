@@ -20,6 +20,7 @@ public:
         BlockPtrMap successors{};
     };
 
+    [[nodiscard]]
     const Graph &graph(const FunctionPtr &func) const {
         const auto it = graphs_.find(func);
         if (it == graphs_.end()) [[unlikely]] {
@@ -30,9 +31,9 @@ public:
 
     explicit ControlFlowGraph() : Analysis("ControlFlowGraph") {}
 
-    bool is_dirty() const override;
+    [[nodiscard]] bool is_dirty() const override;
 
-    bool is_dirty(const std::shared_ptr<Mir::Function> &function) const override;
+    [[nodiscard]] bool is_dirty(const std::shared_ptr<Mir::Function> &function) const override;
 
     void set_dirty(const FunctionPtr &func);
 

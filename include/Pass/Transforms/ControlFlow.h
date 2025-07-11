@@ -99,6 +99,18 @@ private:
     std::shared_ptr<ControlFlowGraph> cfg_info;
     std::shared_ptr<FunctionAnalysis> func_info;
 };
+
+// 将函数中所有的ret语句汇聚到一个block中，简化cfg
+class SingleReturnTransform final : public Transform {
+public:
+    explicit SingleReturnTransform() : Transform("SingleReturnTransform") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+private:
+    static void run_on_func(const std::shared_ptr<Mir::Function> &func);
+};
 } // namespace Pass
 
 #endif

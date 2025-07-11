@@ -36,7 +36,7 @@ private:
     std::shared_ptr<Mir::Value> get_next(std::shared_ptr<Mir::Phi> phi, std::shared_ptr<Loop> loop);
 
     std::shared_ptr<SCEVExpr> fold_add(std::shared_ptr<SCEVExpr> lhs, std::shared_ptr<SCEVExpr> rhs);
-    std::shared_ptr<SCEVExpr> fold_mul(std::shared_ptr<SCEVExpr>& lhs, std::shared_ptr<SCEVExpr>& rhs);
+    std::shared_ptr<SCEVExpr> fold_mul(std::shared_ptr<SCEVExpr> &lhs, std::shared_ptr<SCEVExpr> &rhs);
 };
 
 class SCEVExpr final {
