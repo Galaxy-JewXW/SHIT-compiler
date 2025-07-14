@@ -918,7 +918,7 @@ bool handle_intbinary_icmp(const std::shared_ptr<Block> &block) {
                 }
             }();
         } else if (t == Operator::ICMP) {
-            // changed |= reduce_cmp<Icmp>(instructions, i, block);
+            changed |= reduce_cmp<Icmp>(instructions, i, block);
         }
     }
     return changed;

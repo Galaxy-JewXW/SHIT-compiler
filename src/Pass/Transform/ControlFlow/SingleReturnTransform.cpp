@@ -37,7 +37,13 @@ void SingleReturnTransform::run_on_func(const std::shared_ptr<Function> &func) {
         if (ret->get_operands().empty()) [[unlikely]] {
             log_error("Ret should have a return value");
         }
-        phi->set_optional_value(block, ret->get_value());
+        if (const auto ret_phi{ret->get_value()->is<Phi>()}) {
+            for (const auto &[ret_block, value]: ret_phi->get_optional_values()) {
+                phi->set_optional_value(ret_block, value);
+            }
+        } else {
+            phi->set_optional_value(block, ret->get_value());
+        }
     }
     Ret::create(phi, ret_block);
     SimplifyControlFlow::remove_deleted_blocks(func);

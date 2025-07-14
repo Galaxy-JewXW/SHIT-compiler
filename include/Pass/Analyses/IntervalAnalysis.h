@@ -20,8 +20,9 @@ struct numeric_limits_v {
     static constexpr bool has_infinity = std::numeric_limits<T>::has_infinity;
     static constexpr T infinity =
             std::numeric_limits<T>::has_infinity ? std::numeric_limits<T>::infinity() : std::numeric_limits<T>::max();
-    static constexpr T neg_infinity = std::numeric_limits<T>::has_infinity ? -std::numeric_limits<T>::infinity()
-                                                                           : std::numeric_limits<T>::lowest();
+    static constexpr T neg_infinity = std::numeric_limits<T>::has_infinity
+                                          ? -std::numeric_limits<T>::infinity()
+                                          : std::numeric_limits<T>::lowest();
     static constexpr T max = std::numeric_limits<T>::max();
     static constexpr T lowest = std::numeric_limits<T>::lowest();
 };
@@ -29,7 +30,8 @@ struct numeric_limits_v {
 // 参见：王雅文,宫云战,肖庆,等. 基于抽象解释的变量值范围分析及应用[J]. 电子学报,2011,39(2):296-303.
 class IntervalAnalysis final : public Analysis {
 public:
-    IntervalAnalysis() : Analysis("IntervalAnalysis") {}
+    IntervalAnalysis() :
+        Analysis("IntervalAnalysis") {}
 
     // 代表一个闭区间 [lower, upper]
     template<typename T>
@@ -51,6 +53,7 @@ protected:
     void analyze(std::shared_ptr<const Mir::Module> module) override;
 
 private:
+    [[nodiscard]]
     Summary rabai_function(const std::shared_ptr<Mir::Function> &func, const SummaryManager &summary_manager) const;
 
     std::shared_ptr<ControlFlowGraph> cfg_info{nullptr};
@@ -66,7 +69,8 @@ struct IntervalAnalysis::Interval {
     T upper;
 
     // 默认构造函数
-    Interval(const T l, const T u) : lower(l), upper(u) {}
+    Interval(const T l, const T u) :
+        lower(l), upper(u) {}
 
     // 用于排序和查找
     bool operator<(const Interval &other) const { return lower < other.lower; }
@@ -87,6 +91,8 @@ struct IntervalAnalysis::Interval {
     [[nodiscard]] bool intersects_or_adjacent(const Interval &other) const {
         if constexpr (std::is_integral_v<T>) {
             // 对整数来说，[1, 2] 和 [3, 4] 是相邻的
+            // 对于完全相同的区间，也应该认为是相交的
+            // 对于包含关系的区间，也应该认为是相交的
             return std::max(lower, other.lower) <= std::min(upper, other.upper) + 1;
         } else {
             // 对浮点数来说，只关心是否重叠
@@ -145,32 +151,62 @@ public:
             return;
         }
 
+        // 首先去重
         std::sort(intervals_.begin(), intervals_.end());
+        intervals_.erase(std::unique(intervals_.begin(), intervals_.end()), intervals_.end());
 
-        std::vector<Interval<T>> merged;
-        merged.push_back(intervals_[0]);
+        if (intervals_.size() <= 1) {
+            return;
+        }
 
-        for (size_t i = 1; i < intervals_.size(); ++i) {
-            if (merged.back().intersects_or_adjacent(intervals_[i])) {
-                merged.back().merge(intervals_[i]);
-            } else {
-                merged.push_back(intervals_[i]);
+        // 检查是否包含完整的整数范围
+        bool has_full_range = false;
+        for (const auto &interval: intervals_) {
+            if (interval.lower == numeric_limits_v<T>::neg_infinity &&
+                interval.upper == numeric_limits_v<T>::infinity) {
+                has_full_range = true;
+                break;
             }
         }
-        intervals_ = std::move(merged);
+
+        // 如果包含完整范围，只保留这一个区间
+        if (has_full_range) {
+            intervals_ = {Interval<T>(numeric_limits_v<T>::neg_infinity, numeric_limits_v<T>::infinity)};
+            return;
+        }
+
+        bool changed{false};
+        do {
+            changed = false;
+            std::vector<Interval<T>> merged;
+            merged.push_back(intervals_[0]);
+
+            for (size_t i = 1; i < intervals_.size(); ++i) {
+                if (merged.back().intersects_or_adjacent(intervals_[i])) {
+                    merged.back().merge(intervals_[i]);
+                    changed = true;
+                } else {
+                    merged.push_back(intervals_[i]);
+                }
+            }
+            intervals_ = std::move(merged);
+        } while (changed && intervals_.size() > 1);
     }
 
     // 默认构造函数，创建一个空集
-    IntervalSet() : is_undefined_(false) {}
+    IntervalSet() :
+        is_undefined_(false) {}
 
     // 从单个区间构造
-    IntervalSet(T lower, T upper) : is_undefined_(false) {
+    IntervalSet(T lower, T upper) :
+        is_undefined_(false) {
         if (lower <= upper) {
             intervals_.emplace_back(lower, upper);
         }
     }
 
-    explicit IntervalSet(T constant) : is_undefined_(false) { intervals_.emplace_back(constant, constant); }
+    explicit IntervalSet(T constant) :
+        is_undefined_(false) { intervals_.emplace_back(constant, constant); }
 
     // 创建 "Top" 元素 T_N (最大范围)
     static IntervalSet make_any() {
@@ -197,6 +233,35 @@ public:
         }
         if (this->is_undefined()) {
             *this = other;
+            return *this;
+        }
+
+        // 检查是否已经包含完整范围
+        bool this_has_full_range = false;
+        for (const auto &interval: intervals_) {
+            if (interval.lower == numeric_limits_v<T>::neg_infinity &&
+                interval.upper == numeric_limits_v<T>::infinity) {
+                this_has_full_range = true;
+                break;
+            }
+        }
+
+        if (this_has_full_range) {
+            return *this; // 已经包含完整范围，不需要进一步合并
+        }
+
+        // 检查other是否包含完整范围
+        bool other_has_full_range = false;
+        for (const auto &interval: other.intervals_) {
+            if (interval.lower == numeric_limits_v<T>::neg_infinity &&
+                interval.upper == numeric_limits_v<T>::infinity) {
+                other_has_full_range = true;
+                break;
+            }
+        }
+
+        if (other_has_full_range) {
+            *this = other; // other包含完整范围，直接替换
             return *this;
         }
 
@@ -850,7 +915,7 @@ public:
         ss << "Context {\n";
         for (const auto &[val, iset]: intervals) {
             ss << "  " << val->get_name() << " -> " << std::visit([](const auto &s) { return s.to_string(); }, iset)
-               << "\n";
+                    << "\n";
         }
         ss << "}";
         return ss.str();
