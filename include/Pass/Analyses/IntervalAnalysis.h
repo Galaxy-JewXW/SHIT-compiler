@@ -3,15 +3,15 @@
 
 #include <cmath>
 #include <limits>
-#include <optional>
 #include <type_traits>
 #include <variant>
 
 #include "FunctionAnalysis.h"
 #include "LoopAnalysis.h"
 #include "Mir/Const.h"
-#include "Pass/Analysis.h"
 #include "Pass/Analyses/ControlFlowGraph.h"
+#include "Pass/Analysis.h"
+#include "Pass/Util.h"
 
 namespace Pass {
 template<typename T>
@@ -20,9 +20,8 @@ struct numeric_limits_v {
     static constexpr bool has_infinity = std::numeric_limits<T>::has_infinity;
     static constexpr T infinity =
             std::numeric_limits<T>::has_infinity ? std::numeric_limits<T>::infinity() : std::numeric_limits<T>::max();
-    static constexpr T neg_infinity = std::numeric_limits<T>::has_infinity
-                                          ? -std::numeric_limits<T>::infinity()
-                                          : std::numeric_limits<T>::lowest();
+    static constexpr T neg_infinity = std::numeric_limits<T>::has_infinity ? -std::numeric_limits<T>::infinity()
+                                                                           : std::numeric_limits<T>::lowest();
     static constexpr T max = std::numeric_limits<T>::max();
     static constexpr T lowest = std::numeric_limits<T>::lowest();
 };
@@ -30,8 +29,7 @@ struct numeric_limits_v {
 // 参见：王雅文,宫云战,肖庆,等. 基于抽象解释的变量值范围分析及应用[J]. 电子学报,2011,39(2):296-303.
 class IntervalAnalysis final : public Analysis {
 public:
-    IntervalAnalysis() :
-        Analysis("IntervalAnalysis") {}
+    IntervalAnalysis() : Analysis("IntervalAnalysis") {}
 
     // 代表一个闭区间 [lower, upper]
     template<typename T>
@@ -53,7 +51,7 @@ protected:
     void analyze(std::shared_ptr<const Mir::Module> module) override;
 
 private:
-    Summary rabai_function(const std::shared_ptr<Mir::Function> &func);
+    Summary rabai_function(const std::shared_ptr<Mir::Function> &func, const SummaryManager &summary_manager) const;
 
     std::shared_ptr<ControlFlowGraph> cfg_info{nullptr};
 
@@ -68,8 +66,7 @@ struct IntervalAnalysis::Interval {
     T upper;
 
     // 默认构造函数
-    Interval(const T l, const T u) :
-        lower(l), upper(u) {}
+    Interval(const T l, const T u) : lower(l), upper(u) {}
 
     // 用于排序和查找
     bool operator<(const Interval &other) const { return lower < other.lower; }
@@ -142,6 +139,7 @@ private:
     template<typename U>
     friend struct IntervalSet;
 
+public:
     void normalize() {
         if (is_undefined_ || intervals_.size() <= 1) {
             return;
@@ -159,26 +157,20 @@ private:
                 merged.push_back(intervals_[i]);
             }
         }
-        intervals_ = merged;
+        intervals_ = std::move(merged);
     }
 
-public:
     // 默认构造函数，创建一个空集
-    IntervalSet() :
-        is_undefined_(false) {}
+    IntervalSet() : is_undefined_(false) {}
 
     // 从单个区间构造
-    IntervalSet(T lower, T upper) :
-        is_undefined_(false) {
+    IntervalSet(T lower, T upper) : is_undefined_(false) {
         if (lower <= upper) {
             intervals_.emplace_back(lower, upper);
         }
     }
 
-    explicit IntervalSet(T constant) :
-        is_undefined_(false) {
-        intervals_.emplace_back(constant, constant);
-    }
+    explicit IntervalSet(T constant) : is_undefined_(false) { intervals_.emplace_back(constant, constant); }
 
     // 创建 "Top" 元素 T_N (最大范围)
     static IntervalSet make_any() {
@@ -234,7 +226,7 @@ public:
             }
         }
         *this = result;
-        // 交集结果本身就是不相交的，无需 normalize
+        normalize();
         return *this;
     }
 
@@ -259,8 +251,55 @@ public:
 
         intervals_ = {Interval<T>(new_lower, new_upper)};
         is_undefined_ = false;
-
+        normalize();
         return *this;
+    }
+
+    // 区间集的差集运算 (仅适用于整数)
+    template<typename U = T>
+    std::enable_if_t<std::is_same_v<U, int>, IntervalSet> difference(const IntervalSet &other) const {
+        if (this->is_undefined() || other.is_undefined()) {
+            return IntervalSet::make_undefined();
+        }
+        if (this->is_empty()) {
+            return *this; // 空集的差集还是空集
+        }
+        if (other.is_empty()) {
+            return *this; // 减去空集等于原集
+        }
+
+        IntervalSet result;
+        // 对当前区间集中的每个区间，减去other中的所有区间
+        for (const auto &current_interval: intervals_) {
+            std::vector<Interval<int>> remaining_parts = {current_interval};
+            // 对other中的每个区间进行差集运算
+            for (const auto &other_interval: other.intervals_) {
+                std::vector<Interval<int>> new_remaining_parts;
+                for (const auto &part: remaining_parts) {
+                    // 计算 part - other_interval
+                    if (other_interval.upper < part.lower || other_interval.lower > part.upper) {
+                        // 没有交集，保留整个part
+                        new_remaining_parts.push_back(part);
+                    } else {
+                        // 有交集，需要分割
+                        if (part.lower < other_interval.lower) {
+                            // 保留左半部分
+                            new_remaining_parts.emplace_back(part.lower, other_interval.lower - 1);
+                        }
+                        if (part.upper > other_interval.upper) {
+                            // 保留右半部分
+                            new_remaining_parts.emplace_back(other_interval.upper + 1, part.upper);
+                        }
+                        // 中间部分被减去，不保留
+                    }
+                }
+                remaining_parts = std::move(new_remaining_parts);
+            }
+            // 将剩余部分添加到结果中
+            result.intervals_.insert(result.intervals_.end(), remaining_parts.begin(), remaining_parts.end());
+        }
+        result.normalize();
+        return result;
     }
 
     // 区间集的四则运算
@@ -274,7 +313,16 @@ public:
         }
         for (const auto &i1: intervals_) {
             for (const auto &i2: other.intervals_) {
-                result.intervals_.emplace_back(i1.lower + i2.lower, i1.upper + i2.upper);
+
+                auto lower_result = Utils::safe_cal(i1.lower, i2.lower, std::plus<T>{});
+                auto upper_result = Utils::safe_cal(i1.upper, i2.upper, std::plus<T>{});
+
+                if (lower_result && upper_result) {
+                    result.intervals_.emplace_back(*lower_result, *upper_result);
+                } else {
+                    // 如果发生溢出，使用无穷大区间
+                    result.intervals_.emplace_back(numeric_limits_v<T>::neg_infinity, numeric_limits_v<T>::infinity);
+                }
             }
         }
         result.normalize();
@@ -291,12 +339,21 @@ public:
         }
         for (const auto &i1: intervals_) {
             for (const auto &i2: other.intervals_) {
-                result.intervals_.emplace_back(i1.lower - i2.upper, i1.upper - i2.lower);
+                auto lower_result = Utils::safe_cal(i1.lower, i2.upper, std::minus<T>{});
+                auto upper_result = Utils::safe_cal(i1.upper, i2.lower, std::minus<T>{});
+
+                if (lower_result && upper_result) {
+                    result.intervals_.emplace_back(*lower_result, *upper_result);
+                } else {
+                    // 如果发生溢出，使用无穷大区间
+                    result.intervals_.emplace_back(numeric_limits_v<T>::neg_infinity, numeric_limits_v<T>::infinity);
+                }
             }
         }
         result.normalize();
         return result;
     }
+
 
     IntervalSet operator*(const IntervalSet &other) const {
         if (this->is_undefined() || other.is_undefined()) {
@@ -308,11 +365,19 @@ public:
         }
         for (const auto &i1: intervals_) {
             for (const auto &i2: other.intervals_) {
-                std::initializer_list<T> list{i1.lower * i2.lower, i1.lower * i2.upper, i1.upper * i2.lower,
-                                              i1.upper * i2.upper};
-                T lower_val = std::min(list);
-                T upper_val = std::max(list);
-                result.intervals_.emplace_back(lower_val, upper_val);
+                auto ll_result = Utils::safe_cal(i1.lower, i2.lower, std::multiplies<T>{});
+                auto lu_result = Utils::safe_cal(i1.lower, i2.upper, std::multiplies<T>{});
+                auto ul_result = Utils::safe_cal(i1.upper, i2.lower, std::multiplies<T>{});
+                auto uu_result = Utils::safe_cal(i1.upper, i2.upper, std::multiplies<T>{});
+
+                if (ll_result && lu_result && ul_result && uu_result) {
+                    T lower_val = std::min({*ll_result, *lu_result, *ul_result, *uu_result});
+                    T upper_val = std::max({*ll_result, *lu_result, *ul_result, *uu_result});
+                    result.intervals_.emplace_back(lower_val, upper_val);
+                } else {
+                    // 如果发生溢出，使用无穷大区间
+                    result.intervals_.emplace_back(numeric_limits_v<T>::neg_infinity, numeric_limits_v<T>::infinity);
+                }
             }
         }
         result.normalize();
@@ -334,11 +399,20 @@ public:
                     // 除数区间包含0，结果可能包含无穷大
                     result.intervals_.emplace_back(numeric_limits_v<T>::neg_infinity, numeric_limits_v<T>::infinity);
                 } else {
-                    std::initializer_list<T> list{i1.lower / i2.lower, i1.lower / i2.upper, i1.upper / i2.lower,
-                                                  i1.upper / i2.upper};
-                    T lower_val = std::min(list);
-                    T upper_val = std::max(list);
-                    result.intervals_.emplace_back(lower_val, upper_val);
+                    auto ll_result = Utils::safe_cal(i1.lower, i2.lower, std::divides<T>{});
+                    auto lu_result = Utils::safe_cal(i1.lower, i2.upper, std::divides<T>{});
+                    auto ul_result = Utils::safe_cal(i1.upper, i2.lower, std::divides<T>{});
+                    auto uu_result = Utils::safe_cal(i1.upper, i2.upper, std::divides<T>{});
+
+                    if (ll_result && lu_result && ul_result && uu_result) {
+                        T lower_val = std::min({*ll_result, *lu_result, *ul_result, *uu_result});
+                        T upper_val = std::max({*ll_result, *lu_result, *ul_result, *uu_result});
+                        result.intervals_.emplace_back(lower_val, upper_val);
+                    } else {
+                        // 如果发生溢出，使用无穷大区间
+                        result.intervals_.emplace_back(numeric_limits_v<T>::neg_infinity,
+                                                       numeric_limits_v<T>::infinity);
+                    }
                 }
             }
         }
@@ -553,9 +627,16 @@ public:
         IntervalSet<int> result;
         for (const auto &interval: intervals_) {
             // 对于浮点数转整数，需要向下取整下界，向上取整上界
-            int lower = static_cast<int>(std::floor(interval.lower));
-            int upper = static_cast<int>(std::ceil(interval.upper));
-            result.intervals_.emplace_back(lower, upper);
+            // 检查是否超出整数范围
+            if (interval.lower < static_cast<double>(std::numeric_limits<int>::lowest()) ||
+                interval.upper > static_cast<double>(std::numeric_limits<int>::max())) {
+                // 如果超出范围，使用最大整数区间
+                result.intervals_.emplace_back(std::numeric_limits<int>::lowest(), std::numeric_limits<int>::max());
+            } else {
+                int lower = static_cast<int>(std::floor(interval.lower));
+                int upper = static_cast<int>(std::ceil(interval.upper));
+                result.intervals_.emplace_back(lower, upper);
+            }
         }
         result.is_undefined_ = false;
         return result;
@@ -572,6 +653,37 @@ public:
             static_assert(std::is_same_v<T, U>, "Only conversion between int and double is supported");
         }
         log_fatal("Invalid transform");
+    }
+
+    // 取反运算符
+    IntervalSet operator-() const {
+        if (is_undefined_) {
+            return *this; // 未定义状态保持不变
+        }
+        if (intervals_.empty()) {
+            return *this; // 空集保持不变
+        }
+
+        IntervalSet result;
+        result.is_undefined_ = false;
+
+        // 对每个区间进行取反操作
+        for (const auto &interval: intervals_) {
+            T old_lower = interval.lower;
+            T old_upper = interval.upper;
+
+
+            auto neg_upper = Utils::safe_cal(T(0), old_upper, std::minus<T>{});
+            auto neg_lower = Utils::safe_cal(T(0), old_lower, std::minus<T>{});
+
+            if (neg_upper && neg_lower) {
+                result.intervals_.emplace_back(*neg_upper, *neg_lower);
+            } else {
+                // 如果发生溢出，使用无穷大区间
+                result.intervals_.emplace_back(numeric_limits_v<T>::neg_infinity, numeric_limits_v<T>::infinity);
+            }
+        }
+        return result;
     }
 
     [[nodiscard]] std::string to_string() const {
@@ -631,12 +743,8 @@ class IntervalAnalysis::Context {
 public:
     bool contains(const std::shared_ptr<Mir::Value> &value) const { return intervals.find(value) != intervals.end(); }
 
-    bool insert(const std::shared_ptr<Mir::Value> &value, const AnyIntervalSet &interval) {
-        if (contains(value)) {
-            return false;
-        }
+    void insert(const std::shared_ptr<Mir::Value> &value, const AnyIntervalSet &interval) {
         intervals[value] = interval;
-        return true;
     }
 
     bool insert_top(const std::shared_ptr<Mir::Value> &value) {
@@ -644,9 +752,9 @@ public:
             return false;
         }
         if (value->get_type()->is_float()) {
-            intervals[value] = IntervalSet<double>::make_any();
+            intervals[value] = AnyIntervalSet(IntervalSet<double>::make_any());
         } else {
-            intervals[value] = IntervalSet<int>::make_any();
+            intervals[value] = AnyIntervalSet(IntervalSet<int>::make_any());
         }
         return true;
     }
@@ -656,9 +764,9 @@ public:
             return false;
         }
         if (value->get_type()->is_float()) {
-            intervals[value] = IntervalSet<double>::make_undefined();
+            intervals[value] = AnyIntervalSet(IntervalSet<double>::make_undefined());
         } else {
-            intervals[value] = IntervalSet<int>::make_undefined();
+            intervals[value] = AnyIntervalSet(IntervalSet<int>::make_undefined());
         }
         return true;
     }
@@ -670,11 +778,82 @@ public:
         if (value->is_constant()) {
             const auto constant{value->as<Mir::Const>()->get_constant_value()};
             if (constant.holds<int>()) {
-                return IntervalSet(constant.get<int>());
+                return AnyIntervalSet{IntervalSet(constant.get<int>())};
             }
-            return IntervalSet(constant.get<double>());
+            return AnyIntervalSet{IntervalSet(constant.get<double>())};
         }
-        log_error("Does not exist");
+        // log_error("Does not exist: %s", value->to_string().c_str());
+        if (value->get_type()->is_float()) {
+            return IntervalSet<double>::make_any();
+        }
+        return IntervalSet<int>::make_any();
+    }
+
+    Context &union_with(const Context &other) {
+        // 遍历 other 上下文中的每一个变量和其对应的区间集
+        for (const auto &[value, other_interval_set]: other.intervals) {
+            if (auto it = intervals.find(value); it != intervals.end()) {
+                // 情况1: 变量在 this 和 other 中都存在
+                // 取出 this 中的区间集 it->second，与 other_interval_set 做并集
+                std::visit(
+                        [](auto &this_set, const auto &other_set) {
+                            // 确保类型匹配
+                            if constexpr (std::is_same_v<std::decay_t<decltype(this_set)>,
+                                                         std::decay_t<decltype(other_set)>>) {
+                                this_set.union_with(other_set);
+                            } else {
+                                // 理论上，一个 Value 的类型是固定的，不应该出现类型不匹配
+                                log_error("Type mismatch during Context union");
+                            }
+                        },
+                        it->second, other_interval_set);
+            } else {
+                // 情况2: 变量只在 other 中存在
+                // 直接将其插入 this 上下文
+                intervals.insert({value, other_interval_set});
+            }
+        }
+        // 只在 this 中存在的变量保持不变，符合 Union(A, B) 的逻辑
+        return *this;
+    }
+
+    Context &widen(const Context &other) {
+        for (const auto &[value, other_interval_set]: other.intervals) {
+            if (auto it = intervals.find(value); it != intervals.end()) {
+                // 情况1: 变量在 this (旧状态) 和 other (新状态) 中都存在
+                std::visit(
+                        [](auto &this_set, const auto &other_set) {
+                            if constexpr (std::is_same_v<std::decay_t<decltype(this_set)>,
+                                                         std::decay_t<decltype(other_set)>>) {
+                                this_set.widen(other_set);
+                            } else {
+                                log_error("Type mismatch during Context widen");
+                            }
+                        },
+                        it->second, other_interval_set);
+            } else {
+                // 情况2: 变量只在 other 中存在 (例如在循环中新定义的变量)
+                // 它的“旧状态”是 Bottom，Bottom ∇ New = New，所以直接插入
+                intervals.insert({value, other_interval_set});
+            }
+        }
+        // 只在 `this` 中存在的变量保持不变
+        return *this;
+    }
+
+    bool operator==(const Context &other) const { return this->intervals == other.intervals; }
+
+    bool operator!=(const Context &other) const { return !(*this == other); }
+
+    [[nodiscard]] std::string to_string() const {
+        std::stringstream ss;
+        ss << "Context {\n";
+        for (const auto &[val, iset]: intervals) {
+            ss << "  " << val->get_name() << " -> " << std::visit([](const auto &s) { return s.to_string(); }, iset)
+               << "\n";
+        }
+        ss << "}";
+        return ss.str();
     }
 
 private:

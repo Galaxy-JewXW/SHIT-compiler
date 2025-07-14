@@ -123,6 +123,17 @@ protected:
 
     static void run_on_func(const std::shared_ptr<Mir::Function> &func);
 };
+
+// 强度削弱
+class ConstrainReduce final : public Transform {
+public:
+    explicit ConstrainReduce() : Transform("ConstrainReduce") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+    // static void run_on_func(const std::shared_ptr<Mir::Function> &func);
+};
 } // namespace Pass
 
 #endif // DATAFLOW_H

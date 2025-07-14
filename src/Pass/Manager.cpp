@@ -13,12 +13,11 @@ void execute_O0_passes(std::shared_ptr<Mir::Module> &module) {
 
 void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
     apply<Pass::Mem2Reg, Pass::TreeHeightBalance, Pass::AlgebraicSimplify, Pass::SimplifyControlFlow,
-          Pass::IfChainToSwitch,
           // Pass::LoopSimplyForm,
           // Pass::LCSSA,
           Pass::DeadCodeEliminate, Pass::BranchMerging, Pass::GepFolding, Pass::GlobalVariableLocalize,
           Pass::GlobalArrayLocalize, Pass::LoadEliminate, Pass::StoreEliminate, Pass::SROA, Pass::SimplifyControlFlow,
           Pass::ConstexprFuncEval, Pass::DeadCodeEliminate,
-          Pass::GlobalValueNumbering, Pass::EmitModule<true>, Pass::TailCallOptimize,
-          Pass::BlockPositioning>(module);
+          Pass::GlobalValueNumbering, Pass::TailCallOptimize,
+          Pass::BlockPositioning, Pass::EmitModule<true>, Pass::ConstrainReduce>(module);
 }

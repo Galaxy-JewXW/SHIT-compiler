@@ -149,7 +149,8 @@ private:
 class BitCast final : public Instruction {
 public:
     BitCast(const std::string &name, const std::shared_ptr<Value> &value,
-            const std::shared_ptr<Type::Type> &target_type) : Instruction(name, target_type, Operator::BITCAST) {
+            const std::shared_ptr<Type::Type> &target_type) :
+        Instruction(name, target_type, Operator::BITCAST) {
         const auto instruction = std::dynamic_pointer_cast<Instruction>(value);
         if (instruction == nullptr) {
             log_error("Value must be a instruction");
@@ -281,6 +282,24 @@ public:
         }
     }
 
+    static Op inverse_op(const Op op) {
+        switch (op) {
+            case Op::EQ:
+                return Op::NE;
+            case Op::NE:
+                return Op::EQ;
+            case Op::GT:
+                return Op::LE;
+            case Op::LT:
+                return Op::GE;
+            case Op::GE:
+                return Op::LT;
+            case Op::LE:
+                return Op::GT;
+        }
+        return op;
+    }
+
     void reverse_op() {
         this->op = swap_op(this->op);
         std::swap(operands_[0], operands_[1]);
@@ -320,12 +339,14 @@ public:
 
 class Terminator : public Instruction {
 protected:
-    Terminator(const std::shared_ptr<Type::Type> &type, const Operator op) : Instruction("", type, op) {}
+    Terminator(const std::shared_ptr<Type::Type> &type, const Operator op) :
+        Instruction("", type, op) {}
 };
 
 class Jump final : public Terminator {
 public:
-    explicit Jump(const std::shared_ptr<Block> &) : Terminator(Type::Label::label, Operator::JUMP) {}
+    explicit Jump(const std::shared_ptr<Block> &) :
+        Terminator(Type::Label::label, Operator::JUMP) {}
 
     static std::shared_ptr<Jump> create(const std::shared_ptr<Block> &target_block,
                                         const std::shared_ptr<Block> &block);
@@ -371,13 +392,15 @@ public:
 
 class Ret final : public Terminator {
 public:
-    explicit Ret(const std::shared_ptr<Value> &value) : Terminator(Type::Void::void_, Operator::RET) {
+    explicit Ret(const std::shared_ptr<Value> &value) :
+        Terminator(Type::Void::void_, Operator::RET) {
         if (value->get_type()->is_void()) {
             log_error("Value must not be void");
         }
     }
 
-    explicit Ret() : Terminator(Type::Void::void_, Operator::RET) {}
+    explicit Ret() :
+        Terminator(Type::Void::void_, Operator::RET) {}
 
     static std::shared_ptr<Ret> create(const std::shared_ptr<Value> &value, const std::shared_ptr<Block> &block);
 
@@ -494,7 +517,8 @@ public:
 class Binary : public Instruction {
 protected:
     Binary(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs,
-           const Operator op) : Instruction(name, lhs->get_type(), op) {
+           const Operator op) :
+        Instruction(name, lhs->get_type(), op) {
         if (lhs->get_type() != rhs->get_type()) {
             log_error("Operands must have the same type");
         }
@@ -523,7 +547,8 @@ public:
     const Op op;
 
     IntBinary(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs,
-              const Op op) : Binary(name, lhs, rhs, Operator::INTBINARY), op{op} {
+              const Op op) :
+        Binary(name, lhs, rhs, Operator::INTBINARY), op{op} {
         if (!lhs->get_type()->is_int32() || !rhs->get_type()->is_int32()) {
             log_error("Operands must be int 32");
         }
@@ -571,7 +596,8 @@ public:
     const Op op;
 
     FloatBinary(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs,
-                const Op op) : Binary(name, lhs, rhs, Operator::FLOATBINARY), op{op} {
+                const Op op) :
+        Binary(name, lhs, rhs, Operator::FLOATBINARY), op{op} {
         if (!lhs->get_type()->is_float() || !rhs->get_type()->is_float()) {
             log_error("Operands must be float");
         }
@@ -799,7 +825,7 @@ public:
 };
 
 template<typename T, typename... Ts>
-std::shared_ptr<T> make_instruction(Ts &&...args) {
+std::shared_ptr<T> make_instruction(Ts &&... args) {
     return T::create(std::forward<Ts>(args)...);
 }
 } // namespace Mir
