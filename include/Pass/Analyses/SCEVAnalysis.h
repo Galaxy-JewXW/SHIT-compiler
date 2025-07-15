@@ -5,84 +5,71 @@
 #include "Pass/Transforms/Loop.h"
 
 namespace Pass {
-    class SCEVExpr;
-    class SCEVAnalysis final : public Analysis {
-        using SCEVINFO = std::unordered_map<std::shared_ptr<Mir::Value>, std::shared_ptr<SCEVExpr>>;
-    public:
-        explicit SCEVAnalysis() : Analysis("SCEVAnalysis") {}
+class SCEVExpr;
+class SCEVAnalysis final : public Analysis {
+    using SCEVINFO = std::unordered_map<std::shared_ptr<Mir::Value>, std::shared_ptr<SCEVExpr>>;
 
-        void analyze(std::shared_ptr<const Mir::Module> module) override;
+public:
+    explicit SCEVAnalysis() : Analysis("SCEVAnalysis") {}
 
-        SCEVINFO & get_SCEVinfo() { return SCEVinfo;}
+    void analyze(std::shared_ptr<const Mir::Module> module) override;
 
-        std::shared_ptr<SCEVExpr> query(std::shared_ptr<Mir::Value> value);
+    SCEVINFO &get_SCEVinfo() { return SCEVinfo; }
 
-        void addSCEV(std::shared_ptr<Mir::Value> value, std::shared_ptr<SCEVExpr> scev);
+    std::shared_ptr<SCEVExpr> query(std::shared_ptr<Mir::Value> value);
 
-        bool in_same_loop(std::shared_ptr<SCEVExpr> lhs, std::shared_ptr<SCEVExpr> rhs);
+    void addSCEV(std::shared_ptr<Mir::Value> value, std::shared_ptr<SCEVExpr> scev);
 
-    private:
-        std::unordered_map<std::shared_ptr<Mir::Value>, std::shared_ptr<SCEVExpr>> SCEVinfo;
+    bool in_same_loop(std::shared_ptr<SCEVExpr> lhs, std::shared_ptr<SCEVExpr> rhs);
 
-        static int bin_coe(int n, int k);
+private:
+    std::unordered_map<std::shared_ptr<Mir::Value>, std::shared_ptr<SCEVExpr>> SCEVinfo;
 
-        std::shared_ptr<Loop> find_loop(std::shared_ptr<Mir::Block> block, std::vector<std::shared_ptr<LoopNodeTreeNode>> loop_info);
-        std::shared_ptr<LoopNodeTreeNode> loop_contains(std::shared_ptr<LoopNodeTreeNode> node, std::shared_ptr<Mir::Block> block);
+    static int bin_coe(int n, int k);
 
-        std::shared_ptr<Mir::Value> get_initial(std::shared_ptr<Mir::Phi> phi, std::shared_ptr<Loop> loop);
-        std::shared_ptr<Mir::Value> get_next(std::shared_ptr<Mir::Phi> phi, std::shared_ptr<Loop> loop);
+    std::shared_ptr<Loop> find_loop(std::shared_ptr<Mir::Block> block,
+                                    std::vector<std::shared_ptr<LoopNodeTreeNode>> loop_info);
+    std::shared_ptr<LoopNodeTreeNode> loop_contains(std::shared_ptr<LoopNodeTreeNode> node,
+                                                    std::shared_ptr<Mir::Block> block);
 
-        std::shared_ptr<SCEVExpr> fold_add(std::shared_ptr<SCEVExpr> lhs, std::shared_ptr<SCEVExpr> rhs);
-        std::shared_ptr<SCEVExpr> fold_mul(std::shared_ptr<SCEVExpr> lhs, std::shared_ptr<SCEVExpr> rhs);
-    };
+    std::shared_ptr<Mir::Value> get_initial(std::shared_ptr<Mir::Phi> phi, std::shared_ptr<Loop> loop);
+    std::shared_ptr<Mir::Value> get_next(std::shared_ptr<Mir::Phi> phi, std::shared_ptr<Loop> loop);
 
-    class SCEVExpr final {
+    std::shared_ptr<SCEVExpr> fold_add(std::shared_ptr<SCEVExpr> lhs, std::shared_ptr<SCEVExpr> rhs);
+    std::shared_ptr<SCEVExpr> fold_mul(std::shared_ptr<SCEVExpr> &lhs, std::shared_ptr<SCEVExpr> &rhs);
+};
 
-    public:
-        enum class SCEVTYPE { Constant, AddRec };
+class SCEVExpr final {
 
-        explicit SCEVExpr(int constant) {
-            type = SCEVTYPE::Constant;
-            this->constant = constant;
-        }
+public:
+    enum class SCEVTYPE { Constant, AddRec };
 
-        SCEVExpr() {
-            type = SCEVTYPE::AddRec;
-        }
+    explicit SCEVExpr(int constant) {
+        type = SCEVTYPE::Constant;
+        this->constant = constant;
+    }
 
-        void add_operand(const std::shared_ptr<SCEVExpr> &operand) {
-            operands.push_back(operand);
-        }
+    SCEVExpr() { type = SCEVTYPE::AddRec; }
 
-        void set_loop(const std::shared_ptr<Loop>& loop) {
-            this->_loop = loop;
-        }
+    void add_operand(const std::shared_ptr<SCEVExpr> &operand) { operands.push_back(operand); }
 
-        std::shared_ptr<Loop>& get_loop() {
-            return _loop;
-        }
+    void set_loop(const std::shared_ptr<Loop> &loop) { this->_loop = loop; }
 
-        [[nodiscard]] SCEVTYPE get_type() const {
-            return type;
-        }
+    std::shared_ptr<Loop> &get_loop() { return _loop; }
 
-        [[nodiscard]] int get_constant() const {
-            return this->constant;
-        }
+    [[nodiscard]] SCEVTYPE get_type() const { return type; }
 
-        [[nodiscard]] std::vector<std::shared_ptr<SCEVExpr>>& get_operands() {
-            return this->operands;
-        }
+    [[nodiscard]] int get_constant() const { return this->constant; }
+
+    [[nodiscard]] std::vector<std::shared_ptr<SCEVExpr>> &get_operands() { return this->operands; }
 
 
+private:
+    std::vector<std::shared_ptr<SCEVExpr>> operands;
+    int constant;
+    SCEVTYPE type;
+    std::shared_ptr<Loop> _loop;
+};
+} // namespace Pass
 
-    private:
-        std::vector<std::shared_ptr<SCEVExpr>> operands;
-        int constant;
-        SCEVTYPE type;
-        std::shared_ptr<Loop> _loop;
-
-    };
-}
-
-#endif //SCEVANALYSIS_H
+#endif // SCEVANALYSIS_H

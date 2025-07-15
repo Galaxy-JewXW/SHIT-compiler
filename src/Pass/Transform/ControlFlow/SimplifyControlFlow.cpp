@@ -100,118 +100,97 @@ void cleanup_phi(const std::shared_ptr<Function> &func, const std::shared_ptr<Pa
     }
 }
 
-// 识别并消除那些只包含 PHI 指令和一条无条件跳转指令的“中间”基本块。
-// 将这个中间块的 PHI 指令合并到后继基本块的 PHI 指令中，并修改前驱基本块的跳转目标
-void merge_phi(const std::shared_ptr<Function> &func, const std::shared_ptr<Pass::ControlFlowGraph> &cfg_info) {
-    // ReSharper disable once CppUseStructuredBinding
-    const auto &cfg{cfg_info->graph(func)};
-    const auto get_phi_instructions = [](const std::shared_ptr<Block> &block) {
-        std::vector<std::shared_ptr<Phi>> phi_instructions;
-        for (const auto &instruction: block->get_instructions()) {
-            if (instruction->get_op() == Operator::PHI) {
-                phi_instructions.push_back(instruction->as<Phi>());
-            } else {
-                break;
-            }
-        }
-        return phi_instructions;
-    };
-
-    bool modified{false};
-    const auto run_on_block = [&](const std::shared_ptr<Block> &block) -> void {
-        const auto phis{get_phi_instructions(block)};
-        if (phis.empty()) {
-            return;
-        }
-        if (block->get_instructions().back()->get_op() != Operator::JUMP) {
-            return;
-        }
-        const auto jump{block->get_instructions().back()->as<Jump>()};
-        for (auto it{block->get_instructions().rbegin()}; it != block->get_instructions().rend(); ++it) {
-            if (*it == jump) {
+// 识别并消除那些只包含 phi 指令和一条无条件跳转指令的“中间”基本块。
+// 将这个中间块的 phi 指令合并到后继基本块的 phi 指令中，并修改前驱基本块的跳转目标
+void merge_phi(const std::shared_ptr<Function> &func, std::shared_ptr<Pass::ControlFlowGraph> &cfg_info) {
+    bool changed{false};
+    do {
+        changed = false;
+        std::vector<std::shared_ptr<Block>> candidates;
+        candidates.reserve(func->get_blocks().size());
+        for (const auto &block: func->get_blocks()) {
+            const auto &instructions{block->get_instructions()};
+            if (instructions.back()->get_op() != Operator::JUMP) {
                 continue;
             }
-            if ((*it)->get_op() != Operator::PHI) {
-                return;
+            if (instructions.size() == 1) {
+                continue;
+            }
+            bool flag{true};
+            for (size_t i{0}; i < instructions.size() - 1; ++i) {
+                if (instructions[i]->get_op() != Operator::PHI) {
+                    flag = false;
+                    break;
+                }
+            }
+            if (flag) {
+                candidates.push_back(block);
             }
         }
-        const auto target_block{jump->get_target_block()};
-        const auto target_phis{get_phi_instructions(target_block)};
-        if (target_phis.empty()) {
-            return;
-        }
 
-        // 检查当前块的前驱和目标块的前驱是否有交集
-        const auto &prev{cfg.predecessors.at(block)}, &target_prev{cfg.predecessors.at(target_block)};
-        if (std::any_of(prev.begin(), prev.end(), [&](const auto &p) { return target_prev.count(p); })) {
-            return;
-        }
+        for (const auto &block: candidates) {
+            const auto target{block->get_instructions().back()->as<Jump>()->get_target_block()};
+            // 检查当前块的前驱和目标块的前驱是否有交集
+            const auto &prevs1{cfg_info->graph(func).predecessors.at(block)},
+                    &prevs2{cfg_info->graph(func).predecessors.at(target)};
+            if (std::any_of(prevs1.begin(), prevs1.end(),
+                            [&prevs2](const auto &prev) { return prevs2.find(prev) != prevs2.end(); }))
+                continue;
 
-        // 要求当前块中所有的 phi 指令，它们的所有使用者（users）必须是目标块中的 phi 指令
-        for (const auto &phi: phis) {
-            const auto users{phi->users().lock()};
-            const auto is_available_phi = [&target_block](const std::shared_ptr<User> &user) -> bool {
-                if (const auto phi_user{user->is<Phi>()}) {
-                    if (phi_user->get_block() == target_block) {
-                        return true;
+            // 要求当前块中所有的 phi 指令，它们的所有使用者（users）必须是目标块中的 phi 指令
+            std::vector<std::shared_ptr<Phi>> phis;
+            for (const auto &phi: block->get_instructions()) {
+                if (phi->get_op() != Operator::PHI) {
+                    break;
+                }
+                phis.push_back(phi->as<Phi>());
+            }
+
+            bool flag{true};
+            for (const auto &phi: phis) {
+                const auto users{phi->users().lock()};
+                const auto is_available_phi = [&](const std::shared_ptr<User> &user) -> bool {
+                    if (const auto phi_user{user->is<Phi>()}) {
+                        if (phi_user->get_block() == target && phi_user->get_optional_values().count(block)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                };
+                if (!std::all_of(users.begin(), users.end(), is_available_phi)) {
+                    flag = false;
+                    break;
+                }
+            }
+            if (!flag) {
+                continue;
+            }
+
+            for (const auto &phi: phis) {
+                const auto users{phi->users().lock()};
+                for (const auto &user: users) {
+                    const auto phi_user{user->as<Phi>()};
+                    phi_user->remove_optional_value(block);
+                    for (const auto &[block, value]: phi->get_optional_values()) {
+                        phi_user->set_optional_value(block, value);
                     }
                 }
-                return false;
-            };
-            if (!std::all_of(users.begin(), users.end(), is_available_phi)) {
-                return;
             }
-        }
 
-        std::vector<std::shared_ptr<Block>> worklist;
-        for (const auto &[key, value]: phis.front()->get_optional_values()) {
-            worklist.push_back(key);
-        }
-
-        std::unordered_set<std::shared_ptr<Phi>> fixed_phis;
-        for (const auto &phi: phis) {
-            const auto users{phi->users().lock()};
-            for (const auto &user: users) {
-                const auto phi_user{user->as<Phi>()};
-                phi_user->remove_optional_value(target_block);
-                decltype(worklist) pre;
-                for (const auto &[key, value]: phi->get_optional_values()) {
-                    pre.push_back(key);
-                }
-                for (const auto &p: pre) {
-                    phi_user->set_optional_value(p, phi->get_optional_values()[p]);
-                }
-                fixed_phis.insert(phi_user);
+            block->replace_by_new_value(target);
+            block->set_deleted();
+            for (const auto &inst: block->get_instructions()) {
+                inst->clear_operands();
             }
+            block->get_instructions().clear();
+            func->get_blocks().erase(std::find(func->get_blocks().begin(), func->get_blocks().end(), block));
+            Pass::set_analysis_result_dirty<Pass::ControlFlowGraph>(func);
+            Pass::set_analysis_result_dirty<Pass::DominanceGraph>(func);
+            cfg_info = Pass::get_analysis_result<Pass::ControlFlowGraph>(Module::instance());
+            changed = true;
+            break;
         }
-
-        // 它们之前从 block 接收一个值，现在由于 block 被绕过了
-        // 它们需要从 block 的所有前驱 pre 接收值。这个值应该和它们之前从 block 接收的值相同
-        for (const auto &phi: target_phis) {
-            if (fixed_phis.count(phi)) {
-                continue;
-            }
-            for (const auto &p: worklist) {
-                phi->set_optional_value(p, phi->get_optional_values()[block]);
-            }
-            phi->remove_optional_value(block);
-        }
-
-        block->replace_by_new_value(target_block);
-        block->set_deleted();
-        for (const auto &inst: block->get_instructions()) {
-            inst->clear_operands();
-        }
-        block->get_instructions().clear();
-        func->get_blocks().erase(std::find(func->get_blocks().begin(), func->get_blocks().end(), block));
-        modified = true;
-    };
-
-    std::for_each(func->get_blocks().begin(), func->get_blocks().end(), run_on_block);
-    if (modified) {
-        Pass::set_analysis_result_dirty<Pass::ControlFlowGraph>(func);
-        Pass::set_analysis_result_dirty<Pass::DominanceGraph>(func);
-    }
+    } while (changed);
 }
 } // namespace
 

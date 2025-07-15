@@ -11,7 +11,7 @@ namespace {
 std::shared_ptr<Call> find_tre_candidate(const std::shared_ptr<Block> &block) {
     const auto &func{block->get_function()};
     for (auto it{block->get_instructions().rbegin()}; it != block->get_instructions().rend(); ++it) {
-        log_info("%s", (*it)->to_string().c_str());
+        // log_info("%s", (*it)->to_string().c_str());
         if ((*it)->get_op() != Operator::CALL) [[likely]] {
             continue;
         }

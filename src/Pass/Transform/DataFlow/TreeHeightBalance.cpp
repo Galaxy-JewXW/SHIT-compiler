@@ -31,15 +31,15 @@ struct BinaryTypeOp<Mul> {
     static constexpr auto type_op = IntBinary::Op::MUL;
 };
 
-template<>
-struct BinaryTypeOp<FAdd> {
-    static constexpr auto type_op = FloatBinary::Op::ADD;
-};
-
-template<>
-struct BinaryTypeOp<FMul> {
-    static constexpr auto type_op = FloatBinary::Op::MUL;
-};
+// template<>
+// struct BinaryTypeOp<FAdd> {
+//     static constexpr auto type_op = FloatBinary::Op::ADD;
+// };
+//
+// template<>
+// struct BinaryTypeOp<FMul> {
+//     static constexpr auto type_op = FloatBinary::Op::MUL;
+// };
 
 template<typename BinaryType>
 std::shared_ptr<BinaryType>

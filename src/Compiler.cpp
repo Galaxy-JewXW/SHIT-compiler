@@ -2,7 +2,7 @@
 
 int main(int argc, char *argv[]) {
 #ifdef SHIT_DEBUG
-    log_set_level(LOG_INFO);
+    log_set_level(LOG_DEBUG);
     const compiler_options &options = debug_compile_options;
 #else
     log_set_level(LOG_INFO);

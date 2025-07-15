@@ -118,7 +118,6 @@ private:
     using FunctLoopForestMap =
             std::unordered_map<std::shared_ptr<Mir::Function>, std::vector<std::shared_ptr<LoopNodeTreeNode>>>;
     FunctLoopForestMap loop_forest_;
-
 };
 } // namespace Pass
 

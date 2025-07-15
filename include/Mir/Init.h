@@ -133,17 +133,39 @@ public:
 class Array final : public Init {
     const bool is_zero_initialized;
     const std::vector<std::shared_ptr<Init>> init_values;
+    int last_non_zero_{-1};
 
 public:
+    // 计算最后一个非零元素的索引
+    void calculate_last_non_zero() {
+        last_non_zero_ = -1;
+        for (int i = static_cast<int>(init_values.size()) - 1; i >= 0; --i) {
+            if (const auto &init = init_values[i]; init->is_constant_init()) {
+                if (const auto constant_init = std::static_pointer_cast<Constant>(init); !constant_init->is_zero()) {
+                    last_non_zero_ = i;
+                    break;
+                }
+            } else {
+                // 如果有非Constant类型的元素，则last_non_zero_无意义
+                last_non_zero_ = -1;
+                return;
+            }
+        }
+    }
+
     explicit Array(const std::shared_ptr<Type::Type> &type, const std::vector<std::shared_ptr<Init>> &init_values,
                    const bool is_zero_initialized = false) :
-        Init{type}, is_zero_initialized{is_zero_initialized}, init_values{init_values} {}
+        Init{type}, is_zero_initialized{is_zero_initialized}, init_values{init_values} {
+        calculate_last_non_zero();
+    }
 
     [[nodiscard]] bool is_array_init() const override { return true; }
 
     [[nodiscard]] bool zero_initialized() const { return is_zero_initialized; }
 
     [[nodiscard]] size_t get_size() const { return init_values.size(); }
+
+    [[nodiscard]] int last_non_zero() const { return last_non_zero_; }
 
     std::shared_ptr<Init> get_init_value(const std::vector<int> &indexes);
 

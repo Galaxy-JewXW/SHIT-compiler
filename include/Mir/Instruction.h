@@ -281,6 +281,24 @@ public:
         }
     }
 
+    static Op inverse_op(const Op op) {
+        switch (op) {
+            case Op::EQ:
+                return Op::NE;
+            case Op::NE:
+                return Op::EQ;
+            case Op::GT:
+                return Op::LE;
+            case Op::LT:
+                return Op::GE;
+            case Op::GE:
+                return Op::LT;
+            case Op::LE:
+                return Op::GT;
+        }
+        return op;
+    }
+
     void reverse_op() {
         this->op = swap_op(this->op);
         std::swap(operands_[0], operands_[1]);
@@ -392,7 +410,7 @@ public:
 
 class Switch final : public Terminator {
 public:
-    Switch(const std::shared_ptr<Value> &base, const std::shared_ptr<Value> &default_block) :
+    Switch(const std::shared_ptr<Value> &base, const std::shared_ptr<Value> &) :
         Terminator(Type::Void::void_, Operator::SWITCH) {
         if (!base->get_type()->is_integer() && !base->get_type()->is_float()) {
             log_error("Not supported");

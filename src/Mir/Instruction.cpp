@@ -448,7 +448,7 @@ void Phi::remove_optional_value(const std::shared_ptr<Block> &block) {
     remove_operand(value);
 }
 
-std::shared_ptr<Value> Phi::get_value_by_block(const std::shared_ptr<Block>& block) {
+std::shared_ptr<Value> Phi::get_value_by_block(const std::shared_ptr<Block> &block) {
     return optional_values.at(block);
 }
 std::shared_ptr<Block> Phi::find_optional_block(const std::shared_ptr<Value> &value) {
