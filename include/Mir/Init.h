@@ -73,8 +73,7 @@ protected:
     std::shared_ptr<Type::Type> type;
 
 public:
-    explicit Init(const std::shared_ptr<Type::Type> &type) :
-        type{type} {}
+    explicit Init(const std::shared_ptr<Type::Type> &type) : type{type} {}
 
     virtual ~Init() = default;
 
@@ -136,6 +135,7 @@ class Array final : public Init {
     const std::vector<std::shared_ptr<Init>> init_values;
     int last_non_zero_{-1};
 
+public:
     // 计算最后一个非零元素的索引
     void calculate_last_non_zero() {
         last_non_zero_ = -1;
@@ -153,7 +153,6 @@ class Array final : public Init {
         }
     }
 
-public:
     explicit Array(const std::shared_ptr<Type::Type> &type, const std::vector<std::shared_ptr<Init>> &init_values,
                    const bool is_zero_initialized = false) :
         Init{type}, is_zero_initialized{is_zero_initialized}, init_values{init_values} {
