@@ -1,5 +1,5 @@
-#ifndef RV_VARIABLE_TYPES_H
-#define RV_VARIABLE_TYPES_H
+#ifndef BACKEND_VARIABLE_TYPES_H
+#define BACKEND_VARIABLE_TYPES_H
 
 #include <sstream>
 #include "Mir/Structure.h"
@@ -29,6 +29,8 @@ namespace Backend::Utils {
     [[nodiscard]] std::string to_string(VariableType type);
     [[nodiscard]] std::string to_riscv_indicator(VariableType type);
     [[nodiscard]] bool is_pointer(VariableType type);
+    [[nodiscard]] bool is_int(VariableType type);
+    [[nodiscard]] bool is_float(VariableType type);
 }
 
 #endif

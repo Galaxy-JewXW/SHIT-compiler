@@ -3,7 +3,6 @@
 [[nodiscard]] Backend::VariableType Backend::Utils::llvm_to_riscv(const Mir::Type::Type& type) {
     if (type.is_int32()) return Backend::VariableType::INT32;
     if (type.is_int1()) return Backend::VariableType::INT1;
-    // if (type.is_int64()) return Backend::VariableType::INT64;
     if (type.is_array()) return Backend::Utils::to_pointer(Backend::Utils::llvm_to_riscv(*dynamic_cast<const Mir::Type::Array *>(&type)->get_element_type()));
     if (type.is_float()) return Backend::VariableType::FLOAT;
     if (type.is_void()) return Backend::VariableType::VOID;
@@ -34,7 +33,7 @@
         case Backend::VariableType::FLOAT_PTR: return Backend::VariableType::FLOAT;
         case Backend::VariableType::DOUBLE_PTR: return Backend::VariableType::DOUBLE;
         case Backend::VariableType::STRING_PTR: return Backend::VariableType::STRING;
-        default: log_error("Cannot convert to reference type!");
+        default: return type;
     }
 }
 
@@ -43,9 +42,7 @@
         case INT1: return __BYTE__;
         case INT8: return __BYTE__;
         case INT32: return 4 * __BYTE__;
-        case INT64: return 8 * __BYTE__;
         case FLOAT: return 4 * __BYTE__;
-        case DOUBLE: return 8 * __BYTE__;
         default: return 8 * __BYTE__;
     }
 }
@@ -55,7 +52,6 @@
         case INT1: return ".byte";
         case INT8: return ".byte";
         case INT32: return ".word";
-        case INT64: return ".dword";
         case FLOAT: return ".float";
         case DOUBLE: return ".double";
         default: log_error("Type cannot be converted!");
@@ -71,6 +67,35 @@
         case Backend::VariableType::FLOAT_PTR:
         case Backend::VariableType::DOUBLE_PTR:
         case Backend::VariableType::STRING_PTR:
+            return true;
+        default:
+            return false;
+    }
+}
+
+[[nodiscard]] bool Backend::Utils::is_int(Backend::VariableType type) {
+    switch (type) {
+        case Backend::VariableType::INT1:
+        case Backend::VariableType::INT8:
+        case Backend::VariableType::INT32:
+        case Backend::VariableType::INT64:
+        case Backend::VariableType::INT1_PTR:
+        case Backend::VariableType::INT8_PTR:
+        case Backend::VariableType::INT32_PTR:
+        case Backend::VariableType::INT64_PTR:
+        case Backend::VariableType::STRING_PTR:
+            return true;
+        default:
+            return false;
+    }
+}
+
+[[nodiscard]] bool Backend::Utils::is_float(Backend::VariableType type) {
+    switch (type) {
+        case Backend::VariableType::FLOAT_PTR:
+        case Backend::VariableType::FLOAT:
+        case Backend::VariableType::DOUBLE_PTR:
+        case Backend::VariableType::DOUBLE:
             return true;
         default:
             return false;
