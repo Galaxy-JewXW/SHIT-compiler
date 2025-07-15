@@ -1,10 +1,42 @@
+#include <numeric>
 #include <unordered_set>
 
 #include "Mir/Instruction.h"
 #include "Pass/Util.h"
 
-namespace Pass::Utils {
 using namespace Mir;
+
+namespace Pass {
+void CheckUninitialized::util_impl(const std::shared_ptr<Module> module) {
+    const auto uninitialized_operand = [&](const std::shared_ptr<Value> &value) -> bool {
+        return value->is<Undef>() != nullptr;
+    };
+
+    std::for_each(module->get_functions().begin(), module->get_functions().end(),
+                  [&](const std::shared_ptr<Function> &func) {
+                      for (const auto &block: func->get_blocks()) {
+                          for (const auto &inst: block->get_instructions()) {
+                              if (std::any_of(inst->get_operands().begin(), inst->get_operands().end(),
+                                              uninitialized_operand)) {
+                                  log_error("Invalid instruction: %s", inst->to_string().c_str());
+                              }
+                          }
+                      }
+                  });
+}
+} // namespace Pass
+
+namespace Pass::Utils {
+std::string format_blocks(const std::unordered_set<std::shared_ptr<Block>> &blocks) {
+    if (blocks.empty())
+        return "∅";
+    std::vector<std::string> names;
+    names.reserve(blocks.size());
+    for (const auto &b: blocks)
+        names.push_back("\'" + b->get_name() + "\'");
+    return std::accumulate(std::next(names.begin()), names.end(), names[0],
+                           [](const std::string &a, const std::string &b) { return a + ", " + b; });
+}
 
 void move_instruction_before(const std::shared_ptr<Instruction> &instruction,
                              const std::shared_ptr<Instruction> &target) {
@@ -17,21 +49,16 @@ void move_instruction_before(const std::shared_ptr<Instruction> &instruction,
     if (current_block == target_block) {
         auto &instructions = current_block->get_instructions();
         // 找到两个指令的位置
-        const auto instr_pos = std::distance(
-            instructions.begin(),
-            std::find(instructions.begin(), instructions.end(), instruction)
-        );
-        auto target_pos = std::distance(
-            instructions.begin(),
-            std::find(instructions.begin(), instructions.end(), target)
-        );
+        const auto instr_pos =
+                std::distance(instructions.begin(), std::find(instructions.begin(), instructions.end(), instruction));
+        auto target_pos =
+                std::distance(instructions.begin(), std::find(instructions.begin(), instructions.end(), target));
         if (static_cast<size_t>(instr_pos) == instructions.size()) [[unlikely]] {
             log_error("Instruction %s not in block %s", instruction->to_string().c_str(),
                       current_block->get_name().c_str());
         }
         if (static_cast<size_t>(target_pos) == instructions.size()) [[unlikely]] {
-            log_error("Instruction %s not in block %s", target->to_string().c_str(),
-                      target_block->get_name().c_str());
+            log_error("Instruction %s not in block %s", target->to_string().c_str(), target_block->get_name().c_str());
         }
         // 如果指令已经在目标之前且相邻，则无需移动
         if (instr_pos + 1 == target_pos) {
@@ -50,8 +77,8 @@ void move_instruction_before(const std::shared_ptr<Instruction> &instruction,
     }
     auto &instructions = current_block->get_instructions();
     auto &target_instructions = target_block->get_instructions();
-    if (const auto it = std::find(instructions.begin(), instructions.end(), instruction);
-        it == instructions.end()) [[unlikely]] {
+    if (const auto it = std::find(instructions.begin(), instructions.end(), instruction); it == instructions.end())
+            [[unlikely]] {
         log_error("Instruction %s not in block %s", instruction->to_string().c_str(),
                   current_block->get_name().c_str());
     } else {
@@ -60,8 +87,7 @@ void move_instruction_before(const std::shared_ptr<Instruction> &instruction,
     instruction->set_block(target_block, false);
     if (const auto it = std::find(target_instructions.begin(), target_instructions.end(), target);
         it == target_instructions.end()) [[unlikely]] {
-        log_error("Instruction %s not in block %s", target->to_string().c_str(),
-                  target_block->get_name().c_str());
+        log_error("Instruction %s not in block %s", target->to_string().c_str(), target_block->get_name().c_str());
     } else {
         target_instructions.insert(it, instruction);
     }
@@ -72,7 +98,7 @@ void delete_instruction_set(const std::shared_ptr<Module> &module,
     for (const auto &function: *module) {
         for (const auto &block: function->get_blocks()) {
             for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
-                if (deleted_instructions.count(*it)) {
+                if (deleted_instructions.count(*it)) [[unlikely]] {
                     it = block->get_instructions().erase(it);
                 } else {
                     ++it;
@@ -81,4 +107,14 @@ void delete_instruction_set(const std::shared_ptr<Module> &module,
         }
     }
 }
+
+std::optional<std::vector<std::shared_ptr<Instruction>>::iterator>
+inst_as_iter(const std::shared_ptr<Instruction> &inst) {
+    const auto block{inst->get_block()};
+    if (auto it = std::find(block->get_instructions().begin(), block->get_instructions().end(), inst);
+        it != block->get_instructions().end()) {
+        return std::make_optional(it);
+    }
+    return std::nullopt;
 }
+} // namespace Pass::Utils

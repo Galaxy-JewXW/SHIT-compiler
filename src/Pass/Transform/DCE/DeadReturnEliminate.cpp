@@ -1,4 +1,4 @@
-#include "Pass/Transform.h"
+#include "Pass/Transforms/DCE.h"
 
 using namespace Mir;
 
@@ -42,4 +42,4 @@ void DeadReturnEliminate::transform(const std::shared_ptr<Module> module) {
     }
     function_analysis_ = nullptr;
 }
-}
+} // namespace Pass

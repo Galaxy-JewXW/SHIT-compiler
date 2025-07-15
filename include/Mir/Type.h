@@ -1,9 +1,9 @@
 #ifndef TYPE_H
 #define TYPE_H
+
 #include <memory>
 #include <string>
 #include "Utils/Token.h"
-
 
 namespace Mir::Type {
 class Type : public std::enable_shared_from_this<Type> {
@@ -156,5 +156,5 @@ public:
 };
 
 [[nodiscard]] std::shared_ptr<Type> get_type(const Token::Type &token_type);
-}
+} // namespace Mir::Type
 #endif

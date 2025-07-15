@@ -1,5 +1,6 @@
 #ifndef SYMBOL_H
 #define SYMBOL_H
+
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -25,9 +26,8 @@ class Symbol {
     const std::shared_ptr<Value> address;
 
 public:
-    Symbol(std::string name, const std::shared_ptr<Type::Type> &type,
-           const std::shared_ptr<Init::Init> &init_value, const std::shared_ptr<Value> &address,
-           const bool is_constant, const bool is_modified = true) :
+    Symbol(std::string name, const std::shared_ptr<Type::Type> &type, const std::shared_ptr<Init::Init> &init_value,
+           const std::shared_ptr<Value> &address, const bool is_constant, const bool is_modified = true) :
         name{std::move(name)}, type{type}, is_constant{is_constant}, is_modified{is_modified}, init_value{init_value},
         address{address} {}
 
@@ -47,7 +47,8 @@ public:
 
     // [[nodiscard]] const std::string &to_string() const {
     //     std::ostringstream oss;
-    //     oss << "Symbol{" << name << ", " << type->to_string() << ", " << is_constant << ", " << init_value->to_string()
+    //     oss << "Symbol{" << name << ", " << type->to_string() << ", " << is_constant << ", " <<
+    //     init_value->to_string()
     //         << ", " << address->to_string() << "}";
     //     return oss.str();
     // }
@@ -71,6 +72,6 @@ public:
 
     [[nodiscard]] std::shared_ptr<Symbol> lookup_in_all_scopes(const std::string &name) const;
 };
-}
+} // namespace Mir::Symbol
 
 #endif

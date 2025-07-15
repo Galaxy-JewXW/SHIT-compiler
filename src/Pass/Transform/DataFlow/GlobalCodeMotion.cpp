@@ -1,8 +1,8 @@
 #include <algorithm>
-#include <Pass/Util.h>
 
 #include "Pass/Analysis.h"
-#include "Pass/Transform.h"
+#include "Pass/Transforms/DataFlow.h"
+#include "Pass/Util.h"
 
 using namespace Mir;
 using FunctionPtr = std::shared_ptr<Function>;
@@ -30,7 +30,7 @@ void move_instruction(const InstructionPtr &instruction, const BlockPtr &target_
     }
     target_instructions.insert(target_instructions.end() - 1, instruction);
 }
-}
+} // namespace
 
 namespace Pass {
 // 计算给定基本块在支配树深度
@@ -40,7 +40,7 @@ int GlobalCodeMotion::dom_tree_depth(const BlockPtr &block) const {
     }
     int depth = 0;
     BlockPtr current = block;
-    const auto &imm_dom_map = cfg->immediate_dominator(current_function);
+    const auto &imm_dom_map = dom_info->graph(current_function).immediate_dominator;
     while (imm_dom_map.find(current) != imm_dom_map.end()) {
         ++depth;
         current = imm_dom_map.at(current);
@@ -63,7 +63,7 @@ BlockPtr GlobalCodeMotion::find_lca(const BlockPtr &block1, const BlockPtr &bloc
     if (block2 == nullptr) {
         return block1;
     }
-    const auto &imm_dom_map = cfg->immediate_dominator(current_function);
+    const auto &imm_dom_map = dom_info->graph(current_function).immediate_dominator;
     auto p = block1, q = block2;
     while (dom_tree_depth(p) < dom_tree_depth(q)) {
         q = imm_dom_map.at(q);
@@ -84,6 +84,7 @@ bool GlobalCodeMotion::is_pinned(const InstructionPtr &instruction) const {
         case Operator::BRANCH:
         case Operator::JUMP:
         case Operator::RET:
+        case Operator::SWITCH:
         case Operator::PHI:
         case Operator::STORE:
         case Operator::LOAD:
@@ -166,13 +167,17 @@ void GlobalCodeMotion::schedule_late(const InstructionPtr &instruction) {
         }
         BlockPtr select = lca;
         while (lca != instruction->get_block() && lca != current_function->get_blocks().front()) {
-            if (lca == nullptr) { log_error("lca cannot be nullptr"); }
-            lca = cfg->immediate_dominator(current_function).at(lca);
-            if (lca == nullptr) { log_error("lca cannot be nullptr"); }
+            if (lca == nullptr) {
+                log_error("lca cannot be nullptr");
+            }
+            lca = dom_info->graph(current_function).immediate_dominator.at(lca);
+            if (lca == nullptr) {
+                log_error("lca cannot be nullptr");
+            }
             if (loop_depth(lca) < loop_depth(select) || [&] {
-                const auto &succ = cfg->successors(current_function).at(lca);
-                return succ.size() == 1 && succ.find(select) != succ.end();
-            }()) {
+                    const auto &succ = cfg_info->graph(current_function).successors.at(lca);
+                    return succ.size() == 1 && succ.find(select) != succ.end();
+                }()) {
                 select = lca;
             }
         }
@@ -194,7 +199,7 @@ void GlobalCodeMotion::schedule_late(const InstructionPtr &instruction) {
 void GlobalCodeMotion::run_on_func(const FunctionPtr &func) {
     current_function = func;
     visited_instructions.clear();
-    std::vector<BlockPtr> post_order_blocks = cfg->post_order_blocks(func);
+    std::vector<BlockPtr> post_order_blocks = dom_info->post_order_blocks(func);
     std::reverse(post_order_blocks.begin(), post_order_blocks.end());
     // 预先计算所需的总容量
     size_t total_instructions = 0;
@@ -221,7 +226,8 @@ void GlobalCodeMotion::run_on_func(const FunctionPtr &func) {
 
 void GlobalCodeMotion::transform(const std::shared_ptr<Module> module) {
     // 计算支配树和支配关系
-    cfg = get_analysis_result<ControlFlowGraph>(module);
+    cfg_info = get_analysis_result<ControlFlowGraph>(module);
+    dom_info = get_analysis_result<DominanceGraph>(module);
     // 利用循环分析计算循环深度
     loop_analysis = get_analysis_result<LoopAnalysis>(module);
 
@@ -231,9 +237,10 @@ void GlobalCodeMotion::transform(const std::shared_ptr<Module> module) {
     for (const auto &func: *module) {
         run_on_func(func);
     }
-    cfg = nullptr;
+    cfg_info = nullptr;
+    dom_info = nullptr;
     loop_analysis = nullptr;
     current_function = nullptr;
     visited_instructions.clear();
 }
-}
+} // namespace Pass

@@ -1,4 +1,5 @@
-#include "Pass/Transform.h"
+#include "Pass/Transforms/Array.h"
+#include "Pass/Transforms/DataFlow.h"
 #include "Pass/Util.h"
 
 using namespace Mir;
@@ -42,6 +43,7 @@ void try_fold_gep(const std::shared_ptr<GetElementPtr> &gep) {
         }
     }
     std::vector<std::shared_ptr<Value>> offsets;
+    offsets.reserve(zero_count);
     for (size_t i = 0; i < zero_count; ++i) {
         offsets.push_back(ConstInt::create(0));
     }
@@ -68,12 +70,12 @@ void try_fold_gep(const std::shared_ptr<GetElementPtr> &gep) {
         gep->replace_by_new_value(new_inst);
     }
 }
-}
+} // namespace
 
 namespace Pass {
 void GepFolding::run_on_func(const std::shared_ptr<Function> &func) const {
     std::vector<std::shared_ptr<GetElementPtr>> geps;
-    for (const auto &block: cfg->dom_tree_layer(func)) {
+    for (const auto &block: dom_graph->dom_tree_layer(func)) {
         for (const auto &instruction: block->get_instructions()) {
             if (is_folded_leaf_gep(instruction)) {
                 geps.push_back(instruction->as<GetElementPtr>());
@@ -88,12 +90,11 @@ void GepFolding::run_on_func(const std::shared_ptr<Function> &func) const {
 
 
 void GepFolding::transform(const std::shared_ptr<Module> module) {
-    cfg = get_analysis_result<ControlFlowGraph>(module);
+    dom_graph = get_analysis_result<DominanceGraph>(module);
     for (const auto &func: *module) {
         run_on_func(func);
     }
     module->update_id();
-    cfg = nullptr;
-    create<GlobalValueNumbering>()->run_on(module);
+    dom_graph = nullptr;
 }
-}
+} // namespace Pass

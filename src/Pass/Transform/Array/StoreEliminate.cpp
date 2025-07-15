@@ -1,11 +1,9 @@
-#include "Pass/Transform.h"
+#include "Pass/Transforms/Array.h"
 #include "Pass/Util.h"
 
 using namespace Mir;
 
 namespace {
-std::shared_ptr<Module> module{nullptr};
-
 std::shared_ptr<Value> base_addr(const std::shared_ptr<Value> &inst) {
     auto ret = inst;
     while (ret->is<BitCast>() != nullptr || ret->is<GetElementPtr>() != nullptr) {
@@ -17,7 +15,7 @@ std::shared_ptr<Value> base_addr(const std::shared_ptr<Value> &inst) {
     }
     return ret;
 }
-}
+} // namespace
 
 namespace Pass {
 void StoreEliminate::handle_load(const std::shared_ptr<Load> &load) {
@@ -31,8 +29,7 @@ void StoreEliminate::handle_load(const std::shared_ptr<Load> &load) {
     if (const auto gv = addr->is<GlobalVariable>()) {
         store_global.erase(gv);
     } else if (const auto gep = addr->is<GetElementPtr>()) {
-        const auto &base_addr = gep->get_addr(),
-                   &index = gep->get_index();
+        const auto &base_addr = gep->get_addr(), &index = gep->get_index();
         store_map.try_emplace(base_addr, std::unordered_map<ValuePtr, std::shared_ptr<Store>>{});
         if (index->is_constant()) {
             store_map[base_addr].erase(index);
@@ -56,8 +53,7 @@ void StoreEliminate::handle_store(const std::shared_ptr<Store> &store) {
         }
         store_global[gv] = store;
     } else if (const auto gep = addr->is<GetElementPtr>()) {
-        const auto &base_addr = gep->get_addr(),
-                   &index = gep->get_index();
+        const auto &base_addr = gep->get_addr(), &index = gep->get_index();
         store_map.try_emplace(base_addr, std::unordered_map<ValuePtr, std::shared_ptr<Store>>{});
         if (index->is_constant()) {
             if (store_map[base_addr].count(index)) {
@@ -116,8 +112,7 @@ void StoreEliminate::run_on_func(const std::shared_ptr<Function> &func) {
         clear();
         deleted_instructions.clear();
         for (const auto &instruction: block->get_instructions()) {
-            if (const auto op = instruction->get_op();
-                op == Operator::LOAD) {
+            if (const auto op = instruction->get_op(); op == Operator::LOAD) {
                 handle_load(instruction->as<Load>());
             } else if (op == Operator::STORE) {
                 handle_store(instruction->as<Store>());
@@ -125,21 +120,17 @@ void StoreEliminate::run_on_func(const std::shared_ptr<Function> &func) {
                 handle_call(instruction->as<Call>());
             }
         }
-        Utils::delete_instruction_set(module, deleted_instructions);
+        Utils::delete_instruction_set(Module::instance(), deleted_instructions);
     }
 }
 
 void StoreEliminate::transform(const std::shared_ptr<Module> module) {
-    ::module = module;
     deleted_instructions.clear();
-    cfg = get_analysis_result<ControlFlowGraph>(module);
     function_analysis = get_analysis_result<FunctionAnalysis>(module);
     for (const auto &function: *module) {
         run_on_func(function);
     }
-    cfg = nullptr;
     function_analysis = nullptr;
     deleted_instructions.clear();
-    ::module = nullptr;
 }
-}
+} // namespace Pass

@@ -9,11 +9,11 @@ std::shared_ptr<Constant> Constant::create_constant_init_value(const std::shared
                                                                const std::shared_ptr<Symbol::Table> &table) {
     const auto &res = eval_exp(addExp, table);
     if (type->is_int32()) {
-        int value = std::visit([](auto &&arg) { return static_cast<int>(arg); }, res);
+        const int value = std::visit([](auto &&arg) { return static_cast<int>(arg); }, res);
         return std::make_shared<Constant>(type, ConstInt::create(value));
     }
     if (type->is_float()) {
-        double value = std::visit([](auto &&arg) { return static_cast<double>(arg); }, res);
+        const double value = std::visit([](auto &&arg) { return static_cast<double>(arg); }, res);
         return std::make_shared<Constant>(type, ConstFloat::create(value));
     }
     log_error("Illegal type: %s", type->to_string().c_str());
@@ -21,12 +21,10 @@ std::shared_ptr<Constant> Constant::create_constant_init_value(const std::shared
 
 std::shared_ptr<Constant> Constant::create_zero_constant_init_value(const std::shared_ptr<Type::Type> &type) {
     if (type->is_int32()) {
-        return std::make_shared<Constant>(
-            type, ConstInt::create(0));
+        return std::make_shared<Constant>(type, ConstInt::create(0));
     }
     if (type->is_float()) {
-        return std::make_shared<Constant>(
-            type, ConstFloat::create(0.0f));
+        return std::make_shared<Constant>(type, ConstFloat::create(0.0f));
     }
     log_error("Illegal type: %s", type->to_string().c_str());
 }
@@ -47,10 +45,10 @@ std::shared_ptr<Init> Exp::create_exp_init_value(const std::shared_ptr<Type::Typ
     size_t dim_count = 0;
     while (current_type->is_array()) {
         const auto arr_type = std::static_pointer_cast<Type::Array>(current_type);
-        if (dim_count >= indexes.size()) break;
+        if (dim_count >= indexes.size())
+            break;
         if (indexes[dim_count] < 0 || indexes[dim_count] >= static_cast<int>(arr_type->get_size())) {
-            log_error("Index out of range[%zu]: [0, %zu) vs %d",
-                      dim_count, arr_type->get_size(), indexes[dim_count]);
+            log_error("Index out of range[%zu]: [0, %zu) vs %d", dim_count, arr_type->get_size(), indexes[dim_count]);
         }
         current_type = arr_type->get_element_type();
         dim_count++;
@@ -61,10 +59,12 @@ std::shared_ptr<Init> Exp::create_exp_init_value(const std::shared_ptr<Type::Typ
     std::shared_ptr<Init> current_init = shared_from_this();
     for (const int &idx: indexes) {
         const auto arr = std::dynamic_pointer_cast<Array>(current_init);
-        if (!arr) { log_error("Indexing into non-array init value"); }
+        if (!arr) {
+            log_error("Indexing into non-array init value");
+        }
         if (arr->is_zero_initialized) {
             return Constant::create_zero_constant_init_value(
-                std::static_pointer_cast<Type::Array>(arr->type)->get_atomic_type());
+                    std::static_pointer_cast<Type::Array>(arr->type)->get_atomic_type());
         }
         if (idx < 0 || idx >= static_cast<int>(arr->init_values.size())) {
             log_error("Index %d out of array bounds[0, %zu)", idx, arr->init_values.size());
@@ -79,7 +79,9 @@ std::shared_ptr<Init> Exp::create_exp_init_value(const std::shared_ptr<Type::Typ
 
 
 void Constant::gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared_ptr<Block> &block) {
-    if (!addr->get_type()->is_pointer()) { log_error("Illegal type: %s", addr->get_type()->to_string().c_str()); }
+    if (!addr->get_type()->is_pointer()) {
+        log_error("Illegal type: %s", addr->get_type()->to_string().c_str());
+    }
     const auto &self = std::static_pointer_cast<Constant>(shared_from_this());
     const auto &value = self->get_const_value();
     const auto &content_type = std::static_pointer_cast<Type::Pointer>(addr->get_type())->get_contain_type();
@@ -88,7 +90,9 @@ void Constant::gen_store_inst(const std::shared_ptr<Value> &addr, const std::sha
 }
 
 void Exp::gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared_ptr<Block> &block) {
-    if (!addr->get_type()->is_pointer()) { log_error("Illegal type: %s", addr->get_type()->to_string().c_str()); }
+    if (!addr->get_type()->is_pointer()) {
+        log_error("Illegal type: %s", addr->get_type()->to_string().c_str());
+    }
     const auto &self = std::static_pointer_cast<Exp>(shared_from_this());
     const auto &value = self->get_exp_value();
     const auto &content_type = std::static_pointer_cast<Type::Pointer>(addr->get_type())->get_contain_type();
@@ -149,11 +153,11 @@ void Array::gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared
                 skip = true;
             }
         }
-        if (skip) continue;
+        if (skip)
+            continue;
         auto index_val = ConstInt::create(static_cast<int>(i));
         const auto zero_index = ConstInt::create(0);
-        auto element_addr = GetElementPtr::create(Builder::gen_variable_name(), addr,
-                                                    {zero_index, index_val}, block);
+        auto element_addr = GetElementPtr::create(Builder::gen_variable_name(), addr, {zero_index, index_val}, block);
         // 如果当前元素是子数组，则递归生成内部 store 指令
         if (init->is_array_init()) {
             // 对于子数组，其对应的维度为原 dimensions 去掉第一维
@@ -171,4 +175,4 @@ void Array::gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared
         }
     }
 }
-}
+} // namespace Mir::Init

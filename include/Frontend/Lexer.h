@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-#include "../Utils/Token.h"
+#include "Utils/Token.h"
 
 class Lexer {
     // 以字符串形式保存到源程序
@@ -19,55 +19,27 @@ class Lexer {
     std::vector<Token::Token> tokens;
 
     // 关键词集合
-    std::unordered_set<std::string> keywords = {
-        "const",
-        "int",
-        "float",
-        "void",
-        "if",
-        "else",
-        "while",
-        "break",
-        "continue",
-        "return",
-        "putf"
-    };
+    std::unordered_set<std::string> keywords = {"const", "int",   "float",    "void",   "if",  "else",
+                                                "while", "break", "continue", "return", "putf"};
 
     // 运算符和分隔符映射
     std::unordered_map<std::string, Token::Type> operators = {
-        {"+", Token::Type::ADD},
-        {"-", Token::Type::SUB},
-        {"!", Token::Type::NOT},
-        {"*", Token::Type::MUL},
-        {"/", Token::Type::DIV},
-        {"%", Token::Type::MOD},
-        {"<", Token::Type::LT},
-        {">", Token::Type::GT},
-        {"<=", Token::Type::LE},
-        {">=", Token::Type::GE},
-        {"==", Token::Type::EQ},
-        {"!=", Token::Type::NE},
-        {"&&", Token::Type::AND},
-        {"||", Token::Type::OR},
-        {";", Token::Type::SEMICOLON},
-        {",", Token::Type::COMMA},
-        {"=", Token::Type::ASSIGN},
-        {"(", Token::Type::LPAREN},
-        {")", Token::Type::RPAREN},
-        {"{", Token::Type::LBRACE},
-        {"}", Token::Type::RBRACE},
-        {"[", Token::Type::LBRACKET},
-        {"]", Token::Type::RBRACKET}
-    };
+            {"+", Token::Type::ADD},      {"-", Token::Type::SUB},     {"!", Token::Type::NOT},
+            {"*", Token::Type::MUL},      {"/", Token::Type::DIV},     {"%", Token::Type::MOD},
+            {"<", Token::Type::LT},       {">", Token::Type::GT},      {"<=", Token::Type::LE},
+            {">=", Token::Type::GE},      {"==", Token::Type::EQ},     {"!=", Token::Type::NE},
+            {"&&", Token::Type::AND},     {"||", Token::Type::OR},     {";", Token::Type::SEMICOLON},
+            {",", Token::Type::COMMA},    {"=", Token::Type::ASSIGN},  {"(", Token::Type::LPAREN},
+            {")", Token::Type::RPAREN},   {"{", Token::Type::LBRACE},  {"}", Token::Type::RBRACE},
+            {"[", Token::Type::LBRACKET}, {"]", Token::Type::RBRACKET}};
 
     // 查看当前位置的字符
-    char peek() const {
-        return input[pos];
-    }
+    char peek() const { return input[pos]; }
 
     // 查看下一个字符
     char peek_next() const {
-        if (pos + 1 >= input.length()) return '\0';
+        if (pos + 1 >= input.length())
+            return '\0';
         return input[pos + 1];
     }
 
@@ -107,16 +79,26 @@ class Lexer {
 
     // 将关键词字符串转换为TokenType
     static Token::Type string_to_type(const std::string &str) {
-        if (str == "const") return Token::Type::CONST;
-        if (str == "int") return Token::Type::INT;
-        if (str == "float") return Token::Type::FLOAT;
-        if (str == "void") return Token::Type::VOID;
-        if (str == "if") return Token::Type::IF;
-        if (str == "else") return Token::Type::ELSE;
-        if (str == "while") return Token::Type::WHILE;
-        if (str == "break") return Token::Type::BREAK;
-        if (str == "continue") return Token::Type::CONTINUE;
-        if (str == "return") return Token::Type::RETURN;
+        if (str == "const")
+            return Token::Type::CONST;
+        if (str == "int")
+            return Token::Type::INT;
+        if (str == "float")
+            return Token::Type::FLOAT;
+        if (str == "void")
+            return Token::Type::VOID;
+        if (str == "if")
+            return Token::Type::IF;
+        if (str == "else")
+            return Token::Type::ELSE;
+        if (str == "while")
+            return Token::Type::WHILE;
+        if (str == "break")
+            return Token::Type::BREAK;
+        if (str == "continue")
+            return Token::Type::CONTINUE;
+        if (str == "return")
+            return Token::Type::RETURN;
         return Token::Type::IDENTIFIER;
     }
 

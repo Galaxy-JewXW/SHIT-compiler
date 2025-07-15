@@ -1,4 +1,4 @@
-#include "Pass/Transform.h"
+#include "Pass/Transforms/DCE.h"
 
 using namespace Mir;
 
@@ -50,7 +50,7 @@ void DeadFuncArgEliminate::run_on_func(const std::shared_ptr<Function> &func) co
             }
         }
     }
-    for (auto it = func->get_arguments().begin(); it != func->get_arguments().end(); ) {
+    for (auto it = func->get_arguments().begin(); it != func->get_arguments().end();) {
         if (args_to_delete.find(*it) != args_to_delete.end()) {
             it = func->get_arguments().erase(it);
         } else {
@@ -95,11 +95,11 @@ void DeadFuncArgEliminate::run_on_func(const std::shared_ptr<Function> &func) co
 }
 
 void DeadFuncArgEliminate::transform(const std::shared_ptr<Module> module) {
-    function_analysis_ = create<FunctionAnalysis>();
-    function_analysis_->run_on(module);
+    function_analysis_ = get_analysis_result<FunctionAnalysis>(module);
     const auto &topo = function_analysis_->topo();
     for (const auto &func: topo) {
         run_on_func(func);
     }
+    function_analysis_ = nullptr;
 }
-}
+} // namespace Pass
