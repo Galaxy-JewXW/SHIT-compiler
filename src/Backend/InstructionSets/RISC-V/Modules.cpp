@@ -2,14 +2,36 @@
 #include "Backend/LIR/Instructions.h"
 #include "Utils/Log.h"
 
-RISCV::Module::Module(const std::shared_ptr<Backend::LIR::Module>& mir_module, const RegisterAllocator::AllocationType& allocation_type) {
-    data_section = std::move(mir_module->global_data);
-    for (const std::shared_ptr<Backend::LIR::Function>& mir_function : mir_module->functions) {
+RISCV::Module::Module(const std::shared_ptr<Backend::LIR::Module>& lir_module, const RegisterAllocator::AllocationType& allocation_type) {
+    data_section = std::move(lir_module->global_data);
+    for (const std::shared_ptr<Backend::LIR::Function>& mir_function : lir_module->functions) {
         if (mir_function->function_type == Backend::LIR::FunctionType::PRIVILEGED)
             continue;
         functions.push_back(std::make_shared<RISCV::Function>(mir_function, allocation_type));
         functions.back()->module = this;
     }
+}
+
+std::string RISCV::Module::to_string(const std::shared_ptr<Backend::DataSection> &data_section) {
+    std::ostringstream oss;
+    oss << ".section .rodata\n";
+    for (const std::pair<std::string, std::shared_ptr<Backend::DataSection::Variable>> var : data_section->global_variables)
+        if (var.second->read_only) {
+            // only str can trigger this
+            oss << " str_" << var.second->name << ":\n";
+            oss << "  .string \"" << std::static_pointer_cast<Backend::DataSection::Variable::ConstString>(var.second->init_value)->str << "\"";
+        }
+    oss << ".section .data\n";
+    for (const std::pair<std::string, std::shared_ptr<Backend::DataSection::Variable>> var : data_section->global_variables)
+        if (!var.second->read_only) {
+            // only int & float can trigger this
+            oss << " " << var.second->name << ":\n";
+            for (const std::shared_ptr<Backend::Constant> &value: (std::static_pointer_cast<Backend::DataSection::Variable::Constants>(var.second->init_value)->constants)) {
+                oss << "  " << Backend::Utils::to_riscv_indicator(value->constant_type) << " " << value->name << "\n";
+            }
+        }
+    oss << "# END OF DATA FIELD\n";
+    return oss.str();
 }
 
 RISCV::Function::Function(const std::shared_ptr<Backend::LIR::Function> &mir_function, const RegisterAllocator::AllocationType& allocation_type) : name(mir_function->name), mir_function_(mir_function) {
@@ -32,22 +54,19 @@ void RISCV::Function::generate_prologue() {
 
 template<typename T_instr, typename T_imm, typename T_reg>
 void RISCV::Function::translate_iactions(std::shared_ptr<T_instr> &instr, std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> &instrs) {
-    std::shared_ptr<Backend::LIR::Value> lhs = instr->lhs;
-    std::shared_ptr<Backend::LIR::Value> rhs = instr->rhs;
+    std::shared_ptr<Backend::Operand> lhs = instr->lhs;
+    std::shared_ptr<Backend::Operand> rhs = instr->rhs;
     std::shared_ptr<Backend::Variable> result = instr->result;
-    if (lhs->value_type == Backend::LIR::OperandType::CONSTANT && rhs->value_type == Backend::LIR::OperandType::CONSTANT) {
-        log_error("Cannot calculate two constants in RISC-V backend");
-    }
-    RISCV::Registers::ABI rd = register_allocator->use_register_w(result, instrs);
-    if (lhs->value_type == Backend::LIR::OperandType::CONSTANT) {
-        RISCV::Registers::ABI rs = register_allocator->use_register_ro(std::static_pointer_cast<Backend::Variable>(rhs), instrs);
-        instrs.push_back(std::make_shared<T_imm>(rd, rs, std::static_pointer_cast<Backend::LIR::Constant>(lhs)->int32_value));
-    } else if (rhs->value_type == Backend::LIR::OperandType::CONSTANT) {
-        RISCV::Registers::ABI rs = register_allocator->use_register_ro(std::static_pointer_cast<Backend::Variable>(lhs), instrs);
-        instrs.push_back(std::make_shared<T_imm>(rd, rs, std::static_pointer_cast<Backend::LIR::Constant>(rhs)->int32_value));
+    RISCV::Registers::ABI rd = register_allocator->get_register(result);
+    if (lhs->operand_type == Backend::OperandType::CONSTANT) {
+        RISCV::Registers::ABI rs = register_allocator->get_register(std::static_pointer_cast<Backend::Variable>(rhs));
+        instrs.push_back(std::make_shared<T_imm>(rd, rs, std::static_pointer_cast<Backend::IntValue>(lhs)->int32_value));
+    } else if (rhs->operand_type == Backend::OperandType::CONSTANT) {
+        RISCV::Registers::ABI rs = register_allocator->get_register(std::static_pointer_cast<Backend::Variable>(lhs));
+        instrs.push_back(std::make_shared<T_imm>(rd, rs, std::static_pointer_cast<Backend::IntValue>(rhs)->int32_value));
     } else {
-        RISCV::Registers::ABI rs1 = register_allocator->use_register_ro(std::static_pointer_cast<Backend::Variable>(lhs), instrs);
-        RISCV::Registers::ABI rs2 = register_allocator->use_register_ro(std::static_pointer_cast<Backend::Variable>(rhs), instrs);
+        RISCV::Registers::ABI rs1 = register_allocator->get_register(std::static_pointer_cast<Backend::Variable>(lhs));
+        RISCV::Registers::ABI rs2 = register_allocator->get_register(std::static_pointer_cast<Backend::Variable>(rhs));
         instrs.push_back(std::make_shared<T_reg>(rd, rs1, rs2));
     }
 }
@@ -75,7 +94,7 @@ std::string RISCV::Function::to_string() const {
 
 std::string RISCV::Module::to_string() const {
     std::ostringstream oss;
-    oss << data_section->to_string() << "\n";
+    oss << to_string(data_section) << "\n";
     oss << TEXT_OPTION << "\n";
     for (const std::shared_ptr<RISCV::Function> &function : functions) {
         oss << function->to_string() << "\n";
@@ -196,7 +215,7 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
             std::shared_ptr<Backend::LIR::LoadInt> instr = std::static_pointer_cast<Backend::LIR::LoadInt>(instruction);
             std::shared_ptr<Backend::Variable> addr = instr->var_in_mem;
             std::shared_ptr<Backend::Variable> dest = std::static_pointer_cast<Backend::Variable>(instr->var_in_reg);
-            RISCV::Registers::ABI dest_reg = register_allocator->use_register_w(dest, instrs);
+            RISCV::Registers::ABI dest_reg = register_allocator->get_register(dest);
             if (addr->lifetime == Backend::VariableWide::GLOBAL) {
                 instrs.push_back(std::make_shared<RISCV::Instructions::LoadAddress>(dest_reg, addr));
                 instrs.push_back(std::make_shared<RISCV::Instructions::LoadWord>(dest_reg, dest_reg));
@@ -209,7 +228,7 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
             std::shared_ptr<Backend::LIR::StoreInt> instr = std::static_pointer_cast<Backend::LIR::StoreInt>(instruction);
             std::shared_ptr<Backend::Variable> dest = instr->var_in_mem;
             std::shared_ptr<Backend::Variable> src = std::static_pointer_cast<Backend::Variable>(instr->var_in_reg);
-            RISCV::Registers::ABI src_reg = register_allocator->use_register_ro(src, instrs);
+            RISCV::Registers::ABI src_reg = register_allocator->get_register(src);
             instrs.push_back(std::make_shared<RISCV::Instructions::StoreWordToStack>(src_reg, dest, stack));
             break;
         }

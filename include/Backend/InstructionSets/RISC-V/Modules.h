@@ -80,7 +80,7 @@ class RISCV::Module {
         std::vector<std::shared_ptr<Function>> functions;
         std::shared_ptr<Backend::DataSection> data_section;
 
-        explicit Module(const std::shared_ptr<Backend::LIR::Module>& mir_module, const RegisterAllocator::AllocationType& allocation_type = RegisterAllocator::AllocationType::LINEAR_SCAN);
+        explicit Module(const std::shared_ptr<Backend::LIR::Module>& lir_module, const RegisterAllocator::AllocationType& allocation_type = RegisterAllocator::AllocationType::LINEAR_SCAN);
         [[nodiscard]] std::string to_string() const;
 
         inline void to_assembly() {
@@ -88,7 +88,7 @@ class RISCV::Module {
                 function->to_assembly();
         }
     private:
-        static inline const std::string to_string(std::shared_ptr<Backend::DataSection> &data_section);
+        static std::string to_string(const std::shared_ptr<Backend::DataSection> &data_section);
         static inline const std::string TEXT_OPTION =
 "\
 .section .text\n\

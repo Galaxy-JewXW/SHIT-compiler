@@ -1,10 +1,8 @@
 #include "Backend/InstructionSets/RISC-V/RegisterAllocator/RegisterAllocator.h"
-#include "Backend/InstructionSets/RISC-V/RegisterAllocator/LinearScan.h"
 #include "Backend/InstructionSets/RISC-V/RegisterAllocator/GraphColoring.h"
 #include "Backend/InstructionSets/RISC-V/Modules.h"
-#include "Utils/Log.h"
 
-RISCV::RegisterAllocator::Allocator::Allocator(const std::shared_ptr<Backend::LIR::Function> &function, const std::shared_ptr<RISCV::Stack> &stack) : stack(stack), mir_function(function) {}
+RISCV::RegisterAllocator::Allocator::Allocator(const std::shared_ptr<Backend::LIR::Function> &function, const std::shared_ptr<RISCV::Stack> &stack) : stack(stack), lir_function(function) {}
 
 std::shared_ptr<RISCV::RegisterAllocator::Allocator> RISCV::RegisterAllocator::create(AllocationType type, const std::shared_ptr<Backend::LIR::Function> &function, std::shared_ptr<RISCV::Stack> &stack) {
     switch (type) {
@@ -20,6 +18,21 @@ RISCV::Registers::ABI RISCV::RegisterAllocator::Allocator::get_register(const st
     if (var_to_reg.find(variable->name) != var_to_reg.end())
         return var_to_reg.at(variable->name);
     return RISCV::Registers::ABI::ZERO;
+}
+
+std::string RISCV::RegisterAllocator::Allocator::to_string() const {
+    std::ostringstream oss;
+    oss << "Register Allocator for function: " << lir_function->name << "\n";
+    for (const auto& [var_name, var] : lir_function->variables) {
+        if (var_to_reg.find(var_name) != var_to_reg.end()) {
+            oss << "  " << var_name << " -> " << RISCV::Registers::reg2string(var_to_reg.at(var_name)) << "\n";
+        } else if (stack->stack_index.find(var_name) != stack->stack_index.end()) {
+            oss << "  " << var_name << " -> stack\n";
+        } else {
+            log_error("Variable %s not found in register allocation map or stack index", var_name.c_str());
+        }
+    }
+    return oss.str();
 }
 
 void RISCV::Utils::analyze_live_variables(std::shared_ptr<Backend::LIR::Function> &function) {

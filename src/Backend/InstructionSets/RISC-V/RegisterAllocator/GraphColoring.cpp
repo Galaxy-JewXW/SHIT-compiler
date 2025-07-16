@@ -1,13 +1,13 @@
-#include "Backend/InstructionSets/RISC-V/RegisterAllocator/GraphColoring.h"
-#include "Backend/InstructionSets/RISC-V/Modules.h"
-#include "Utils/Log.h"
 #include <algorithm>
 #include <limits>
 #include <set>
+#include "Backend/InstructionSets/RISC-V/RegisterAllocator/GraphColoring.h"
+#include "Backend/InstructionSets/RISC-V/Modules.h"
+#include "Utils/Log.h"
 
 void RISCV::RegisterAllocator::GraphColoring::allocate() {
     available_colors.insert(available_colors.end(), available_integer_regs.begin(), available_integer_regs.end());
-    const int K = available_colors.size();
+    const size_t K = available_colors.size();
     build_interference_graph();
     while (true) {
         std::stack<std::string> simplify_stack;
@@ -29,21 +29,21 @@ void RISCV::RegisterAllocator::GraphColoring::allocate() {
 
 void RISCV::RegisterAllocator::GraphColoring::build_interference_graph() {
     interference_graph.clear();
-    for (const auto& [var_name, var] : mir_function->variables) {
-        if (var->lifetime != Backend::VariableWide::GLOBAL && var->lifetime != Backend::VariableWide::FUNCTION) {
+    for (const auto& [var_name, var] : lir_function->variables) {
+        if (var->lifetime != Backend::VariableWide::FUNCTIONAL) {
             interference_graph[var_name] = std::make_shared<InterferenceNode>(var);
         }
     }
     // handle parameters
-    for (const std::shared_ptr<Backend::Variable> &param : mir_function->parameters) {
-        for (const std::shared_ptr<Backend::Variable> &param_ : mir_function->parameters) {
+    for (const std::shared_ptr<Backend::Variable> &param : lir_function->parameters) {
+        for (const std::shared_ptr<Backend::Variable> &param_ : lir_function->parameters) {
             if (param != param_) {
                 interference_graph[param->name]->non_move_related_neighbors.insert(interference_graph[param_->name]);
                 interference_graph[param_->name]->non_move_related_neighbors.insert(interference_graph[param->name]);
             }
         }
     }
-    for (const std::shared_ptr<Backend::LIR::Block> &block : mir_function->blocks) {
+    for (const std::shared_ptr<Backend::LIR::Block> &block : lir_function->blocks) {
         std::unordered_set<std::shared_ptr<Backend::Variable>> live = block->live_out;
         for (std::vector<std::shared_ptr<Backend::LIR::Instruction>>::reverse_iterator it = block->instructions.rbegin(); it != block->instructions.rend(); it++) {
             const std::shared_ptr<Backend::LIR::Instruction> instr = *it;
@@ -73,15 +73,15 @@ void RISCV::RegisterAllocator::GraphColoring::build_interference_graph() {
 
 void RISCV::RegisterAllocator::GraphColoring::calculate_spill_costs() {
     spill_costs.clear();
-    for (const auto& [var_name, var] : mir_function->variables) {
-        if (var->lifetime != Backend::VariableWide::GLOBAL && var->lifetime != Backend::VariableWide::FUNCTION) {
+    for (const auto& [var_name, var] : lir_function->variables) {
+        if (var->lifetime != Backend::VariableWide::FUNCTIONAL) {
             spill_costs[var_name] = SpillCost{};
         }
     }
     int instr_idx = 0;
     std::unordered_map<std::string, int> first_use;
     std::unordered_map<std::string, int> last_use;
-    for (const auto& block : mir_function->blocks) {
+    for (const auto& block : lir_function->blocks) {
         for (const auto& instr : block->instructions) {
             auto def_var = instr->get_defined_variable();
             if (def_var && spill_costs.find(def_var->name) != spill_costs.end()) {
@@ -122,7 +122,7 @@ double RISCV::RegisterAllocator::GraphColoring::calculate_spill_cost(const std::
     return (access_count * loop_factor) / range_factor;
 }
 
-bool RISCV::RegisterAllocator::GraphColoring::simplify_phase(std::stack<std::string>& simplify_stack, const int K) {
+bool RISCV::RegisterAllocator::GraphColoring::simplify_phase(std::stack<std::string>& simplify_stack, const size_t K) {
     std::vector<std::string> workload;
     for (const auto& [var_name, node] : interference_graph) {
         if (!node->is_spilled) {
@@ -147,7 +147,7 @@ bool RISCV::RegisterAllocator::GraphColoring::simplify_phase(std::stack<std::str
     } while (changed);
 }
 
-bool RISCV::RegisterAllocator::GraphColoring::coalesce_phase(const int K) {
+bool RISCV::RegisterAllocator::GraphColoring::coalesce_phase(const size_t K) {
     for (const auto& [var_name, node] : interference_graph)
         if (!node->is_spilled && !node->simplified)
             for (const auto& move_neighbor : node->move_related_neighbors) {
@@ -160,7 +160,7 @@ bool RISCV::RegisterAllocator::GraphColoring::coalesce_phase(const int K) {
     return false;
 }
 
-bool RISCV::RegisterAllocator::GraphColoring::freeze_phase(const int K) {
+bool RISCV::RegisterAllocator::GraphColoring::freeze_phase(const size_t K) {
     for (const auto& [var_name, node] : interference_graph)
         if (!node->is_spilled && !node->simplified)
             if (!node->move_related_neighbors.empty()) {
@@ -173,7 +173,7 @@ bool RISCV::RegisterAllocator::GraphColoring::freeze_phase(const int K) {
 }
 
 // potential spill
-bool RISCV::RegisterAllocator::GraphColoring::spill_phase(std::stack<std::string>& simplify_stack, int K) {
+bool RISCV::RegisterAllocator::GraphColoring::spill_phase(std::stack<std::string>& simplify_stack, const size_t K) {
     std::string best_candidate = select_spill_candidate();
     if (!best_candidate.empty()) {
         simplify_stack.push(best_candidate);
@@ -221,7 +221,7 @@ bool RISCV::RegisterAllocator::GraphColoring::assign_colors(std::stack<std::stri
             node->is_colored = true;
         } else {
             log_debug("No available color for variable %s, marked for actual spilling", var_name.c_str());
-            insert_spill_code(node->variable);
+            lir_function->spill(node->variable);
             build_interference_graph();
             return false;
         }
@@ -229,14 +229,7 @@ bool RISCV::RegisterAllocator::GraphColoring::assign_colors(std::stack<std::stri
     return true;
 }
 
-void RISCV::RegisterAllocator::GraphColoring::insert_spill_code(std::shared_ptr<Backend::Variable> &var) {
-    if (var->position != Backend::VariableWide::LOCAL && var->position != Backend::VariableWide::PARAMETER)
-        log_error("Cannot spill variable %s, it is not a local variable", var->name.c_str());
-    std::shared_ptr<Backend::LIR::LocalVariable> local_var = std::static_pointer_cast<Backend::LIR::LocalVariable>(var);
-    mir_function->upgrade(local_var);
-}
-
-bool RISCV::RegisterAllocator::GraphColoring::can_coalesce_briggs(const std::string& node1, const std::string& node2, int K) {
+bool RISCV::RegisterAllocator::GraphColoring::can_coalesce_briggs(const std::string& node1, const std::string& node2, const size_t K) {
     std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> n1 = interference_graph[node1];
     std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> n2 = interference_graph[node2];
     std::set<std::shared_ptr<InterferenceNode>> combined_neighbors;
@@ -259,7 +252,7 @@ void RISCV::RegisterAllocator::GraphColoring::coalesce_nodes(const std::string& 
     log_debug("Coalesced variables %s and %s using Briggs heuristic", node1.c_str(), node2.c_str());
     std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> n1 = interference_graph[node1];
     std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> n2 = interference_graph[node2];
-    mir_function->remove_variable(n2->variable);
+    lir_function->remove_variable(n2->variable);
     n1->move_related_neighbors.insert(n2->move_related_neighbors.begin(), n2->move_related_neighbors.end());
     n1->move_related_neighbors.erase(n1);
     n1->move_related_neighbors.erase(n2);
@@ -273,5 +266,5 @@ void RISCV::RegisterAllocator::GraphColoring::coalesce_nodes(const std::string& 
         move_neighbor->move_related_neighbors.erase(n2);
         move_neighbor->move_related_neighbors.insert(n1);
     }
-    mir_function->update(n2->variable, n1->variable);
+    // lir_function->update(n2->variable, n1->variable);
 }

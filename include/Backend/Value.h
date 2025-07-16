@@ -38,22 +38,19 @@ class Backend::Constant : public Backend::Operand {
     public:
         Backend::VariableType constant_type;
         explicit Constant(const std::string &name, const Backend::VariableType &type) : Operand(name, OperandType::CONSTANT), constant_type(type) {}
-        explicit Constant(const Backend::VariableType &type) : Operand("", OperandType::CONSTANT), constant_type(type) {
-            static size_t counter = 0;
-            this->name = "const_" + std::to_string(counter++);
-        }
+        explicit Constant(const Backend::VariableType &type) : Operand("", OperandType::CONSTANT), constant_type(type) {}
 };
 
 class Backend::IntValue : public Backend::Constant {
     public:
         int32_t int32_value{0};
-        explicit IntValue(const int32_t value) : Backend::Constant(Backend::VariableType::INT32), int32_value(value) {};
+        explicit IntValue(const int32_t value) : Backend::Constant(std::to_string(value), Backend::VariableType::INT32), int32_value(value) {};
 };
 
 class Backend::FloatValue : public Backend::Constant {
     public:
         const double float_value{0.0};
-        explicit FloatValue(const double value) : Backend::Constant(Backend::VariableType::FLOAT), float_value(value) {};
+        explicit FloatValue(const double value) : Backend::Constant(std::to_string(value), Backend::VariableType::FLOAT), float_value(value) {};
 };
 
 /*
@@ -119,7 +116,7 @@ class Backend::Comparison : public Backend::Variable {
             var_type = Variable::Type::CMP;
         }
 
-        [[nodiscard]] static Type llvm_to_mir(const Mir::Icmp::Op &op) {
+        [[nodiscard]] static Type load_from_llvm(const Mir::Icmp::Op &op) {
             switch (op) {
                 case Mir::Icmp::Op::EQ: return Type::EQUAL;
                 case Mir::Icmp::Op::NE: return Type::NOT_EQUAL;
@@ -133,10 +130,10 @@ class Backend::Comparison : public Backend::Variable {
     private:
         static Type to_negation(Type type) {
             switch (type) {
-                case Type::GREATER: return Type::LESS_EQUAL;
-                case Type::GREATER_EQUAL: return Type::LESS;
-                case Type::LESS: return Type::GREATER_EQUAL;
-                case Type::LESS_EQUAL: return Type::GREATER;
+                case Type::GREATER: return Type::LESS;
+                case Type::GREATER_EQUAL: return Type::LESS_EQUAL;
+                case Type::LESS: return Type::GREATER;
+                case Type::LESS_EQUAL: return Type::GREATER_EQUAL;
                 default: return type;
             }
         }

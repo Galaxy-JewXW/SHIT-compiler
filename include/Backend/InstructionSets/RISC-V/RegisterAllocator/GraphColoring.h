@@ -47,18 +47,17 @@ class RISCV::RegisterAllocator::GraphColoring : public RISCV::RegisterAllocator:
         void calculate_spill_costs();
         double calculate_spill_cost(const std::string &var_name);
 
-        bool can_coalesce_briggs(const std::string& node1, const std::string& node2, int K);
+        bool can_coalesce_briggs(const std::string& node1, const std::string& node2, const size_t K);
         void coalesce_nodes(const std::string& node1, const std::string& node2);
 
-        bool simplify_phase(std::stack<std::string>& simplify_stack, const int K);
-        bool coalesce_phase(const int K);
-        bool freeze_phase(const int K);
-        bool spill_phase(std::stack<std::string>& simplify_stack, const int K);
+        bool simplify_phase(std::stack<std::string>& simplify_stack, const size_t K);
+        bool coalesce_phase(const size_t K);
+        bool freeze_phase(const size_t K);
+        bool spill_phase(std::stack<std::string>& simplify_stack, const size_t K);
 
         std::string select_spill_candidate();
 
         bool assign_colors(std::stack<std::string> &stack);
-        void insert_spill_code(std::shared_ptr<Backend::Variable> &var);
     private:
         struct SpillInfo {
             RISCV::Registers::ABI reg;

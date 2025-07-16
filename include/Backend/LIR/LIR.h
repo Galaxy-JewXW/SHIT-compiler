@@ -64,7 +64,7 @@ namespace Backend::LIR {
 };
 
 namespace Backend::Utils {
-    [[nodiscard]] Backend::LIR::InstructionType llvm_to_mir(const Mir::IntBinary::Op &op)  {
+    [[nodiscard]] inline Backend::LIR::InstructionType llvm_to_lir(const Mir::IntBinary::Op &op)  {
         switch (op) {
             case Mir::IntBinary::Op::ADD: return Backend::LIR::InstructionType::ADD;
             case Mir::IntBinary::Op::SUB: return Backend::LIR::InstructionType::SUB;
@@ -75,7 +75,7 @@ namespace Backend::Utils {
         }
     }
 
-    [[nodiscard]] Backend::LIR::InstructionType llvm_to_mir(const Mir::FloatBinary::Op &op)  {
+    [[nodiscard]] inline Backend::LIR::InstructionType llvm_to_lir(const Mir::FloatBinary::Op &op)  {
         switch (op) {
             case Mir::FloatBinary::Op::ADD: return Backend::LIR::InstructionType::FADD;
             case Mir::FloatBinary::Op::SUB: return Backend::LIR::InstructionType::FSUB;
@@ -86,7 +86,7 @@ namespace Backend::Utils {
         }
     }
 
-    [[nodiscard]] std::string to_string(const Backend::LIR::InstructionType type) {
+    [[nodiscard]] inline std::string to_string(const Backend::LIR::InstructionType type) {
         switch (type) {
             case Backend::LIR::InstructionType::ADD:
             case Backend::LIR::InstructionType::FADD: return "+";
@@ -131,7 +131,7 @@ namespace Backend::Utils {
     }
 
     template <typename T>
-    [[nodiscard]] T compute(const Backend::LIR::InstructionType &op, T lhs, T rhs) {
+    [[nodiscard]] inline T compute(const Backend::LIR::InstructionType &op, T lhs, T rhs) {
         switch (op) {
             case Backend::LIR::InstructionType::ADD: return lhs + rhs;
             case Backend::LIR::InstructionType::SUB: return lhs - rhs;
@@ -146,9 +146,33 @@ namespace Backend::Utils {
         }
     }
 
-    [[nodiscard]] std::string unique_name(const std::string &prefix = "") {
+    [[nodiscard]] inline std::string unique_name(const std::string &prefix = "") {
         static size_t counter = 0;
         return prefix + std::to_string(counter);
+    }
+
+    [[nodiscard]] inline Backend::LIR::InstructionType cmp_to_lir(const Backend::Comparison::Type type) {
+        switch (type) {
+            case Backend::Comparison::Type::EQUAL: return Backend::LIR::InstructionType::EQUAL;
+            case Backend::Comparison::Type::NOT_EQUAL: return Backend::LIR::InstructionType::NOT_EQUAL;
+            case Backend::Comparison::Type::LESS: return Backend::LIR::InstructionType::LESS;
+            case Backend::Comparison::Type::LESS_EQUAL: return Backend::LIR::InstructionType::LESS_EQUAL;
+            case Backend::Comparison::Type::GREATER: return Backend::LIR::InstructionType::GREATER;
+            case Backend::Comparison::Type::GREATER_EQUAL: return Backend::LIR::InstructionType::GREATER_EQUAL;
+            default: throw std::invalid_argument("Invalid operation");
+        }
+    }
+
+    [[nodiscard]] inline Backend::LIR::InstructionType cmp_to_lir_zero(const Backend::Comparison::Type type) {
+        switch (type) {
+            case Backend::Comparison::Type::EQUAL: return Backend::LIR::InstructionType::EQUAL_ZERO;
+            case Backend::Comparison::Type::NOT_EQUAL: return Backend::LIR::InstructionType::NOT_EQUAL_ZERO;
+            case Backend::Comparison::Type::LESS: return Backend::LIR::InstructionType::LESS_ZERO;
+            case Backend::Comparison::Type::LESS_EQUAL: return Backend::LIR::InstructionType::LESS_EQUAL_ZERO;
+            case Backend::Comparison::Type::GREATER: return Backend::LIR::InstructionType::GREATER_ZERO;
+            case Backend::Comparison::Type::GREATER_EQUAL: return Backend::LIR::InstructionType::GREATER_EQUAL_ZERO;
+            default: throw std::invalid_argument("Invalid operation");
+        }
     }
 };
 
@@ -218,18 +242,30 @@ class Backend::LIR::Function {
         }
 
         inline void spill(std::shared_ptr<Backend::Variable> &local_variable) {
-            static int counter = 0;
             if (local_variable->lifetime != VariableWide::LOCAL)
                 log_error("Only variable in register can be spilled.");
             local_variable->lifetime = VariableWide::FUNCTIONAL;
             for (std::shared_ptr<Backend::LIR::Block> &block : blocks) {
                 for (std::shared_ptr<Backend::LIR::Instruction> &instr : block->instructions) {
                     if (instr->get_defined_variable() == local_variable) {
+                        // TODO
                         // insert `store` after the instruction
                         // block->instructions.insert(block->instructions.begin() + (std::find(block->instructions.begin(), block->instructions.end(), instr) - block->instructions.begin()) + 1, store_instr);
                     }
                 }
             }
+        }
+
+        [[nodiscard]] std::string to_string() const {
+            std::ostringstream oss;
+            oss << "Function: " << name << "\n";
+            for (const std::shared_ptr<Backend::LIR::Block> &block : blocks) {
+                oss << "  " << block->name << "\n";
+                for (const auto &instr : block->instructions) {
+                    oss << "    " << instr->to_string() << "\n";
+                }
+            }
+            return oss.str();
         }
 };
 
@@ -269,6 +305,13 @@ class Backend::LIR::Module : public std::enable_shared_from_this<Backend::LIR::M
             functions.push_back(function);
             functions_index[function->name] = function;
         }
+
+        [[nodiscard]] std::string to_string() const {
+            std::ostringstream oss;
+            for (const std::shared_ptr<Backend::LIR::Function> &function : functions)
+                oss << function->to_string() << "\n";
+            return oss.str();
+        }
     private:
         void load_global_data()  {
             this->global_data = std::make_shared<Backend::DataSection>();
@@ -279,7 +322,7 @@ class Backend::LIR::Module : public std::enable_shared_from_this<Backend::LIR::M
         /*
          * Handle parameters and allocated variables in the function.
          */
-        void load_functional_variables(const std::shared_ptr<Mir::Function> &llvm_function, std::shared_ptr<Backend::LIR::Function> &mir_function);
+        void load_functional_variables(const std::shared_ptr<Mir::Function> &llvm_function, std::shared_ptr<Backend::LIR::Function> &lir_function);
 
         /*
          * Load privileged/unprivileged functions & blocks into the module.
@@ -307,11 +350,20 @@ class Backend::LIR::Module : public std::enable_shared_from_this<Backend::LIR::M
          */
         std::shared_ptr<Backend::Operand> find_operand(const std::shared_ptr<Mir::Value> &value, const std::shared_ptr<Backend::LIR::Function> &function) {
             const std::string &name = value->get_name();
-            if (value->is_constant())
+            if (value->is_constant()) {
                 if (value->get_type()->is_float())
-                    return std::make_shared<Backend::FloatValue>(std::any_cast<double>(std::static_pointer_cast<Mir::ConstFloat>(std::static_pointer_cast<Mir::Init::Constant>(value)->get_const_value())->get_constant_value()));
+                    return std::make_shared<Backend::FloatValue>(
+                        static_cast<double>(
+                            std::static_pointer_cast<Mir::ConstFloat>(value)->get_constant_value()
+                        )
+                    );
                 else
-                    return std::make_shared<Backend::IntValue>(std::any_cast<int32_t>(std::static_pointer_cast<Mir::ConstInt>(std::static_pointer_cast<Mir::Init::Constant>(value)->get_const_value())->get_constant_value()));
+                    return std::make_shared<Backend::IntValue>(
+                        static_cast<int32_t>(
+                            std::static_pointer_cast<Mir::ConstInt>(value)->get_constant_value()
+                        )
+                    );
+            }
             return find_variable(name, function);
         }
 
@@ -319,16 +371,7 @@ class Backend::LIR::Module : public std::enable_shared_from_this<Backend::LIR::M
          * Ensure the result is a variable object.
          * If it's a constant, create a temporary variable for it and insert a `load_imm` instruction to the block.
          */
-        std::shared_ptr<Backend::Variable> ensure_variable(const std::shared_ptr<Backend::Operand> &value, std::shared_ptr<Backend::LIR::Block> &block) {
-            if (value->operand_type == OperandType::CONSTANT) {
-                std::shared_ptr<Backend::Constant> constant = std::static_pointer_cast<Backend::Constant>(value);
-                std::shared_ptr<Backend::Variable> temp_var = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("temp_constant"), constant->constant_type, VariableWide::LOCAL);
-                block->parent_function.lock()->add_variable(temp_var);
-                block->instructions.push_back(std::make_shared<Backend::LIR::LoadI32>(temp_var, constant));
-                return temp_var;
-            }
-            return std::static_pointer_cast<Backend::Variable>(value);
-        }
+        std::shared_ptr<Backend::Variable> ensure_variable(const std::shared_ptr<Backend::Operand> &value, std::shared_ptr<Backend::LIR::Block> &block);
 
         /*
          * Translate a single instruction from LLVM to LIR.
@@ -338,11 +381,11 @@ class Backend::LIR::Module : public std::enable_shared_from_this<Backend::LIR::M
         /*
          * Translate instructions of a single function from LLVM to LIR.
          */
-        void load_instructions(const std::shared_ptr<Mir::Function> &llvm_function, std::shared_ptr<Backend::LIR::Function> &mir_function) {
+        void load_instructions(const std::shared_ptr<Mir::Function> &llvm_function, std::shared_ptr<Backend::LIR::Function> &lir_function) {
             for (const std::shared_ptr<Mir::Block> &llvm_block : llvm_function->get_blocks()) {
-                std::shared_ptr<Backend::LIR::Block> mir_block = mir_function->blocks_index[llvm_block->get_name()];
+                std::shared_ptr<Backend::LIR::Block> lir_block = lir_function->blocks_index[llvm_block->get_name()];
                 for (const std::shared_ptr<Mir::Instruction> &llvm_instruction : llvm_block->get_instructions())
-                    load_instruction(llvm_instruction, mir_block);
+                    load_instruction(llvm_instruction, lir_block);
             }
         }
 };

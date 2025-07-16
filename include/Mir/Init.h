@@ -182,8 +182,6 @@ public:
     void gen_store_inst(const std::shared_ptr<Value> &addr, const std::shared_ptr<Block> &block,
                         const std::vector<int> &dimensions) const;
 
-    [[nodiscard]] bool zero_initialized() const { return is_zero_initialized; }
-
     [[nodiscard]] std::string to_string() const override;
 };
 

@@ -1,7 +1,18 @@
 #include "Backend/LIR/LIR.h"
 #include "Backend/LIR/Instructions.h"
 
-void Backend::LIR::Module::load_functional_variables(const std::shared_ptr<Mir::Function> &llvm_function, std::shared_ptr<Backend::LIR::Function> &mir_function) {
+std::shared_ptr<Backend::Variable> Backend::LIR::Module::ensure_variable(const std::shared_ptr<Backend::Operand> &value, std::shared_ptr<Backend::LIR::Block> &block) {
+    if (value->operand_type == OperandType::CONSTANT) {
+        std::shared_ptr<Backend::Constant> constant = std::static_pointer_cast<Backend::Constant>(value);
+        std::shared_ptr<Backend::Variable> temp_var = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("temp_constant"), constant->constant_type, VariableWide::LOCAL);
+        block->parent_function.lock()->add_variable(temp_var);
+        block->instructions.push_back(std::make_shared<Backend::LIR::LoadI32>(temp_var, constant));
+        return temp_var;
+    }
+    return std::static_pointer_cast<Backend::Variable>(value);
+}
+
+void Backend::LIR::Module::load_functional_variables(const std::shared_ptr<Mir::Function> &llvm_function, std::shared_ptr<Backend::LIR::Function> &lir_function) {
     size_t int_count = 0, float_count = 0;
     for (const std::shared_ptr<Mir::Argument> &llvm_arg : llvm_function->get_arguments()) {
         std::shared_ptr<Backend::Variable> arg;
@@ -10,32 +21,32 @@ void Backend::LIR::Module::load_functional_variables(const std::shared_ptr<Mir::
         if (Backend::Utils::is_int(arg_type)) {
             if (int_count++ < 8) {
                 arg = std::make_shared<Backend::Variable>(llvm_arg->get_name() + "_ireg", arg_type, VariableWide::LOCAL);
-                mir_function->blocks.front()->instructions.push_back(std::make_shared<Move>(arg, arg_));
-                mir_function->add_variable(arg_);
+                lir_function->blocks.front()->instructions.push_back(std::make_shared<Move>(arg, arg_));
+                lir_function->add_variable(arg_);
             } else {
-                arg = std::make_shared<Backend::Pointer>(llvm_arg->get_name() + "_imem", Backend::Utils::to_pointer(arg_type), VariableWide::FUNCTIONAL);
-                mir_function->blocks.front()->instructions.push_back(std::make_shared<LoadInt>(arg, arg_));
+                arg = std::make_shared<Backend::Variable>(llvm_arg->get_name() + "_imem", Backend::Utils::to_pointer(arg_type), VariableWide::FUNCTIONAL);
+                lir_function->blocks.front()->instructions.push_back(std::make_shared<LoadInt>(arg, arg_));
             }
         } else {
             if (float_count++ < 8) {
                 arg = std::make_shared<Backend::Variable>(llvm_arg->get_name() + "_freg", arg_type, VariableWide::LOCAL);
-                mir_function->blocks.front()->instructions.push_back(std::make_shared<Move>(arg, arg_));
-                mir_function->add_variable(arg_);
+                lir_function->blocks.front()->instructions.push_back(std::make_shared<Move>(arg, arg_));
+                lir_function->add_variable(arg_);
             } else {
-                arg = std::make_shared<Backend::Pointer>(llvm_arg->get_name() + "_fmem", Backend::Utils::to_pointer(arg_type), VariableWide::FUNCTIONAL);
-                mir_function->blocks.front()->instructions.push_back(std::make_shared<LoadFloat>(arg, arg_));
+                arg = std::make_shared<Backend::Variable>(llvm_arg->get_name() + "_fmem", Backend::Utils::to_pointer(arg_type), VariableWide::FUNCTIONAL);
+                lir_function->blocks.front()->instructions.push_back(std::make_shared<LoadFloat>(arg, arg_));
             }
         }
-        mir_function->add_variable(arg);
-        mir_function->parameters.push_back(arg);
+        lir_function->add_variable(arg);
+        lir_function->parameters.push_back(arg);
     }
     for (const std::shared_ptr<Mir::Block> &llvm_block : llvm_function->get_blocks()) {
-        std::shared_ptr<Backend::LIR::Block> mir_block = mir_function->blocks_index[llvm_block->get_name()];
+        std::shared_ptr<Backend::LIR::Block> mir_block = lir_function->blocks_index[llvm_block->get_name()];
         for (const std::shared_ptr<Mir::Instruction> &llvm_instruction : llvm_block->get_instructions())
             if (llvm_instruction->get_op() == Mir::Operator::ALLOC) {
                 std::shared_ptr<Mir::Alloc> alloc = std::static_pointer_cast<Mir::Alloc>(llvm_instruction);
                 std::shared_ptr<Backend::Variable> var = std::make_shared<Backend::Variable>(alloc->get_name(), Backend::Utils::to_pointer(Backend::Utils::llvm_to_riscv(*alloc->get_type())), VariableWide::FUNCTIONAL);
-                mir_function->add_variable(var);
+                lir_function->add_variable(var);
             }
     }
 }
@@ -76,7 +87,7 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
                     mir_block->instructions.push_back(std::make_shared<Backend::LIR::LoadInt>(ep->base, load_to, std::static_pointer_cast<Backend::IntValue>(ep->offset)->int32_value));
                 } else {
                     // base & offset both variable, we need to calculate before load
-                    std::shared_ptr<Backend::Variable> base = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("addr"), Backend::VariableType::INT32_PTR);
+                    std::shared_ptr<Backend::Variable> base = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("addr"), Backend::VariableType::INT32_PTR, VariableWide::LOCAL);
                     mir_block->parent_function.lock()->add_variable(base);
                     mir_block->instructions.push_back(std::make_shared<Backend::LIR::LoadAddress>(ep->base, base));
                     mir_block->instructions.push_back(std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::ADD, base, ep->offset, base));
@@ -90,7 +101,7 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
             std::shared_ptr<Backend::Variable> store_to = find_variable(store->get_addr()->get_name(), mir_block->parent_function.lock());
             std::shared_ptr<Backend::Variable> store_from = ensure_variable(find_operand(store->get_value(), mir_block->parent_function.lock()), mir_block);
             if (store_to->lifetime == VariableWide::GLOBAL) {
-                std::shared_ptr<Backend::Variable> addr_var = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("addr"), Backend::VariableType::INT32_PTR);
+                std::shared_ptr<Backend::Variable> addr_var = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("addr"), Backend::VariableType::INT32_PTR, VariableWide::LOCAL);
                 mir_block->parent_function.lock()->add_variable(addr_var);
                 mir_block->instructions.push_back(std::make_shared<Backend::LIR::LoadAddress>(store_to, addr_var));
                 mir_block->instructions.push_back(std::make_shared<Backend::LIR::StoreInt>(addr_var, store_from));
@@ -135,28 +146,20 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
             std::shared_ptr<Mir::Icmp> icmp = std::static_pointer_cast<Mir::Icmp>(llvm_instruction);
             std::shared_ptr<Backend::Operand> lhs = find_operand(icmp->get_lhs(), mir_block->parent_function.lock());
             std::shared_ptr<Backend::Operand> rhs = find_operand(icmp->get_rhs(), mir_block->parent_function.lock());
-            std::shared_ptr<Backend::Variable> lhs_var = ensure_variable(lhs, mir_block);
-            std::shared_ptr<Backend::Variable> rhs_var = ensure_variable(rhs, mir_block);
-            std::shared_ptr<Backend::Variable> result = std::make_shared<Backend::Comparison>(llvm_instruction->get_name(), lhs_var, rhs_var, Backend::Comparison::llvm_to_mir(icmp->op));
-            mir_block->parent_function.lock()->add_variable(result);
+            if (lhs->operand_type == OperandType::VARIABLE)
+                mir_block->parent_function.lock()->add_variable(std::make_shared<Backend::Comparison>(llvm_instruction->get_name(), std::static_pointer_cast<Backend::Variable>(lhs), rhs, Backend::Comparison::load_from_llvm(icmp->op)));
+            else if (rhs->operand_type == OperandType::VARIABLE)
+                mir_block->parent_function.lock()->add_variable(std::make_shared<Backend::Comparison>(llvm_instruction->get_name(), lhs, std::static_pointer_cast<Backend::Variable>(rhs), Backend::Comparison::load_from_llvm(icmp->op)));
+            else
+                log_error("We shall not compare 2 certain values in backend!");
             break;
         }
         case Mir::Operator::PHI: {
             // std::shared_ptr<Mir::Phi> phi = std::static_pointer_cast<Mir::Phi>(llvm_instruction);
-            // std::shared_ptr<Backend::Variable> result = std::make_shared<Backend::LIR::LocalVariable>(
-            //     llvm_instruction->get_name(), Backend::Utils::llvm_to_riscv(*phi->get_type()));
-            // mir_block->parent_function.lock()->add_variable(result);
-            // std::shared_ptr<Backend::LIR::PhiInstruction> phi_inst = std::make_shared<Backend::LIR::PhiInstruction>(result);
-            // for (const std::pair<const std::shared_ptr<Mir::Block>, std::shared_ptr<Mir::Value>> &pair : phi->get_optional_values()) {
-            //     std::shared_ptr<Backend::LIR::Value> value = find_operand(pair.second, mir_block->parent_function.lock());
-            //     std::shared_ptr<Backend::LIR::Block> block = mir_block->parent_function.lock()->blocks_index[pair.first->get_name()];
-            //     phi_inst->add_phi_value(value, block);
-            // }
-            // mir_block->instructions.push_back(phi_inst);
+            // TODO
             break;
         }
         case Mir::Operator::BRANCH: {
-            // TODO
             std::shared_ptr<Mir::Branch> branch = std::static_pointer_cast<Mir::Branch>(llvm_instruction);
             std::shared_ptr<Backend::LIR::Block> block_true = mir_block->parent_function.lock()->blocks_index[branch->get_true_block()->get_name()];
             std::shared_ptr<Backend::LIR::Block> block_false = mir_block->parent_function.lock()->blocks_index[branch->get_false_block()->get_name()];
@@ -165,7 +168,17 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
             block_false->predecessors.push_back(mir_block);
             mir_block->successors.push_back(block_true);
             mir_block->successors.push_back(block_false);
-            mir_block->instructions.push_back(std::make_shared<Backend::LIR::BranchInstruction>(cond_var->compare_type, cond_var->lhs, cond_var->rhs, block_true));
+            if (cond_var->rhs->operand_type == OperandType::CONSTANT) {
+                std::shared_ptr<Backend::Constant> rhs = std::static_pointer_cast<Backend::Constant>(cond_var->rhs);
+                if (rhs->constant_type == VariableType::INT32) {
+                    if (std::static_pointer_cast<Backend::IntValue>(rhs)->int32_value == 0) {
+                        mir_block->instructions.push_back(std::make_shared<Backend::LIR::BranchInstruction>(Backend::Utils::cmp_to_lir_zero(cond_var->compare_type), cond_var->lhs, std::static_pointer_cast<Backend::Variable>(cond_var->rhs), block_true));
+                        break;
+                    }
+                }
+            }
+            std::shared_ptr<Backend::Variable> rhs = ensure_variable(cond_var->rhs, mir_block);
+            mir_block->instructions.push_back(std::make_shared<Backend::LIR::BranchInstruction>(Backend::Utils::cmp_to_lir(cond_var->compare_type), cond_var->lhs, rhs, block_true));
             mir_block->instructions.push_back(std::make_shared<Backend::LIR::JumpInstruction>(block_false));
             break;
         }
@@ -213,13 +226,13 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
             std::shared_ptr<Backend::Variable> result = std::make_shared<Backend::Variable>(llvm_instruction->get_name(), Backend::Utils::llvm_to_riscv(*int_operation_->get_type()), VariableWide::LOCAL);
             mir_block->parent_function.lock()->add_variable(result);
             if (lhs->operand_type == Backend::OperandType::CONSTANT && rhs->operand_type == Backend::OperandType::CONSTANT) {
-                int32_t result_value = Backend::Utils::compute<int32_t>(Backend::Utils::llvm_to_mir(int_operation_->op), std::static_pointer_cast<Backend::IntValue>(lhs)->int32_value, std::static_pointer_cast<Backend::IntValue>(rhs)->int32_value);
-                mir_block->instructions.push_back(std::make_shared<Backend::LIR::LoadI32>(std::make_shared<Backend::IntValue>(result_value), result));
+                int32_t result_value = Backend::Utils::compute<int32_t>(Backend::Utils::llvm_to_lir(int_operation_->op), std::static_pointer_cast<Backend::IntValue>(lhs)->int32_value, std::static_pointer_cast<Backend::IntValue>(rhs)->int32_value);
+                mir_block->instructions.push_back(std::make_shared<Backend::LIR::LoadI32>(result, std::make_shared<Backend::IntValue>(result_value)));
                 break;
             } else if (lhs->operand_type == Backend::OperandType::CONSTANT) {
                 std::swap(lhs, rhs);
             }
-            mir_block->instructions.push_back(std::make_shared<Backend::LIR::IntArithmetic>(Backend::Utils::llvm_to_mir(int_operation_->op), std::static_pointer_cast<Backend::Variable>(lhs), rhs, result));
+            mir_block->instructions.push_back(std::make_shared<Backend::LIR::IntArithmetic>(Backend::Utils::llvm_to_lir(int_operation_->op), std::static_pointer_cast<Backend::Variable>(lhs), rhs, result));
             break;
         }
         case Mir::Operator::FLOATBINARY: {
@@ -230,7 +243,7 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
             std::shared_ptr<Backend::Variable> rhs_var = ensure_variable(rhs, mir_block);
             std::shared_ptr<Backend::Variable> result = std::make_shared<Backend::Variable>(llvm_instruction->get_name(), Backend::Utils::llvm_to_riscv(*float_operation_->get_type()), VariableWide::LOCAL);
             mir_block->parent_function.lock()->add_variable(result);
-            mir_block->instructions.push_back(std::make_shared<Backend::LIR::FloatArithmetic>(Backend::Utils::llvm_to_mir(float_operation_->op), lhs_var, rhs_var, result));
+            mir_block->instructions.push_back(std::make_shared<Backend::LIR::FloatArithmetic>(Backend::Utils::llvm_to_lir(float_operation_->op), lhs_var, rhs_var, result));
             break;
         }
         default: break;
