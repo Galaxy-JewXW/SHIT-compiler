@@ -1,11 +1,10 @@
 #include "Mir/Init.h"
+#include "Pass/Transforms/Array.h"
 #include "Pass/Transforms/DataFlow.h"
 
 using namespace Mir;
 
 namespace {
-// FIXME: 替换全局数组常量
-[[maybe_unused]]
 void replace_const_array_gv(const std::shared_ptr<Module> &module) {
     std::vector<std::shared_ptr<GlobalVariable>> can_replaced;
     for (const auto &gv: module->get_global_variables()) {
@@ -15,57 +14,79 @@ void replace_const_array_gv(const std::shared_ptr<Module> &module) {
         }
     }
     for (const auto &gv: can_replaced) {
-        std::vector<int> indexes;
-        const auto &array_initial = gv->get_init_value()->as<Init::Array>();
-        auto do_replace = [&](auto &&self, const std::shared_ptr<GetElementPtr> &gep) {
-            const auto &gep_idx = gep->get_index();
-            if (!gep_idx->is_constant()) {
-                return;
-            }
-            indexes.push_back(**gep_idx->as<ConstInt>());
-            for (const auto &user: gep->users()) {
-                if (const auto load = std::dynamic_pointer_cast<Load>(user)) {
-                    const auto initial = array_initial->get_init_value(indexes);
-                    const auto value = initial->as<Init::Constant>()->get_const_value();
-                    load->replace_by_new_value(value);
-                } else if (const auto cur_gep = std::dynamic_pointer_cast<GetElementPtr>(user)) {
-                    self(self, cur_gep);
-                }
-            }
-            indexes.pop_back();
-        };
-        for (const auto &user: gv->users()) {
-            const auto gep = std::dynamic_pointer_cast<GetElementPtr>(user);
-            if (gep == nullptr) {
+        const auto array_type = gv->get_type()->as<Type::Pointer>()->get_contain_type();
+        std::vector<int> array_dimensions;
+        std::shared_ptr<Type::Type> _type = array_type;
+        while (_type->is_array()) {
+            array_dimensions.push_back(static_cast<int>(_type->as<Type::Array>()->get_size()));
+            _type = _type->as<Type::Array>()->get_element_type();
+        }
+
+        std::vector<int> array_strides;
+        const auto l = array_dimensions.size();
+        array_strides.reserve(l);
+        array_strides[l - 1] = 1;
+        for (int i = static_cast<int>(l) - 2; i >= 0; --i) {
+            array_strides[i] = array_strides[i + 1] * array_dimensions[i + 1];
+        }
+
+        const auto array_initial = gv->get_init_value()->as<Init::Array>();
+        for (const auto &gv_user: gv->users()) {
+            const auto gep{gv_user->is<GetElementPtr>()};
+            if (gep == nullptr || !gep->get_index()->is_constant()) {
                 continue;
             }
-            do_replace(do_replace, gep);
+            int offset{**gep->get_index()->as<ConstInt>()};
+            std::vector<int> indexes;
+            indexes.reserve(array_strides.size());
+            for (const auto &stride: array_strides) {
+                indexes.push_back(offset / stride);
+                offset %= stride;
+            }
+            if (offset != 0) [[unlikely]] {
+                log_error("%s", "offset is not zero");
+            }
+            const auto constant_initial = array_initial->get_init_value(indexes)->as<Init::Constant>();
+            const auto constant_value = constant_initial->get_const_value();
+            for (const auto &_load: gep->users()) {
+                if (const auto load = _load->is<Load>()) {
+                    load->replace_by_new_value(constant_value);
+                }
+            }
         }
     }
 }
 
 bool array_can_localized(const std::shared_ptr<GlobalVariable> &gv) {
-    std::vector<std::shared_ptr<Instruction>> alloca_users;
+    std::vector<std::shared_ptr<Instruction>> worklist;
+    std::unordered_set<std::shared_ptr<Instruction>> visited;
+
     for (const auto &user: gv->users()) {
-        if (const auto inst = user->is<Instruction>()) {
-            alloca_users.push_back(inst);
+        if (const auto inst = user->is<Instruction>()) [[likely]] {
+            worklist.push_back(inst);
+            visited.insert(inst);
         } else {
             log_error("%s is not an instruction user of gv %s", user->to_string().c_str(), gv->to_string().c_str());
         }
     }
-    for (size_t i = 0; i < alloca_users.size(); ++i) {
-        const auto instruction = alloca_users[i];
+    while (!worklist.empty()) {
+        const auto instruction = worklist.back();
+        worklist.pop_back();
         if (const auto op = instruction->get_op(); op == Operator::GEP) {
             const auto gep = instruction->as<GetElementPtr>();
             if (!gep->get_index()->is_constant()) {
                 return false;
             }
             for (const auto &user: gep->users()) {
-                alloca_users.push_back(user->as<Instruction>());
+                if (const auto inst_user = user->as<Instruction>(); visited.insert(inst_user).second) {
+                    worklist.push_back(inst_user);
+                }
             }
         } else if (op == Operator::BITCAST) {
             for (const auto &user: instruction->users()) {
-                alloca_users.push_back(user->as<Instruction>());
+                if (const auto inst_user = user->as<Instruction>(); visited.insert(inst_user).second) {
+                    worklist.push_back(inst_user);
+                }
             }
         } else if (op == Operator::CALL) {
             if (const auto &func_name = instruction->as<Call>()->get_function()->get_name();
@@ -77,7 +98,6 @@ bool array_can_localized(const std::shared_ptr<GlobalVariable> &gv) {
     return true;
 }
 
-// TODO: 非 main 函数的情况下将全局变量作为参数进行传递
 void localize(const std::shared_ptr<Module> &module) {
     const auto func_analysis = Pass::get_analysis_result<Pass::FunctionAnalysis>(module);
     std::unordered_set<std::shared_ptr<GlobalVariable>> can_replace, replaced;
@@ -137,5 +157,9 @@ void localize(const std::shared_ptr<Module> &module) {
 } // namespace
 
 namespace Pass {
-void GlobalArrayLocalize::transform(const std::shared_ptr<Module> module) { localize(module); }
+void GlobalArrayLocalize::transform(const std::shared_ptr<Module> module) {
+    create<GepFolding>()->run_on(module);
+    replace_const_array_gv(module);
+    localize(module);
+}
 } // namespace Pass
