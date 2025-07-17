@@ -208,6 +208,7 @@ IntervalAnalysis::Summary IntervalAnalysis::rabai_function(const std::shared_ptr
 
     const auto &loops{loop_info->loops(func)};
     std::queue<std::shared_ptr<Block>> worklist;
+    std::unordered_set<std::shared_ptr<Block>> worklist_set;
 
     const auto is_back_edge = [&loops](const std::shared_ptr<Block> &b, decltype(b) pred) -> bool {
         for (const auto &loop: loops) {
@@ -295,10 +296,12 @@ IntervalAnalysis::Summary IntervalAnalysis::rabai_function(const std::shared_ptr
         } else {
             new_in_succ = new_in_succ.union_with(ctx);
         }
-
-        if (new_in_succ != old_in_succ) {
+        if (new_in_succ != old_in_succ || worklist_set.find(succ) == worklist_set.end()) {
             in_ctxs[succ] = new_in_succ;
-            worklist.push(succ);
+            if (worklist_set.find(succ) == worklist_set.end()) {
+                worklist.push(succ);
+                worklist_set.insert(succ);
+            }
         }
     };
 
@@ -349,18 +352,17 @@ IntervalAnalysis::Summary IntervalAnalysis::rabai_function(const std::shared_ptr
         }
     }
 
-    // 打印函数分析结果
-    std::cout << "=== Interval Analysis Results for Function: " << func->get_name() << " ===" << std::endl;
-    for (const auto &block: func->get_blocks()) {
-        std::cout << "\nBlock: " << block->get_name() << std::endl;
-        std::cout << "  In Context:" << std::endl;
-        const auto &in_ctx = in_ctxs[block];
-        std::cout << in_ctx.to_string() << std::endl;
-        std::cout << "  Out Context:" << std::endl;
-        const auto &out_ctx = out_ctxs[block];
-        std::cout << out_ctx.to_string() << std::endl;
-    }
-    std::cout << "=== End of Analysis ===\n" << std::endl;
+    // std::cout << "=== Interval Analysis Results for Function: " << func->get_name() << " ===" << std::endl;
+    // for (const auto &block: func->get_blocks()) {
+    //     std::cout << "\nBlock: " << block->get_name() << std::endl;
+    //     std::cout << "  In Context:" << std::endl;
+    //     const auto &in_ctx = in_ctxs[block];
+    //     std::cout << in_ctx.to_string() << std::endl;
+    //     std::cout << "  Out Context:" << std::endl;
+    //     const auto &out_ctx = out_ctxs[block];
+    //     std::cout << out_ctx.to_string() << std::endl;
+    // }
+    // std::cout << "=== End of Analysis ===\n" << std::endl;
 
     return Summary{};
 }
