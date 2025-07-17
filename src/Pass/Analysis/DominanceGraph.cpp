@@ -280,6 +280,12 @@ void build_dominance_frontier(const FunctionPtr &func,
 
 namespace Pass {
 void DominanceGraph::analyze(const std::shared_ptr<const Mir::Module> module) {
+    if (const auto func_size = module->get_functions().size();
+        func_size != dirty_funcs_.size() || func_size != graphs_.size()) {
+        // 部分函数被删除了
+        graphs_.clear();
+        dirty_funcs_.clear();
+    }
     for (const auto &func: *module) {
         dirty_funcs_.try_emplace(func, true);
     }

@@ -176,6 +176,9 @@ static void print_function_analysis(const FunctionPtr &func, const FunctionMap &
 }
 
 void FunctionAnalysis::analyze(const std::shared_ptr<const Mir::Module> module) {
+    call_graph_.clear();
+    call_graph_reverse_.clear();
+    infos_.clear();
     for (const auto &func: *module) {
         call_graph_[func] = {};
         call_graph_reverse_[func] = {};

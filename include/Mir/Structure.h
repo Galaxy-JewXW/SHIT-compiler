@@ -49,11 +49,13 @@ public:
 
     [[nodiscard]] std::vector<std::shared_ptr<Function>> &get_functions() { return functions; }
 
+    [[nodiscard]] const std::vector<std::shared_ptr<Function>> &get_functions() const { return functions; }
+
     [[nodiscard]] std::vector<std::shared_ptr<GlobalVariable>> &get_global_variables() { return global_variables; }
 
     void add_function(const std::shared_ptr<Function> &function) { functions.emplace_back(function); }
 
-    [[nodiscard]] std::shared_ptr<Function> get_function(const std::string &name) {
+    [[nodiscard]] std::shared_ptr<Function> get_function(const std::string &name) const {
         const auto it = std::find_if(functions.begin(), functions.end(),
                                      [&name](const auto &function) { return function->get_name() == name; });
         if (it != functions.end()) {
