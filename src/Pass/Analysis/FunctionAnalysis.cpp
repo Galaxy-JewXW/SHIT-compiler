@@ -172,7 +172,7 @@ static void print_function_analysis(const FunctionPtr &func, const FunctionMap &
     oss << "  has_return      : " << (has_return ? "true" : "false") << std::endl;
     oss << "  has_side_effect : " << (has_side_effect ? "true" : "false") << std::endl;
     oss << "  no_state        : " << (no_state ? "true" : "false") << std::endl;
-    log_debug("\n%s", oss.str().c_str());
+    log_trace("\n%s", oss.str().c_str());
 }
 
 void FunctionAnalysis::analyze(const std::shared_ptr<const Mir::Module> module) {
