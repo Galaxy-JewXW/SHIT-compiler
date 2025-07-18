@@ -136,4 +136,6 @@ void TreeHeightBalance::transform(const std::shared_ptr<Module> module) {
         run_on_func(func);
     }
 }
+
+void TreeHeightBalance::transform(const std::shared_ptr<Function> &func) { run_on_func(func); }
 } // namespace Pass

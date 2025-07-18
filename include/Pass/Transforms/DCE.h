@@ -13,10 +13,14 @@ public:
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
+    void transform(const std::shared_ptr<Mir::Function> &) override;
+
     [[nodiscard]] bool remove_unused_instructions(const std::shared_ptr<Mir::Module> &module) const;
 
 private:
     std::shared_ptr<FunctionAnalysis> func_analysis = nullptr;
+
+    [[nodiscard]] bool is_dead_instruction(const std::shared_ptr<Mir::Instruction> &instruction) const;
 };
 
 // 删除未被调用的函数
@@ -36,10 +40,14 @@ public:
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
+    void transform(const std::shared_ptr<Mir::Function> &) override;
+
 private:
     std::unordered_set<std::shared_ptr<Mir::Instruction>> useful_instructions_;
 
-    std::shared_ptr<FunctionAnalysis> function_analysis_;
+    std::shared_ptr<FunctionAnalysis> function_analysis_{nullptr};
+
+    void run_on_func(const std::shared_ptr<Mir::Function> &func);
 
     // 删除指令
     void init_useful_instruction(const std::shared_ptr<Mir::Function> &function);
@@ -59,7 +67,7 @@ protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
 private:
-    std::shared_ptr<FunctionAnalysis> function_analysis_;
+    std::shared_ptr<FunctionAnalysis> function_analysis_{nullptr};
 
     void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
 };
@@ -72,8 +80,10 @@ public:
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
+    void transform(const std::shared_ptr<Mir::Function> &) override;
+
 private:
-    std::shared_ptr<FunctionAnalysis> function_analysis_;
+    std::shared_ptr<FunctionAnalysis> function_analysis_{nullptr};
 
     static void run_on_func(const std::shared_ptr<Mir::Function> &func);
 };

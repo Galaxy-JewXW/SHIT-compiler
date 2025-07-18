@@ -182,4 +182,17 @@ void LoadEliminate::transform(const std::shared_ptr<Module> module) {
     function_analysis = nullptr;
     deleted_instructions.clear();
 }
+
+void LoadEliminate::transform(const std::shared_ptr<Function> &func) {
+    deleted_instructions.clear();
+    cfg_info = get_analysis_result<ControlFlowGraph>(Module::instance());
+    dom_info = get_analysis_result<DominanceGraph>(Module::instance());
+    function_analysis = get_analysis_result<FunctionAnalysis>(Module::instance());
+    run_on_func(func);
+    Utils::delete_instruction_set(Module::instance(), deleted_instructions);
+    cfg_info = nullptr;
+    dom_info = nullptr;
+    function_analysis = nullptr;
+    deleted_instructions.clear();
+}
 } // namespace Pass

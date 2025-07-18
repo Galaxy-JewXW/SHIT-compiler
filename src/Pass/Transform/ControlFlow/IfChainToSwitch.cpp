@@ -144,4 +144,13 @@ void IfChainToSwitch::transform(const std::shared_ptr<Module> module) {
     cfg_info = nullptr;
     dom_info = nullptr;
 }
+
+void IfChainToSwitch::transform(const std::shared_ptr<Function> &func) {
+    create<StandardizeBinary>()->run_on(func);
+    cfg_info = get_analysis_result<ControlFlowGraph>(Module::instance());
+    dom_info = get_analysis_result<DominanceGraph>(Module::instance());
+    run_on_func(func);
+    cfg_info = nullptr;
+    dom_info = nullptr;
+}
 } // namespace Pass
