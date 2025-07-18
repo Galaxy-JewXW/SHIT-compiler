@@ -63,7 +63,7 @@ public:
     virtual void do_interpret(Interpreter *const interpreter) { Interpreter::abort(); }
 
     [[nodiscard]]
-    virtual std::shared_ptr<Instruction> clone() {
+    virtual std::shared_ptr<Instruction> clone_exact() {
         log_error("Not implemented");
     }
 };
@@ -661,7 +661,7 @@ public:
                        const std::shared_ptr<Value> &rhs) : IntBinary(name, lhs, rhs, op) {}                           \
         static std::shared_ptr<Class> create(const std::string &name, const std::shared_ptr<Value> &lhs,               \
                                              const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);  \
-        std::shared_ptr<Instruction> clone() override {                                                                \
+        std::shared_ptr<Instruction> clone_exact() override {                                                                \
             return create(get_name(), get_lhs(), get_rhs(), get_block());                                              \
         }                                                                                                              \
         [[nodiscard]] std::string to_string() const override;                                                          \
@@ -675,7 +675,7 @@ public:
                        const std::shared_ptr<Value> &rhs) : FloatBinary(name, lhs, rhs, op) {}                         \
         static std::shared_ptr<Class> create(const std::string &name, const std::shared_ptr<Value> &lhs,               \
                                              const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);  \
-        std::shared_ptr<Instruction> clone() override {                                                                \
+        std::shared_ptr<Instruction> clone_exact() override {                                                                \
             return create(get_name(), get_lhs(), get_rhs(), get_block());                                              \
         }                                                                                                              \
         [[nodiscard]] std::string to_string() const override;                                                          \
@@ -690,7 +690,7 @@ public:
         static std::shared_ptr<Class> create(const std::string &name, const std::shared_ptr<Value> &x,                 \
                                              const std::shared_ptr<Value> &y, const std::shared_ptr<Value> &z,         \
                                              const std::shared_ptr<Block> &block);                                     \
-        std::shared_ptr<Instruction> clone() override {                                                                \
+        std::shared_ptr<Instruction> clone_exact() override {                                                                \
             return create(get_name(), operands_[0], operands_[1], operands_[2], get_block());                          \
         }                                                                                                              \
         [[nodiscard]] std::string to_string() const override;                                                          \
