@@ -404,7 +404,7 @@ bool TailCallOptimize::handle_tail_call(const std::shared_ptr<Call> &call) {
                     if (const auto terminator{b->get_instructions().back()}; terminator->get_op() == Operator::RET) {
                         const auto _ret_value{terminator->as<Ret>()->get_value()};
                         // 克隆累加器指令
-                        const auto _acc{accumulator->clone()};
+                        const auto _acc{accumulator->clone_exact()};
                         // 修改累加器操作数，将累加器值替换为当前返回值
                         _acc->modify_operand(_acc->get_operands()[_acc->get_operands()[0] == acc_value], _ret_value);
                         Utils::move_instruction_before(_acc, terminator);
@@ -427,7 +427,7 @@ bool TailCallOptimize::handle_tail_call(const std::shared_ptr<Call> &call) {
             if (acc_value) {
                 for (const auto &select: selects) {
                     const auto _val{select->get_false_value()};
-                    const auto _acc{accumulator->clone()};
+                    const auto _acc{accumulator->clone_exact()};
                     _acc->modify_operand(_acc->get_operands()[_acc->get_operands()[0] == acc_value], _val);
                     Utils::move_instruction_before(_acc, select);
                     select->modify_operand(_val, _acc);
