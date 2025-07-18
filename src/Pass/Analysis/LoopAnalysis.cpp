@@ -8,7 +8,6 @@ using BlockPtr = std::shared_ptr<Mir::Block>;
 
 namespace Pass {
 void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
-    this->loops_.clear();
     std::shared_ptr<ControlFlowGraph> cfg_info = get_analysis_result<ControlFlowGraph>(module);
     const auto dom_info = get_analysis_result<DominanceGraph>(module);
     std::shared_ptr<Mir::Module> mutable_module = std::const_pointer_cast<Mir::Module>(module);
@@ -165,13 +164,47 @@ bool Loop::contain_block(const std::shared_ptr<Mir::Block> &block) {
     return false;
 }
 
+
+
 void LoopNodeTreeNode::add_block4ancestors(const std::shared_ptr<Mir::Block> &block) {
     this->loop_->add_block(block);
     if (this->get_parent() != nullptr)
         this->get_parent()->add_block4ancestors(block);
 }
 
-int LoopAnalysis::get_block_depth(const FunctionPtr &func, const std::shared_ptr<Mir::Block> &block) {
+    bool LoopNodeTreeNode::def_value(const std::shared_ptr<Mir::Value>& value) {
+
+        if (value->is<Mir::Const>() || value->is<Mir::Argument>()) return false;
+
+        auto cond_instr = value->as<Mir::Instruction>();
+        auto block = cond_instr->get_block();
+        if (this->get_children().empty()) {
+            auto loop = this->get_loop();
+            if (loop->contain_block(block))  return true;
+        }
+        for (const auto& child_node : this->get_children()) {
+            if (child_node->def_value(value)) return true;
+        }
+
+        return false;
+    }
+
+    std::shared_ptr<LoopNodeClone> LoopNodeTreeNode::clone_loop_node() {
+        LoopNodeClone clone_info = LoopNodeClone();
+        clone_info.node_src = shared_from_this();
+        clone_info.node_cpy = std::make_shared<LoopNodeTreeNode>(std::make_shared<Loop>());
+        for (const auto& child_node : this->get_children()) {
+            auto child_clone = child_node->clone_loop_node();
+            clone_info.node_cpy->add_child(child_clone->node_cpy);
+            clone_info.merge(child_clone);
+        }
+        for (auto block : this->get_loop()->get_blocks()) {
+            // clone_info.node_cpy->get_loop()->add_block();
+        }
+        // fixme: 这是未完成的函数
+    }
+
+    int LoopAnalysis::get_block_depth(const FunctionPtr &func, const std::shared_ptr<Mir::Block> &block) {
     auto loop_node = find_block_in_forest(func, block);
     if (nullptr == loop_node)
         return 0;
@@ -182,5 +215,14 @@ int LoopAnalysis::get_block_depth(const FunctionPtr &func, const std::shared_ptr
         loop_node = loop_node->get_parent();
     }
     return depth;
+}
+
+void LoopNodeClone::merge(const std::shared_ptr<LoopNodeClone>& clone_info) {
+    for (const auto& pair : clone_info->get_value_map()) {
+        if (this->get_value_map().find(pair.first) != this->get_value_map().end()) {
+            log_error("Loop node clone error!");
+        }
+    }
+    this->get_value_map().insert(clone_info->get_value_map().begin(), clone_info->get_value_map().end());
 }
 } // namespace Pass
