@@ -25,7 +25,7 @@ std::string RISCV::RegisterAllocator::Allocator::to_string() const {
     oss << "Register Allocator for function: " << lir_function->name << "\n";
     for (const auto& [var_name, var] : lir_function->variables) {
         if (var_to_reg.find(var_name) != var_to_reg.end()) {
-            oss << "  " << var_name << " -> " << RISCV::Registers::reg2string(var_to_reg.at(var_name)) << "\n";
+            oss << "  " << var_name << " -> " << RISCV::Registers::to_string(var_to_reg.at(var_name)) << "\n";
         } else if (stack->stack_index.find(var_name) != stack->stack_index.end()) {
             oss << "  " << var_name << " -> stack\n";
         } else {
@@ -42,6 +42,20 @@ void RISCV::Utils::analyze_live_variables(std::shared_ptr<Backend::LIR::Function
         std::shared_ptr<Backend::LIR::Block> first_block = function->blocks.front();
         changed = RISCV::Utils::analyze_live_variables(first_block, visited);
     }
+    // std::ostringstream oss;
+    // for (const auto& block: function->blocks) {
+    //     oss << "\nBlock: " << block->name << "\n";
+    //     oss << "  Live In: ";
+    //     for (const auto& var : block->live_in) {
+    //         oss << var->name << " ";
+    //     }
+    //     oss << "\n";
+    //     oss << "  Live Out: ";
+    //     for (const auto& var : block->live_out) {
+    //         oss << var->name << " ";
+    //     }
+    // }
+    // log_debug(oss.str().c_str());
 }
 
 bool RISCV::Utils::analyze_live_variables(std::shared_ptr<Backend::LIR::Block> &block, std::vector<std::string> &visited) {
@@ -63,9 +77,8 @@ bool RISCV::Utils::analyze_live_variables(std::shared_ptr<Backend::LIR::Block> &
         std::shared_ptr<Backend::Variable> def_var = instruction->get_defined_variable();
         if (def_var)
             block->live_in.erase(def_var);
-        std::vector<std::shared_ptr<Backend::Variable>> used_vars = instruction->get_used_variables();
-        for (const std::shared_ptr<Backend::Variable> &var : used_vars)
-            block->live_in.insert(var);
+        for (const std::shared_ptr<Backend::Variable> &used_var : instruction->get_used_variables())
+            block->live_in.insert(used_var);
     }
     return changed || block->live_in.size() != old_in_size || block->live_out.size() != old_out_size;
 }

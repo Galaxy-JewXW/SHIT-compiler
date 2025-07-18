@@ -12,14 +12,9 @@
 
 namespace RISCV::Registers {
     enum class ABI : uint32_t {
-        ZERO,
-        RA,
-        SP,
-        GP,
-        TP,
+        ZERO, RA, SP, GP, TP,
         T0, T1, T2,
-        S0, // FP
-        S1,
+        S0, FP = S0, S1,
         A0, A1,
         A2, A3, A4, A5, A6, A7,
         S2, S3, S4, S5, S6, S7, S8, S9, S10, S11,
@@ -39,7 +34,7 @@ namespace RISCV::Registers {
     constexpr size_t __ALL_INT_REGS__ = static_cast<size_t>(ABI::T6) + 1;
     constexpr size_t __ALL_FLOAT_REGS__ = static_cast<size_t>(ABI::FT11) - static_cast<size_t>(ABI::FT0) + 1;
 
-    [[nodiscard]] std::string reg2string(const ABI &reg);
+    [[nodiscard]] std::string to_string(const ABI &reg);
 }
 
 #endif

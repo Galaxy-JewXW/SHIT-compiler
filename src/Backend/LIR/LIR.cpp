@@ -20,18 +20,14 @@ void Backend::LIR::Module::load_functional_variables(const std::shared_ptr<Mir::
         std::shared_ptr<Backend::Variable> arg_ = std::make_shared<Backend::Variable>(llvm_arg->get_name(), arg_type, VariableWide::LOCAL);
         if (Backend::Utils::is_int(arg_type)) {
             if (int_count++ < 8) {
-                arg = std::make_shared<Backend::Variable>(llvm_arg->get_name() + "_ireg", arg_type, VariableWide::LOCAL);
-                lir_function->blocks.front()->instructions.push_back(std::make_shared<Move>(arg, arg_));
-                lir_function->add_variable(arg_);
+                arg = std::make_shared<Backend::Variable>(llvm_arg->get_name(), arg_type, VariableWide::LOCAL);
             } else {
                 arg = std::make_shared<Backend::Variable>(llvm_arg->get_name() + "_imem", Backend::Utils::to_pointer(arg_type), VariableWide::FUNCTIONAL);
                 lir_function->blocks.front()->instructions.push_back(std::make_shared<LoadInt>(arg, arg_));
             }
         } else {
             if (float_count++ < 8) {
-                arg = std::make_shared<Backend::Variable>(llvm_arg->get_name() + "_freg", arg_type, VariableWide::LOCAL);
-                lir_function->blocks.front()->instructions.push_back(std::make_shared<Move>(arg, arg_));
-                lir_function->add_variable(arg_);
+                arg = std::make_shared<Backend::Variable>(llvm_arg->get_name(), arg_type, VariableWide::LOCAL);
             } else {
                 arg = std::make_shared<Backend::Variable>(llvm_arg->get_name() + "_fmem", Backend::Utils::to_pointer(arg_type), VariableWide::FUNCTIONAL);
                 lir_function->blocks.front()->instructions.push_back(std::make_shared<LoadFloat>(arg, arg_));
@@ -57,9 +53,6 @@ void Backend::LIR::Module::load_functions_and_blocks() {
     for (const std::shared_ptr<Mir::Function> &llvm_function : llvm_module->get_functions()) {
         std::shared_ptr<Backend::LIR::Function> function = std::make_shared<Backend::LIR::Function>(llvm_function->get_name());
         function->return_type = Backend::Utils::llvm_to_riscv(*llvm_function->get_return_type());
-        std::shared_ptr<Backend::LIR::Block> entry = std::make_shared<Backend::LIR::Block>("block_entry");
-        entry->parent_function = function;
-        function->add_block(entry);
         for (const std::shared_ptr<Mir::Block> &llvm_block : llvm_function->get_blocks()) {
             std::shared_ptr<Backend::LIR::Block> block = std::make_shared<Backend::LIR::Block>(llvm_block->get_name());
             block->parent_function = function;
@@ -199,24 +192,20 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
             break;
         }
         case Mir::Operator::CALL: {
-            // std::shared_ptr<Mir::Call> call = std::static_pointer_cast<Mir::Call>(llvm_instruction);
-            // std::string function_name = call->get_function()->get_name();
-            // std::shared_ptr<std::vector<std::shared_ptr<Backend::LIR::Value>>> function_params = std::make_shared<std::vector<std::shared_ptr<Backend::LIR::Value>>>();
-            // if (function_name == "putf") {
-            //     function_params->push_back(find_variable(".str_" + call->get_const_string_index(), mir_block->parent_function.lock()));
-            //     mir_block->instructions.push_back(std::make_shared<Backend::LIR::Call>(InstructionType::PUTF, function_params));
-            //     break;
-            // } else if (function_name.find("llvm.memset") == 0) {
-            //     break;
-            // } else {
-            //     for (std::shared_ptr<Mir::Value> param : call->get_params())
-            //         function_params->push_back(find_operand(param, mir_block->parent_function.lock()));
-            //     if (!call->get_type()->is_void()) {
-            //         std::shared_ptr<Backend::Variable> store_to = std::make_shared<Backend::LIR::LocalVariable>(llvm_instruction->get_name(), Backend::Utils::llvm_to_riscv(*call->get_type()));
-            //         mir_block->parent_function.lock()->add_variable(store_to);
-            //         mir_block->instructions.push_back(std::make_shared<Backend::LIR::Call>(store_to, this->functions_index[function_name], function_params));
-            //     }
-            // }
+            std::shared_ptr<Mir::Call> call = std::static_pointer_cast<Mir::Call>(llvm_instruction);
+            std::string function_name = call->get_function()->get_name();
+            std::vector<std::shared_ptr<Backend::Variable>> function_params;
+            if (function_name.find("llvm.memset") != 0) {
+                for (std::shared_ptr<Mir::Value> param : call->get_params())
+                    function_params.push_back(ensure_variable(find_operand(param, mir_block->parent_function.lock()), mir_block));
+                if (!call->get_type()->is_void()) {
+                    std::shared_ptr<Backend::Variable> store_to = std::make_shared<Backend::Variable>(llvm_instruction->get_name(), Backend::Utils::llvm_to_riscv(*call->get_type()), VariableWide::LOCAL);
+                    mir_block->parent_function.lock()->add_variable(store_to);
+                    mir_block->instructions.push_back(std::make_shared<Backend::LIR::Call>(store_to, functions_index[function_name], function_params));
+                } else {
+                    mir_block->instructions.push_back(std::make_shared<Backend::LIR::Call>(functions_index[function_name], function_params));
+                }
+            }
             break;
         }
         case Mir::Operator::INTBINARY: {

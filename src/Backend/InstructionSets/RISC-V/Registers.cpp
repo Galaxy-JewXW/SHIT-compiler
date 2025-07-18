@@ -1,6 +1,6 @@
 #include "Backend/InstructionSets/RISC-V/Registers.h"
 
-[[nodiscard]] std::string RISCV::Registers::reg2string(const RISCV::Registers::ABI &reg) {
+[[nodiscard]] std::string RISCV::Registers::to_string(const RISCV::Registers::ABI &reg) {
     switch (reg) {
         case ABI::ZERO:  return "zero";
         case ABI::RA:    return "ra";

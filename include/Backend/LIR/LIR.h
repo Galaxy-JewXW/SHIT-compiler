@@ -148,7 +148,7 @@ namespace Backend::Utils {
 
     [[nodiscard]] inline std::string unique_name(const std::string &prefix = "") {
         static size_t counter = 0;
-        return prefix + std::to_string(counter);
+        return prefix + std::to_string(counter++);
     }
 
     [[nodiscard]] inline Backend::LIR::InstructionType cmp_to_lir(const Backend::Comparison::Type type) {
@@ -298,6 +298,7 @@ class Backend::LIR::Module : public std::enable_shared_from_this<Backend::LIR::M
                 std::shared_ptr<Backend::LIR::Function> function = functions_index[llvm_function->get_name()];
                 load_functional_variables(llvm_function, function);
                 load_instructions(llvm_function, function);
+                clear_variables(function);
             }
         }
 
@@ -387,6 +388,16 @@ class Backend::LIR::Module : public std::enable_shared_from_this<Backend::LIR::M
                 for (const std::shared_ptr<Mir::Instruction> &llvm_instruction : llvm_block->get_instructions())
                     load_instruction(llvm_instruction, lir_block);
             }
+        }
+
+        /*
+         * Clear all cmp/ptr in the function.
+         */
+        void clear_variables(std::shared_ptr<Backend::LIR::Function> &lir_function) {
+            for (std::map<std::string, std::shared_ptr<Backend::Variable>>::iterator it = lir_function->variables.begin(); it != lir_function->variables.end(); )
+                if (it->second->var_type == Backend::Variable::Type::PTR || it->second->var_type == Backend::Variable::Type::CMP)
+                    it = lir_function->variables.erase(it);
+                else it++;
         }
 };
 

@@ -18,7 +18,7 @@ namespace RISCV {
 
             explicit Assembler(const std::shared_ptr<Mir::Module> &llvm_module, RegisterAllocator::AllocationType type = RegisterAllocator::AllocationType::GRAPH_COLORING) : allocation_type(type) {
                 lir_module = std::make_shared<Backend::LIR::Module>(llvm_module);
-                // rv_module = std::make_shared<RISCV::Module>(lir_module, allocation_type);
+                rv_module = std::make_shared<RISCV::Module>(lir_module, allocation_type);
                 // rv_module->to_assembly();
             }
 
