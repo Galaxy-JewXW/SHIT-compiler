@@ -401,7 +401,12 @@ public:
 
     static std::shared_ptr<Ret> create(const std::shared_ptr<Block> &block);
 
-    [[nodiscard]] std::shared_ptr<Value> get_value() const { return operands_[0]; }
+    [[nodiscard]] std::shared_ptr<Value> get_value() const {
+        if (operands_.empty()) [[unlikely]] {
+            return nullptr;
+        }
+        return operands_[0];
+    }
 
     [[nodiscard]] std::string to_string() const override;
 
