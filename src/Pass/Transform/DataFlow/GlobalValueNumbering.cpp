@@ -457,4 +457,22 @@ void GlobalValueNumbering::transform(const std::shared_ptr<Module> module) {
     create<AlgebraicSimplify>()->run_on(module);
     create<DeadInstEliminate>()->run_on(module);
 }
+
+void GlobalValueNumbering::transform(const std::shared_ptr<Function> &func) {
+    dom_info = get_analysis_result<DominanceGraph>(Module::instance());
+    func_analysis = get_analysis_result<FunctionAnalysis>(Module::instance());
+    create<AlgebraicSimplify>()->run_on(func);
+    bool changed = false;
+    do {
+        changed = run_on_func(func);
+    } while (changed);
+    do {
+        changed = run_on_func(func);
+    } while (changed);
+    dom_info = nullptr;
+    func_analysis = nullptr;
+    create<GlobalCodeMotion>()->run_on(func);
+    create<AlgebraicSimplify>()->run_on(func);
+    create<DeadInstEliminate>()->run_on(func);
+}
 } // namespace Pass

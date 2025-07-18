@@ -16,6 +16,8 @@ public:
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
+    void transform(const std::shared_ptr<Mir::Function> &) override;
+
 private:
     // 控制流图信息，用于后续基本块支配关系和变量使用/定义分析
     std::shared_ptr<ControlFlowGraph> cfg_info;
@@ -33,6 +35,8 @@ private:
     // 变量重命名时使用的定义栈，栈顶为当前作用域内有效的定义版本
     std::vector<std::shared_ptr<Mir::Value>> def_stack;
 
+    void run_on_func(const std::shared_ptr<Mir::Function> &func);
+
     void init_mem2reg();
 
     void insert_phi();
@@ -49,6 +53,9 @@ public:
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
+    void transform(const std::shared_ptr<Mir::Function> &) override;
+
+private:
     bool is_pinned(const std::shared_ptr<Mir::Instruction> &instruction) const;
 
     void run_on_func(const std::shared_ptr<Mir::Function> &func);
@@ -64,7 +71,6 @@ protected:
     std::shared_ptr<Mir::Block> find_lca(const std::shared_ptr<Mir::Block> &block1,
                                          const std::shared_ptr<Mir::Block> &block2) const;
 
-private:
     std::shared_ptr<ControlFlowGraph> cfg_info = nullptr;
     std::shared_ptr<DominanceGraph> dom_info = nullptr;
     std::shared_ptr<LoopAnalysis> loop_analysis = nullptr;
@@ -84,12 +90,14 @@ public:
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
+    void transform(const std::shared_ptr<Mir::Function> &) override;
+
+private:
     bool run_on_func(const std::shared_ptr<Mir::Function> &func);
 
     bool run_on_block(const std::shared_ptr<Mir::Function> &func, const std::shared_ptr<Mir::Block> &block,
                       std::unordered_map<std::string, std::shared_ptr<Mir::Instruction>> &value_hashmap);
 
-private:
     std::shared_ptr<DominanceGraph> dom_info;
 
     std::shared_ptr<FunctionAnalysis> func_analysis;
@@ -121,6 +129,9 @@ public:
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
+    void transform(const std::shared_ptr<Mir::Function> &) override;
+
+private:
     static void run_on_func(const std::shared_ptr<Mir::Function> &func);
 };
 

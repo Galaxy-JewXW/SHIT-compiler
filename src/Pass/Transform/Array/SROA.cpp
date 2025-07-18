@@ -87,4 +87,11 @@ void SROA::transform(const std::shared_ptr<Module> module) {
     module->update_id();
     create<Mem2Reg>()->run_on(module);
 }
+
+void SROA::transform(const std::shared_ptr<Function> &func) {
+    run_on_func(func);
+    func->update_id();
+    create<Mem2Reg>()->run_on(func);
+}
+
 } // namespace Pass

@@ -73,47 +73,58 @@ void DeadCodeEliminate::dead_global_variable_eliminate(const std::shared_ptr<Mod
     }
 }
 
+void DeadCodeEliminate::run_on_func(const std::shared_ptr<Function> &func) {
+    useful_instructions_.clear();
+    for (const auto &gv: Module::instance()->get_global_variables()) {
+        for (const auto &user: gv->users()) {
+            const auto inst = user->is<Instruction>();
+            if (inst == nullptr) {
+                continue;
+            }
+            if (const auto op = inst->get_op(); op == Operator::STORE || op == Operator::GEP || op == Operator::CALL) {
+                useful_instructions_.insert(inst);
+            } else if (inst->users().size() > 0) {
+                useful_instructions_.insert(inst);
+            }
+        }
+    }
+    init_useful_instruction(func);
+    bool changed = false;
+    do {
+        const auto snap = useful_instructions_;
+        for (const auto &inst: snap) {
+            update_useful_instruction(inst);
+        }
+        changed = snap.size() != useful_instructions_.size();
+    } while (changed);
+    for (const auto &block: func->get_blocks()) {
+        for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
+            if (useful_instructions_.find(*it) == useful_instructions_.end()) {
+                (*it)->clear_operands();
+                it = block->get_instructions().erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+}
+
 
 void DeadCodeEliminate::transform(const std::shared_ptr<Module> module) {
     function_analysis_ = get_analysis_result<FunctionAnalysis>(module);
     dead_global_variable_eliminate(module);
     for (const auto &func: *module) {
-        useful_instructions_.clear();
-        for (const auto &gv: module->get_global_variables()) {
-            for (const auto &user: gv->users()) {
-                const auto inst = user->is<Instruction>();
-                if (inst == nullptr) {
-                    continue;
-                }
-                if (const auto op = inst->get_op();
-                    op == Operator::STORE || op == Operator::GEP || op == Operator::CALL) {
-                    useful_instructions_.insert(inst);
-                } else if (inst->users().size() > 0) {
-                    useful_instructions_.insert(inst);
-                }
-            }
-        }
-        init_useful_instruction(func);
-        bool changed = false;
-        do {
-            const auto snap = useful_instructions_;
-            for (const auto &inst: snap) {
-                update_useful_instruction(inst);
-            }
-            changed = snap.size() != useful_instructions_.size();
-        } while (changed);
-        for (const auto &block: func->get_blocks()) {
-            for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
-                if (useful_instructions_.find(*it) == useful_instructions_.end()) {
-                    (*it)->clear_operands();
-                    it = block->get_instructions().erase(it);
-                } else {
-                    ++it;
-                }
-            }
-        }
+        run_on_func(func);
     }
     dead_global_variable_eliminate(module);
+    function_analysis_ = nullptr;
+}
+
+void DeadCodeEliminate::transform(const std::shared_ptr<Function> &func) {
+    function_analysis_ = get_analysis_result<FunctionAnalysis>(Module::instance());
+    dead_global_variable_eliminate(Module::instance());
+    run_on_func(func);
+    dead_global_variable_eliminate(Module::instance());
     function_analysis_ = nullptr;
 }
 } // namespace Pass

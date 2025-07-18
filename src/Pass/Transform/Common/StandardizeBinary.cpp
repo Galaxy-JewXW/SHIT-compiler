@@ -86,4 +86,8 @@ void StandardizeBinary::transform(const std::shared_ptr<Module> module) {
         std::for_each(func->get_blocks().begin(), func->get_blocks().end(), run_on_block);
     });
 }
+
+void StandardizeBinary::transform(const std::shared_ptr<Function> &func) {
+    std::for_each(func->get_blocks().begin(), func->get_blocks().end(), run_on_block);
+}
 } // namespace Pass

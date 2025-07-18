@@ -42,4 +42,10 @@ void DeadReturnEliminate::transform(const std::shared_ptr<Module> module) {
     }
     function_analysis_ = nullptr;
 }
+
+void DeadReturnEliminate::transform(const std::shared_ptr<Function> &func) {
+    function_analysis_ = get_analysis_result<FunctionAnalysis>(Module::instance());
+    run_on_func(func);
+    function_analysis_ = nullptr;
+}
 } // namespace Pass
