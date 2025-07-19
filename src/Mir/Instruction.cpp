@@ -1,16 +1,22 @@
 #include "Mir/Instruction.h"
 
 namespace Mir {
-std::shared_ptr<Alloc> Alloc::create(const std::string &name, const std::shared_ptr<Type::Type> &type,
-                                     const std::shared_ptr<Block> &block) {
-    const auto instruction = std::make_shared<Alloc>(name, type);
-    if (block != nullptr) [[likely]] {
-        instruction->set_block(block);
+    std::shared_ptr<Instruction> Instruction::cloneinfo_to_block(std::shared_ptr<Pass::LoopNodeClone> clone_info,
+                                                                 const std::shared_ptr<Block> &block) {
+        auto new_instr = clone_to_block(block);
+        clone_info->add_value_reflect(shared_from_this(), new_instr);
+        return new_instr;
     }
-    return instruction;
-}
 
-std::shared_ptr<Load> Load::create(const std::string &name, const std::shared_ptr<Value> &addr,
+    void Instruction::fix_clone_info(const std::shared_ptr<Pass::LoopNodeClone> &clone_info) {
+        std::vector<std::shared_ptr<Value>> to_replace;
+        for (const auto& operand : get_operands()) {
+            if(operand != clone_info->get_value_reflect(operand)) to_replace.push_back(operand);
+        }
+        for (const auto& operand : to_replace) this->modify_operand(operand, clone_info->get_value_reflect(operand));
+    }
+
+    std::shared_ptr<Load> Load::create(const std::string &name, const std::shared_ptr<Value> &addr,
                                    const std::shared_ptr<Block> &block) {
     const auto instruction = std::make_shared<Load>(name, addr);
     if (block != nullptr) [[likely]] {
@@ -457,8 +463,21 @@ std::shared_ptr<Block> Phi::find_optional_block(const std::shared_ptr<Value> &va
     return it != optional_values.end() ? it->first : nullptr;
 }
 
+    void Phi::fix_clone_info(const std::shared_ptr<Pass::LoopNodeClone> &clone_info) {
+        Instruction::fix_clone_info(clone_info);
+        std::vector<std::shared_ptr<Block>> to_replace;
+        for (auto &[block, value]: optional_values) {
+            if (clone_info->contain_value(block)) {
+                to_replace.push_back(block);
+            }
+        }
+        for (auto &block: to_replace) {
+            modify_operand(block, clone_info->get_value_reflect(block));
+        }
+    }
 
-std::shared_ptr<Select> Select::create(const std::string &name, const std::shared_ptr<Value> &condition,
+
+    std::shared_ptr<Select> Select::create(const std::string &name, const std::shared_ptr<Value> &condition,
                                        const std::shared_ptr<Value> &true_value,
                                        const std::shared_ptr<Value> &false_value, const std::shared_ptr<Block> &block) {
     if (*true_value->get_type() != *false_value->get_type()) {

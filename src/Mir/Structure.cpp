@@ -47,4 +47,20 @@ std::shared_ptr<std::vector<std::shared_ptr<Instruction>>> Block::get_phis() {
     return phis;
 }
 
+std::shared_ptr<Block> Block::cloneinfo_to_func(std::shared_ptr<Pass::LoopNodeClone> clone_info,
+                                                    const std::shared_ptr<Function> &function) {
+    auto block = Block::create("clone", function);
+    clone_info->add_value_reflect(shared_from_this(), block);
+    for (auto & instr : this->get_instructions()) {
+        instr-> cloneinfo_to_block(clone_info, block);
+    }
+    return block;
+}
+
+    void Block::fix_clone_info(const std::shared_ptr<Pass::LoopNodeClone> &clone_info) {
+        for (auto & instr : this->get_instructions()) {
+            instr->fix_clone_info(clone_info);
+        }
+    }
+
 } // namespace Mir

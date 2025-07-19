@@ -34,9 +34,16 @@ public:
     bool contain_block(const std::shared_ptr<Mir::Block> &block);
 
     void set_preheader(BlockPtr preheader) { preheader_ = std::move(preheader); }
+
+    void set_header(BlockPtr header) { header_ = std::move(header); }
+
     void set_latch(BlockPtr latch) { latch_ = std::move(latch); }
 
     void add_block(const std::shared_ptr<Mir::Block> &block) { blocks_.push_back(block); }
+
+    void add_latch_block(const std::shared_ptr<Mir::Block> &block) { latch_blocks_.push_back(block); }
+    void add_exitings(const std::shared_ptr<Mir::Block> &block) { exitings_.push_back(block); }
+    void add_exits(const std::shared_ptr<Mir::Block> &block) { exits_.push_back(block); }
 };
 
 class LoopNodeClone;
@@ -76,6 +83,8 @@ public:
     [[nodiscard]] bool def_value(const std::shared_ptr<Mir::Value>& value);
 
     std::shared_ptr<LoopNodeClone> clone_loop_node();
+
+    void fix_clone_info(const std::shared_ptr<LoopNodeClone>& clone_info);
 
 private:
     std::shared_ptr<Loop> loop_;
