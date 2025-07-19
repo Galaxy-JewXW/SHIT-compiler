@@ -146,6 +146,11 @@ public:
 
     std::shared_ptr<LoopNodeTreeNode> find_block_in_forest(const FunctionPtr &func,
                                                            const std::shared_ptr<Mir::Block> &block);
+    bool is_dirty() const override;
+
+    bool is_dirty(const std::shared_ptr<Mir::Function> &function) const override;
+
+    void set_dirty(const FunctionPtr &func);
 
 private:
     using FunctLoopsMap = std::unordered_map<std::shared_ptr<Mir::Function>, std::vector<std::shared_ptr<Loop>>>;
@@ -153,6 +158,8 @@ private:
     using FunctLoopForestMap =
             std::unordered_map<std::shared_ptr<Mir::Function>, std::vector<std::shared_ptr<LoopNodeTreeNode>>>;
     FunctLoopForestMap loop_forest_;
+
+    std::unordered_map<FunctionPtr, bool> dirty_funcs_;
 };
 } // namespace Pass
 
