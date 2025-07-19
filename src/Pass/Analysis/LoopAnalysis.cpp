@@ -15,6 +15,8 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
 
     // TODO: 这里的逻辑也稍有混乱了，好好设计整理一下
     for (const auto &func: *module) {
+        if(!dirty_funcs_.at(func)) continue;
+
         auto block_predecessors = cfg_info->graph(func).predecessors;
         auto block_successors = cfg_info->graph(func).successors;
         auto block_dominators = dom_info->graph(func).dominator_blocks;
@@ -137,6 +139,22 @@ std::shared_ptr<LoopNodeTreeNode> LoopAnalysis::find_block_in_forest(const Funct
         }
     }
     return nullptr;
+}
+
+bool LoopAnalysis::is_dirty() const {
+    return std::any_of(dirty_funcs_.begin(), dirty_funcs_.end(), [](const auto &pair) { return pair.second; });
+}
+
+bool LoopAnalysis::is_dirty(const std::shared_ptr<Mir::Function> &function) const {
+    return dirty_funcs_.at(function);
+}
+
+
+void LoopAnalysis::set_dirty(const FunctionPtr &func) {
+    if (dirty_funcs_[func]) {
+        return;
+    }
+    dirty_funcs_[func] = true;
 }
 
 std::shared_ptr<LoopNodeTreeNode> LoopNodeTreeNode::find_block_in_loop(const std::shared_ptr<Mir::Block> &block) {

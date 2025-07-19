@@ -16,13 +16,11 @@ namespace Pass {
             while (modified) {
                 modified = false;
                 cfg_info->set_dirty(fun);
-
-                // fixme: 这里关于 loop 的 Pass 都需要再检查正确性
-                // fixme: 这里还没有关于 loop info 的更新
+                loop_info->set_dirty(fun);
                 create<LoopSimplyForm>()->run_on(fun);
                 create<LCSSA>()->run_on(fun);
-
-                for (auto node : loop_info->loop_forest(fun)) {
+                auto new_loop_info = get_analysis_result<LoopAnalysis>(module);
+                for (auto node : new_loop_info->loop_forest(fun)) {
                     modified |= un_switching(node);
                 }
                 create<GlobalValueNumbering>()->run_on(fun);

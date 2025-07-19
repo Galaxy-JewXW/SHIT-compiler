@@ -13,6 +13,8 @@ public:
 
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
+
+    void transform(const std::shared_ptr<Mir::Function> &) override;
 };
 
 class LCSSA final : public Transform {
@@ -32,6 +34,8 @@ public:
 
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
+
+    void transform(const std::shared_ptr<Mir::Function> &) override;
 
     void runOnNode(const std::shared_ptr<LoopNodeTreeNode> &loop_node);
 
