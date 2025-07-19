@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "Value.h"
+#include "Pass/Analyses/LoopAnalysis.h"
 
 namespace Mir::Init {
 class Init;
@@ -200,6 +201,8 @@ public:
     void modify_successor(const std::shared_ptr<Block> &old_successor,
                           const std::shared_ptr<Block> &new_successor) const;
 
+    std::shared_ptr<Block> cloneinfo_to_func(std::shared_ptr<Pass::LoopNodeClone> clone_info, const std::shared_ptr<Function> &function);
+    void fix_clone_info(const std::shared_ptr<Pass::LoopNodeClone>& clone_info);
     std::shared_ptr<std::vector<std::shared_ptr<Instruction>>> get_phis();
 };
 } // namespace Mir
