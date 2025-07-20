@@ -47,7 +47,7 @@ private:
 
     std::shared_ptr<FunctionAnalysis> function_analysis_{nullptr};
 
-    void run_on_func(const std::shared_ptr<Mir::Function> &func);
+    void run_on_func(const std::shared_ptr<Mir::Function> &func, const std::unordered_set<std::shared_ptr<Mir::Instruction>> &initial);
 
     // 删除指令
     void init_useful_instruction(const std::shared_ptr<Mir::Function> &function);
@@ -55,7 +55,8 @@ private:
     void update_useful_instruction(const std::shared_ptr<Mir::Instruction> &instruction);
 
     // 删除全局变量
-    static void dead_global_variable_eliminate(const std::shared_ptr<Mir::Module> &module);
+    static std::unordered_set<std::shared_ptr<Mir::Instruction>>
+    dead_global_variable_eliminate(const std::shared_ptr<Mir::Module> &module);
 };
 
 // 函数无用形参删除

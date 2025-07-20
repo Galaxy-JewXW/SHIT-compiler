@@ -23,7 +23,7 @@ void run_on_block(const std::shared_ptr<Block> &block, std::unordered_set<std::s
     std::shared_ptr<Block> default_block{nullptr}, parent_block{nullptr};
     std::unordered_map<int, std::shared_ptr<Block>> chain_map;
 
-    [[maybe_unused]] const auto make_chain = [&](auto &&self, decltype(block) cur_block, const bool is_head) -> void {
+    const auto make_chain = [&](auto &&self, decltype(block) cur_block, const bool is_head) -> void {
         /**
          * A: if (x == 1) goto B else goto C
          * C: if (x == 2) goto D else goto E

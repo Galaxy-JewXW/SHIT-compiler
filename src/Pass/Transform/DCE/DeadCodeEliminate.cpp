@@ -6,7 +6,7 @@ namespace {
 void add_all_operands(const std::shared_ptr<Instruction> &instruction,
                       std::unordered_set<std::shared_ptr<Instruction>> &set) {
     for (const auto &operand: *instruction) {
-        if (const auto inst = std::dynamic_pointer_cast<Instruction>(operand)) {
+        if (const auto inst = operand->is<Instruction>()) {
             set.insert(inst);
         }
     }
@@ -29,7 +29,7 @@ void DeadCodeEliminate::init_useful_instruction(const std::shared_ptr<Function> 
             if (const auto terminator = inst->is<Terminator>()) {
                 useful_instructions_.insert(inst);
             } else if (const auto call = inst->is<Call>()) {
-                if (const auto &called_function = call->get_function()->as<Function>();
+                if (const auto called_function = call->get_function()->as<Function>();
                     is_useful_call(called_function)) {
                     useful_instructions_.insert(inst);
                     add_all_operands(call, useful_instructions_);
@@ -38,6 +38,8 @@ void DeadCodeEliminate::init_useful_instruction(const std::shared_ptr<Function> 
         }
     }
     for (const auto &arg: function->get_arguments()) {
+        if (!arg->get_type()->is_pointer())
+            continue;
         for (const auto &user: arg->users()) {
             if (const auto inst = user->is<Instruction>()) {
                 useful_instructions_.insert(inst);
@@ -54,7 +56,8 @@ void DeadCodeEliminate::update_useful_instruction(const std::shared_ptr<Instruct
             if (inst == nullptr) {
                 continue;
             }
-            if (const auto op = inst->get_op(); op == Operator::STORE || op == Operator::GEP || op == Operator::CALL) {
+            if (const auto op = inst->get_op(); op == Operator::STORE || op == Operator::GEP || op == Operator::CALL ||
+                                                op == Operator::BITCAST) {
                 useful_instructions_.insert(inst);
             } else if (inst->users().size() > 0) {
                 useful_instructions_.insert(inst);
@@ -63,7 +66,8 @@ void DeadCodeEliminate::update_useful_instruction(const std::shared_ptr<Instruct
     }
 }
 
-void DeadCodeEliminate::dead_global_variable_eliminate(const std::shared_ptr<Module> &module) {
+std::unordered_set<std::shared_ptr<Instruction>>
+DeadCodeEliminate::dead_global_variable_eliminate(const std::shared_ptr<Module> &module) {
     for (auto it = module->get_global_variables().begin(); it != module->get_global_variables().end();) {
         if (const auto &gv = *it; gv->users().size() == 0) {
             it = module->get_global_variables().erase(it);
@@ -71,23 +75,28 @@ void DeadCodeEliminate::dead_global_variable_eliminate(const std::shared_ptr<Mod
             ++it;
         }
     }
-}
-
-void DeadCodeEliminate::run_on_func(const std::shared_ptr<Function> &func) {
-    useful_instructions_.clear();
+    decltype(useful_instructions_) useful_instructions;
     for (const auto &gv: Module::instance()->get_global_variables()) {
         for (const auto &user: gv->users()) {
             const auto inst = user->is<Instruction>();
             if (inst == nullptr) {
                 continue;
             }
-            if (const auto op = inst->get_op(); op == Operator::STORE || op == Operator::GEP || op == Operator::CALL) {
-                useful_instructions_.insert(inst);
+            if (const auto op = inst->get_op(); op == Operator::STORE || op == Operator::GEP || op == Operator::CALL ||
+                                                op == Operator::BITCAST) {
+                useful_instructions.insert(inst);
             } else if (inst->users().size() > 0) {
-                useful_instructions_.insert(inst);
+                useful_instructions.insert(inst);
             }
         }
     }
+    return useful_instructions;
+}
+
+void DeadCodeEliminate::run_on_func(const std::shared_ptr<Function> &func,
+                                    const std::unordered_set<std::shared_ptr<Instruction>> &initial) {
+    useful_instructions_.clear();
+    useful_instructions_.insert(initial.begin(), initial.end());
     init_useful_instruction(func);
     bool changed = false;
     do {
@@ -109,12 +118,11 @@ void DeadCodeEliminate::run_on_func(const std::shared_ptr<Function> &func) {
     }
 }
 
-
 void DeadCodeEliminate::transform(const std::shared_ptr<Module> module) {
     function_analysis_ = get_analysis_result<FunctionAnalysis>(module);
-    dead_global_variable_eliminate(module);
+    const auto initial_usefuls = dead_global_variable_eliminate(module);
     for (const auto &func: *module) {
-        run_on_func(func);
+        run_on_func(func, initial_usefuls);
     }
     dead_global_variable_eliminate(module);
     function_analysis_ = nullptr;
@@ -122,8 +130,8 @@ void DeadCodeEliminate::transform(const std::shared_ptr<Module> module) {
 
 void DeadCodeEliminate::transform(const std::shared_ptr<Function> &func) {
     function_analysis_ = get_analysis_result<FunctionAnalysis>(Module::instance());
-    dead_global_variable_eliminate(Module::instance());
-    run_on_func(func);
+    const auto initial_usefuls = dead_global_variable_eliminate(Module::instance());
+    run_on_func(func, initial_usefuls);
     dead_global_variable_eliminate(Module::instance());
     function_analysis_ = nullptr;
 }
