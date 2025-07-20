@@ -134,6 +134,7 @@ std::shared_ptr<Value> get_identity_element(const std::shared_ptr<Instruction> &
     const auto &type{inst->get_type()};
     switch (inst->as<IntBinary>()->intbinary_op()) {
         case IntBinary::Op::ADD:
+        case IntBinary::Op::SUB:
         case IntBinary::Op::OR:
         case IntBinary::Op::XOR:
             return ConstInt::create(0, type);
@@ -286,18 +287,29 @@ bool TailCallOptimize::handle_tail_call(const std::shared_ptr<Call> &call) {
 
     // 检查调用后是否有累加操作（return f() + acc）
     if (const auto op = next_inst->get_op(); op == Operator::INTBINARY) {
-        const auto intbinary{next_inst->as<IntBinary>()};
         // 只处理满足交换律和结合律的运算
-        if (!intbinary->is_commutative() || !intbinary->is_associative()) {
-            return false;
-        }
-        accumulator = intbinary;
-        // 确保递归调用结果只被这个累加器使用一次
-        if (std::count(accumulator->get_operands().begin(), accumulator->get_operands().end(), call) != 1) {
-            return false;
-        }
-        // 确保累加器的结果只被return语句使用
-        if (!(accumulator->users().size() == 1 && *accumulator->users().begin() == ret)) {
+        if (const auto intbinary{next_inst->as<IntBinary>()};
+            intbinary->is_commutative() && intbinary->is_associative()) {
+            accumulator = intbinary;
+            // 确保递归调用结果只被这个累加器使用一次
+            if (std::count(accumulator->get_operands().begin(), accumulator->get_operands().end(), call) != 1) {
+                return false;
+            }
+            // 确保累加器的结果只被return语句使用
+            if (!(accumulator->users().size() == 1 && *accumulator->users().begin() == ret)) {
+                return false;
+            }
+        } else if (intbinary->intbinary_op() == IntBinary::Op::SUB) {
+            accumulator = intbinary;
+            if (const auto &ops = intbinary->get_operands();
+                !(ops[0] == call && ops[1] != call)) {
+                return false;
+            }
+            // 确保累加器的结果只被return语句使用
+            if (!(accumulator->users().size() == 1 && *accumulator->users().begin() == ret)) {
+                return false;
+            }
+        } else {
             return false;
         }
     } else if (op != Operator::RET) {
