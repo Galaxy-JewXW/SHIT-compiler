@@ -14,37 +14,11 @@ using IntervalSetDouble = Pass::IntervalAnalysis::IntervalSet<double>;
 using Context = Pass::IntervalAnalysis::Context;
 
 void evaluate(const std::shared_ptr<Instruction> &inst, Context &ctx, const SummaryManager &summary_manager) {
-    if (inst->is<Terminator>()) {
+    if (inst->is<Terminator>() || inst->get_op() == Operator::PHI) {
         return;
     }
     AnyIntervalSet result_interval;
     switch (inst->get_op()) {
-        case Operator::PHI: {
-            if (const auto phi{inst->as<Phi>()}; phi->get_type()->is_float()) {
-                auto phi_interval = IntervalSetDouble{};
-                for (const auto &[block, value]: phi->get_optional_values()) {
-                    auto incoming = ctx.get(value);
-                    if (auto p = std::get_if<IntervalSetDouble>(&incoming)) [[likely]] {
-                        phi_interval.union_with(*p);
-                    } else {
-                        log_error("Invalid type");
-                    }
-                }
-                result_interval = std::move(phi_interval);
-            } else {
-                auto phi_interval = IntervalSetInt{};
-                for (const auto &[block, value]: phi->get_optional_values()) {
-                    auto incoming = ctx.get(value);
-                    if (auto p = std::get_if<IntervalSetInt>(&incoming)) [[likely]] {
-                        phi_interval.union_with(*p);
-                    } else {
-                        log_error("Invalid type");
-                    }
-                }
-                result_interval = std::move(phi_interval);
-            }
-            break;
-        }
         case Operator::INTBINARY: {
             const auto &intbinary{inst->as<IntBinary>()};
             const auto lhs{ctx.get(intbinary->get_lhs())}, rhs{ctx.get(intbinary->get_rhs())};
@@ -235,11 +209,6 @@ IntervalAnalysis::Summary IntervalAnalysis::rabai_function(const std::shared_ptr
         }
         auto lhs{std::get<IntervalSetInt>(ctx.get(icmp->get_lhs()))};
         const auto rhs{**icmp->get_rhs()->as<ConstInt>()};
-        // switch (icmp->op) {
-        //     case Icmp::Op::EQ: {
-        //
-        //     }
-        // }
         const auto interval = [&]() -> IntervalSetInt {
             switch (icmp->op) {
                 case Icmp::Op::EQ: {
@@ -298,10 +267,8 @@ IntervalAnalysis::Summary IntervalAnalysis::rabai_function(const std::shared_ptr
         }
         if (new_in_succ != old_in_succ || worklist_set.find(succ) == worklist_set.end()) {
             in_ctxs[succ] = new_in_succ;
-            if (worklist_set.find(succ) == worklist_set.end()) {
-                worklist.push(succ);
-                worklist_set.insert(succ);
-            }
+            worklist.push(succ);
+            worklist_set.insert(succ);
         }
     };
 
