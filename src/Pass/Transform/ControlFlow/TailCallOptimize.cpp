@@ -238,7 +238,7 @@ void TailCallOptimize::tail_call_eliminate(const std::shared_ptr<Function> &func
                 if (!func->get_return_type()->is_void()) {
                     const auto returned_value{new_ret->get_value()};
                     if (const auto phi{returned_value->is<Phi>()}; phi && phi->get_block() == target_block) {
-                        new_ret->modify_operand(returned_value, phi->get_optional_values()[block]);
+                        new_ret->modify_operand(returned_value, phi->get_optional_values().at(block));
                     } else {
                         // 撤回修改操作
                         block->get_instructions().pop_back();

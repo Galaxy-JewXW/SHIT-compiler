@@ -123,6 +123,28 @@ protected:
 private:
     static void run_on_func(const std::shared_ptr<Mir::Function> &func);
 };
+
+// 函数内联
+class Inlining final : public Transform {
+public:
+    explicit Inlining() : Transform("Inlining") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+private:
+    std::shared_ptr<ControlFlowGraph> cfg_info{nullptr};
+
+    std::shared_ptr<FunctionAnalysis> func_info{nullptr};
+
+    [[nodiscard]] bool can_inline(const std::shared_ptr<Mir::Function> &func) const;
+
+    void do_inline(const std::shared_ptr<Mir::Function> &func) const;
+
+    void replace_call(const std::shared_ptr<Mir::Call> &call,
+                      const std::shared_ptr<Mir::Function> &caller,
+                      const std::shared_ptr<Mir::Function> &callee) const;
+};
 } // namespace Pass
 
 #endif

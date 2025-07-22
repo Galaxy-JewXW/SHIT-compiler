@@ -113,7 +113,7 @@ void run_on_block(const std::shared_ptr<Block> &block, std::unordered_set<std::s
     for (const auto &inst: default_block->get_instructions()) {
         if (inst->get_op() == Operator::PHI) {
             const auto phi{inst->as<Phi>()};
-            phi->set_optional_value(block, phi->get_optional_values()[parent_block]);
+            phi->set_optional_value(block, phi->get_optional_values().at(parent_block));
         } else {
             break;
         }
