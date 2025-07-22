@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
         emit_llvm(module, options._emit_options);
     }
 
-    if (options.flag_S) {
+    if (options._emit_options.emit_riscv) {
         RISCV::Assembler assembler(module);
         emit_riscv(assembler, options);
     }

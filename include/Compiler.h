@@ -28,13 +28,16 @@ struct emit_options {
     std::string ast_file;
     bool emit_llvm = false;
     std::string llvm_file;
-    bool emit_riscv = false;
+    bool emit_lir = false;
+    std::string lir_file;
+    bool emit_riscv = true;
+    std::string riscv_file;
+    bool emit_arm = false;
+    std::string arm_file;
 };
 
 struct compiler_options {
     std::string input_file;
-    bool flag_S = false;
-    std::string output_file;
     emit_options _emit_options;
     Optimize_level opt_level = default_opt_level;
 
