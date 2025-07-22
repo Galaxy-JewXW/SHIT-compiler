@@ -116,7 +116,7 @@ class Backend::LIR::Move : public Backend::LIR::Instruction {
 
 class Backend::LIR::Call : public Backend::LIR::Instruction {
     public:
-        std::shared_ptr<Backend::Variable> result;
+        const std::shared_ptr<Backend::Variable> result;
         std::shared_ptr<Backend::LIR::Function> function;
         std::vector<std::shared_ptr<Backend::Variable>> arguments;
 

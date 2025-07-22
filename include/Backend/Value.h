@@ -27,7 +27,7 @@ namespace Backend {
 
 class Backend::Operand {
     public:
-        const std::string name;
+        std::string name;
         const OperandType operand_type;
         Operand(const std::string &name) : name(name), operand_type(OperandType::VARIABLE) {};
         Operand(const std::string &name, OperandType type) : name(name), operand_type(type) {};

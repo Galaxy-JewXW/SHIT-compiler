@@ -147,10 +147,6 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
                 log_error("We shall not compare 2 certain values in backend!");
             break;
         }
-        case Mir::Operator::PHI: {
-            // NOTE: midend will do this
-            break;
-        }
         case Mir::Operator::BRANCH: {
             std::shared_ptr<Mir::Branch> branch = std::static_pointer_cast<Mir::Branch>(llvm_instruction);
             std::shared_ptr<Backend::LIR::Block> block_true = mir_block->parent_function.lock()->blocks_index[branch->get_true_block()->get_name()];
@@ -197,7 +193,7 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
             if (function_name.find("llvm.memset") != 0) {
                 for (std::shared_ptr<Mir::Value> param : call->get_params())
                     function_params.push_back(ensure_variable(find_operand(param, mir_block->parent_function.lock()), mir_block));
-                if (call->get_type()) {
+                if (!call->get_type()->is_void()) {
                     std::shared_ptr<Backend::Variable> store_to = std::make_shared<Backend::Variable>(llvm_instruction->get_name(), Backend::Utils::llvm_to_riscv(*call->get_type()), VariableWide::LOCAL);
                     mir_block->parent_function.lock()->add_variable(store_to);
                     mir_block->instructions.push_back(std::make_shared<Backend::LIR::Call>(store_to, functions_index[function_name], function_params));
@@ -240,6 +236,10 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
 
 void Backend::LIR::Function::analyze_live_variables() {
     bool changed = true;
+    for (std::shared_ptr<Backend::LIR::Block> &block : blocks) {
+        block->live_in.clear();
+        block->live_out.clear();
+    }
     while(changed) {
         std::unordered_set<std::string> visited;
         std::shared_ptr<Backend::LIR::Block> first_block = blocks.front();
@@ -265,9 +265,9 @@ bool Backend::LIR::Function::analyze_live_variables(std::shared_ptr<Backend::LIR
         std::shared_ptr<Backend::LIR::Instruction> &instruction = *it;
         std::shared_ptr<Backend::Variable> def_var = instruction->get_defined_variable();
         if (def_var)
-            block->live_in.erase(def_var);
+            block->live_in.erase(def_var->name);
         for (const std::shared_ptr<Backend::Variable> &used_var : instruction->get_used_variables())
-            block->live_in.insert(used_var);
+            block->live_in.insert(used_var->name);
     }
     return changed || block->live_in.size() != old_in_size || block->live_out.size() != old_out_size;
 }

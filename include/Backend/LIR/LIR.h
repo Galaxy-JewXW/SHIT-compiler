@@ -198,8 +198,8 @@ class Backend::LIR::Block {
         std::vector<std::shared_ptr<Backend::LIR::Block>> successors;
         std::weak_ptr<Backend::LIR::Function> parent_function;
 
-        std::unordered_set<std::shared_ptr<Backend::Variable>> live_in;
-        std::unordered_set<std::shared_ptr<Backend::Variable>> live_out;
+        std::unordered_set<std::string> live_in;
+        std::unordered_set<std::string> live_out;
 
         explicit Block(const std::string &block_name) : name(std::move(block_name)) {};
 };
@@ -276,13 +276,13 @@ class Backend::LIR::Function {
             for (const std::shared_ptr<Backend::LIR::Block> &block: blocks) {
                 oss << "\nBlock: " << block->name << "\n";
                 oss << "  Live In: ";
-                for (const auto& var : block->live_in) {
-                    oss << var->name << " ";
+                for (const std::string &var_name : block->live_in) {
+                    oss << var_name << " ";
                 }
                 oss << "\n";
                 oss << "  Live Out: ";
-                for (const auto& var : block->live_out) {
-                    oss << var->name << " ";
+                for (const std::string &var_name : block->live_out) {
+                    oss << var_name << " ";
                 }
             }
             oss << "\n";
