@@ -47,7 +47,8 @@ private:
 
     std::shared_ptr<FunctionAnalysis> function_analysis_{nullptr};
 
-    void run_on_func(const std::shared_ptr<Mir::Function> &func, const std::unordered_set<std::shared_ptr<Mir::Instruction>> &initial);
+    void run_on_func(const std::shared_ptr<Mir::Function> &func,
+                     const std::unordered_set<std::shared_ptr<Mir::Instruction>> &initial);
 
     // 删除指令
     void init_useful_instruction(const std::shared_ptr<Mir::Function> &function);

@@ -1,6 +1,7 @@
 #include "Mir/Structure.h"
 #include "Mir/Builder.h"
 #include "Mir/Instruction.h"
+#include "Pass/Analyses/LoopAnalysis.h"
 
 namespace Mir {
 void Module::update_id() const {
@@ -27,7 +28,7 @@ void Function::update_id() const {
 
 void Block::modify_successor(const std::shared_ptr<Block> &old_successor,
                              const std::shared_ptr<Block> &new_successor) const {
-    auto terminator = instructions.back();
+    const auto terminator = instructions.back();
     if (dynamic_cast<Branch *>(terminator.get()) != nullptr) {
         terminator->modify_operand(old_successor, new_successor);
     }
@@ -36,10 +37,10 @@ void Block::modify_successor(const std::shared_ptr<Block> &old_successor,
     }
 }
 
-std::shared_ptr<std::vector<std::shared_ptr<Instruction>>> Block::get_phis() {
+std::shared_ptr<std::vector<std::shared_ptr<Instruction>>> Block::get_phis() const {
     auto phis = std::make_shared<std::vector<std::shared_ptr<Instruction>>>();
     for (auto &instruction: instructions) {
-        if (instruction->get_op() == Mir::Operator::PHI) {
+        if (instruction->get_op() == Operator::PHI) {
             auto phi = std::static_pointer_cast<Phi>(instruction);
             phis->push_back(phi);
         }
@@ -47,20 +48,20 @@ std::shared_ptr<std::vector<std::shared_ptr<Instruction>>> Block::get_phis() {
     return phis;
 }
 
-std::shared_ptr<Block> Block::cloneinfo_to_func(std::shared_ptr<Pass::LoopNodeClone> clone_info,
-                                                    const std::shared_ptr<Function> &function) {
+std::shared_ptr<Block> Block::cloneinfo_to_func(const std::shared_ptr<Pass::LoopNodeClone> &clone_info,
+                                                const std::shared_ptr<Function> &function) {
     auto block = Block::create("clone", function);
     clone_info->add_value_reflect(shared_from_this(), block);
-    for (auto & instr : this->get_instructions()) {
-        instr-> cloneinfo_to_block(clone_info, block);
+    for (const auto &instr: this->get_instructions()) {
+        instr->cloneinfo_to_block(clone_info, block);
     }
     return block;
 }
 
-    void Block::fix_clone_info(const std::shared_ptr<Pass::LoopNodeClone> &clone_info) {
-        for (auto & instr : this->get_instructions()) {
-            instr->fix_clone_info(clone_info);
-        }
+void Block::fix_clone_info(const std::shared_ptr<Pass::LoopNodeClone> &clone_info) {
+    for (const auto &instr: this->get_instructions()) {
+        instr->fix_clone_info(clone_info);
     }
+}
 
 } // namespace Mir

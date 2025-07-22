@@ -56,8 +56,8 @@ void DeadCodeEliminate::update_useful_instruction(const std::shared_ptr<Instruct
             if (inst == nullptr) {
                 continue;
             }
-            if (const auto op = inst->get_op(); op == Operator::STORE || op == Operator::GEP || op == Operator::CALL ||
-                                                op == Operator::BITCAST) {
+            if (const auto op = inst->get_op();
+                op == Operator::STORE || op == Operator::GEP || op == Operator::CALL || op == Operator::BITCAST) {
                 useful_instructions_.insert(inst);
             } else if (inst->users().size() > 0) {
                 useful_instructions_.insert(inst);
@@ -82,8 +82,8 @@ DeadCodeEliminate::dead_global_variable_eliminate(const std::shared_ptr<Module> 
             if (inst == nullptr) {
                 continue;
             }
-            if (const auto op = inst->get_op(); op == Operator::STORE || op == Operator::GEP || op == Operator::CALL ||
-                                                op == Operator::BITCAST) {
+            if (const auto op = inst->get_op();
+                op == Operator::STORE || op == Operator::GEP || op == Operator::CALL || op == Operator::BITCAST) {
                 useful_instructions.insert(inst);
             } else if (inst->users().size() > 0) {
                 useful_instructions.insert(inst);

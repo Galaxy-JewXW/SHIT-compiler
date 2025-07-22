@@ -301,8 +301,7 @@ bool TailCallOptimize::handle_tail_call(const std::shared_ptr<Call> &call) {
             }
         } else if (intbinary->intbinary_op() == IntBinary::Op::SUB) {
             accumulator = intbinary;
-            if (const auto &ops = intbinary->get_operands();
-                !(ops[0] == call && ops[1] != call)) {
+            if (const auto &ops = intbinary->get_operands(); !(ops[0] == call && ops[1] != call)) {
                 return false;
             }
             // 确保累加器的结果只被return语句使用

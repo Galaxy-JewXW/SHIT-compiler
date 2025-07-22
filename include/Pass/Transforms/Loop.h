@@ -61,10 +61,11 @@ protected:
 
     bool un_switching(std::shared_ptr<LoopNodeTreeNode> &loop);
 
-    static void collect_branch(std::shared_ptr<LoopNodeTreeNode> &node, std::vector<std::shared_ptr<Mir::Branch>>& branch_vector);
+    static void collect_branch(std::shared_ptr<LoopNodeTreeNode> &node,
+                               std::vector<std::shared_ptr<Mir::Branch>> &branch_vector);
 
-    void
-    handle_branch(std::shared_ptr<LoopNodeTreeNode> &node, std::vector<std::shared_ptr<Mir::Branch>> &branch_vector);
+    void handle_branch(std::shared_ptr<LoopNodeTreeNode> &node,
+                       std::vector<std::shared_ptr<Mir::Branch>> &branch_vector);
 };
 class LoopInvariantCodeMotion final : public Transform {
 public:
