@@ -23,7 +23,7 @@ void run_on_block(const std::shared_ptr<Block> &block, std::unordered_set<std::s
     std::shared_ptr<Block> default_block{nullptr}, parent_block{nullptr};
     std::unordered_map<int, std::shared_ptr<Block>> chain_map;
 
-    [[maybe_unused]] const auto make_chain = [&](auto &&self, decltype(block) cur_block, const bool is_head) -> void {
+    const auto make_chain = [&](auto &&self, decltype(block) cur_block, const bool is_head) -> void {
         /**
          * A: if (x == 1) goto B else goto C
          * C: if (x == 2) goto D else goto E
@@ -113,7 +113,7 @@ void run_on_block(const std::shared_ptr<Block> &block, std::unordered_set<std::s
     for (const auto &inst: default_block->get_instructions()) {
         if (inst->get_op() == Operator::PHI) {
             const auto phi{inst->as<Phi>()};
-            phi->set_optional_value(block, phi->get_optional_values()[parent_block]);
+            phi->set_optional_value(block, phi->get_optional_values().at(parent_block));
         } else {
             break;
         }
@@ -141,6 +141,15 @@ void IfChainToSwitch::transform(const std::shared_ptr<Module> module) {
     for (const auto &func: module->get_functions()) {
         run_on_func(func);
     }
+    cfg_info = nullptr;
+    dom_info = nullptr;
+}
+
+void IfChainToSwitch::transform(const std::shared_ptr<Function> &func) {
+    create<StandardizeBinary>()->run_on(func);
+    cfg_info = get_analysis_result<ControlFlowGraph>(Module::instance());
+    dom_info = get_analysis_result<DominanceGraph>(Module::instance());
+    run_on_func(func);
     cfg_info = nullptr;
     dom_info = nullptr;
 }

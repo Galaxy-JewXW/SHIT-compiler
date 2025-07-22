@@ -125,34 +125,52 @@ void Mem2Reg::rename_variables(const std::shared_ptr<Block> &block) {
     }
 }
 
+void Mem2Reg::run_on_func(const std::shared_ptr<Function> &func) {
+    std::vector<std::shared_ptr<Alloc>> valid_allocs;
+    for (const auto &block: func->get_blocks()) {
+        for (const auto &inst: block->get_instructions()) {
+            if (inst->get_op() == Operator::ALLOC) {
+                auto alloc = std::static_pointer_cast<Alloc>(inst);
+                if (const auto contain_type =
+                            std::static_pointer_cast<Type::Pointer>(alloc->get_type())->get_contain_type();
+                    !contain_type->is_array()) {
+                    valid_allocs.emplace_back(alloc);
+                }
+            }
+        }
+    }
+    // 对每个符合条件的Alloc进行Mem2Reg转换
+    for (const auto &alloc: valid_allocs) {
+        current_alloc = alloc;
+        current_function = func;
+        def_blocks.clear();
+        init_mem2reg();
+        insert_phi();
+        rename_variables(current_function->get_blocks().front());
+    }
+}
+
 void Mem2Reg::transform(const std::shared_ptr<Module> module) {
     cfg_info = get_analysis_result<ControlFlowGraph>(module);
     dom_info = get_analysis_result<DominanceGraph>(module);
     for (const auto &func: *module) {
         // 收集当前函数的所有Alloc指令
-        std::vector<std::shared_ptr<Alloc>> valid_allocs;
-        for (const auto &block: func->get_blocks()) {
-            for (const auto &inst: block->get_instructions()) {
-                if (inst->get_op() == Operator::ALLOC) {
-                    auto alloc = std::static_pointer_cast<Alloc>(inst);
-                    if (const auto contain_type =
-                                std::static_pointer_cast<Type::Pointer>(alloc->get_type())->get_contain_type();
-                        !contain_type->is_array()) {
-                        valid_allocs.emplace_back(alloc);
-                    }
-                }
-            }
-        }
-        // 对每个符合条件的Alloc进行Mem2Reg转换
-        for (const auto &alloc: valid_allocs) {
-            current_alloc = alloc;
-            current_function = func;
-            def_blocks.clear();
-            init_mem2reg();
-            insert_phi();
-            rename_variables(current_function->get_blocks().front());
-        }
+        run_on_func(func);
     }
+    current_alloc = nullptr;
+    current_function = nullptr;
+    cfg_info = nullptr;
+    dom_info = nullptr;
+    def_instructions.clear();
+    use_instructions.clear();
+    def_blocks.clear();
+    def_stack.clear();
+}
+
+void Mem2Reg::transform(const std::shared_ptr<Function> &func) {
+    cfg_info = get_analysis_result<ControlFlowGraph>(Module::instance());
+    dom_info = get_analysis_result<DominanceGraph>(Module::instance());
+    run_on_func(func);
     current_alloc = nullptr;
     current_function = nullptr;
     cfg_info = nullptr;

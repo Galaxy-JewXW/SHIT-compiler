@@ -133,4 +133,12 @@ void StoreEliminate::transform(const std::shared_ptr<Module> module) {
     function_analysis = nullptr;
     deleted_instructions.clear();
 }
+
+void StoreEliminate::transform(const std::shared_ptr<Function> &func) {
+    deleted_instructions.clear();
+    function_analysis = get_analysis_result<FunctionAnalysis>(Module::instance());
+    run_on_func(func);
+    function_analysis = nullptr;
+    deleted_instructions.clear();
+}
 } // namespace Pass

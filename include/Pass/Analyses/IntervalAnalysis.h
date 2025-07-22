@@ -107,6 +107,8 @@ struct IntervalAnalysis::Interval {
         return Interval{std::min(lower, other.lower), std::max(upper, other.upper)};
     }
 
+    static Interval make_any() { return Interval{numeric_limits_v<T>::neg_infinity, numeric_limits_v<T>::infinity}; }
+
     // 方便打印输出
     [[nodiscard]] std::string to_string() const {
         std::stringstream ss;
@@ -373,14 +375,14 @@ public:
         for (const auto &i1: intervals_) {
             for (const auto &i2: other.intervals_) {
 
-                auto lower_result = Utils::safe_cal(i1.lower, i2.lower, std::plus<T>{});
-                auto upper_result = Utils::safe_cal(i1.upper, i2.upper, std::plus<T>{});
+                auto lower_result = Utils::safe_cal(i1.lower, i2.lower, std::plus<>{});
+                auto upper_result = Utils::safe_cal(i1.upper, i2.upper, std::plus<>{});
 
                 if (lower_result && upper_result) {
                     result.intervals_.emplace_back(*lower_result, *upper_result);
                 } else {
                     // 如果发生溢出，使用无穷大区间
-                    result.intervals_.emplace_back(numeric_limits_v<T>::neg_infinity, numeric_limits_v<T>::infinity);
+                    result.intervals_.emplace_back(Interval<T>::make_any());
                 }
             }
         }
@@ -398,14 +400,14 @@ public:
         }
         for (const auto &i1: intervals_) {
             for (const auto &i2: other.intervals_) {
-                auto lower_result = Utils::safe_cal(i1.lower, i2.upper, std::minus<T>{});
-                auto upper_result = Utils::safe_cal(i1.upper, i2.lower, std::minus<T>{});
+                auto lower_result = Utils::safe_cal(i1.lower, i2.upper, std::minus<>{});
+                auto upper_result = Utils::safe_cal(i1.upper, i2.lower, std::minus<>{});
 
                 if (lower_result && upper_result) {
                     result.intervals_.emplace_back(*lower_result, *upper_result);
                 } else {
                     // 如果发生溢出，使用无穷大区间
-                    result.intervals_.emplace_back(numeric_limits_v<T>::neg_infinity, numeric_limits_v<T>::infinity);
+                    result.intervals_.emplace_back(Interval<T>::make_any());
                 }
             }
         }
@@ -424,10 +426,10 @@ public:
         }
         for (const auto &i1: intervals_) {
             for (const auto &i2: other.intervals_) {
-                auto ll_result = Utils::safe_cal(i1.lower, i2.lower, std::multiplies<T>{});
-                auto lu_result = Utils::safe_cal(i1.lower, i2.upper, std::multiplies<T>{});
-                auto ul_result = Utils::safe_cal(i1.upper, i2.lower, std::multiplies<T>{});
-                auto uu_result = Utils::safe_cal(i1.upper, i2.upper, std::multiplies<T>{});
+                auto ll_result = Utils::safe_cal(i1.lower, i2.lower, std::multiplies<>{});
+                auto lu_result = Utils::safe_cal(i1.lower, i2.upper, std::multiplies<>{});
+                auto ul_result = Utils::safe_cal(i1.upper, i2.lower, std::multiplies<>{});
+                auto uu_result = Utils::safe_cal(i1.upper, i2.upper, std::multiplies<>{});
 
                 if (ll_result && lu_result && ul_result && uu_result) {
                     T lower_val = std::min({*ll_result, *lu_result, *ul_result, *uu_result});
@@ -435,7 +437,7 @@ public:
                     result.intervals_.emplace_back(lower_val, upper_val);
                 } else {
                     // 如果发生溢出，使用无穷大区间
-                    result.intervals_.emplace_back(numeric_limits_v<T>::neg_infinity, numeric_limits_v<T>::infinity);
+                    result.intervals_.emplace_back(Interval<T>::make_any());
                 }
             }
         }
@@ -456,12 +458,12 @@ public:
                 // 除法需要处理除零和符号问题
                 if (i2.lower <= 0 && i2.upper >= 0) {
                     // 除数区间包含0，结果可能包含无穷大
-                    result.intervals_.emplace_back(numeric_limits_v<T>::neg_infinity, numeric_limits_v<T>::infinity);
+                    result.intervals_.emplace_back(Interval<T>::make_any());
                 } else {
-                    auto ll_result = Utils::safe_cal(i1.lower, i2.lower, std::divides<T>{});
-                    auto lu_result = Utils::safe_cal(i1.lower, i2.upper, std::divides<T>{});
-                    auto ul_result = Utils::safe_cal(i1.upper, i2.lower, std::divides<T>{});
-                    auto uu_result = Utils::safe_cal(i1.upper, i2.upper, std::divides<T>{});
+                    auto ll_result = Utils::safe_cal(i1.lower, i2.lower, std::divides<>{});
+                    auto lu_result = Utils::safe_cal(i1.lower, i2.upper, std::divides<>{});
+                    auto ul_result = Utils::safe_cal(i1.upper, i2.lower, std::divides<>{});
+                    auto uu_result = Utils::safe_cal(i1.upper, i2.upper, std::divides<>{});
 
                     if (ll_result && lu_result && ul_result && uu_result) {
                         T lower_val = std::min({*ll_result, *lu_result, *ul_result, *uu_result});
@@ -495,7 +497,7 @@ public:
                 // 取模运算的特殊情况处理
                 if (i2.lower <= 0 && i2.upper >= 0) {
                     // 除数区间包含0，结果不确定
-                    result.intervals_.emplace_back(numeric_limits_v<T>::neg_infinity, numeric_limits_v<T>::infinity);
+                    result.intervals_.emplace_back(Interval<T>::make_any());
                 } else if (i2.lower > 0) {
                     // 正数除数
                     T lower_val = 0;
@@ -732,14 +734,14 @@ public:
             T old_upper = interval.upper;
 
 
-            auto neg_upper = Utils::safe_cal(T(0), old_upper, std::minus<T>{});
-            auto neg_lower = Utils::safe_cal(T(0), old_lower, std::minus<T>{});
+            auto neg_upper = Utils::safe_cal(T(0), old_upper, std::minus<>{});
+            auto neg_lower = Utils::safe_cal(T(0), old_lower, std::minus<>{});
 
             if (neg_upper && neg_lower) {
                 result.intervals_.emplace_back(*neg_upper, *neg_lower);
             } else {
                 // 如果发生溢出，使用无穷大区间
-                result.intervals_.emplace_back(numeric_limits_v<T>::neg_infinity, numeric_limits_v<T>::infinity);
+                result.intervals_.emplace_back(Interval<T>::make_any());
             }
         }
         return result;

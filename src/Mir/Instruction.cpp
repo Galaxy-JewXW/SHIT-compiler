@@ -1,6 +1,24 @@
 #include "Mir/Instruction.h"
+#include "Pass/Analyses/LoopAnalysis.h"
 
 namespace Mir {
+std::shared_ptr<Instruction> Instruction::cloneinfo_to_block(const std::shared_ptr<Pass::LoopNodeClone> &clone_info,
+                                                             const std::shared_ptr<Block> &block) {
+    auto new_instr = clone_to_block(block);
+    clone_info->add_value_reflect(shared_from_this(), new_instr);
+    return new_instr;
+}
+
+void Instruction::fix_clone_info(const std::shared_ptr<Pass::LoopNodeClone> &clone_info) {
+    std::vector<std::shared_ptr<Value>> to_replace;
+    for (const auto &operand: get_operands()) {
+        if (operand != clone_info->get_value_reflect(operand))
+            to_replace.push_back(operand);
+    }
+    for (const auto &operand: to_replace)
+        this->modify_operand(operand, clone_info->get_value_reflect(operand));
+}
+
 std::shared_ptr<Alloc> Alloc::create(const std::string &name, const std::shared_ptr<Type::Type> &type,
                                      const std::shared_ptr<Block> &block) {
     const auto instruction = std::make_shared<Alloc>(name, type);
@@ -410,7 +428,7 @@ void Phi::set_optional_value(const std::shared_ptr<Block> &block, const std::sha
         log_error("Phi operand type must be same");
     }
     if (optional_values.find(block) == optional_values.end()) [[likely]] {
-        block->add_user(shared_from_this()->as<User>());
+        add_operand(block);
     } else if (optional_values.at(block) != nullptr) {
         log_error("Should be nullptr: When setting optional value, there should be a new block");
     }
@@ -451,10 +469,24 @@ void Phi::remove_optional_value(const std::shared_ptr<Block> &block) {
 std::shared_ptr<Value> Phi::get_value_by_block(const std::shared_ptr<Block> &block) {
     return optional_values.at(block);
 }
+
 std::shared_ptr<Block> Phi::find_optional_block(const std::shared_ptr<Value> &value) {
     const auto it = std::find_if(optional_values.begin(), optional_values.end(),
                                  [&](const auto &pair) { return pair.second == value; });
     return it != optional_values.end() ? it->first : nullptr;
+}
+
+void Phi::fix_clone_info(const std::shared_ptr<Pass::LoopNodeClone> &clone_info) {
+    Instruction::fix_clone_info(clone_info);
+    std::vector<std::shared_ptr<Block>> to_replace;
+    for (auto &[block, value]: optional_values) {
+        if (clone_info->contain_value(block)) {
+            to_replace.push_back(block);
+        }
+    }
+    for (auto &block: to_replace) {
+        modify_operand(block, clone_info->get_value_reflect(block));
+    }
 }
 
 

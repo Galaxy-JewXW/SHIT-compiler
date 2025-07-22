@@ -243,4 +243,21 @@ void GlobalCodeMotion::transform(const std::shared_ptr<Module> module) {
     current_function = nullptr;
     visited_instructions.clear();
 }
+
+void GlobalCodeMotion::transform(const std::shared_ptr<Function> &func) {
+    // 计算支配树和支配关系
+    cfg_info = get_analysis_result<ControlFlowGraph>(Module::instance());
+    dom_info = get_analysis_result<DominanceGraph>(Module::instance());
+    // 利用循环分析计算循环深度
+    loop_analysis = get_analysis_result<LoopAnalysis>(Module::instance());
+    function_analysis = get_analysis_result<FunctionAnalysis>(Module::instance());
+    visited_instructions.clear();
+    current_function = nullptr;
+    run_on_func(func);
+    cfg_info = nullptr;
+    dom_info = nullptr;
+    loop_analysis = nullptr;
+    current_function = nullptr;
+    visited_instructions.clear();
+}
 } // namespace Pass

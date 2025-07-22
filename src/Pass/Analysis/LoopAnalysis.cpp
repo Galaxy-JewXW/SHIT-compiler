@@ -8,7 +8,6 @@ using BlockPtr = std::shared_ptr<Mir::Block>;
 
 namespace Pass {
 void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
-    this->loops_.clear();
     std::shared_ptr<ControlFlowGraph> cfg_info = get_analysis_result<ControlFlowGraph>(module);
     const auto dom_info = get_analysis_result<DominanceGraph>(module);
     std::shared_ptr<Mir::Module> mutable_module = std::const_pointer_cast<Mir::Module>(module);
@@ -16,6 +15,9 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
 
     // TODO: 这里的逻辑也稍有混乱了，好好设计整理一下
     for (const auto &func: *module) {
+        if (!dirty_funcs_.at(func))
+            continue;
+
         auto block_predecessors = cfg_info->graph(func).predecessors;
         auto block_successors = cfg_info->graph(func).successors;
         auto block_dominators = dom_info->graph(func).dominator_blocks;
@@ -140,6 +142,20 @@ std::shared_ptr<LoopNodeTreeNode> LoopAnalysis::find_block_in_forest(const Funct
     return nullptr;
 }
 
+bool LoopAnalysis::is_dirty() const {
+    return std::any_of(dirty_funcs_.begin(), dirty_funcs_.end(), [](const auto &pair) { return pair.second; });
+}
+
+bool LoopAnalysis::is_dirty(const std::shared_ptr<Mir::Function> &function) const { return dirty_funcs_.at(function); }
+
+
+void LoopAnalysis::set_dirty(const FunctionPtr &func) {
+    if (dirty_funcs_[func]) {
+        return;
+    }
+    dirty_funcs_[func] = true;
+}
+
 std::shared_ptr<LoopNodeTreeNode> LoopNodeTreeNode::find_block_in_loop(const std::shared_ptr<Mir::Block> &block) {
     if (auto sub_block = loop_->find_block(block)) {
         return shared_from_this();
@@ -165,10 +181,74 @@ bool Loop::contain_block(const std::shared_ptr<Mir::Block> &block) {
     return false;
 }
 
+
 void LoopNodeTreeNode::add_block4ancestors(const std::shared_ptr<Mir::Block> &block) {
     this->loop_->add_block(block);
     if (this->get_parent() != nullptr)
         this->get_parent()->add_block4ancestors(block);
+}
+
+bool LoopNodeTreeNode::def_value(const std::shared_ptr<Mir::Value> &value) {
+
+    if (value->is<Mir::Const>() || value->is<Mir::Argument>())
+        return false;
+
+    auto cond_instr = value->as<Mir::Instruction>();
+    auto block = cond_instr->get_block();
+    if (this->get_children().empty()) {
+        auto loop = this->get_loop();
+        if (loop->contain_block(block))
+            return true;
+    }
+    for (const auto &child_node: this->get_children()) {
+        if (child_node->def_value(value))
+            return true;
+    }
+
+    return false;
+}
+
+std::shared_ptr<LoopNodeClone> LoopNodeTreeNode::clone_loop_node() {
+    auto clone_info = std::make_shared<LoopNodeClone>();
+    clone_info->node_src = shared_from_this();
+    clone_info->node_cpy = std::make_shared<LoopNodeTreeNode>(std::make_shared<Loop>());
+    for (const auto &child_node: this->get_children()) {
+        auto child_clone = child_node->clone_loop_node();
+        clone_info->node_cpy->add_child(child_clone->node_cpy);
+        clone_info->merge(child_clone);
+    }
+    for (const auto &block: this->get_loop()->get_blocks()) {
+        auto new_block = block->cloneinfo_to_func(clone_info, block->get_function());
+        clone_info->node_cpy->get_loop()->add_block(new_block);
+    }
+    clone_info->node_cpy->fix_clone_info(clone_info);
+
+    clone_info->node_cpy->get_loop()->set_preheader(
+            clone_info->get_value_reflect(this->get_loop()->get_preheader())->as<Mir::Block>());
+    clone_info->node_cpy->get_loop()->set_header(
+            clone_info->get_value_reflect(this->get_loop()->get_header())->as<Mir::Block>());
+    clone_info->node_cpy->get_loop()->set_latch(
+            clone_info->get_value_reflect(this->get_loop()->get_latch())->as<Mir::Block>());
+    for (const auto &block: this->get_loop()->get_latch_blocks()) {
+        auto new_block = clone_info->get_value_reflect(block)->as<Mir::Block>();
+        clone_info->node_cpy->get_loop()->add_latch_block(new_block);
+    }
+    for (const auto &block: this->get_loop()->get_exitings()) {
+        auto new_block = clone_info->get_value_reflect(block)->as<Mir::Block>();
+        clone_info->node_cpy->get_loop()->add_exitings(new_block);
+    }
+    for (const auto &block: this->get_loop()->get_exits()) {
+        auto new_block = clone_info->get_value_reflect(block)->as<Mir::Block>();
+        clone_info->node_cpy->get_loop()->add_exits(new_block);
+    }
+}
+
+void LoopNodeTreeNode::fix_clone_info(const std::shared_ptr<LoopNodeClone> &clone_info) {
+    for (const auto &child_node: this->get_children())
+        child_node->fix_clone_info(clone_info);
+
+    for (const auto &block: this->get_loop()->get_blocks())
+        block->fix_clone_info(clone_info);
 }
 
 int LoopAnalysis::get_block_depth(const FunctionPtr &func, const std::shared_ptr<Mir::Block> &block) {
@@ -182,5 +262,14 @@ int LoopAnalysis::get_block_depth(const FunctionPtr &func, const std::shared_ptr
         loop_node = loop_node->get_parent();
     }
     return depth;
+}
+
+void LoopNodeClone::merge(const std::shared_ptr<LoopNodeClone> &clone_info) {
+    for (const auto &pair: clone_info->get_value_map()) {
+        if (this->get_value_map().find(pair.first) != this->get_value_map().end()) {
+            log_error("Loop node clone error!");
+        }
+    }
+    this->get_value_map().insert(clone_info->get_value_map().begin(), clone_info->get_value_map().end());
 }
 } // namespace Pass

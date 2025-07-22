@@ -24,7 +24,7 @@ public:
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
-    void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
+    void transform(const std::shared_ptr<Mir::Function> &) override;
 
 public:
     static void remove_unreachable_blocks(const std::shared_ptr<Mir::Function> &func);
@@ -32,7 +32,9 @@ public:
     static void remove_deleted_blocks(const std::shared_ptr<Mir::Function> &func);
 
 private:
-    std::shared_ptr<ControlFlowGraph> cfg_info;
+    void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
+
+    std::shared_ptr<ControlFlowGraph> cfg_info{nullptr};
 };
 
 // 重排序函数内部的基本块，减少指令缓存未命中和分支预测开销
@@ -43,10 +45,12 @@ public:
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
-    void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
+    void transform(const std::shared_ptr<Mir::Function> &) override;
 
 private:
-    std::shared_ptr<ControlFlowGraph> cfg_info;
+    void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
+
+    std::shared_ptr<ControlFlowGraph> cfg_info{nullptr};
 };
 
 // 合并嵌套的分支，减少控制流复杂度
@@ -57,11 +61,13 @@ public:
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
+    void transform(const std::shared_ptr<Mir::Function> &) override;
+
     void run_on_func(const std::shared_ptr<Mir::Function> &func);
 
 private:
-    std::shared_ptr<ControlFlowGraph> cfg_info;
-    std::shared_ptr<DominanceGraph> dom_info;
+    std::shared_ptr<ControlFlowGraph> cfg_info{nullptr};
+    std::shared_ptr<DominanceGraph> dom_info{nullptr};
 };
 
 // 将 if-elif-else 链转换为 switch
@@ -72,11 +78,13 @@ public:
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
+    void transform(const std::shared_ptr<Mir::Function> &) override;
+
     void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
 
 private:
-    std::shared_ptr<ControlFlowGraph> cfg_info;
-    std::shared_ptr<DominanceGraph> dom_info;
+    std::shared_ptr<ControlFlowGraph> cfg_info{nullptr};
+    std::shared_ptr<DominanceGraph> dom_info{nullptr};
 };
 
 // 尾调用优化：将部分 call 指令标记为tail call，消除了函数返回/入栈开销
@@ -87,6 +95,8 @@ public:
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
+    void transform(const std::shared_ptr<Mir::Function> &) override;
+
     void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
 
     void tail_call_detect(const std::shared_ptr<Mir::Function> &func) const;
@@ -96,8 +106,8 @@ protected:
     static bool handle_tail_call(const std::shared_ptr<Mir::Call> &call);
 
 private:
-    std::shared_ptr<ControlFlowGraph> cfg_info;
-    std::shared_ptr<FunctionAnalysis> func_info;
+    std::shared_ptr<ControlFlowGraph> cfg_info{nullptr};
+    std::shared_ptr<FunctionAnalysis> func_info{nullptr};
 };
 
 // 将函数中所有的ret语句汇聚到一个block中，简化cfg
@@ -108,8 +118,31 @@ public:
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
+    void transform(const std::shared_ptr<Mir::Function> &) override;
+
 private:
     static void run_on_func(const std::shared_ptr<Mir::Function> &func);
+};
+
+// 函数内联
+class Inlining final : public Transform {
+public:
+    explicit Inlining() : Transform("Inlining") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+private:
+    std::shared_ptr<ControlFlowGraph> cfg_info{nullptr};
+
+    std::shared_ptr<FunctionAnalysis> func_info{nullptr};
+
+    [[nodiscard]] bool can_inline(const std::shared_ptr<Mir::Function> &func) const;
+
+    void do_inline(const std::shared_ptr<Mir::Function> &func) const;
+
+    void replace_call(const std::shared_ptr<Mir::Call> &call, const std::shared_ptr<Mir::Function> &caller,
+                      const std::shared_ptr<Mir::Function> &callee) const;
 };
 } // namespace Pass
 

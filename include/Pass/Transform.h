@@ -12,8 +12,12 @@ public:
 
     void run_on(const std::shared_ptr<Mir::Module> module) override { transform(module); }
 
+    void run_on(const std::shared_ptr<Mir::Function> &function) { transform(function); }
+
 protected:
     virtual void transform(std::shared_ptr<Mir::Module> module) = 0;
+
+    virtual void transform(const std::shared_ptr<Mir::Function> &) { transform(Mir::Module::instance()); }
 };
 } // namespace Pass
 

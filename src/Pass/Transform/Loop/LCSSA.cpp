@@ -9,14 +9,12 @@ void LCSSA::transform(std::shared_ptr<Mir::Module> module) {
     const auto cfg_info = get_analysis_result<ControlFlowGraph>(module);
     const auto dom_info = get_analysis_result<DominanceGraph>(module);
     const auto loop_info = get_analysis_result<LoopAnalysis>(module);
-    cfg_info->run_on(module);
-    loop_info->run_on(module);
     this->set_cfg(cfg_info);
+    this->set_loop_info(loop_info);
+
 
     for (auto &fun: *module) {
-        for (const auto &loop_node: loop_info->loop_forest(fun)) {
-            runOnNode(loop_node);
-        }
+        this->run_on(fun);
     }
 }
 
@@ -85,5 +83,18 @@ bool LCSSA::usedOutLoop(const std::shared_ptr<Mir::Instruction> &inst, const std
         }
     }
     return false;
+}
+
+void LCSSA::transform(const std::shared_ptr<Mir::Function> &func) {
+    auto module = Mir::Module::instance();
+    const auto cfg_info = get_analysis_result<ControlFlowGraph>(module);
+    const auto dom_info = get_analysis_result<DominanceGraph>(module);
+    const auto loop_info = get_analysis_result<LoopAnalysis>(module);
+    this->set_cfg(cfg_info);
+    this->set_loop_info(loop_info);
+
+    for (const auto &loop_node: loop_info->loop_forest(func)) {
+        runOnNode(loop_node);
+    }
 }
 } // namespace Pass
