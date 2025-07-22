@@ -2,16 +2,17 @@
 
 int main(int argc, char *argv[]) {
 #ifdef SHIT_DEBUG
-    log_set_level(LOG_DEBUG);
-    const compiler_options &options = debug_compile_options;
+    log_set_level(LOG_TRACE);
+    compiler_options options = parse_args(argc, argv, debug_compile_options);
 #else
     log_set_level(LOG_INFO);
     compiler_options options = parse_args(argc, argv);
 #endif
     options.print();
     std::ifstream file(options.input_file);
-    if (!file.is_open()) {
-        log_fatal("Could not open file: %s", options.input_file.c_str());
+    if (!file) {
+        log_fatal("Could not open file %s: %s", options.input_file.c_str(), strerror(errno));
+        return 0;
     }
 
     std::stringstream buffer;
@@ -38,7 +39,8 @@ int main(int argc, char *argv[]) {
     }
 
     if (options.flag_S) {
-        // TODO
+        RISCV::Assembler assembler(module);
+        emit_riscv(assembler, options);
     }
 
     return 0;

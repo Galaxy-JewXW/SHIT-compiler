@@ -87,6 +87,8 @@ public:
     std::shared_ptr<T> as() {
         return std::static_pointer_cast<T>(shared_from_this());
     }
+
+    [[nodiscard]] std::shared_ptr<Type::Type> get_type() const { return type; }
 };
 
 class Constant final : public Init {
