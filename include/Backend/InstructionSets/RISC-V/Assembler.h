@@ -10,7 +10,7 @@
 #include "Backend/Assembler.h"
 
 namespace RISCV {
-    class Assembler : Backend::Assembler {
+    class Assembler : public Backend::Assembler {
         public:
             RegisterAllocator::AllocationType allocation_type;
 
@@ -20,7 +20,7 @@ namespace RISCV {
             }
 
             [[nodiscard]] std::string to_string() const override {
-                return lir_module->to_string();
+                return rv_module->to_string();
             }
         private:
             std::shared_ptr<RISCV::Module> rv_module;

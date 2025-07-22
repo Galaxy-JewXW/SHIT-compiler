@@ -4,13 +4,13 @@ extern const Optimize_level default_opt_level;
 
 const compiler_options debug_compile_options = {
     .input_file = "../testcase.sy",
-    .flag_S = true,
-    .output_file = "../testcase.s",
     ._emit_options = {
         .emit_tokens = false,
         .emit_ast = false,
         .emit_llvm = true,
+        .emit_lir = true,
         .emit_riscv = true,
+        .emit_arm = false,
     },
     .opt_level = default_opt_level,
 };
@@ -31,11 +31,7 @@ void compiler_options::print() const {
     std::stringstream ss;
     ss << "Options: "
             << "-input=" << input_file
-            << ", -S=" << (flag_S ? "true" : "false")
-            << ", -assembly=" << (_emit_options.emit_riscv ? "rsicv" : "none");
-    if (!output_file.empty()) {
-        ss << ", -output=" << output_file;
-    }
+            << ", -assembly=" << (_emit_options.emit_riscv ? "rsicv" : "arm");
     ss << ", opt=-" << opt_level_to_string(opt_level);
     if (_emit_options.emit_tokens) {
         ss << ", -emit-tokens=" << (_emit_options.tokens_file.empty() ? "stdout" : _emit_options.tokens_file);
@@ -46,6 +42,15 @@ void compiler_options::print() const {
     if (_emit_options.emit_llvm) {
         ss << ", -emit-llvm=" << (_emit_options.llvm_file.empty() ? "stdout" : _emit_options.llvm_file);
     }
+    if (_emit_options.emit_lir) {
+        ss << ", -emit-lir=" << (_emit_options.lir_file.empty() ? "stdout" : _emit_options.lir_file);
+    }
+    if (_emit_options.emit_riscv) {
+        ss << ", -emit-riscv=" << (_emit_options.riscv_file.empty() ? "stdout" : _emit_options.riscv_file);
+    }
+    if (_emit_options.emit_arm) {
+        ss << ", -emit-arm=" << (_emit_options.arm_file.empty() ? "stdout" : _emit_options.arm_file);
+    }
     log_info("%s", ss.str().c_str());
 }
 
@@ -53,14 +58,15 @@ void compiler_options::print() const {
 void usage(const char *prog_name) {
     std::cout << "Usage: " << prog_name << " input-file [options]\n"
               << "Options:\n"
-              << "  -S                      Generate assembly output\n"
-              << "  -o <output>             Specify output file for assembly\n"
               << "  -O0                     Basic optimization (default)\n"
               << "  -O1                     Advanced optimizations\n"
               << "  -O2                     Radical optimizations\n"
               << "  -emit-tokens [<file>]   Output tokens to file or (default) stdout\n"
               << "  -emit-ast [<file>]      Output AST to file or (default) stdout\n"
-              << "  -emit-llvm [<file>]     Output LLVM IR to file or (default) .ll file\n";
+              << "  -emit-llvm [<file>]     Output LLVM IR to file or (default) .ll file\n"
+              << "  -emit-lir [<file>]      Output LIR to file or (default) .lir file\n"
+              << "  -emit-riscv [<file>]    Output RISC-V assembly to file or (default) .s file\n"
+              << "  -emit-arm [<file>]      Output ARM assembly to file or (default) .s file\n";
 }
 
 compiler_options parse_args(const int argc, char *argv[]) {
@@ -73,17 +79,7 @@ compiler_options parse_args(const int argc, char *argv[]) {
     while (i < argc) {
         std::string arg = argv[i];
         if (arg[0] == '-') {
-            if (arg == "-S") {
-                options.flag_S = true;
-                i++;
-            } else if (arg == "-o") {
-                if (i + 1 >= argc || argv[i + 1][0] == '-') {
-                    usage(argv[0]);
-                    log_fatal("Missing output file after -o");
-                }
-                options.output_file = argv[i + 1];
-                i += 2;
-            } else if (arg == "-O0") {
+            if (arg == "-O0") {
                 options.opt_level = Optimize_level::O0;
                 i++;
             } else if (arg == "-O1") {
@@ -116,9 +112,30 @@ compiler_options parse_args(const int argc, char *argv[]) {
                 } else {
                     i++;
                 }
+            } else if (arg == "-emit-lir") {
+                options._emit_options.emit_lir = true;
+                if (i + 1 < argc && argv[i + 1][0] != '-') {
+                    options._emit_options.lir_file = argv[i + 1];
+                    i += 2;
+                } else {
+                    i++;
+                }
             } else if (arg == "-emit-riscv") {
                 options._emit_options.emit_riscv = true;
-                i++;
+                if (i + 1 < argc && argv[i + 1][0] != '-') {
+                    options._emit_options.riscv_file = argv[i + 1];
+                    i += 2;
+                } else {
+                    i++;
+                }
+            } else if (arg == "-emit-arm") {
+                options._emit_options.emit_arm = true;
+                if (i + 1 < argc && argv[i + 1][0] != '-') {
+                    options._emit_options.arm_file = argv[i + 1];
+                    i += 2;
+                } else {
+                    i++;
+                }
             } else {
                 usage(argv[0]);
                 log_fatal("Unknown option: %s", arg.c_str());
@@ -140,10 +157,6 @@ compiler_options parse_args(const int argc, char *argv[]) {
         const size_t last_dot = options.input_file.find_last_of('.');
         options._emit_options.llvm_file = options.input_file.substr(0, last_dot) + ".ll";
     }
-    if (options.flag_S && options.output_file.empty()) {
-        const size_t last_dot = options.input_file.find_last_of('.');
-        options.output_file = options.input_file.substr(0, last_dot) + ".s";
-    }
 
     return options;
 }
@@ -154,15 +167,6 @@ compiler_options parse_args(const int argc, char *argv[], compiler_options optio
     }
     const compiler_options options_ = parse_args(argc, argv);
     options.input_file = options_.input_file;
-    if (options_.flag_S) {
-        options.flag_S = true;
-        if (options_.output_file.empty()) {
-            const size_t last_dot = options.input_file.find_last_of('.');
-            options.output_file = options.input_file.substr(0, last_dot) + ".s";
-        } else {
-            options.output_file = options_.output_file;
-        }
-    }
     if (options_.opt_level != default_opt_level) {
         options.opt_level = options_.opt_level;
     }
@@ -178,8 +182,17 @@ compiler_options parse_args(const int argc, char *argv[], compiler_options optio
         options._emit_options.emit_llvm = true;
         options._emit_options.llvm_file = options_._emit_options.llvm_file;
     }
+    if (options_._emit_options.emit_lir) {
+        options._emit_options.emit_lir = true;
+        options._emit_options.lir_file = options_._emit_options.lir_file;
+    }
     if (options_._emit_options.emit_riscv) {
         options._emit_options.emit_riscv = true;
+        options._emit_options.riscv_file = options_._emit_options.riscv_file;
+    }
+    if (options_._emit_options.emit_arm) {
+        options._emit_options.emit_arm = true;
+        options._emit_options.arm_file = options_._emit_options.arm_file;
     }
     return options;
 }
@@ -213,8 +226,11 @@ void emit_llvm(const std::shared_ptr<Mir::Module> &module, const emit_options &o
 }
 
 void emit_riscv(const RISCV::Assembler &assembler, const compiler_options &options) {
-    //TODO - Emitting RISC-V assembly
     if (!options._emit_options.emit_riscv) return;
+    if (options._emit_options.emit_lir) {
+        log_info("Emitting LIR...");
+        emit_output(options._emit_options.lir_file, assembler.lir_module->to_string());
+    }
     log_info("Emitting RISC-V assembly...");
-    emit_output(options.output_file, assembler.to_string());
+    emit_output(options._emit_options.riscv_file, assembler.to_string());
 }
