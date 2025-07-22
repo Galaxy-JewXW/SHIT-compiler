@@ -141,8 +141,7 @@ private:
 
     void do_inline(const std::shared_ptr<Mir::Function> &func) const;
 
-    void replace_call(const std::shared_ptr<Mir::Call> &call,
-                      const std::shared_ptr<Mir::Function> &caller,
+    void replace_call(const std::shared_ptr<Mir::Call> &call, const std::shared_ptr<Mir::Function> &caller,
                       const std::shared_ptr<Mir::Function> &callee) const;
 };
 } // namespace Pass

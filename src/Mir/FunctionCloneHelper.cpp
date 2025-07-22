@@ -145,20 +145,20 @@ std::shared_ptr<Instruction> Phi::clone(FunctionCloneHelper &helper) {
 
 std::shared_ptr<Instruction> Select::clone(FunctionCloneHelper &helper) {
     return make_noinsert_instruction<Select>(STD_STRING(select), HELPER_VALUE(get_cond()),
-                                             HELPER_VALUE(get_true_value()),
-                                             HELPER_VALUE(get_false_value()));
+                                             HELPER_VALUE(get_true_value()), HELPER_VALUE(get_false_value()));
 }
 
 #define BINARY_CLONE(Class)                                                                                            \
-std::shared_ptr<Instruction> Class::clone(FunctionCloneHelper &helper) {                                               \
-    return make_noinsert_instruction<Class>(std::string{#Class}, HELPER_VALUE(get_lhs()), HELPER_VALUE(get_rhs()));    \
-}
+    std::shared_ptr<Instruction> Class::clone(FunctionCloneHelper &helper) {                                           \
+        return make_noinsert_instruction<Class>(std::string{#Class}, HELPER_VALUE(get_lhs()),                          \
+                                                HELPER_VALUE(get_rhs()));                                              \
+    }
 
 #define TERNARY_CLONE(Class)                                                                                           \
-std::shared_ptr<Instruction> Class::clone(FunctionCloneHelper &helper) {                                               \
-    return make_noinsert_instruction<Class>(std::string{#Class}, HELPER_VALUE(get_x()), HELPER_VALUE(get_y()),         \
-                                            HELPER_VALUE(get_z()));                                                    \
-}
+    std::shared_ptr<Instruction> Class::clone(FunctionCloneHelper &helper) {                                           \
+        return make_noinsert_instruction<Class>(std::string{#Class}, HELPER_VALUE(get_x()), HELPER_VALUE(get_y()),     \
+                                                HELPER_VALUE(get_z()));                                                \
+    }
 
 BINARY_CLONE(Add)
 BINARY_CLONE(Sub)

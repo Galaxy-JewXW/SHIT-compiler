@@ -3,8 +3,7 @@
 using namespace Mir;
 
 namespace {
-void move_instructions_after_call(const std::shared_ptr<Block> &current_block,
-                                  const std::shared_ptr<Block> &next_block,
+void move_instructions_after_call(const std::shared_ptr<Block> &current_block, const std::shared_ptr<Block> &next_block,
                                   const std::shared_ptr<Call> &call) {
     auto &current_block_instructions{current_block->get_instructions()};
     const auto call_it = std::find(current_block_instructions.begin(), current_block_instructions.end(), call);
@@ -16,7 +15,7 @@ void move_instructions_after_call(const std::shared_ptr<Block> &current_block,
         it = current_block_instructions.erase(it);
     }
 }
-}
+} // namespace
 
 namespace Pass {
 bool Inlining::can_inline(const std::shared_ptr<Function> &func) const {
@@ -52,8 +51,7 @@ void Inlining::do_inline(const std::shared_ptr<Function> &func) const {
 // call: 调用指令
 // caller: 调用者函数，即call所位于的函数
 // callee: 被call调用的函数
-void Inlining::replace_call(const std::shared_ptr<Call> &call,
-                            const std::shared_ptr<Function> &caller,
+void Inlining::replace_call(const std::shared_ptr<Call> &call, const std::shared_ptr<Function> &caller,
                             const std::shared_ptr<Function> &callee) const {
     const auto current_block{call->get_block()};
     const auto return_type{callee->get_return_type()};
@@ -96,4 +94,4 @@ void Inlining::transform(const std::shared_ptr<Module> module) {
     cfg_info = nullptr;
     func_info = nullptr;
 }
-}
+} // namespace Pass

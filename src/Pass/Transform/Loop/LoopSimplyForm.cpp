@@ -146,7 +146,7 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
     }
 }
 
-void LoopSimplyForm::transform(const std::shared_ptr<Mir::Function> & func) {
+void LoopSimplyForm::transform(const std::shared_ptr<Mir::Function> &func) {
     auto module = Mir::Module::instance();
     const auto cfg_info = get_analysis_result<ControlFlowGraph>(module);
     const auto dom_info = get_analysis_result<DominanceGraph>(module);
@@ -166,8 +166,7 @@ void LoopSimplyForm::transform(const std::shared_ptr<Mir::Function> & func) {
         auto predecessors = block_predecessors[loop->get_header()];
         std::vector<std::shared_ptr<Mir::Block>> entering;
         for (auto &predecessor: predecessors) {
-            if (block_dominators[predecessor].find(loop->get_header()) ==
-                block_dominators[loop->get_header()].end())
+            if (block_dominators[predecessor].find(loop->get_header()) == block_dominators[loop->get_header()].end())
                 entering.push_back(predecessor);
         }
 
@@ -204,9 +203,9 @@ void LoopSimplyForm::transform(const std::shared_ptr<Mir::Function> & func) {
             // TODO: 这里本来还应该有 PHI 指令的前提操作，但因为中端翻译 while 指令的奇怪做法，目前认为 pre-header
             // 的单一性被保证，暂时认为无需补足该方法
         } /*
-               *  多个 pre_header, 则新建一个 pre_header, 将所有 pre_header 的跳转都指向它
-               *  在将原来 header 节点中的 phi 指令转移到该 pre_header 中
-               * */
+           *  多个 pre_header, 则新建一个 pre_header, 将所有 pre_header 的跳转都指向它
+           *  在将原来 header 节点中的 phi 指令转移到该 pre_header 中
+           * */
     }
 
     for (auto &loop: loops) {
@@ -216,7 +215,7 @@ void LoopSimplyForm::transform(const std::shared_ptr<Mir::Function> & func) {
             loop->get_latch_blocks().clear();
             continue;
         }
-            // 两步：改变跳转关系，header 与 latch 相关的 phi 指令移到 latch 中
+        // 两步：改变跳转关系，header 与 latch 相关的 phi 指令移到 latch 中
         else {
             auto header = loop->get_header();
 
@@ -239,7 +238,7 @@ void LoopSimplyForm::transform(const std::shared_ptr<Mir::Function> & func) {
                 new_phi->set_block(latch_block, false);
                 latch_block->get_instructions().insert(latch_block->get_instructions().begin(), new_phi);
                 for (auto &latch: loop->get_latch_blocks()) {
-                    new_phi->set_optional_value(latch, phi->get_optional_values()[latch]);
+                    new_phi->set_optional_value(latch, phi->get_optional_values().at(latch));
                     phi->remove_optional_value(latch);
                 }
                 phi->set_optional_value(latch_block, new_phi);
@@ -274,7 +273,7 @@ void LoopSimplyForm::transform(const std::shared_ptr<Mir::Function> & func) {
                     new_phi->set_block(new_exit_block, false);
                     new_exit_block->get_instructions().insert(new_exit_block->get_instructions().begin(), new_phi);
                     for (auto &exiting: tem_exitings) {
-                        new_phi->set_optional_value(exiting, phi->get_optional_values()[exiting]);
+                        new_phi->set_optional_value(exiting, phi->get_optional_values().at(exiting));
                         phi->remove_optional_value(exiting);
                     }
                     phi->set_optional_value(new_exit_block, new_phi);

@@ -18,6 +18,5 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
           Pass::DeadCodeEliminate, Pass::BranchMerging, Pass::GepFolding, Pass::GlobalVariableLocalize,
           Pass::GlobalArrayLocalize, Pass::LoadEliminate, Pass::StoreEliminate, Pass::SROA, Pass::ConstexprFuncEval,
           Pass::DeadCodeEliminate, Pass::GlobalValueNumbering, Pass::TailCallOptimize, Pass::BlockPositioning,
-          Pass::SimplifyControlFlow,
-          Pass::ConstrainReduce>(module);
+          Pass::SimplifyControlFlow, Pass::ConstrainReduce>(module);
 }

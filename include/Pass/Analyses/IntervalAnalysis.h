@@ -20,9 +20,8 @@ struct numeric_limits_v {
     static constexpr bool has_infinity = std::numeric_limits<T>::has_infinity;
     static constexpr T infinity =
             std::numeric_limits<T>::has_infinity ? std::numeric_limits<T>::infinity() : std::numeric_limits<T>::max();
-    static constexpr T neg_infinity = std::numeric_limits<T>::has_infinity
-                                          ? -std::numeric_limits<T>::infinity()
-                                          : std::numeric_limits<T>::lowest();
+    static constexpr T neg_infinity = std::numeric_limits<T>::has_infinity ? -std::numeric_limits<T>::infinity()
+                                                                           : std::numeric_limits<T>::lowest();
     static constexpr T max = std::numeric_limits<T>::max();
     static constexpr T lowest = std::numeric_limits<T>::lowest();
 };
@@ -30,8 +29,7 @@ struct numeric_limits_v {
 // 参见：王雅文,宫云战,肖庆,等. 基于抽象解释的变量值范围分析及应用[J]. 电子学报,2011,39(2):296-303.
 class IntervalAnalysis final : public Analysis {
 public:
-    IntervalAnalysis() :
-        Analysis("IntervalAnalysis") {}
+    IntervalAnalysis() : Analysis("IntervalAnalysis") {}
 
     // 代表一个闭区间 [lower, upper]
     template<typename T>
@@ -69,8 +67,7 @@ struct IntervalAnalysis::Interval {
     T upper;
 
     // 默认构造函数
-    Interval(const T l, const T u) :
-        lower(l), upper(u) {}
+    Interval(const T l, const T u) : lower(l), upper(u) {}
 
     // 用于排序和查找
     bool operator<(const Interval &other) const { return lower < other.lower; }
@@ -110,9 +107,7 @@ struct IntervalAnalysis::Interval {
         return Interval{std::min(lower, other.lower), std::max(upper, other.upper)};
     }
 
-    static Interval make_any() {
-        return Interval{numeric_limits_v<T>::neg_infinity, numeric_limits_v<T>::infinity};
-    }
+    static Interval make_any() { return Interval{numeric_limits_v<T>::neg_infinity, numeric_limits_v<T>::infinity}; }
 
     // 方便打印输出
     [[nodiscard]] std::string to_string() const {
@@ -198,19 +193,16 @@ public:
     }
 
     // 默认构造函数，创建一个空集
-    IntervalSet() :
-        is_undefined_(false) {}
+    IntervalSet() : is_undefined_(false) {}
 
     // 从单个区间构造
-    IntervalSet(T lower, T upper) :
-        is_undefined_(false) {
+    IntervalSet(T lower, T upper) : is_undefined_(false) {
         if (lower <= upper) {
             intervals_.emplace_back(lower, upper);
         }
     }
 
-    explicit IntervalSet(T constant) :
-        is_undefined_(false) { intervals_.emplace_back(constant, constant); }
+    explicit IntervalSet(T constant) : is_undefined_(false) { intervals_.emplace_back(constant, constant); }
 
     // 创建 "Top" 元素 T_N (最大范围)
     static IntervalSet make_any() {
@@ -919,7 +911,7 @@ public:
         ss << "Context {\n";
         for (const auto &[val, iset]: intervals) {
             ss << "  " << val->get_name() << " -> " << std::visit([](const auto &s) { return s.to_string(); }, iset)
-                    << "\n";
+               << "\n";
         }
         ss << "}";
         return ss.str();
