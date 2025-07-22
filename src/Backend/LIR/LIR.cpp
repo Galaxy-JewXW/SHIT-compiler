@@ -148,8 +148,7 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
             break;
         }
         case Mir::Operator::PHI: {
-            // std::shared_ptr<Mir::Phi> phi = std::static_pointer_cast<Mir::Phi>(llvm_instruction);
-            // TODO
+            // NOTE: midend will do this
             break;
         }
         case Mir::Operator::BRANCH: {
@@ -185,7 +184,7 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
         }
         case Mir::Operator::RET: {
             std::shared_ptr<Mir::Ret> ret = std::static_pointer_cast<Mir::Ret>(llvm_instruction);
-            if (!ret->get_type()->is_void())
+            if (ret->get_type())
                 mir_block->instructions.push_back(std::make_shared<Backend::LIR::ReturnInstruction>(ensure_variable(find_operand(ret->get_value(), mir_block->parent_function.lock()), mir_block)));
             else
                 mir_block->instructions.push_back(std::make_shared<Backend::LIR::ReturnInstruction>());
@@ -198,7 +197,7 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
             if (function_name.find("llvm.memset") != 0) {
                 for (std::shared_ptr<Mir::Value> param : call->get_params())
                     function_params.push_back(ensure_variable(find_operand(param, mir_block->parent_function.lock()), mir_block));
-                if (!call->get_type()->is_void()) {
+                if (call->get_type()) {
                     std::shared_ptr<Backend::Variable> store_to = std::make_shared<Backend::Variable>(llvm_instruction->get_name(), Backend::Utils::llvm_to_riscv(*call->get_type()), VariableWide::LOCAL);
                     mir_block->parent_function.lock()->add_variable(store_to);
                     mir_block->instructions.push_back(std::make_shared<Backend::LIR::Call>(store_to, functions_index[function_name], function_params));
@@ -237,4 +236,38 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
         }
         default: break;
     }
+}
+
+void Backend::LIR::Function::analyze_live_variables() {
+    bool changed = true;
+    while(changed) {
+        std::unordered_set<std::string> visited;
+        std::shared_ptr<Backend::LIR::Block> first_block = blocks.front();
+        changed = analyze_live_variables(first_block, visited);
+    }
+    // std::cout << live_variables();
+}
+
+bool Backend::LIR::Function::analyze_live_variables(std::shared_ptr<Backend::LIR::Block> &block, std::unordered_set<std::string> &visited) {
+    bool changed = false;
+    size_t old_in_size = block->live_in.size();
+    size_t old_out_size = block->live_out.size();
+    visited.insert(block->name);
+    // live_out = sum(live_in)
+    for (std::shared_ptr<Backend::LIR::Block> &succ : block->successors) {
+        if (visited.find(succ->name) == visited.end())
+            changed = analyze_live_variables(succ, visited) | changed;
+        block->live_out.insert(succ->live_in.begin(), succ->live_in.end());
+    }
+    // live_in = (live_out - def) + use
+    block->live_in.insert(block->live_out.begin(), block->live_out.end());
+    for (std::vector<std::shared_ptr<Backend::LIR::Instruction>>::reverse_iterator it = block->instructions.rbegin(); it != block->instructions.rend(); it++) {
+        std::shared_ptr<Backend::LIR::Instruction> &instruction = *it;
+        std::shared_ptr<Backend::Variable> def_var = instruction->get_defined_variable();
+        if (def_var)
+            block->live_in.erase(def_var);
+        for (const std::shared_ptr<Backend::Variable> &used_var : instruction->get_used_variables())
+            block->live_in.insert(used_var);
+    }
+    return changed || block->live_in.size() != old_in_size || block->live_out.size() != old_out_size;
 }

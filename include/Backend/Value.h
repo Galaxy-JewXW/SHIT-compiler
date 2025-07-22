@@ -27,8 +27,8 @@ namespace Backend {
 
 class Backend::Operand {
     public:
-        std::string name;
-        OperandType operand_type;
+        const std::string name;
+        const OperandType operand_type;
         Operand(const std::string &name) : name(name), operand_type(OperandType::VARIABLE) {};
         Operand(const std::string &name, OperandType type) : name(name), operand_type(type) {};
         virtual std::string to_string() const { return name; }
@@ -36,14 +36,14 @@ class Backend::Operand {
 
 class Backend::Constant : public Backend::Operand {
     public:
-        Backend::VariableType constant_type;
+        const Backend::VariableType constant_type;
         explicit Constant(const std::string &name, const Backend::VariableType &type) : Operand(name, OperandType::CONSTANT), constant_type(type) {}
         explicit Constant(const Backend::VariableType &type) : Operand("", OperandType::CONSTANT), constant_type(type) {}
 };
 
 class Backend::IntValue : public Backend::Constant {
     public:
-        int32_t int32_value{0};
+        const int32_t int32_value{0};
         explicit IntValue(const int32_t value) : Backend::Constant(std::to_string(value), Backend::VariableType::INT32), int32_value(value) {};
 };
 

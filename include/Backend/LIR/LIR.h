@@ -148,7 +148,7 @@ namespace Backend::Utils {
 
     [[nodiscard]] inline std::string unique_name(const std::string &prefix = "") {
         static size_t counter = 0;
-        return prefix + std::to_string(counter++);
+        return "%%" + prefix + std::to_string(counter++);
     }
 
     [[nodiscard]] inline Backend::LIR::InstructionType cmp_to_lir(const Backend::Comparison::Type type) {
@@ -256,6 +256,8 @@ class Backend::LIR::Function {
             }
         }
 
+        void analyze_live_variables();
+
         [[nodiscard]] std::string to_string() const {
             std::ostringstream oss;
             oss << "Function: " << name << "\n";
@@ -267,6 +269,27 @@ class Backend::LIR::Function {
             }
             return oss.str();
         }
+
+        [[nodiscard]] std::string live_variables() {
+            std::ostringstream oss;
+            oss << "Function: " << name << "\n";
+            for (const std::shared_ptr<Backend::LIR::Block> &block: blocks) {
+                oss << "\nBlock: " << block->name << "\n";
+                oss << "  Live In: ";
+                for (const auto& var : block->live_in) {
+                    oss << var->name << " ";
+                }
+                oss << "\n";
+                oss << "  Live Out: ";
+                for (const auto& var : block->live_out) {
+                    oss << var->name << " ";
+                }
+            }
+            oss << "\n";
+            return oss.str();
+        }
+    private:
+        bool analyze_live_variables(std::shared_ptr<Backend::LIR::Block> &block, std::unordered_set<std::string> &visited);
 };
 
 class Backend::LIR::PrivilegedFunction : public Backend::LIR::Function {

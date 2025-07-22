@@ -35,7 +35,7 @@ class RISCV::RegisterAllocator::Allocator : public std::enable_shared_from_this<
         std::shared_ptr<RISCV::Stack> stack;
         std::shared_ptr<Backend::LIR::Function> lir_function;
         std::unordered_map<std::string, RISCV::Registers::ABI> var_to_reg;
-        static inline const std::array<RISCV::Registers::ABI, 18> caller_saved = {
+        static inline const std::array<RISCV::Registers::ABI, 15> caller_saved = {
             RISCV::Registers::ABI::T0, RISCV::Registers::ABI::T1, RISCV::Registers::ABI::T2,
             RISCV::Registers::ABI::T3, RISCV::Registers::ABI::T4, RISCV::Registers::ABI::T5,
             RISCV::Registers::ABI::T6,
@@ -59,10 +59,5 @@ class RISCV::RegisterAllocator::Allocator : public std::enable_shared_from_this<
             RISCV::Registers::ABI::T6
         };
 };
-
-namespace RISCV::Utils {
-    void analyze_live_variables(std::shared_ptr<Backend::LIR::Function> &function);
-    bool analyze_live_variables(std::shared_ptr<Backend::LIR::Block> &block, std::vector<std::string> &visited);
-}
 
 #endif
