@@ -410,7 +410,7 @@ void Phi::set_optional_value(const std::shared_ptr<Block> &block, const std::sha
         log_error("Phi operand type must be same");
     }
     if (optional_values.find(block) == optional_values.end()) [[likely]] {
-        block->add_user(shared_from_this()->as<User>());
+        add_operand(block);
     } else if (optional_values.at(block) != nullptr) {
         log_error("Should be nullptr: When setting optional value, there should be a new block");
     }

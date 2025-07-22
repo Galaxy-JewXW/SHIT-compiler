@@ -63,7 +63,7 @@ void select_handle(const std::shared_ptr<Block> &end_block, const std::shared_pt
             continue;
         }
         deleted_instructions.insert(phi);
-        const auto then_value{phi->get_optional_values()[true_block]};
+        const auto then_value{phi->get_optional_values().at(true_block)};
         const auto new_inst = [&]() -> std::shared_ptr<Instruction> {
             switch (cmp->op) {
                 case Compare::Op::LE:

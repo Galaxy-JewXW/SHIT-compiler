@@ -99,7 +99,7 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
                     new_phi->set_block(latch_block, false);
                     latch_block->get_instructions().insert(latch_block->get_instructions().begin(), new_phi);
                     for (auto &latch: loop->get_latch_blocks()) {
-                        new_phi->set_optional_value(latch, phi->get_optional_values()[latch]);
+                        new_phi->set_optional_value(latch, phi->get_optional_values().at(latch));
                         phi->remove_optional_value(latch);
                     }
                     phi->set_optional_value(latch_block, new_phi);
@@ -134,7 +134,7 @@ void LoopSimplyForm::transform(std::shared_ptr<Mir::Module> module) {
                         new_phi->set_block(new_exit_block, false);
                         new_exit_block->get_instructions().insert(new_exit_block->get_instructions().begin(), new_phi);
                         for (auto &exiting: tem_exitings) {
-                            new_phi->set_optional_value(exiting, phi->get_optional_values()[exiting]);
+                            new_phi->set_optional_value(exiting, phi->get_optional_values().at(exiting));
                             phi->remove_optional_value(exiting);
                         }
                         phi->set_optional_value(new_exit_block, new_phi);
