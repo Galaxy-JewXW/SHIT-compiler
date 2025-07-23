@@ -289,9 +289,10 @@ bool RISCV::RegisterAllocator::GraphColoring::assign_colors(std::stack<std::stri
 }
 
 bool RISCV::RegisterAllocator::GraphColoring::can_coalesce_briggs(const std::string& node1, const std::string& node2, const size_t K) {
-    // TODO: constrained
     std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> n1 = interference_graph[node1];
     std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> n2 = interference_graph[node2];
+    if (n2->non_move_related_neighbors.find(n1) != n2->non_move_related_neighbors.end())
+        return false;
     std::set<std::shared_ptr<InterferenceNode>> combined_neighbors;
     combined_neighbors.insert(n1->move_related_neighbors.begin(), n1->move_related_neighbors.end());
     combined_neighbors.insert(n1->non_move_related_neighbors.begin(), n1->non_move_related_neighbors.end());

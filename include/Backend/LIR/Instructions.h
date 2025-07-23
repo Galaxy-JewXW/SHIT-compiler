@@ -246,10 +246,10 @@ class Backend::LIR::StoreFloat : public Backend::LIR::Instruction {
         }
 };
 
-class Backend::LIR::JumpInstruction : public Backend::LIR::Instruction {
+class Backend::LIR::Jump : public Backend::LIR::Instruction {
     public:
         std::shared_ptr<Backend::LIR::Block> target_block;
-        JumpInstruction(const std::shared_ptr<Backend::LIR::Block> &target_block) : Instruction(InstructionType::JUMP), target_block(target_block) {}
+        Jump(const std::shared_ptr<Backend::LIR::Block> &target_block) : Instruction(InstructionType::JUMP), target_block(target_block) {}
 
         inline std::string to_string() const override {
             std::ostringstream oss;
@@ -285,6 +285,57 @@ class Backend::LIR::BranchInstruction : public Backend::LIR::Instruction {
                 return {lhs, rhs};
             } return {lhs};
         }
+};
+
+/*
+ * Condition jump.
+ * If `rhs` refers to `zero`, then `rhs = nullptr`.
+ */
+class Backend::LIR::FBranchInstruction : public Backend::LIR::Instruction {
+    public:
+        std::shared_ptr<Backend::Variable> lhs;
+        std::shared_ptr<Backend::Variable> rhs;
+        std::shared_ptr<Backend::LIR::Block> target_block;
+
+        FBranchInstruction(const InstructionType type, const std::shared_ptr<Backend::Variable> &lhs, const std::shared_ptr<Backend::Variable> &rhs, const std::shared_ptr<Backend::LIR::Block> &target_block) : Instruction(type), lhs(lhs), rhs(rhs), target_block(target_block) {}
+        FBranchInstruction(const InstructionType type, const std::shared_ptr<Backend::Variable> &lhs, const std::shared_ptr<Backend::LIR::Block> &target_block) : Instruction(type), lhs(lhs), target_block(target_block) {}
+
+        inline std::string to_string() const override {
+            std::ostringstream oss;
+            oss << lhs->to_string()
+                << " " << Backend::Utils::to_string(type)
+                << " " << (rhs ? rhs->to_string() : "0")
+                << " goto " << target_block->name;
+            return oss.str();
+        }
+
+        std::vector<std::shared_ptr<Backend::Variable>> get_used_variables() const override {
+            if (rhs) {
+                return {lhs, rhs};
+            } return {lhs};
+        }
+};
+
+/*
+ * Convert i32 to float (or vise versa).
+ */
+class Backend::LIR::Convert : public Backend::LIR::Instruction {
+    public:
+        std::shared_ptr<Backend::Variable> source;
+        std::shared_ptr<Backend::Variable> dest;
+
+        Convert(const InstructionType type, const std::shared_ptr<Backend::Variable> &source, const std::shared_ptr<Backend::Variable> &dest) : Instruction(type), source(source), dest(dest) {}
+
+        inline std::string to_string() const override {
+            std::ostringstream oss;
+            oss << source->to_string()
+                << " " << Backend::Utils::to_string(type)
+                << " " << dest->to_string();
+            return oss.str();
+        }
+
+        std::shared_ptr<Backend::Variable> get_defined_variable() const override { return dest; }
+        std::vector<std::shared_ptr<Backend::Variable>> get_used_variables() const override { return {source}; }
 };
 
 /*

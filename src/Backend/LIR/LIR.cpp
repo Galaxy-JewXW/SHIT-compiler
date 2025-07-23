@@ -67,10 +67,18 @@ void Backend::LIR::Module::load_functions_and_blocks() {
 
 void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instruction> &llvm_instruction, std::shared_ptr<Backend::LIR::Block> &lir_block) {
     switch (llvm_instruction->get_op()) {
+        case Mir::Operator::MOVE: {
+            std::shared_ptr<Mir::Move> move = std::static_pointer_cast<Mir::Move>(llvm_instruction);
+            std::shared_ptr<Backend::Variable> move_from = ensure_variable(find_operand(move->get_from_value(), lir_block->parent_function.lock()), lir_block);
+            std::shared_ptr<Backend::Variable> move_to = std::make_shared<Backend::Variable>(move->get_to_value()->get_name(), Backend::Utils::llvm_to_riscv(*move->get_to_value()->get_type()), VariableWide::LOCAL);
+            lir_block->parent_function.lock()->add_variable(move_to);
+            lir_block->instructions.push_back(std::make_shared<Backend::LIR::Move>(move_from, move_to));
+            break;
+        }
         case Mir::Operator::LOAD: {
             std::shared_ptr<Mir::Load> load = std::static_pointer_cast<Mir::Load>(llvm_instruction);
             std::shared_ptr<Backend::Variable> load_from = find_variable(load->get_addr()->get_name(), lir_block->parent_function.lock());
-            std::shared_ptr<Backend::Variable> load_to = std::make_shared<Backend::Variable>(llvm_instruction->get_name(), Backend::Utils::llvm_to_riscv(*load->get_type()), VariableWide::LOCAL);
+            std::shared_ptr<Backend::Variable> load_to = std::make_shared<Backend::Variable>(load->get_name(), Backend::Utils::llvm_to_riscv(*load->get_type()), VariableWide::LOCAL);
             lir_block->parent_function.lock()->add_variable(load_to);
             if (load_from->var_type != Variable::Type::PTR) {
                 // global variable or allocated variable
@@ -133,9 +141,32 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
             break;
         }
         case Mir::Operator::FPTOSI: {
+            // TODO: check up
+            std::shared_ptr<Mir::Fptosi> fptosi = std::static_pointer_cast<Mir::Fptosi>(llvm_instruction);
+            std::shared_ptr<Backend::Variable> source = find_variable(fptosi->get_operands()[1]->get_name(), lir_block->parent_function.lock());
+            std::shared_ptr<Backend::Variable> dest = find_variable(fptosi->get_operands()[0]->get_name(), lir_block->parent_function.lock());
+            lir_block->instructions.push_back(std::make_shared<Backend::LIR::Convert>(Backend::LIR::InstructionType::F2I, source, dest));
+            break;
+        }
+        case Mir::Operator::SITOFP: {
+            // TODO: check up
+            std::shared_ptr<Mir::Sitofp> sitofp = std::static_pointer_cast<Mir::Sitofp>(llvm_instruction);
+            std::shared_ptr<Backend::Variable> source = find_variable(sitofp->get_operands()[1]->get_name(), lir_block->parent_function.lock());
+            std::shared_ptr<Backend::Variable> dest = find_variable(sitofp->get_operands()[0]->get_name(), lir_block->parent_function.lock());
+            lir_block->instructions.push_back(std::make_shared<Backend::LIR::Convert>(Backend::LIR::InstructionType::I2F, source, dest));
             break;
         }
         case Mir::Operator::FCMP: {
+            // std::shared_ptr<Mir::Fcmp> icmp = std::static_pointer_cast<Mir::Fcmp>(llvm_instruction);
+            // std::shared_ptr<Backend::Variable> lhs = find_variable(icmp->get_lhs()->get_name(), lir_block->parent_function.lock());
+            // std::shared_ptr<Backend::Variable> rhs = find_variable(icmp->get_rhs()->get_name(), lir_block->parent_function.lock());
+            // std::shared_ptr<Backend::Variable> result = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("comparison"))
+            // if (lhs->operand_type == OperandType::VARIABLE)
+            //     lir_block->parent_function.lock()->add_variable(std::make_shared<Backend::Comparison>(llvm_instruction->get_name(), std::static_pointer_cast<Backend::Variable>(lhs), rhs, Backend::Comparison::load_from_llvm(icmp->op)));
+            // else if (rhs->operand_type == OperandType::VARIABLE)
+            //     lir_block->parent_function.lock()->add_variable(std::make_shared<Backend::Comparison>(llvm_instruction->get_name(), lhs, std::static_pointer_cast<Backend::Variable>(rhs), Backend::Comparison::load_from_llvm(icmp->op)));
+            // else
+            //     log_error("We shall not compare 2 certain values in backend!");
             break;
         }
         case Mir::Operator::ICMP: {
@@ -170,7 +201,7 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
             }
             std::shared_ptr<Backend::Variable> rhs = ensure_variable(cond_var->rhs, lir_block);
             lir_block->instructions.push_back(std::make_shared<Backend::LIR::BranchInstruction>(Backend::Utils::cmp_to_lir(cond_var->compare_type), cond_var->lhs, rhs, block_true));
-            lir_block->instructions.push_back(std::make_shared<Backend::LIR::JumpInstruction>(block_false));
+            lir_block->instructions.push_back(std::make_shared<Backend::LIR::Jump>(block_false));
             break;
         }
         case Mir::Operator::JUMP: {
@@ -178,7 +209,7 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
             std::shared_ptr<Backend::LIR::Block> target_block = lir_block->parent_function.lock()->blocks_index[jump->get_target_block()->get_name()];
             target_block->predecessors.push_back(lir_block);
             lir_block->successors.push_back(target_block);
-            lir_block->instructions.push_back(std::make_shared<Backend::LIR::JumpInstruction>(target_block));
+            lir_block->instructions.push_back(std::make_shared<Backend::LIR::Jump>(target_block));
             break;
         }
         case Mir::Operator::RET: {

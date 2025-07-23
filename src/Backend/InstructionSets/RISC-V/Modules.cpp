@@ -251,7 +251,7 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
             break;
         }
         case Backend::LIR::InstructionType::JUMP: {
-            std::shared_ptr<Backend::LIR::JumpInstruction> instr = std::static_pointer_cast<Backend::LIR::JumpInstruction>(instruction);
+            std::shared_ptr<Backend::LIR::Jump> instr = std::static_pointer_cast<Backend::LIR::Jump>(instruction);
             std::string target_block_name = instr->target_block->name;
             std::shared_ptr<RISCV::Block> target_block = find_block(target_block_name);
             instrs.push_back(std::make_shared<RISCV::Instructions::Jump>(target_block));

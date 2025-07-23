@@ -33,6 +33,7 @@ namespace Backend::LIR {
         MOD, FMOD,
         LOAD, LOAD_IMM, LOAD_ADDR,
         FLOAD, LOAD_FLOAT_IMM,
+        I2F, F2I,
         STORE, FSTORE,
         CALL,
         RETURN,
@@ -57,8 +58,10 @@ namespace Backend::LIR {
     class LoadFloat;
     class StoreInt;
     class StoreFloat;
+    class Convert;
     class BranchInstruction;
-    class JumpInstruction;
+    class FBranchInstruction;
+    class Jump;
     class Return;
     class Move;
 };
