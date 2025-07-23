@@ -23,7 +23,8 @@ jobs:
       - name: Install LLVM and Clang 18
         uses: KyleMayes/install-llvm-action@v2
         with:
-          version: "18.0"
+          version: 18
+          env: true
 
       # 步骤 3: 配置 CMake
       - name: Configure CMake (Release)
