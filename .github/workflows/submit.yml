@@ -24,11 +24,11 @@ jobs:
         uses: KyleMayes/install-llvm-action@v2
         with:
           version: 18
-          env: true
 
       # 步骤 3: 配置 CMake
       - name: Configure CMake (Release)
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+             -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++
 
       # 步骤 4: 执行编译
       - name: Build Project
