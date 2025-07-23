@@ -489,7 +489,6 @@ void Phi::fix_clone_info(const std::shared_ptr<Pass::LoopNodeClone> &clone_info)
     }
 }
 
-
 std::shared_ptr<Select> Select::create(const std::string &name, const std::shared_ptr<Value> &condition,
                                        const std::shared_ptr<Value> &true_value,
                                        const std::shared_ptr<Value> &false_value, const std::shared_ptr<Block> &block) {
@@ -503,9 +502,21 @@ std::shared_ptr<Select> Select::create(const std::string &name, const std::share
     if (block != nullptr) [[likely]] {
         instruction->set_block(block);
     }
-    instruction->add_operand(condition);
-    instruction->add_operand(true_value);
-    instruction->add_operand(false_value);
+    instruction->add_operands(condition, true_value, false_value);
+    return instruction;
+}
+
+std::shared_ptr<Move> Move::create(const std::shared_ptr<Value> &to_value,
+                                         const std::shared_ptr<Value> &from_value,
+                                         const std::shared_ptr<Block> &block) {
+    if (!to_value->get_type()->is_integer() && !to_value->get_type()->is_float()) [[unlikely]] {
+        log_error("Unsupported type");
+    }
+    const auto instruction = std::make_shared<Move>(to_value, from_value);
+    if (block != nullptr) [[likely]] {
+        instruction->set_block(block);
+    }
+    instruction->add_operands(to_value, from_value);
     return instruction;
 }
 } // namespace Mir

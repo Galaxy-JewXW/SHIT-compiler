@@ -40,6 +40,7 @@ enum class Operator {
     FNEG,
     PHI,
     SELECT,
+    MOVE,
 };
 
 class Instruction : public User {
@@ -186,7 +187,8 @@ private:
 class BitCast final : public Instruction {
 public:
     BitCast(const std::string &name, const std::shared_ptr<Value> &value,
-            const std::shared_ptr<Type::Type> &target_type) : Instruction(name, target_type, Operator::BITCAST) {
+            const std::shared_ptr<Type::Type> &target_type) :
+        Instruction(name, target_type, Operator::BITCAST) {
         if (value->get_type()->is_void() || value->get_type()->is_label() || value->get_name().empty()) {
             log_error("Instruction must have a return value");
         }
@@ -406,12 +408,14 @@ public:
 
 class Terminator : public Instruction {
 protected:
-    Terminator(const std::shared_ptr<Type::Type> &type, const Operator op) : Instruction("", type, op) {}
+    Terminator(const std::shared_ptr<Type::Type> &type, const Operator op) :
+        Instruction("", type, op) {}
 };
 
 class Jump final : public Terminator {
 public:
-    explicit Jump(const std::shared_ptr<Block> &) : Terminator(Type::Label::label, Operator::JUMP) {}
+    explicit Jump(const std::shared_ptr<Block> &) :
+        Terminator(Type::Label::label, Operator::JUMP) {}
 
     static std::shared_ptr<Jump> create(const std::shared_ptr<Block> &target_block,
                                         const std::shared_ptr<Block> &block);
@@ -469,13 +473,15 @@ public:
 
 class Ret final : public Terminator {
 public:
-    explicit Ret(const std::shared_ptr<Value> &value) : Terminator(Type::Void::void_, Operator::RET) {
+    explicit Ret(const std::shared_ptr<Value> &value) :
+        Terminator(Type::Void::void_, Operator::RET) {
         if (value->get_type()->is_void()) {
             log_error("Value must not be void");
         }
     }
 
-    explicit Ret() : Terminator(Type::Void::void_, Operator::RET) {}
+    explicit Ret() :
+        Terminator(Type::Void::void_, Operator::RET) {}
 
     static std::shared_ptr<Ret> create(const std::shared_ptr<Value> &value, const std::shared_ptr<Block> &block);
 
@@ -623,7 +629,8 @@ public:
 class Binary : public Instruction {
 protected:
     Binary(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs,
-           const Operator op) : Instruction(name, lhs->get_type(), op) {
+           const Operator op) :
+        Instruction(name, lhs->get_type(), op) {
         if (lhs->get_type() != rhs->get_type()) {
             log_error("Operands must have the same type");
         }
@@ -657,7 +664,8 @@ public:
     const Op op;
 
     IntBinary(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs,
-              const Op op) : Binary(name, lhs, rhs, Operator::INTBINARY), op{op} {
+              const Op op) :
+        Binary(name, lhs, rhs, Operator::INTBINARY), op{op} {
         if (!lhs->get_type()->is_int32() || !rhs->get_type()->is_int32()) {
             log_error("Operands must be int 32");
         }
@@ -705,7 +713,8 @@ public:
     const Op op;
 
     FloatBinary(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs,
-                const Op op) : Binary(name, lhs, rhs, Operator::FLOATBINARY), op{op} {
+                const Op op) :
+        Binary(name, lhs, rhs, Operator::FLOATBINARY), op{op} {
         if (!lhs->get_type()->is_float() || !rhs->get_type()->is_float()) {
             log_error("Operands must be float");
         }
@@ -964,8 +973,32 @@ public:
     [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
 };
 
+class Move final : public Instruction {
+public:
+    Move(const std::shared_ptr<Value> &to_value, const std::shared_ptr<Value> &from_value) :
+        Instruction{"", Type::Void::void_, Operator::MOVE} {
+        if (*to_value->get_type() != *from_value->get_type()) [[unlikely]] {
+            log_error("Type mismatch");
+        }
+    }
+
+    static std::shared_ptr<Move> create(const std::shared_ptr<Value> &to_value,
+                                           const std::shared_ptr<Value> &from_value,
+                                           const std::shared_ptr<Block> &block);
+
+    [[nodiscard]] std::shared_ptr<Value> get_to_value() const { return operands_[0]; }
+
+    [[nodiscard]] std::shared_ptr<Value> get_from_value() const { return operands_[1]; }
+
+    std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) override {
+        log_error("Not implemented");
+    }
+
+    std::string to_string() const override;
+};
+
 template<typename T, typename... Ts>
-std::shared_ptr<T> make_noinsert_instruction(Ts &&...args) {
+std::shared_ptr<T> make_noinsert_instruction(Ts &&... args) {
     return T::create(std::forward<Ts>(args)..., nullptr);
 }
 } // namespace Mir

@@ -28,12 +28,19 @@ void Function::update_id() const {
 
 void Block::modify_successor(const std::shared_ptr<Block> &old_successor,
                              const std::shared_ptr<Block> &new_successor) const {
-    const auto terminator = instructions.back();
-    if (dynamic_cast<Branch *>(terminator.get()) != nullptr) {
-        terminator->modify_operand(old_successor, new_successor);
+    const auto terminator{instructions.back()};
+    if (terminator->is<Terminator>() == nullptr) [[unlikely]] {
+        log_error("Last instruction should be a terminator: %s", terminator->to_string().c_str());
     }
-    if (dynamic_cast<Jump *>(terminator.get()) != nullptr) {
-        terminator->modify_operand(old_successor, new_successor);
+    switch (terminator->get_op()) {
+        case Operator::BRANCH:
+        case Operator::JUMP:
+        case Operator::SWITCH:
+            terminator->modify_operand(old_successor, new_successor);
+        case Operator::RET:
+            return;
+        default:
+            log_error("Invalid type");
     }
 }
 
