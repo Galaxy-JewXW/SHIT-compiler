@@ -143,8 +143,8 @@ std::shared_ptr<SCEVExpr> SCEVAnalysis::fold_add(std::shared_ptr<SCEVExpr> lhs, 
         std::vector<std::shared_ptr<SCEVExpr>> operands;
         int size = std::max(lhs->get_operands().size(), rhs->get_operands().size());
         for (int i = 0; i < size; i++) {
-            auto l = i < lhs->get_operands().size() ? lhs->get_operands()[i] : nullptr;
-            auto r = i < rhs->get_operands().size() ? rhs->get_operands()[i] : nullptr;
+            auto l = i < static_cast<int>(lhs->get_operands().size()) ? lhs->get_operands()[i] : nullptr;
+            auto r = i < static_cast<int>(rhs->get_operands().size()) ? rhs->get_operands()[i] : nullptr;
             if (l && r) {
                 auto new_operand = fold_add(l, r);
                 if (new_operand)
@@ -194,7 +194,7 @@ std::shared_ptr<SCEVExpr> SCEVAnalysis::fold_mul(std::shared_ptr<SCEVExpr> &lhs,
         auto n = lhs->get_operands().size() + rhs->get_operands().size() - 1;
         operands.reserve(n);
 
-        for (int i = 0; i < n; i++) {
+        for (int i = 0; i < static_cast<int>(n); i++) {
             int sum = 0;
             for (int j = i; j <= 2 * i; j++) {
                 int coe_1 = bin_coe(i, 2 * i - j);
@@ -239,7 +239,7 @@ int SCEVAnalysis::bin_coe(int n, int k) {
         return 1;
 
     static std::vector<std::vector<int>> coe;
-    while (coe.size() <= n) {
+    while (static_cast<int>(coe.size()) <= n) {
         const auto _n = coe.size();
         if (_n == 0) {
             coe.push_back({1});
@@ -250,7 +250,7 @@ int SCEVAnalysis::bin_coe(int n, int k) {
         auto &last = coe.back();
         res.reserve(_n + 1);
         res.push_back(1);
-        for (int idx = 1; idx < _n; idx++)
+        for (size_t idx = 1; idx < _n; idx++)
             res.push_back(last[idx - 1] + last[idx]);
         res.push_back(1);
         coe.push_back(std::move(res));
