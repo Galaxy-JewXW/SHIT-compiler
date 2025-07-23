@@ -57,7 +57,7 @@ namespace RISCV::Instructions {
 
     std::string LoadAddress::to_string() const {
         std::ostringstream oss;
-        oss << "la " << RISCV::Registers::to_string(rd) << ", " << variable->name;
+        oss << "la " << RISCV::Registers::to_string(rd) << ", " << variable->label();
         return oss.str();
     }
 
@@ -67,7 +67,7 @@ namespace RISCV::Instructions {
 
     std::string Call::to_string() const {
         std::ostringstream oss;
-        oss << "call " << function->name;
+        oss << "call " << function_name;
         return oss.str();
     }
 
@@ -154,6 +154,6 @@ namespace RISCV::Instructions {
     }
 
     std::string LoadRA::to_string() const {
-        return std::make_shared<Instructions::LoadDoubleword>(RISCV::Registers::ABI::SP, RISCV::Registers::ABI::RA, stack->stack_size - stack->RA_SIZE)->to_string();
+        return std::make_shared<Instructions::LoadDoubleword>(RISCV::Registers::ABI::RA, RISCV::Registers::ABI::SP, stack->stack_size - stack->RA_SIZE)->to_string();
     }
 }

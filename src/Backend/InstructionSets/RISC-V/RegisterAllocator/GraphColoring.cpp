@@ -26,17 +26,23 @@ void RISCV::RegisterAllocator::GraphColoring::allocate() {
 }
 
 void RISCV::RegisterAllocator::GraphColoring::create_registers() {
+    // add block_entry
+    std::shared_ptr<Backend::LIR::Block> first_block = lir_function->blocks.front();
+    std::shared_ptr<Backend::LIR::Block> block_entry = std::make_shared<Backend::LIR::Block>("block_entry");
+    block_entry->parent_function = lir_function;
+    block_entry->successors.push_back(first_block);
+    first_block->predecessors.push_back(block_entry);
+    lir_function->blocks_index[block_entry->name] = block_entry;
+    lir_function->blocks.insert(lir_function->blocks.begin(), block_entry);
     // add a0-t6
-    for (const RISCV::Registers::ABI reg : available_integer_regs) {
+    for (const RISCV::Registers::ABI reg : available_integer_regs)
         lir_function->add_variable(std::make_shared<Backend::Variable>(RISCV::Registers::to_string(reg), Backend::VariableType::INT32, Backend::VariableWide::LOCAL));
-    }
     int counter = 0;
-    for (const std::shared_ptr<Backend::Variable> &param : lir_function->parameters) {
+    for (const std::shared_ptr<Backend::Variable> &param : lir_function->parameters)
         if (param->lifetime == Backend::VariableWide::LOCAL) {
             lir_function->blocks.front()->instructions.insert(lir_function->blocks.front()->instructions.begin(), std::make_shared<Backend::LIR::Move>(lir_function->variables[RISCV::Registers::to_string(RISCV::Registers::ABI::A0 + counter)], param));
             counter++;
         } else break;
-    }
     // at the very beginning of the function, copy callee-saved registers
     for (const RISCV::Registers::ABI reg : callee_saved) {
         std::shared_ptr<Backend::Variable> var = std::make_shared<Backend::Variable>(RISCV::Registers::to_string(reg) + "_mem", Backend::VariableType::INT32, Backend::VariableWide::LOCAL);
@@ -47,6 +53,9 @@ void RISCV::RegisterAllocator::GraphColoring::create_registers() {
         for (size_t i = 0; i < block->instructions.size(); i++) {
             std::shared_ptr<Backend::LIR::Instruction> instruction = block->instructions[i];
             if (instruction->type == Backend::LIR::InstructionType::RETURN) {
+                std::shared_ptr<Backend::LIR::Return> ret = std::static_pointer_cast<Backend::LIR::Return>(instruction);
+                if (ret->return_value)
+                    block->instructions.insert(block->instructions.begin() + i++, std::make_shared<Backend::LIR::Move>(ret->return_value, lir_function->variables[RISCV::Registers::to_string(RISCV::Registers::ABI::A0)]));
                 for (const RISCV::Registers::ABI reg : callee_saved)
                     block->instructions.insert(block->instructions.begin() + i++, std::make_shared<Backend::LIR::Move>(lir_function->variables[RISCV::Registers::to_string(reg) + "_mem"], lir_function->variables[RISCV::Registers::to_string(reg)]));
             } else if (instruction->type == Backend::LIR::InstructionType::CALL) {
@@ -138,21 +147,18 @@ void RISCV::RegisterAllocator::GraphColoring::calculate_spill_costs() {
             std::shared_ptr<Backend::Variable> def_var = instr->get_defined_variable();
             if (def_var && spill_costs.find(def_var->name) != spill_costs.end()) {
                 spill_costs[def_var->name].def_count++;
-                if (first_use.find(def_var->name) == first_use.end()) {
+                if (first_use.find(def_var->name) == first_use.end())
                     first_use[def_var->name] = instr_idx;
-                }
                 last_use[def_var->name] = instr_idx;
             }
             std::vector<std::shared_ptr<Backend::Variable>> used_vars = instr->get_used_variables();
-            for (const std::shared_ptr<Backend::Variable> &used_var : used_vars) {
+            for (const std::shared_ptr<Backend::Variable> &used_var : used_vars)
                 if (spill_costs.find(used_var->name) != spill_costs.end()) {
                     spill_costs[used_var->name].use_count++;
-                    if (first_use.find(used_var->name) == first_use.end()) {
+                    if (first_use.find(used_var->name) == first_use.end())
                         first_use[used_var->name] = instr_idx;
-                    }
                     last_use[used_var->name] = instr_idx;
                 }
-            }
             instr_idx++;
         }
     }

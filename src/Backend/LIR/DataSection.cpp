@@ -15,7 +15,7 @@ void Backend::DataSection::load_global_variables(const std::vector<std::shared_p
 
 void Backend::DataSection::load_global_variables(const std::shared_ptr<std::vector<std::string>> &const_strings) {
     for (size_t i = 0; i < const_strings->size(); i++) {
-        std::shared_ptr<Backend::DataSection::Variable> var = std::make_shared<Backend::DataSection::Variable>("str_" + std::to_string(i + 1), Backend::VariableType::STRING);
+        std::shared_ptr<Backend::DataSection::Variable> var = std::make_shared<Backend::DataSection::Variable>(std::to_string(i), Backend::VariableType::STRING);
         var->read_only = true;
         var->init_value = std::make_shared<Variable::ConstString>((*const_strings)[i]);
         this->global_variables[var->name] = var;
@@ -52,7 +52,7 @@ void Backend::DataSection::Variable::load_from_llvm(const Mir::Init::Array &valu
     std::shared_ptr<Variable::Constants> init_value = std::static_pointer_cast<Variable::Constants>(this->init_value);
     if (!value.zero_initialized()) {
         size_t last_non_zero = value.last_non_zero();
-        for (size_t i = 0; i < last_non_zero; i++) {
+        for (size_t i = 0; i <= last_non_zero; i++) {
             std::shared_ptr<Mir::Init::Init> element = const_cast<Mir::Init::Array&>(value).get_init_value({static_cast<int>(i)});
             init_value->constants.push_back(load_from_llvm_(std::static_pointer_cast<Mir::Init::Constant>(element)));
         }

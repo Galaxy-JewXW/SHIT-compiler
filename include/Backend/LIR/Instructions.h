@@ -58,12 +58,34 @@ class Backend::LIR::FloatArithmetic : public Backend::LIR::Instruction {
         }
 };
 
-class Backend::LIR::LoadI32 : public Backend::LIR::Instruction {
+/*
+ * Load an immediate 32-bit integer value into a (virtual) register.
+ */
+class Backend::LIR::LoadIntImm : public Backend::LIR::Instruction {
     public:
-        std::shared_ptr<Constant> immediate;
+        std::shared_ptr<IntValue> immediate;
         std::shared_ptr<Variable> var_in_reg;
 
-        LoadI32(const std::shared_ptr<Variable> &var_in_reg, const std::shared_ptr<Constant> &immediate) : Backend::LIR::Instruction(InstructionType::LOAD_IMM), immediate(immediate), var_in_reg(var_in_reg) {}
+        LoadIntImm(const std::shared_ptr<Variable> &var_in_reg, const std::shared_ptr<IntValue> &immediate) : Backend::LIR::Instruction(InstructionType::LOAD_IMM), immediate(immediate), var_in_reg(var_in_reg) {}
+
+        inline std::string to_string() const override {
+            std::ostringstream oss;
+            oss << var_in_reg->to_string() << " = " << immediate->to_string();
+            return oss.str();
+        }
+
+        std::shared_ptr<Variable> get_defined_variable() const override { return var_in_reg; }
+};
+
+/*
+ * Load an immediate 32-bit float value into a (virtual) register.
+ */
+class Backend::LIR::LoadFloatImm : public Backend::LIR::Instruction {
+    public:
+        std::shared_ptr<FloatValue> immediate;
+        std::shared_ptr<Variable> var_in_reg;
+
+        LoadFloatImm(const std::shared_ptr<Variable> &var_in_reg, const std::shared_ptr<FloatValue> &immediate) : Backend::LIR::Instruction(InstructionType::LOAD_FLOAT_IMM), immediate(immediate), var_in_reg(var_in_reg) {}
 
         inline std::string to_string() const override {
             std::ostringstream oss;
@@ -114,6 +136,9 @@ class Backend::LIR::Move : public Backend::LIR::Instruction {
         }
 };
 
+/*
+ * If the callee function returns no value, the `result` is `nullptr`.
+ */
 class Backend::LIR::Call : public Backend::LIR::Instruction {
     public:
         const std::shared_ptr<Backend::Variable> result;
@@ -167,9 +192,9 @@ class Backend::LIR::LoadFloat : public Backend::LIR::Instruction {
     public:
         std::shared_ptr<Variable> var_in_mem;
         std::shared_ptr<Variable> var_in_reg;
-        int64_t offset{0};
+        int32_t offset{0};
 
-        LoadFloat(const std::shared_ptr<Variable> &var_in_mem, const std::shared_ptr<Variable> &var_in_reg, int64_t offset) : Instruction(InstructionType::FLOAD), var_in_mem(var_in_mem), var_in_reg(var_in_reg), offset(offset) {}
+        LoadFloat(const std::shared_ptr<Variable> &var_in_mem, const std::shared_ptr<Variable> &var_in_reg, int32_t offset) : Instruction(InstructionType::FLOAD), var_in_mem(var_in_mem), var_in_reg(var_in_reg), offset(offset) {}
         LoadFloat(const std::shared_ptr<Variable> &var_in_mem, const std::shared_ptr<Variable> &var_in_reg) : Instruction(InstructionType::FLOAD), var_in_mem(var_in_mem), var_in_reg(var_in_reg) {}
 
         inline std::string to_string() const override {
@@ -185,9 +210,9 @@ class Backend::LIR::StoreInt : public Backend::LIR::Instruction {
     public:
         std::shared_ptr<Variable> var_in_mem;
         std::shared_ptr<Variable> var_in_reg;
-        int64_t offset{0};
+        int32_t offset{0};
 
-        StoreInt(const std::shared_ptr<Variable> &var_in_mem, const std::shared_ptr<Variable> &var_in_reg, int64_t offset) : Instruction(InstructionType::STORE), var_in_mem(var_in_mem), var_in_reg(var_in_reg), offset(offset) {}
+        StoreInt(const std::shared_ptr<Variable> &var_in_mem, const std::shared_ptr<Variable> &var_in_reg, int32_t offset) : Instruction(InstructionType::STORE), var_in_mem(var_in_mem), var_in_reg(var_in_reg), offset(offset) {}
         StoreInt(const std::shared_ptr<Variable> &var_in_mem, const std::shared_ptr<Variable> &var_in_reg) : Instruction(InstructionType::STORE), var_in_mem(var_in_mem), var_in_reg(var_in_reg) {}
 
         inline std::string to_string() const override {
@@ -205,9 +230,9 @@ class Backend::LIR::StoreFloat : public Backend::LIR::Instruction {
     public:
         std::shared_ptr<Variable> var_in_mem;
         std::shared_ptr<Variable> var_in_reg;
-        int64_t offset{0};
+        int32_t offset{0};
 
-        StoreFloat(const std::shared_ptr<Variable> &var_in_mem, const std::shared_ptr<Variable> &var_in_reg, int64_t offset) : Instruction(InstructionType::FSTORE), var_in_mem(var_in_mem), var_in_reg(var_in_reg), offset(offset) {}
+        StoreFloat(const std::shared_ptr<Variable> &var_in_mem, const std::shared_ptr<Variable> &var_in_reg, int32_t offset) : Instruction(InstructionType::FSTORE), var_in_mem(var_in_mem), var_in_reg(var_in_reg), offset(offset) {}
         StoreFloat(const std::shared_ptr<Variable> &var_in_mem, const std::shared_ptr<Variable> &var_in_reg) : Instruction(InstructionType::FSTORE), var_in_mem(var_in_mem), var_in_reg(var_in_reg) {}
 
         inline std::string to_string() const override {
@@ -233,6 +258,10 @@ class Backend::LIR::JumpInstruction : public Backend::LIR::Instruction {
         }
 };
 
+/*
+ * Condition jump.
+ * If `rhs` refers to `zero`, then `rhs = nullptr`.
+ */
 class Backend::LIR::BranchInstruction : public Backend::LIR::Instruction {
     public:
         std::shared_ptr<Backend::Variable> lhs;
@@ -240,24 +269,33 @@ class Backend::LIR::BranchInstruction : public Backend::LIR::Instruction {
         std::shared_ptr<Backend::LIR::Block> target_block;
 
         BranchInstruction(const InstructionType type, const std::shared_ptr<Backend::Variable> &lhs, const std::shared_ptr<Backend::Variable> &rhs, const std::shared_ptr<Backend::LIR::Block> &target_block) : Instruction(type), lhs(lhs), rhs(rhs), target_block(target_block) {}
+        BranchInstruction(const InstructionType type, const std::shared_ptr<Backend::Variable> &lhs, const std::shared_ptr<Backend::LIR::Block> &target_block) : Instruction(type), lhs(lhs), target_block(target_block) {}
 
         inline std::string to_string() const override {
             std::ostringstream oss;
-            oss << lhs->to_string() << " " << Backend::Utils::to_string(type) << " " << rhs->to_string() << " goto " << target_block->name;
+            oss << lhs->to_string()
+                << " " << Backend::Utils::to_string(type)
+                << " " << (rhs ? rhs->to_string() : "0")
+                << " goto " << target_block->name;
             return oss.str();
         }
 
         std::vector<std::shared_ptr<Backend::Variable>> get_used_variables() const override {
-            return {lhs, rhs};
+            if (rhs) {
+                return {lhs, rhs};
+            } return {lhs};
         }
 };
 
-class Backend::LIR::ReturnInstruction : public Backend::LIR::Instruction {
+/*
+ * If no return value is expected, the `return_value` is `nullptr`.
+ */
+class Backend::LIR::Return : public Backend::LIR::Instruction {
     public:
         std::shared_ptr<Variable> return_value;
 
-        ReturnInstruction(const std::shared_ptr<Variable> &return_value) : Instruction(Backend::LIR::InstructionType::RETURN), return_value(return_value) {}
-        ReturnInstruction() : Instruction(Backend::LIR::InstructionType::RETURN) {}
+        Return(const std::shared_ptr<Variable> &return_value) : Instruction(Backend::LIR::InstructionType::RETURN), return_value(return_value) {}
+        Return() : Instruction(Backend::LIR::InstructionType::RETURN) {}
 
         inline std::string to_string() const override {
             std::ostringstream oss;
