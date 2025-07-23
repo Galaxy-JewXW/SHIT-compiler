@@ -1,0 +1,75 @@
+# 工作流名称
+name: Submit
+
+# 手动触发
+on:
+  workflow_dispatch:
+
+# 定义所有作业
+jobs:
+  # --- 作业 1: 编译 ---
+  build:
+    name: Build with Clang 18 (Release)
+    runs-on: ubuntu-latest
+
+    steps:
+      # 步骤 1: 检出 master 分支的代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: master
+
+      # 步骤 2: 安装 LLVM 和 Clang 18
+      - name: Install LLVM and Clang 18
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: "18.0"
+
+      # 步骤 3: 配置 CMake
+      - name: Configure CMake (Release)
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      # 步骤 4: 执行编译
+      - name: Build Project
+        run: cmake --build build --config Release -- -j4
+
+  # --- 作业 2: 同步到 GitLab ---
+  sync-to-gitlab:
+    # 作业名称
+    name: Sync to GitLab
+
+    # 此作业依赖于 'build' 作业。只有当 'build' 成功后，此作业才会运行。
+    needs: build
+
+    # 运行环境
+    runs-on: ubuntu-latest
+
+    steps:
+      # 步骤 1: 再次检出代码
+      # 每个 job 都在一个独立的虚拟机中运行，所以需要重新检出代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # 确保获取所有历史记录，以便进行 git push 操作
+          fetch-depth: 0
+          ref: master
+
+      # 步骤 2: 执行同步操作
+      - name: Sync to GitLab
+        env:
+          # 从 GitHub Secrets 中获取 GitLab 的访问令牌
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          
+          git commit --allow-empty -m "[update]: sync at ${TIMESTAMP}"
+          
+          git remote add gitlab "https://pat:${GITLAB_TOKEN}@gitlab.eduxiji.net/T202510006205548/one-big-beautiful-shit-compiler.git"
+          
+          echo "Pushing to GitLab..."
+          git push gitlab HEAD:master --force
+          echo "Sync completed."
+
