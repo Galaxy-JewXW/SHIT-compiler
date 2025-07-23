@@ -17,6 +17,7 @@
 class RISCV::RegisterAllocator::GraphColoring : public RISCV::RegisterAllocator::Allocator {
     public:
         explicit GraphColoring(const std::shared_ptr<Backend::LIR::Function> &function, const std::shared_ptr<RISCV::Stack> &stack) : Allocator(function, stack) {}
+        ~GraphColoring() override = default;
         void allocate() override;
     private:
         class InterferenceNode : public std::enable_shared_from_this<InterferenceNode> {
