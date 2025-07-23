@@ -48,6 +48,8 @@ class Backend::DataSection {
                 void load_from_llvm(const std::shared_ptr<Mir::Init::Constant> &value);
                 void load_from_llvm(const Mir::Init::Array &value);
 
+                [[nodiscard]] std::string label() const override { return name.substr(1); }
+
                 explicit Variable(const std::string &name, const Backend::VariableType &type) : Backend::Variable(name, type, Backend::VariableWide::GLOBAL) {};
             private:
                 /*

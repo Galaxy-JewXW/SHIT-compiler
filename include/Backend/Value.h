@@ -75,6 +75,7 @@ class Backend::Variable : public Backend::Operand {
         [[nodiscard]] inline size_t size() const {
             return Backend::Utils::type_to_size(workload_type) * length;
         }
+        [[nodiscard]] virtual std::string label() const { return name; }
 
         bool operator==(const Variable& other) const { return this->name == other.name; }
         bool operator!=(const Variable& other) const { return !(*this == other); }

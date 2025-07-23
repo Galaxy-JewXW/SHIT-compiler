@@ -31,7 +31,8 @@ namespace Backend::LIR {
         MUL, FMUL,
         DIV, FDIV,
         MOD, FMOD,
-        LOAD, LOAD_IMM, LOAD_ADDR, FLOAD,
+        LOAD, LOAD_IMM, LOAD_ADDR,
+        FLOAD, LOAD_FLOAT_IMM,
         STORE, FSTORE,
         CALL,
         RETURN,
@@ -44,13 +45,12 @@ namespace Backend::LIR {
         SHIFT_LEFT_LOGICAL,
         SHIFT_RIGHT_LOGICAL,
         SHIFT_RIGHT_ARITHMETIC,
-        PUTF,
         MOVE,
     };
     class IntArithmetic;
     class FloatArithmetic;
-    class LoadI32;
-    class LoadFloat;
+    class LoadIntImm;
+    class LoadFloatImm;
     class Call;
     class LoadAddress;
     class LoadInt;
@@ -59,7 +59,7 @@ namespace Backend::LIR {
     class StoreFloat;
     class BranchInstruction;
     class JumpInstruction;
-    class ReturnInstruction;
+    class Return;
     class Move;
 };
 
@@ -124,7 +124,6 @@ namespace Backend::Utils {
             case Backend::LIR::InstructionType::SHIFT_LEFT_LOGICAL: return "SHIFT_LEFT_LOGICAL";
             case Backend::LIR::InstructionType::SHIFT_RIGHT_LOGICAL: return "SHIFT_RIGHT_LOGICAL";
             case Backend::LIR::InstructionType::SHIFT_RIGHT_ARITHMETIC: return "SHIFT_RIGHT_ARITHMETIC";
-            case Backend::LIR::InstructionType::PUTF: return "putf";
             case Backend::LIR::InstructionType::LOAD_ADDR: return "&";
             default: return "";
         }
@@ -202,11 +201,13 @@ class Backend::LIR::Block {
         std::unordered_set<std::string> live_out;
 
         explicit Block(const std::string &block_name) : name(std::move(block_name)) {};
+        explicit Block(const std::string &&block_name) : name(std::move(block_name)) {};
 };
 
 class Backend::LIR::Function {
     public:
         std::string name;
+        bool is_caller{false};
         std::map<std::string, std::shared_ptr<Backend::LIR::Block>> blocks_index;
         std::vector<std::shared_ptr<Backend::LIR::Block>> blocks;
         Backend::VariableType return_type{Backend::VariableType::INT32};
@@ -300,10 +301,18 @@ class Backend::LIR::PrivilegedFunction : public Backend::LIR::Function {
 };
 
 namespace Backend::LIR {
-    extern inline const std::array<std::shared_ptr<PrivilegedFunction>, 3> privileged_functions = {
+    extern inline const std::array<std::shared_ptr<PrivilegedFunction>, 11> privileged_functions = {
         std::make_shared<PrivilegedFunction>("putf", std::vector<std::shared_ptr<Backend::Variable>>{std::make_shared<Backend::Variable>("%0", Backend::VariableType::STRING_PTR, VariableWide::LOCAL)}),
+        std::make_shared<PrivilegedFunction>("getint", std::vector<std::shared_ptr<Backend::Variable>>{}),
+        std::make_shared<PrivilegedFunction>("getch", std::vector<std::shared_ptr<Backend::Variable>>{}),
+        std::make_shared<PrivilegedFunction>("getfloat", std::vector<std::shared_ptr<Backend::Variable>>{}),
+        std::make_shared<PrivilegedFunction>("getarray", std::vector<std::shared_ptr<Backend::Variable>>{std::make_shared<Backend::Variable>("%0", Backend::VariableType::INT32_PTR, VariableWide::LOCAL)}),
+        std::make_shared<PrivilegedFunction>("getfarray", std::vector<std::shared_ptr<Backend::Variable>>{std::make_shared<Backend::Variable>("%0", Backend::VariableType::FLOAT_PTR, VariableWide::LOCAL)}),
         std::make_shared<PrivilegedFunction>("putint", std::vector<std::shared_ptr<Backend::Variable>>{std::make_shared<Backend::Variable>("%0", Backend::VariableType::INT32, VariableWide::LOCAL)}),
+        std::make_shared<PrivilegedFunction>("putch", std::vector<std::shared_ptr<Backend::Variable>>{std::make_shared<Backend::Variable>("%0", Backend::VariableType::INT32, VariableWide::LOCAL)}),
         std::make_shared<PrivilegedFunction>("putfloat", std::vector<std::shared_ptr<Backend::Variable>>{std::make_shared<Backend::Variable>("%0", Backend::VariableType::FLOAT, VariableWide::LOCAL)}),
+        std::make_shared<PrivilegedFunction>("putarray", std::vector<std::shared_ptr<Backend::Variable>>{std::make_shared<Backend::Variable>("%0", Backend::VariableType::INT32, VariableWide::LOCAL), std::make_shared<Backend::Variable>("%1", Backend::VariableType::INT32_PTR, VariableWide::LOCAL)}),
+        std::make_shared<PrivilegedFunction>("putfarray", std::vector<std::shared_ptr<Backend::Variable>>{std::make_shared<Backend::Variable>("%0", Backend::VariableType::FLOAT, VariableWide::LOCAL), std::make_shared<Backend::Variable>("%1", Backend::VariableType::FLOAT_PTR, VariableWide::LOCAL)}),
     };
 }
 

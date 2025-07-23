@@ -54,13 +54,17 @@ class RISCV::Function : public std::enable_shared_from_this<RISCV::Function> {
         std::shared_ptr<Stack> stack;
         RISCV::Module *module;
 
-        explicit Function(const std::shared_ptr<Backend::LIR::Function>& mir_function, const RegisterAllocator::AllocationType& allocation_type = RegisterAllocator::AllocationType::LINEAR_SCAN);
+        explicit Function(const std::shared_ptr<Backend::LIR::Function>& lir_function, const RegisterAllocator::AllocationType& allocation_type = RegisterAllocator::AllocationType::LINEAR_SCAN);
 
-        void to_assembly();
+        void to_assembly() {
+            translate_blocks();
+            generate_prologue();
+        }
+
         [[nodiscard]] std::string to_string() const;
 
     private:
-        std::shared_ptr<Backend::LIR::Function> mir_function_;
+        std::shared_ptr<Backend::LIR::Function> lir_function;
         void generate_prologue();
         void translate_blocks();
         inline std::shared_ptr<RISCV::Block> find_block(std::string name) const {
@@ -72,7 +76,9 @@ class RISCV::Function : public std::enable_shared_from_this<RISCV::Function> {
         [[nodiscard]] std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> translate_instruction(const std::shared_ptr<Backend::LIR::Instruction>& instruction);
 
         template<typename T_instr, typename T_imm, typename T_reg>
-        void translate_iactions(std::shared_ptr<T_instr> &instr, std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> &instrs);
+        void translate_iactions(const std::shared_ptr<T_instr> &instr, std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> &instrs);
+        template<typename T_instr>
+        void translate_bactions(const std::shared_ptr<Backend::LIR::BranchInstruction> &instr, std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> &instrs);
 };
 
 class RISCV::Module {
