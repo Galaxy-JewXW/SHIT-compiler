@@ -134,6 +134,7 @@ std::shared_ptr<Value> get_identity_element(const std::shared_ptr<Instruction> &
     const auto &type{inst->get_type()};
     switch (inst->as<IntBinary>()->intbinary_op()) {
         case IntBinary::Op::ADD:
+        case IntBinary::Op::SUB:
         case IntBinary::Op::OR:
         case IntBinary::Op::XOR:
             return ConstInt::create(0, type);
@@ -237,7 +238,7 @@ void TailCallOptimize::tail_call_eliminate(const std::shared_ptr<Function> &func
                 if (!func->get_return_type()->is_void()) {
                     const auto returned_value{new_ret->get_value()};
                     if (const auto phi{returned_value->is<Phi>()}; phi && phi->get_block() == target_block) {
-                        new_ret->modify_operand(returned_value, phi->get_optional_values()[block]);
+                        new_ret->modify_operand(returned_value, phi->get_optional_values().at(block));
                     } else {
                         // 撤回修改操作
                         block->get_instructions().pop_back();
@@ -286,18 +287,28 @@ bool TailCallOptimize::handle_tail_call(const std::shared_ptr<Call> &call) {
 
     // 检查调用后是否有累加操作（return f() + acc）
     if (const auto op = next_inst->get_op(); op == Operator::INTBINARY) {
-        const auto intbinary{next_inst->as<IntBinary>()};
         // 只处理满足交换律和结合律的运算
-        if (!intbinary->is_commutative() || !intbinary->is_associative()) {
-            return false;
-        }
-        accumulator = intbinary;
-        // 确保递归调用结果只被这个累加器使用一次
-        if (std::count(accumulator->get_operands().begin(), accumulator->get_operands().end(), call) != 1) {
-            return false;
-        }
-        // 确保累加器的结果只被return语句使用
-        if (!(accumulator->users().size() == 1 && *accumulator->users().begin() == ret)) {
+        if (const auto intbinary{next_inst->as<IntBinary>()};
+            intbinary->is_commutative() && intbinary->is_associative()) {
+            accumulator = intbinary;
+            // 确保递归调用结果只被这个累加器使用一次
+            if (std::count(accumulator->get_operands().begin(), accumulator->get_operands().end(), call) != 1) {
+                return false;
+            }
+            // 确保累加器的结果只被return语句使用
+            if (!(accumulator->users().size() == 1 && *accumulator->users().begin() == ret)) {
+                return false;
+            }
+        } else if (intbinary->intbinary_op() == IntBinary::Op::SUB) {
+            accumulator = intbinary;
+            if (const auto &ops = intbinary->get_operands(); !(ops[0] == call && ops[1] != call)) {
+                return false;
+            }
+            // 确保累加器的结果只被return语句使用
+            if (!(accumulator->users().size() == 1 && *accumulator->users().begin() == ret)) {
+                return false;
+            }
+        } else {
             return false;
         }
     } else if (op != Operator::RET) {
@@ -404,7 +415,7 @@ bool TailCallOptimize::handle_tail_call(const std::shared_ptr<Call> &call) {
                     if (const auto terminator{b->get_instructions().back()}; terminator->get_op() == Operator::RET) {
                         const auto _ret_value{terminator->as<Ret>()->get_value()};
                         // 克隆累加器指令
-                        const auto _acc{accumulator->clone()};
+                        const auto _acc{accumulator->clone_exact()};
                         // 修改累加器操作数，将累加器值替换为当前返回值
                         _acc->modify_operand(_acc->get_operands()[_acc->get_operands()[0] == acc_value], _ret_value);
                         Utils::move_instruction_before(_acc, terminator);
@@ -427,7 +438,7 @@ bool TailCallOptimize::handle_tail_call(const std::shared_ptr<Call> &call) {
             if (acc_value) {
                 for (const auto &select: selects) {
                     const auto _val{select->get_false_value()};
-                    const auto _acc{accumulator->clone()};
+                    const auto _acc{accumulator->clone_exact()};
                     _acc->modify_operand(_acc->get_operands()[_acc->get_operands()[0] == acc_value], _val);
                     Utils::move_instruction_before(_acc, select);
                     select->modify_operand(_val, _acc);
@@ -449,6 +460,14 @@ void TailCallOptimize::transform(const std::shared_ptr<Module> module) {
     for (const auto &func: module->get_functions()) {
         run_on_func(func);
     }
+    cfg_info = nullptr;
+    func_info = nullptr;
+}
+
+void TailCallOptimize::transform(const std::shared_ptr<Function> &func) {
+    cfg_info = get_analysis_result<ControlFlowGraph>(Module::instance());
+    func_info = get_analysis_result<FunctionAnalysis>(Module::instance());
+    run_on_func(func);
     cfg_info = nullptr;
     func_info = nullptr;
 }

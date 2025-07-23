@@ -54,4 +54,6 @@ void SingleReturnTransform::transform(const std::shared_ptr<Module> module) {
         run_on_func(func);
     }
 }
+
+void SingleReturnTransform::transform(const std::shared_ptr<Function> &func) { run_on_func(func); }
 } // namespace Pass

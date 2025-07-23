@@ -1058,7 +1058,8 @@ bool handle_float_ternary(const std::shared_ptr<Function> &func) {
 }
 } // namespace
 
-void Pass::AlgebraicSimplify::transform(const std::shared_ptr<Module> module) {
+namespace Pass {
+void AlgebraicSimplify::transform(const std::shared_ptr<Module> module) {
     bool changed = false;
     do {
         changed = false;
@@ -1080,3 +1081,23 @@ void Pass::AlgebraicSimplify::transform(const std::shared_ptr<Module> module) {
     } while (changed);
     create<DeadInstEliminate>()->run_on(module);
 }
+
+void AlgebraicSimplify::transform(const std::shared_ptr<Function> &func) {
+    bool changed = false;
+    do {
+        changed = false;
+        // 对于每一条满足交换律的IntBinary，满足常数均位于运算符右侧
+        create<StandardizeBinary>()->run_on(func);
+        std::for_each(func->get_blocks().begin(), func->get_blocks().end(), [&](const auto &b) {
+            std::for_each(b->get_instructions().begin(), b->get_instructions().end(),
+                          [&](const auto &inst) { changed |= GlobalValueNumbering::fold_instruction(inst); });
+            changed |= handle_intbinary_icmp(b);
+        });
+        changed |= handle_float_ternary(func);
+        if (changed) [[likely]] {
+            create<DeadInstEliminate>()->run_on(func);
+        }
+    } while (changed);
+    create<DeadInstEliminate>()->run_on(func);
+}
+} // namespace Pass

@@ -555,7 +555,7 @@ namespace Mir {
     }
     std::ostringstream function_info;
     function_info << "define dso_local " << type_->to_string() << " @" << name_ << "(" << param_info.str() << ") {\n"
-                  << block_info.str() << "\n}";
+            << block_info.str() << "\n}";
     return function_info.str();
 }
 
@@ -603,7 +603,7 @@ namespace Mir {
     const auto target_type = ptr_type->get_contain_type();
     std::ostringstream oss;
     oss << name_ << " = getelementptr inbounds " << target_type->to_string() << ", " << ptr_type->to_string() << " "
-        << addr->get_name();
+            << addr->get_name();
     for (size_t i = 1; i < operands_.size(); ++i) {
         oss << ", " << operands_[i]->get_type()->to_string() << " " << operands_[i]->get_name();
     }
@@ -731,7 +731,7 @@ namespace Mir {
     oss << "label %" << get_default_block()->get_name() << " [";
     for (const auto &[value, block]: cases()) {
         oss << "\n\t\t" << value->get_type()->to_string() << " " << value->get_name() << ", label %"
-            << block->get_name();
+                << block->get_name();
     }
     oss << "\n\t]";
     return oss.str();
@@ -762,11 +762,11 @@ namespace Mir {
         constexpr auto tail = std::string_view{"tail "};
         if (get_function()->get_type()->is_void()) {
             oss << (is_tail_call() ? tail : "") << "call " << get_function()->get_type()->to_string() << " @"
-                << get_function()->get_name() << "(";
+                    << get_function()->get_name() << "(";
             oss << params_to_string() << ")";
         } else {
             oss << name_ << " = " << (is_tail_call() ? tail : "") << "call " << get_function()->get_type()->to_string()
-                << " @" << get_function()->get_name() << "(";
+                    << " @" << get_function()->get_name() << "(";
             oss << params_to_string() << ")";
         }
     }
@@ -800,67 +800,69 @@ BINARY_TO_STRING(FMod, frem)
 std::string Smax::to_string() const {
     std::ostringstream oss;
     oss << name_ << " = call i32 @llvm.smax.i32(" << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name()
-        << ", " << get_rhs()->get_type()->to_string() << " " << get_rhs()->get_name() << ")";
+            << ", " << get_rhs()->get_type()->to_string() << " " << get_rhs()->get_name() << ")";
     return oss.str();
 }
 
 std::string Smin::to_string() const {
     std::ostringstream oss;
     oss << name_ << " = call i32 @llvm.smin.i32(" << get_lhs()->get_type()->to_string() << " " << get_lhs()->get_name()
-        << ", " << get_rhs()->get_type()->to_string() << " " << get_rhs()->get_name() << ")";
+            << ", " << get_rhs()->get_type()->to_string() << " " << get_rhs()->get_name() << ")";
     return oss.str();
 }
 
 std::string FSmax::to_string() const {
     std::ostringstream oss;
     oss << name_ << " = call float @llvm.smax.float(" << get_lhs()->get_type()->to_string() << " "
-        << get_lhs()->get_name() << ", " << get_rhs()->get_type()->to_string() << " " << get_rhs()->get_name() << ")";
+            << get_lhs()->get_name() << ", " << get_rhs()->get_type()->to_string() << " " << get_rhs()->get_name() <<
+            ")";
     return oss.str();
 }
 
 std::string FSmin::to_string() const {
     std::ostringstream oss;
     oss << name_ << " = call float @llvm.smin.float(" << get_lhs()->get_type()->to_string() << " "
-        << get_lhs()->get_name() << ", " << get_rhs()->get_type()->to_string() << " " << get_rhs()->get_name() << ")";
+            << get_lhs()->get_name() << ", " << get_rhs()->get_type()->to_string() << " " << get_rhs()->get_name() <<
+            ")";
     return oss.str();
 }
 
 std::string FMadd::to_string() const {
     std::ostringstream oss;
     oss << name_ << " = call float @__shit_fmadd_s(" << get_x()->get_type()->to_string() << " " << get_x()->get_name()
-        << ", " << get_y()->get_type()->to_string() << " " << get_y()->get_name() << ", "
-        << get_z()->get_type()->to_string() << " " << get_z()->get_name() << ")";
+            << ", " << get_y()->get_type()->to_string() << " " << get_y()->get_name() << ", "
+            << get_z()->get_type()->to_string() << " " << get_z()->get_name() << ")";
     return oss.str();
 }
 
 std::string FNmadd::to_string() const {
     std::ostringstream oss;
     oss << name_ << " = call float @__shit_fnmadd_s(" << get_x()->get_type()->to_string() << " " << get_x()->get_name()
-        << ", " << get_y()->get_type()->to_string() << " " << get_y()->get_name() << ", "
-        << get_z()->get_type()->to_string() << " " << get_z()->get_name() << ")";
+            << ", " << get_y()->get_type()->to_string() << " " << get_y()->get_name() << ", "
+            << get_z()->get_type()->to_string() << " " << get_z()->get_name() << ")";
     return oss.str();
 }
 
 std::string FMsub::to_string() const {
     std::ostringstream oss;
     oss << name_ << " = call float @__shit_fmsub_s(" << get_x()->get_type()->to_string() << " " << get_x()->get_name()
-        << ", " << get_y()->get_type()->to_string() << " " << get_y()->get_name() << ", "
-        << get_z()->get_type()->to_string() << " " << get_z()->get_name() << ")";
+            << ", " << get_y()->get_type()->to_string() << " " << get_y()->get_name() << ", "
+            << get_z()->get_type()->to_string() << " " << get_z()->get_name() << ")";
     return oss.str();
 }
 
 std::string FNmsub::to_string() const {
     std::ostringstream oss;
     oss << name_ << " = call float @__shit_fnmsub_s(" << get_x()->get_type()->to_string() << " " << get_x()->get_name()
-        << ", " << get_y()->get_type()->to_string() << " " << get_y()->get_name() << ", "
-        << get_z()->get_type()->to_string() << " " << get_z()->get_name() << ")";
+            << ", " << get_y()->get_type()->to_string() << " " << get_y()->get_name() << ", "
+            << get_z()->get_type()->to_string() << " " << get_z()->get_name() << ")";
     return oss.str();
 }
 
 std::string FNeg::to_string() const {
     std::ostringstream oss;
     oss << name_ << " = call float @__shit_fneg_s(" << get_value()->get_type()->to_string() << " "
-        << get_value()->get_name() << ")";
+            << get_value()->get_name() << ")";
     return oss.str();
 }
 
@@ -886,10 +888,16 @@ std::string Select::to_string() const {
     std::ostringstream oss;
     oss << name_ << " = select " << get_cond()->get_type()->to_string() << " " << get_cond()->get_name() << ", ";
     oss << get_true_value()->get_type()->to_string() << " " << get_true_value()->get_name() << ", "
-        << get_false_value()->get_type()->to_string() << " " << get_false_value()->get_name();
+            << get_false_value()->get_type()->to_string() << " " << get_false_value()->get_name();
     return oss.str();
 }
 
+std::string Move::to_string() const {
+    std::ostringstream oss;
+    oss << "move " << get_to_value()->get_type()->to_string() << " " << get_to_value()->get_name() << ", "
+            << get_from_value()->get_type()->to_string() << " " << get_from_value()->get_name();
+    return oss.str();
+}
 
 namespace Init {
     [[nodiscard]] std::string Constant::to_string() const { return type->to_string() + " " + const_value->to_string(); }

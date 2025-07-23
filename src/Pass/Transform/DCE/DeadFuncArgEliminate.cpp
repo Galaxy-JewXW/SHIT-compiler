@@ -35,15 +35,13 @@ void DeadFuncArgEliminate::run_on_func(const std::shared_ptr<Function> &func) co
             continue;
         }
         if (function_analysis_->func_info(func).is_recursive) {
-            bool has_normal_user = false;
-            for (const auto &user: arg->users()) {
-                if (const auto user_inst = std::dynamic_pointer_cast<Instruction>(user)) {
-                    if (!is_recurse_user(user_inst, i, arg)) {
-                        has_normal_user = true;
-                        break;
-                    }
+            const auto &users{arg->users().lock()};
+            const bool has_normal_user = std::any_of(users.begin(), users.end(), [&](const auto &user) {
+                if (const auto user_inst = user->template is<Instruction>()) {
+                    return !is_recurse_user(user_inst, i, arg);
                 }
-            }
+                return false;
+            });
             if (!has_normal_user) {
                 args_to_delete.insert(arg);
                 indices_to_delete.push_back(i);

@@ -604,4 +604,15 @@ void SimplifyControlFlow::transform(const std::shared_ptr<Module> module) {
     }
     cfg_info = nullptr;
 }
+
+void SimplifyControlFlow::transform(const std::shared_ptr<Function> &func) {
+    remove_unreachable_blocks(func);
+    cfg_info = get_analysis_result<ControlFlowGraph>(Module::instance());
+    run_on_func(func);
+    cfg_info = get_analysis_result<ControlFlowGraph>(Module::instance());
+    cleanup_phi(func, cfg_info);
+    cfg_info = get_analysis_result<ControlFlowGraph>(Module::instance());
+    merge_phi(func, cfg_info);
+    cfg_info = nullptr;
+}
 } // namespace Pass

@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <optional>
+#include <unordered_set>
 #include <utility>
 
 #include "Const.h"
@@ -13,6 +14,9 @@
 
 namespace Mir {
 class Block;
+class Phi;
+
+class FunctionCloneHelper;
 
 enum class Operator {
     ALLOC,
@@ -36,6 +40,7 @@ enum class Operator {
     FNEG,
     PHI,
     SELECT,
+    MOVE,
 };
 
 class Instruction : public User {
@@ -60,12 +65,18 @@ public:
 
     [[nodiscard]] std::string to_string() const override = 0;
 
-    virtual void do_interpret(Interpreter *const interpreter) { Interpreter::abort(); }
-
-    [[nodiscard]]
-    virtual std::shared_ptr<Instruction> clone() {
+    virtual std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) {
         log_error("Not implemented");
     }
+
+    virtual void fix_clone_info(const std::shared_ptr<Pass::LoopNodeClone> &clone_info);
+
+    virtual void do_interpret(Interpreter *const interpreter) { Interpreter::abort(); }
+
+    std::shared_ptr<Instruction> cloneinfo_to_block(const std::shared_ptr<Pass::LoopNodeClone> &clone_info,
+                                                    const std::shared_ptr<Block> &block);
+
+    virtual std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) { log_error("Not implemented"); }
 };
 
 class Alloc final : public Instruction {
@@ -76,14 +87,19 @@ public:
     static std::shared_ptr<Alloc> create(const std::string &name, const std::shared_ptr<Type::Type> &type,
                                          const std::shared_ptr<Block> &block);
 
+    std::shared_ptr<Instruction> clone_to_info(const std::shared_ptr<Block> &block) const {
+        return create(name_, type_, block);
+    }
+
     [[nodiscard]] std::string to_string() const override;
+
+    [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
 };
 
 class Load final : public Instruction {
 public:
     Load(const std::string &name, const std::shared_ptr<Value> &addr) :
-        Instruction{name, std::dynamic_pointer_cast<Type::Pointer>(addr->get_type())->get_contain_type(),
-                    Operator::LOAD} {
+        Instruction{name, addr->get_type()->as<Type::Pointer>()->get_contain_type(), Operator::LOAD} {
         if (!addr->get_type()->is_pointer()) {
             log_error("Address must be a pointer");
         }
@@ -92,9 +108,15 @@ public:
     static std::shared_ptr<Load> create(const std::string &name, const std::shared_ptr<Value> &addr,
                                         const std::shared_ptr<Block> &block);
 
+    std::shared_ptr<Instruction> clone_to_info(const std::shared_ptr<Block> &block) const {
+        return create(name_, get_addr(), block);
+    }
+
     [[nodiscard]] std::shared_ptr<Value> get_addr() const { return operands_[0]; }
 
     [[nodiscard]] std::string to_string() const override;
+
+    [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
 };
 
 class Store final : public Instruction {
@@ -114,11 +136,17 @@ public:
     static std::shared_ptr<Store> create(const std::shared_ptr<Value> &addr, const std::shared_ptr<Value> &value,
                                          const std::shared_ptr<Block> &block);
 
+    std::shared_ptr<Instruction> clone_to_info(const std::shared_ptr<Block> &block) const {
+        return create(get_addr(), get_value(), block);
+    }
+
     [[nodiscard]] std::shared_ptr<Value> get_addr() const { return operands_[0]; }
 
     [[nodiscard]] std::shared_ptr<Value> get_value() const { return operands_[1]; }
 
     [[nodiscard]] std::string to_string() const override;
+
+    [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
 };
 
 class GetElementPtr final : public Instruction {
@@ -139,7 +167,17 @@ public:
 
     [[nodiscard]] std::shared_ptr<Value> get_index() const { return operands_.back(); }
 
+    std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) override {
+        std::vector<std::shared_ptr<Value>> indexes;
+        for (size_t i = 1; i < operands_.size(); ++i) {
+            indexes.push_back(operands_[i]);
+        }
+        return create(name_, get_addr(), indexes, block);
+    }
+
     [[nodiscard]] std::string to_string() const override;
+
+    [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
 
 private:
     static std::shared_ptr<Type::Type> calc_type_(const std::shared_ptr<Value> &addr,
@@ -149,13 +187,9 @@ private:
 class BitCast final : public Instruction {
 public:
     BitCast(const std::string &name, const std::shared_ptr<Value> &value,
-            const std::shared_ptr<Type::Type> &target_type) : Instruction(name, target_type, Operator::BITCAST) {
-        const auto instruction = std::dynamic_pointer_cast<Instruction>(value);
-        if (instruction == nullptr) {
-            log_error("Value must be a instruction");
-        }
-        if (instruction->get_type()->is_void() || instruction->get_type()->is_label() ||
-            instruction->get_name().empty()) {
+            const std::shared_ptr<Type::Type> &target_type) :
+        Instruction(name, target_type, Operator::BITCAST) {
+        if (value->get_type()->is_void() || value->get_type()->is_label() || value->get_name().empty()) {
             log_error("Instruction must have a return value");
         }
     }
@@ -166,7 +200,13 @@ public:
 
     [[nodiscard]] std::shared_ptr<Value> get_value() const { return operands_[0]; }
 
+    std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) override {
+        return create(name_, get_value(), get_type(), block);
+    }
+
     [[nodiscard]] std::string to_string() const override;
+
+    [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
 };
 
 class Fptosi final : public Instruction {
@@ -183,7 +223,13 @@ public:
 
     [[nodiscard]] std::shared_ptr<Value> get_value() const { return operands_[0]; }
 
+    std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) override {
+        return create(name_, get_value(), block);
+    }
+
     [[nodiscard]] std::string to_string() const override;
+
+    [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
 
     void do_interpret(Interpreter *interpreter) override;
 };
@@ -202,7 +248,13 @@ public:
 
     [[nodiscard]] std::shared_ptr<Value> get_value() const { return operands_[0]; }
 
+    std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) override {
+        return create(name_, get_value(), block);
+    }
+
     [[nodiscard]] std::string to_string() const override;
+
+    [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
 
     void do_interpret(Interpreter *interpreter) override;
 };
@@ -248,7 +300,13 @@ public:
 
     [[nodiscard]] Op fcmp_op() const { return op; }
 
+    std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) override {
+        return create(name_, fcmp_op(), get_lhs(), get_rhs(), block); // Fcmp 用 fcmp_op()
+    }
+
     [[nodiscard]] std::string to_string() const override;
+
+    [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
 
     void do_interpret(Interpreter *interpreter) override;
 };
@@ -312,7 +370,13 @@ public:
 
     [[nodiscard]] Op icmp_op() const { return op; }
 
+    std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) override {
+        return create(name_, icmp_op(), get_lhs(), get_rhs(), block); // Fcmp 用 fcmp_op()
+    }
+
     [[nodiscard]] std::string to_string() const override;
+
+    [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
 
     void do_interpret(Interpreter *interpreter) override;
 };
@@ -331,19 +395,27 @@ public:
 
     [[nodiscard]] std::shared_ptr<Value> get_value() const { return operands_[0]; }
 
+    std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) override {
+        return create(name_, get_value(), block);
+    }
+
     [[nodiscard]] std::string to_string() const override;
+
+    [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
 
     void do_interpret(Interpreter *interpreter) override;
 };
 
 class Terminator : public Instruction {
 protected:
-    Terminator(const std::shared_ptr<Type::Type> &type, const Operator op) : Instruction("", type, op) {}
+    Terminator(const std::shared_ptr<Type::Type> &type, const Operator op) :
+        Instruction("", type, op) {}
 };
 
 class Jump final : public Terminator {
 public:
-    explicit Jump(const std::shared_ptr<Block> &) : Terminator(Type::Label::label, Operator::JUMP) {}
+    explicit Jump(const std::shared_ptr<Block> &) :
+        Terminator(Type::Label::label, Operator::JUMP) {}
 
     static std::shared_ptr<Jump> create(const std::shared_ptr<Block> &target_block,
                                         const std::shared_ptr<Block> &block);
@@ -352,7 +424,13 @@ public:
         return std::static_pointer_cast<Block>(operands_[0]);
     }
 
+    std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) override {
+        return create(get_target_block(), block);
+    }
+
     [[nodiscard]] std::string to_string() const override;
+
+    [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
 
     void do_interpret(Interpreter *interpreter) override;
 };
@@ -382,20 +460,28 @@ public:
         return std::static_pointer_cast<Block>(operands_[2]);
     }
 
+    std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) override {
+        return create(get_cond(), get_true_block(), get_false_block(), block);
+    }
+
     [[nodiscard]] std::string to_string() const override;
+
+    [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
 
     void do_interpret(Interpreter *interpreter) override;
 };
 
 class Ret final : public Terminator {
 public:
-    explicit Ret(const std::shared_ptr<Value> &value) : Terminator(Type::Void::void_, Operator::RET) {
+    explicit Ret(const std::shared_ptr<Value> &value) :
+        Terminator(Type::Void::void_, Operator::RET) {
         if (value->get_type()->is_void()) {
             log_error("Value must not be void");
         }
     }
 
-    explicit Ret() : Terminator(Type::Void::void_, Operator::RET) {}
+    explicit Ret() :
+        Terminator(Type::Void::void_, Operator::RET) {}
 
     static std::shared_ptr<Ret> create(const std::shared_ptr<Value> &value, const std::shared_ptr<Block> &block);
 
@@ -408,7 +494,13 @@ public:
         return operands_[0];
     }
 
+    std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) override {
+        return create(get_value(), block);
+    }
+
     [[nodiscard]] std::string to_string() const override;
+
+    [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
 
     void do_interpret(Interpreter *interpreter) override;
 };
@@ -432,6 +524,8 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
+    [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
+
     void do_interpret(Interpreter *interpreter) override;
 
     const std::unordered_map<std::shared_ptr<Value>, std::shared_ptr<Block>> &cases() const { return cases_table; }
@@ -450,6 +544,15 @@ public:
     void remove_case(const std::shared_ptr<Const> &value);
 
     void modify_operand(const std::shared_ptr<Value> &old_value, const std::shared_ptr<Value> &new_value) override;
+
+    std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) override {
+        auto sw = create(get_base(), get_default_block(), block);
+        for (const auto &[val, blk]: cases()) {
+            auto const_val = val->as<Const>();
+            sw->set_case(const_val, blk);
+        }
+        return sw;
+    }
 
 private:
     // 跳转表
@@ -505,7 +608,16 @@ public:
 
     [[nodiscard]] int get_const_string_index() const { return const_string_index; }
 
+    std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) override {
+        if (get_name().empty())
+            return create(get_function()->as<Function>(), get_params(), block, get_const_string_index());
+        else
+            return create(get_name(), get_function()->as<Function>(), get_params(), block);
+    }
+
     [[nodiscard]] std::string to_string() const override;
+
+    [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
 
     void do_interpret(Interpreter *interpreter) override;
 
@@ -517,7 +629,8 @@ public:
 class Binary : public Instruction {
 protected:
     Binary(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs,
-           const Operator op) : Instruction(name, lhs->get_type(), op) {
+           const Operator op) :
+        Instruction(name, lhs->get_type(), op) {
         if (lhs->get_type() != rhs->get_type()) {
             log_error("Operands must have the same type");
         }
@@ -537,6 +650,11 @@ public:
 
     // 满足结合律
     virtual bool is_associative() const = 0;
+
+    [[nodiscard]]
+    virtual std::shared_ptr<Instruction> clone_exact() {
+        log_error("Not implemented");
+    }
 };
 
 class IntBinary : public Binary {
@@ -546,7 +664,8 @@ public:
     const Op op;
 
     IntBinary(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs,
-              const Op op) : Binary(name, lhs, rhs, Operator::INTBINARY), op{op} {
+              const Op op) :
+        Binary(name, lhs, rhs, Operator::INTBINARY), op{op} {
         if (!lhs->get_type()->is_int32() || !rhs->get_type()->is_int32()) {
             log_error("Operands must be int 32");
         }
@@ -594,7 +713,8 @@ public:
     const Op op;
 
     FloatBinary(const std::string &name, const std::shared_ptr<Value> &lhs, const std::shared_ptr<Value> &rhs,
-                const Op op) : Binary(name, lhs, rhs, Operator::FLOATBINARY), op{op} {
+                const Op op) :
+        Binary(name, lhs, rhs, Operator::FLOATBINARY), op{op} {
         if (!lhs->get_type()->is_float() || !rhs->get_type()->is_float()) {
             log_error("Operands must be float");
         }
@@ -661,11 +781,15 @@ public:
                        const std::shared_ptr<Value> &rhs) : IntBinary(name, lhs, rhs, op) {}                           \
         static std::shared_ptr<Class> create(const std::string &name, const std::shared_ptr<Value> &lhs,               \
                                              const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);  \
-        std::shared_ptr<Instruction> clone() override {                                                                \
+        std::shared_ptr<Instruction> clone_exact() override {                                                          \
             return create(get_name(), get_lhs(), get_rhs(), get_block());                                              \
+        }                                                                                                              \
+        std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) override {                    \
+            return create(get_name(), get_lhs(), get_rhs(), block);                                                    \
         }                                                                                                              \
         [[nodiscard]] std::string to_string() const override;                                                          \
         void do_interpret(Interpreter *interpreter) override;                                                          \
+        [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;                        \
     };
 
 #define FLOATBINARY_DECLARE(Class, op)                                                                                 \
@@ -675,11 +799,15 @@ public:
                        const std::shared_ptr<Value> &rhs) : FloatBinary(name, lhs, rhs, op) {}                         \
         static std::shared_ptr<Class> create(const std::string &name, const std::shared_ptr<Value> &lhs,               \
                                              const std::shared_ptr<Value> &rhs, const std::shared_ptr<Block> &block);  \
-        std::shared_ptr<Instruction> clone() override {                                                                \
+        std::shared_ptr<Instruction> clone_exact() override {                                                          \
             return create(get_name(), get_lhs(), get_rhs(), get_block());                                              \
+        }                                                                                                              \
+        std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) override {                    \
+            return create(get_name(), get_lhs(), get_rhs(), block);                                                    \
         }                                                                                                              \
         [[nodiscard]] std::string to_string() const override;                                                          \
         void do_interpret(Interpreter *interpreter) override;                                                          \
+        [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;                        \
     };
 
 #define FLOATTENARY_DECLARE(Class, op)                                                                                 \
@@ -690,11 +818,15 @@ public:
         static std::shared_ptr<Class> create(const std::string &name, const std::shared_ptr<Value> &x,                 \
                                              const std::shared_ptr<Value> &y, const std::shared_ptr<Value> &z,         \
                                              const std::shared_ptr<Block> &block);                                     \
-        std::shared_ptr<Instruction> clone() override {                                                                \
+        std::shared_ptr<Instruction> clone_exact() {                                                                   \
             return create(get_name(), operands_[0], operands_[1], operands_[2], get_block());                          \
+        }                                                                                                              \
+        std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) override {                    \
+            return create(get_name(), operands_[0], operands_[1], operands_[2], block);                                \
         }                                                                                                              \
         [[nodiscard]] std::string to_string() const override;                                                          \
         void do_interpret(Interpreter *interpreter) override;                                                          \
+        [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;                        \
     };
 
 INTBINARY_DECLARE(Add, Op::ADD)
@@ -757,9 +889,15 @@ public:
 
     [[nodiscard]] std::shared_ptr<Value> get_value() const { return operands_[0]; }
 
+    std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) override {
+        return create(name_, get_value(), block);
+    }
+
     [[nodiscard]] std::string to_string() const override;
 
     void do_interpret(Interpreter *interpreter) override;
+
+    [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
 };
 
 class Phi final : public Instruction {
@@ -774,7 +912,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
 
-    [[nodiscard]] Optional_Values &get_optional_values() { return optional_values; }
+    [[nodiscard]] const Optional_Values &get_optional_values() { return optional_values; }
 
     [[nodiscard]] std::shared_ptr<Value> get_value_by_block(const std::shared_ptr<Block> &block);
 
@@ -786,7 +924,15 @@ public:
 
     [[deprecated]] std::shared_ptr<Block> find_optional_block(const std::shared_ptr<Value> &value);
 
+    std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) override {
+        return create(name_, type_, block, get_optional_values());
+    }
+
+    void fix_clone_info(const std::shared_ptr<Pass::LoopNodeClone> &clone_info) override;
+
     void do_interpret(Interpreter *interpreter) override;
+
+    [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
 
 private:
     Optional_Values optional_values;
@@ -816,14 +962,44 @@ public:
 
     [[nodiscard]] std::shared_ptr<Value> get_false_value() const { return operands_[2]; }
 
+    std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) override {
+        return create(name_, get_cond(), get_true_value(), get_false_value(), block);
+    }
+
     std::string to_string() const override;
 
     void do_interpret(Interpreter *interpreter) override;
+
+    [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
+};
+
+class Move final : public Instruction {
+public:
+    Move(const std::shared_ptr<Value> &to_value, const std::shared_ptr<Value> &from_value) :
+        Instruction{"", Type::Void::void_, Operator::MOVE} {
+        if (*to_value->get_type() != *from_value->get_type()) [[unlikely]] {
+            log_error("Type mismatch");
+        }
+    }
+
+    static std::shared_ptr<Move> create(const std::shared_ptr<Value> &to_value,
+                                           const std::shared_ptr<Value> &from_value,
+                                           const std::shared_ptr<Block> &block);
+
+    [[nodiscard]] std::shared_ptr<Value> get_to_value() const { return operands_[0]; }
+
+    [[nodiscard]] std::shared_ptr<Value> get_from_value() const { return operands_[1]; }
+
+    std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) override {
+        log_error("Not implemented");
+    }
+
+    std::string to_string() const override;
 };
 
 template<typename T, typename... Ts>
-std::shared_ptr<T> make_instruction(Ts &&...args) {
-    return T::create(std::forward<Ts>(args)...);
+std::shared_ptr<T> make_noinsert_instruction(Ts &&... args) {
+    return T::create(std::forward<Ts>(args)..., nullptr);
 }
 } // namespace Mir
 

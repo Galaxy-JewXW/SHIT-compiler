@@ -1,7 +1,5 @@
 #include "Compiler.h"
 
-extern const Optimize_level default_opt_level;
-
 const compiler_options debug_compile_options = {
     .input_file = "../testcase.sy",
     ._emit_options = {

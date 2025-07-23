@@ -15,6 +15,8 @@ public:
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
+    void transform(const std::shared_ptr<Mir::Function> &) override;
+
 private:
     std::shared_ptr<DominanceGraph> dom_graph{nullptr};
 
@@ -28,6 +30,8 @@ public:
 
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
+
+    void transform(const std::shared_ptr<Mir::Function> &) override;
 
 private:
     using ValuePtr = std::shared_ptr<Mir::Value>;
@@ -72,6 +76,8 @@ public:
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
+    void transform(const std::shared_ptr<Mir::Function> &) override;
+
 private:
     using ValuePtr = std::shared_ptr<Mir::Value>;
 
@@ -104,6 +110,8 @@ public:
 
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
+
+    void transform(const std::shared_ptr<Mir::Function> &) override;
 
 private:
     using IndexMap = std::unordered_map<int, std::vector<std::shared_ptr<Mir::GetElementPtr>>>;

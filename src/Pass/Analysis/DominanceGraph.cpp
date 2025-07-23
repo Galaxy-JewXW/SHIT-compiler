@@ -64,7 +64,7 @@ void build_dominators_dominated(const FunctionPtr &func,
         oss << "  ■ Block: \"" << block->get_name() << "\"\n"
             << "    └─ Dominates: " << Pass::Utils::format_blocks(dominated_blocks) << "\n";
     }
-    log_debug("%s", oss.str().c_str());
+    // log_trace("%s", oss.str().c_str());
 }
 
 [[deprecated("Use Tarjan instead"), maybe_unused]]
@@ -226,7 +226,7 @@ void build_dominance_children(const FunctionPtr &func, const std::unordered_map<
         oss << "  ■ Block: \"" << block->get_name() << "\"\n"
             << "    └─ Children: " << Pass::Utils::format_blocks(children) << "\n";
     }
-    log_debug("%s", oss.str().c_str());
+    // log_trace("%s", oss.str().c_str());
 }
 
 // 构建支配边界
@@ -274,12 +274,18 @@ void build_dominance_frontier(const FunctionPtr &func,
         oss << "  ■ Block: \"" << block->get_name() << "\"\n"
             << "    └─ Frontier: " << Pass::Utils::format_blocks(frontier) << "\n";
     }
-    log_debug("%s", oss.str().c_str());
+    // log_trace("%s", oss.str().c_str());
 }
 } // namespace
 
 namespace Pass {
 void DominanceGraph::analyze(const std::shared_ptr<const Mir::Module> module) {
+    if (const auto func_size = module->get_functions().size();
+        func_size != dirty_funcs_.size() || func_size != graphs_.size()) {
+        // 部分函数被删除了
+        graphs_.clear();
+        dirty_funcs_.clear();
+    }
     for (const auto &func: *module) {
         dirty_funcs_.try_emplace(func, true);
     }

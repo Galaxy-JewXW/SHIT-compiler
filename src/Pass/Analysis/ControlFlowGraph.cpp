@@ -51,7 +51,7 @@ void build_predecessors_successors(const FunctionPtr &func,
             << "    ├─←←← " << Pass::Utils::format_blocks(preds) << "\n"
             << "    └─→→→ " << Pass::Utils::format_blocks(succs) << "\n";
     }
-    log_debug("%s", oss.str().c_str());
+    // log_trace("%s", oss.str().c_str());
 }
 
 [[maybe_unused]]
@@ -101,6 +101,12 @@ void build_dom_tree_layer_order(const FunctionPtr &func,
 
 namespace Pass {
 void ControlFlowGraph::analyze(const std::shared_ptr<const Mir::Module> module) {
+    if (const auto func_size = module->get_functions().size();
+        func_size != dirty_funcs_.size() || func_size != graphs_.size()) {
+        // 部分函数被删除了
+        graphs_.clear();
+        dirty_funcs_.clear();
+    }
     for (const auto &func: *module) {
         dirty_funcs_.try_emplace(func, true);
     }

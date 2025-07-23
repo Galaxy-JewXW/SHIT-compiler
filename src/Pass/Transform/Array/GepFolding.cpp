@@ -88,13 +88,19 @@ void GepFolding::run_on_func(const std::shared_ptr<Function> &func) const {
     }
 }
 
-
 void GepFolding::transform(const std::shared_ptr<Module> module) {
     dom_graph = get_analysis_result<DominanceGraph>(module);
     for (const auto &func: *module) {
         run_on_func(func);
     }
     module->update_id();
+    dom_graph = nullptr;
+}
+
+void GepFolding::transform(const std::shared_ptr<Function> &func) {
+    dom_graph = get_analysis_result<DominanceGraph>(Module::instance());
+    run_on_func(func);
+    func->update_id();
     dom_graph = nullptr;
 }
 } // namespace Pass

@@ -7,6 +7,10 @@
 
 #include "Value.h"
 
+namespace Pass {
+class LoopNodeClone;
+}
+
 namespace Mir::Init {
 class Init;
 }
@@ -30,7 +34,7 @@ public:
 
     static void set_instance(const std::shared_ptr<Module> &module) { instance_ = module; }
 
-    static std::shared_ptr<Module> instance() { return instance_; }
+    static const std::shared_ptr<Module> &instance() { return instance_; }
 
     void add_global_variable(const std::shared_ptr<GlobalVariable> &global_variable) {
         global_variables.emplace_back(global_variable);
@@ -49,11 +53,13 @@ public:
 
     [[nodiscard]] std::vector<std::shared_ptr<Function>> &get_functions() { return functions; }
 
+    [[nodiscard]] const std::vector<std::shared_ptr<Function>> &get_functions() const { return functions; }
+
     [[nodiscard]] std::vector<std::shared_ptr<GlobalVariable>> &get_global_variables() { return global_variables; }
 
     void add_function(const std::shared_ptr<Function> &function) { functions.emplace_back(function); }
 
-    [[nodiscard]] std::shared_ptr<Function> get_function(const std::string &name) {
+    [[nodiscard]] std::shared_ptr<Function> get_function(const std::string &name) const {
         const auto it = std::find_if(functions.begin(), functions.end(),
                                      [&name](const auto &function) { return function->get_name() == name; });
         if (it != functions.end()) {
@@ -202,7 +208,10 @@ public:
     void modify_successor(const std::shared_ptr<Block> &old_successor,
                           const std::shared_ptr<Block> &new_successor) const;
 
-    std::shared_ptr<std::vector<std::shared_ptr<Instruction>>> get_phis();
+    std::shared_ptr<Block> cloneinfo_to_func(const std::shared_ptr<Pass::LoopNodeClone> &clone_info,
+                                             const std::shared_ptr<Function> &function);
+    void fix_clone_info(const std::shared_ptr<Pass::LoopNodeClone> &clone_info);
+    std::shared_ptr<std::vector<std::shared_ptr<Instruction>>> get_phis() const;
 };
 } // namespace Mir
 
