@@ -27,6 +27,7 @@ namespace RISCV::RegisterAllocator {
 class RISCV::RegisterAllocator::Allocator : public std::enable_shared_from_this<Allocator> {
     public:
         explicit Allocator(const std::shared_ptr<Backend::LIR::Function> &function, const std::shared_ptr<RISCV::Stack> &stack);
+        virtual ~Allocator() = default;
         virtual void allocate() = 0;
         RISCV::Registers::ABI get_register(const std::shared_ptr<Backend::Variable>& variable) const;
 

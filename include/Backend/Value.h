@@ -32,6 +32,7 @@ class Backend::Operand {
         Operand(const std::string &name) : name(name), operand_type(OperandType::VARIABLE) {};
         Operand(const std::string &name, OperandType type) : name(name), operand_type(type) {};
         virtual std::string to_string() const { return name; }
+        virtual ~Operand() = default;
 };
 
 class Backend::Constant : public Backend::Operand {
@@ -39,18 +40,21 @@ class Backend::Constant : public Backend::Operand {
         const Backend::VariableType constant_type;
         explicit Constant(const std::string &name, const Backend::VariableType &type) : Operand(name, OperandType::CONSTANT), constant_type(type) {}
         explicit Constant(const Backend::VariableType &type) : Operand("", OperandType::CONSTANT), constant_type(type) {}
+        ~Constant() override = default;
 };
 
 class Backend::IntValue : public Backend::Constant {
     public:
         const int32_t int32_value{0};
         explicit IntValue(const int32_t value) : Backend::Constant(std::to_string(value), Backend::VariableType::INT32), int32_value(value) {};
+        ~IntValue() override = default;
 };
 
 class Backend::FloatValue : public Backend::Constant {
     public:
         const double float_value{0.0};
         explicit FloatValue(const double value) : Backend::Constant(std::to_string(value), Backend::VariableType::FLOAT), float_value(value) {};
+        ~FloatValue() override = default;
 };
 
 /*
@@ -71,6 +75,7 @@ class Backend::Variable : public Backend::Operand {
         size_t length{1};
         explicit Variable(const std::string &name, const Backend::VariableType &type, VariableWide lifetime) : Backend::Operand(name, OperandType::VARIABLE), workload_type(type), lifetime(lifetime) {}
         explicit Variable(const std::string &name, const Backend::VariableType &type, VariableWide position, size_t length) : Backend::Operand(name, OperandType::VARIABLE), workload_type(type), lifetime(position), length(length) {}
+        virtual ~Variable() = default;
 
         [[nodiscard]] inline size_t size() const {
             return Backend::Utils::type_to_size(workload_type) * length;
@@ -93,6 +98,7 @@ class Backend::Pointer : public Backend::Variable {
         explicit Pointer(const std::string &name, const std::shared_ptr<Backend::Variable> &base, std::shared_ptr<Backend::Operand> &offset) : Backend::Variable(name, Backend::Utils::to_pointer(base->workload_type), VariableWide::LOCAL), base(base), offset(offset) {
             var_type = Type::PTR;
         }
+        ~Pointer() override = default;
 };
 
 /*
@@ -116,6 +122,7 @@ class Backend::Comparison : public Backend::Variable {
         explicit Comparison(const std::string &name, const std::shared_ptr<Backend::Operand> &lhs, const std::shared_ptr<Backend::Variable> &rhs, Type compare_type) : Backend::Variable(name, Backend::VariableType::INT1, VariableWide::LOCAL), lhs(rhs), rhs(lhs), compare_type(compare_type) {
             var_type = Variable::Type::CMP;
         }
+        ~Comparison() override = default;
 
         [[nodiscard]] static Type load_from_llvm(const Mir::Icmp::Op &op) {
             switch (op) {
