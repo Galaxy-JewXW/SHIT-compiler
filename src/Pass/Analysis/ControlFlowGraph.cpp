@@ -51,7 +51,7 @@ void build_predecessors_successors(const FunctionPtr &func,
             << "    ├─←←← " << Pass::Utils::format_blocks(preds) << "\n"
             << "    └─→→→ " << Pass::Utils::format_blocks(succs) << "\n";
     }
-    log_trace("%s", oss.str().c_str());
+    // log_trace("%s", oss.str().c_str());
 }
 
 [[maybe_unused]]

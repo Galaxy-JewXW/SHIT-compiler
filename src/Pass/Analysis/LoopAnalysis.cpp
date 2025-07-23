@@ -13,19 +13,29 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
     std::shared_ptr<Mir::Module> mutable_module = std::const_pointer_cast<Mir::Module>(module);
     cfg_info->run_on(mutable_module);
 
+    if (const auto func_size = module->get_functions().size();
+        func_size != dirty_funcs_.size() || func_size != loop_forest_.size() || func_size != loops_.size()) {
+        loops_.clear();
+        loop_forest_.clear();
+        dirty_funcs_.clear();
+    }
+    for (const auto &func: *module) {
+        dirty_funcs_.try_emplace(func, true);
+    }
+
     // TODO: 这里的逻辑也稍有混乱了，好好设计整理一下
     for (const auto &func: *module) {
         if (!dirty_funcs_.at(func))
             continue;
 
-        auto block_predecessors = cfg_info->graph(func).predecessors;
-        auto block_successors = cfg_info->graph(func).successors;
-        auto block_dominators = dom_info->graph(func).dominator_blocks;
+        auto &block_predecessors = cfg_info->graph(func).predecessors;
+        auto &block_successors = cfg_info->graph(func).successors;
+        auto &block_dominators = dom_info->graph(func).dominator_blocks;
 
         std::vector<std::shared_ptr<Mir::Block>> headers;
         for (const auto &block: dom_info->post_order_blocks(func)) {
-            for (const auto &predecessor: block_predecessors[block]) {
-                if (block_dominators[predecessor].find(block) != block_dominators[predecessor].end()) {
+            for (const auto &predecessor: block_predecessors.at(block)) {
+                if (block_dominators.at(predecessor).find(block) != block_dominators.at(predecessor).end()) {
                     headers.push_back(block);
                     break;
                 }
@@ -35,8 +45,8 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
 
         for (const auto &header_block: headers) {
             std::vector<BlockPtr> latching_blocks;
-            for (const auto &predecessor: block_predecessors[header_block]) {
-                if (block_dominators[predecessor].find(header_block) != block_dominators[predecessor].end()) {
+            for (const auto &predecessor: block_predecessors.at(header_block)) {
+                if (block_dominators.at(predecessor).find(header_block) != block_dominators.at(predecessor).end()) {
                     latching_blocks.push_back(predecessor);
                 }
             } // 确认 latching_blocks,接下来 latching 节点的支配节点组成该循环
@@ -55,7 +65,7 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
                 auto current_block = working_set.back();
                 working_set.pop_back();
                 if (current_block != header_block) {
-                    for (const auto &predecessor: block_predecessors[current_block]) {
+                    for (const auto &predecessor: block_predecessors.at(current_block)) {
                         if (std::find(visited_blocks.begin(), visited_blocks.end(), predecessor) ==
                             visited_blocks.end()) {
                             working_set.push_back(predecessor);
@@ -74,7 +84,7 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
             } // 将结点的所有前驱结点加入循环结点集（自然循环中，循环所有结点被 header 支配）
 
             for (auto &block: loop_blocks) {
-                for (auto &succ: block_successors[block]) {
+                for (auto &succ: block_successors.at(block)) {
                     if (std::find(loop_blocks.begin(), loop_blocks.end(), succ) == loop_blocks.end()) {
                         exiting_blocks.push_back(block);
                         if (std::find(exit_block.begin(), exit_block.end(), succ) == exit_block.end())

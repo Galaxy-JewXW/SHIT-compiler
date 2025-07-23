@@ -1,6 +1,11 @@
-#include "Mir/Instruction.h"
+#include "Mir/FunctionCloneHelper.h"
+#include "Pass/Analyses/ControlFlowGraph.h"
 
 namespace Mir {
+FunctionCloneHelper::FunctionCloneHelper() {
+    cfg_info = Pass::get_analysis_result<Pass::ControlFlowGraph>(Module::instance());
+}
+
 std::shared_ptr<Value> FunctionCloneHelper::get_or_create(const std::shared_ptr<Value> &origin_value) {
     if (origin_value == nullptr) [[unlikely]] {
         return nullptr;
@@ -30,9 +35,6 @@ void FunctionCloneHelper::clone_instruction(const std::shared_ptr<Instruction> &
         return;
     }
     const auto cloned_inst{origin_instruction->clone(*this)};
-    if (cloned_inst->get_op() == Operator::PHI) {
-        phis.insert(cloned_inst->as<Phi>());
-    }
     const auto cloned_parent{get_or_create(parent_block)->as<Block>()};
     cloned_inst->set_block(cloned_parent, false);
     if (!lazy_cloning) {
@@ -41,12 +43,52 @@ void FunctionCloneHelper::clone_instruction(const std::shared_ptr<Instruction> &
     value_map.insert({origin_instruction, cloned_inst});
 }
 
+void FunctionCloneHelper::clone_block(const std::shared_ptr<Block> &origin_block) {
+    visited_blocks.insert(origin_block);
+    for (const auto &origin_inst: origin_block->get_instructions()) {
+        clone_instruction(origin_inst, origin_block, false);
+    }
+    for (const auto &origin_child: cfg_info->graph(current_func).successors.at(origin_block)) {
+        if (!visited_blocks.count(origin_child)) {
+            clone_block(origin_child);
+        }
+    }
+}
+
 std::shared_ptr<Function> FunctionCloneHelper::clone_function(const std::shared_ptr<Function> &origin_func) {
-    return nullptr;
+    current_func = origin_func;
+    auto cloned_function = std::make_shared<Function>(origin_func->get_name() + "_cloned",
+                                                      origin_func->get_return_type());
+    const auto &origin_arguments{origin_func->get_arguments()};
+    for (size_t i{0}; i < origin_arguments.size(); ++i) {
+        const auto cloned_arg = std::make_shared<Argument>("arg" + std::to_string(i),
+                                                           origin_arguments[i]->get_type(), i);
+        value_map.insert({origin_arguments[i], cloned_arg});
+        cloned_function->add_argument(cloned_arg);
+    }
+
+    const auto &origin_blocks{origin_func->get_blocks()};
+    for (size_t i{0}; i < origin_blocks.size(); ++i) {
+        const auto cloned_block = Block::create("block" + std::to_string(i), cloned_function);
+        value_map.insert({origin_blocks[i], cloned_block});
+    }
+
+    clone_block(origin_func->get_blocks().front());
+
+    for (const auto &phi: phis) {
+        const auto cloned_phi{get_or_create(phi)->as<Phi>()};
+        for (const auto &[b, v]: phi->get_optional_values()) {
+            cloned_phi->set_optional_value(get_or_create(b)->as<Block>(), get_or_create(v));
+        }
+    }
+
+    cfg_info = nullptr;
+    current_func = nullptr;
+    return cloned_function;
 }
 
 #define HELPER_VALUE(v) (helper.get_or_create(v))
-#define STD_STRING(s) (std::string{"s"})
+#define STD_STRING(s) (std::string{#s})
 
 std::shared_ptr<Instruction> Alloc::clone(FunctionCloneHelper &helper) {
     return make_noinsert_instruction<Alloc>(STD_STRING(alloc), get_type()->as<Type::Pointer>()->get_contain_type());
@@ -136,10 +178,13 @@ std::shared_ptr<Instruction> FNeg::clone(FunctionCloneHelper &helper) {
 }
 
 std::shared_ptr<Instruction> Phi::clone(FunctionCloneHelper &helper) {
-    const auto phi{create(STD_STRING(phi), get_type(), nullptr, {})};
+    static int i{0};
+    const auto phi{create(STD_STRING(phi) + std::to_string(++i), get_type(), nullptr, {})};
     for (const auto &[b, v]: optional_values) {
         phi->optional_values[HELPER_VALUE(b)->as<Block>()] = nullptr;
+        phi->add_operand(HELPER_VALUE(b)->as<Block>());
     }
+    helper.get_phis().insert(shared_from_this()->as<Phi>());
     return phi;
 }
 
@@ -149,16 +194,16 @@ std::shared_ptr<Instruction> Select::clone(FunctionCloneHelper &helper) {
 }
 
 #define BINARY_CLONE(Class)                                                                                            \
-    std::shared_ptr<Instruction> Class::clone(FunctionCloneHelper &helper) {                                           \
-        return make_noinsert_instruction<Class>(std::string{#Class}, HELPER_VALUE(get_lhs()),                          \
-                                                HELPER_VALUE(get_rhs()));                                              \
-    }
+std::shared_ptr<Instruction> Class::clone(FunctionCloneHelper &helper) {                                               \
+    return make_noinsert_instruction<Class>(std::string{#Class}, HELPER_VALUE(get_lhs()),                              \
+                                            HELPER_VALUE(get_rhs()));                                                  \
+}
 
 #define TERNARY_CLONE(Class)                                                                                           \
-    std::shared_ptr<Instruction> Class::clone(FunctionCloneHelper &helper) {                                           \
-        return make_noinsert_instruction<Class>(std::string{#Class}, HELPER_VALUE(get_x()), HELPER_VALUE(get_y()),     \
-                                                HELPER_VALUE(get_z()));                                                \
-    }
+std::shared_ptr<Instruction> Class::clone(FunctionCloneHelper &helper) {                                               \
+    return make_noinsert_instruction<Class>(std::string{#Class}, HELPER_VALUE(get_x()), HELPER_VALUE(get_y()),         \
+                                            HELPER_VALUE(get_z()));                                                    \
+}
 
 BINARY_CLONE(Add)
 BINARY_CLONE(Sub)
@@ -186,4 +231,5 @@ TERNARY_CLONE(FNmsub)
 #undef HELPER_VALUE
 #undef STD_STRING
 #undef BINARY_CLONE
+#undef TERNARY_CLONE
 } // namespace Mir

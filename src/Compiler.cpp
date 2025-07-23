@@ -12,7 +12,6 @@ int main(int argc, char *argv[]) {
     std::ifstream file(options.input_file);
     if (!file) {
         log_fatal("Could not open file %s: %s", options.input_file.c_str(), strerror(errno));
-        return 0;
     }
 
     std::stringstream buffer;
@@ -38,10 +37,10 @@ int main(int argc, char *argv[]) {
         emit_llvm(module, options._emit_options);
     }
 
-    if (options._emit_options.emit_riscv) {
-        RISCV::Assembler assembler(module);
-        emit_riscv(assembler, options);
-    }
+    // if (options._emit_options.emit_riscv) {
+    //     RISCV::Assembler assembler(module);
+    //     emit_riscv(assembler, options);
+    // }
 
     return 0;
 }

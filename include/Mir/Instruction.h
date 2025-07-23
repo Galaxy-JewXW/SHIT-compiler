@@ -16,26 +16,7 @@ namespace Mir {
 class Block;
 class Phi;
 
-class FunctionCloneHelper {
-public:
-    FunctionCloneHelper() = default;
-
-    std::shared_ptr<Function> clone_function(const std::shared_ptr<Function> &origin_func);
-
-    std::shared_ptr<Value> get_or_create(const std::shared_ptr<Value> &origin_value);
-
-private:
-    std::unordered_map<std::shared_ptr<Value>, std::shared_ptr<Value>> value_map;
-
-    std::unordered_set<std::shared_ptr<Block>> visited_blocks;
-
-    std::unordered_set<std::shared_ptr<Phi>> phis;
-
-    std::unordered_set<std::shared_ptr<Instruction>> cloned_instructions;
-
-    void clone_instruction(const std::shared_ptr<Instruction> &origin_instruction,
-                           const std::shared_ptr<Block> &parent_block, bool lazy_cloning);
-};
+class FunctionCloneHelper;
 
 enum class Operator {
     ALLOC,

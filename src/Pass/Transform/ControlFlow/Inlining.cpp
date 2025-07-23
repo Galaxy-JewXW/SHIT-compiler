@@ -1,3 +1,5 @@
+#include "Mir/FunctionCloneHelper.h"
+#include "Pass/Util.h"
 #include "Pass/Transforms/ControlFlow.h"
 
 using namespace Mir;
@@ -19,13 +21,16 @@ void move_instructions_after_call(const std::shared_ptr<Block> &current_block, c
 
 namespace Pass {
 bool Inlining::can_inline(const std::shared_ptr<Function> &func) const {
+    if (func->is_runtime_func()) [[unlikely]] {
+        return false;
+    }
     const auto &call_graph{func_info->call_graph_func(func)};
     const auto &reverse_call_graph{func_info->call_graph_reverse_func(func)};
     const auto &info{func_info->func_info(func)};
     return call_graph.empty() && !reverse_call_graph.empty() && !info.is_recursive;
 }
 
-void Inlining::do_inline(const std::shared_ptr<Function> &func) const {
+void Inlining::do_inline(const std::shared_ptr<Function> &func) {
     std::vector<std::shared_ptr<Call>> calls;
     const auto &reverse_call_graph{func_info->call_graph_reverse_func(func)};
 
@@ -44,6 +49,7 @@ void Inlining::do_inline(const std::shared_ptr<Function> &func) const {
 
     for (const auto &call: calls) {
         replace_call(call, call->get_block()->get_function(), func);
+        cfg_info = get_analysis_result<ControlFlowGraph>(Module::instance());
     }
 }
 
@@ -72,7 +78,60 @@ void Inlining::replace_call(const std::shared_ptr<Call> &call, const std::shared
         }
     }
 
+    FunctionCloneHelper helper;
+    const auto cloned_func = helper.clone_function(callee);
+    const auto real_params{call->get_params()};
+    if (cloned_func->get_arguments().size() != real_params.size()) [[unlikely]] {
+        log_fatal("Size mismatch");
+    }
+
+    for (size_t i{0}; i < real_params.size(); ++i) {
+        const auto &f_param{cloned_func->get_arguments().at(i)};
+        const auto &r_param{real_params.at(i)};
+        f_param->replace_by_new_value(r_param);
+    }
+
+    // 建立到cloned function的jump指令，准备移动cloned function的block
+    Jump::create(cloned_func->get_blocks().front(), current_block);
+
+    std::vector<std::pair<std::shared_ptr<Block>, std::shared_ptr<Ret>>> rets;
+    for (const auto &block: cloned_func->get_blocks()) {
+        if (const auto &inst{block->get_instructions().back()};
+            inst->get_op() == Operator::RET) {
+            rets.emplace_back(block, inst->as<Ret>());
+        }
+    }
+
+    // 将cloned function的ret替换为jump
+    if (return_type->is_void()) {
+        for (const auto &[b, ret]: rets) {
+            ret->clear_operands();
+            b->get_instructions().pop_back();
+            Jump::create(next_block, b);
+        }
+    } else {
+        const auto phi{Phi::create("phi", return_type, nullptr, {})};
+        phi->set_block(next_block, false);
+        next_block->get_instructions().insert(next_block->get_instructions().begin(), phi);
+        for (const auto &[b, ret]: rets) {
+            const auto ret_value{ret->get_value()};
+            if (ret_value == nullptr) [[unlikely]] {
+                log_error("Invalid ret");
+            }
+            ret->clear_operands();
+            phi->set_optional_value(b, ret_value);
+            b->get_instructions().pop_back();
+            Jump::create(next_block, b);
+        }
+        call->replace_by_new_value(phi);
+    }
+    for (const auto &block: cloned_func->get_blocks()) {
+        block->set_function(caller);
+    }
+    call->clear_operands();
+    current_block->get_instructions().erase(Utils::inst_as_iter(call).value());
     set_analysis_result_dirty<ControlFlowGraph>(caller);
+    caller->update_id();
 }
 
 void Inlining::transform(const std::shared_ptr<Module> module) {
@@ -93,5 +152,6 @@ void Inlining::transform(const std::shared_ptr<Module> module) {
 
     cfg_info = nullptr;
     func_info = nullptr;
+    create<SimplifyControlFlow>()->run_on(module);
 }
 } // namespace Pass
