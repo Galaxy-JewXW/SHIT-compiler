@@ -98,9 +98,9 @@ private:
     bool run_on_block(const std::shared_ptr<Mir::Function> &func, const std::shared_ptr<Mir::Block> &block,
                       std::unordered_map<std::string, std::shared_ptr<Mir::Instruction>> &value_hashmap);
 
-    std::shared_ptr<DominanceGraph> dom_info;
+    std::shared_ptr<DominanceGraph> dom_info{nullptr};
 
-    std::shared_ptr<FunctionAnalysis> func_analysis;
+    std::shared_ptr<FunctionAnalysis> func_analysis{nullptr};
 };
 
 // 全局变量局部化
@@ -144,6 +144,22 @@ protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
 
     // static void run_on_func(const std::shared_ptr<Mir::Function> &func);
+};
+
+// 移除phi，是后端的必备操作
+class RemovePhi final : public Transform {
+public:
+    explicit RemovePhi() : Transform("RemovePhi") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+private:
+    void run_on_func(const std::shared_ptr<Mir::Function> &func);
+
+    std::shared_ptr<ControlFlowGraph> cfg_info{nullptr};
+
+    std::unordered_set<std::shared_ptr<Mir::Instruction>> to_be_deleted;
 };
 } // namespace Pass
 

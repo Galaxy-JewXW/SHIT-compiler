@@ -64,7 +64,7 @@ void build_dominators_dominated(const FunctionPtr &func,
         oss << "  ■ Block: \"" << block->get_name() << "\"\n"
             << "    └─ Dominates: " << Pass::Utils::format_blocks(dominated_blocks) << "\n";
     }
-    log_trace("%s", oss.str().c_str());
+    // log_trace("%s", oss.str().c_str());
 }
 
 [[deprecated("Use Tarjan instead"), maybe_unused]]
@@ -226,7 +226,7 @@ void build_dominance_children(const FunctionPtr &func, const std::unordered_map<
         oss << "  ■ Block: \"" << block->get_name() << "\"\n"
             << "    └─ Children: " << Pass::Utils::format_blocks(children) << "\n";
     }
-    log_trace("%s", oss.str().c_str());
+    // log_trace("%s", oss.str().c_str());
 }
 
 // 构建支配边界
@@ -274,7 +274,7 @@ void build_dominance_frontier(const FunctionPtr &func,
         oss << "  ■ Block: \"" << block->get_name() << "\"\n"
             << "    └─ Frontier: " << Pass::Utils::format_blocks(frontier) << "\n";
     }
-    log_trace("%s", oss.str().c_str());
+    // log_trace("%s", oss.str().c_str());
 }
 } // namespace
 

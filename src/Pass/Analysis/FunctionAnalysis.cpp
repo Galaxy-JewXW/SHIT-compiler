@@ -159,20 +159,20 @@ static void print_function_analysis(const FunctionPtr &func, const FunctionMap &
     } else {
         oss << "  (None)" << std::endl;
     }
-    const auto &[is_recursive, is_leaf, memory_read, memory_write, memory_alloc, io_read, io_write, has_return,
-                 has_side_effect, no_state, used_global_variables] = infos.at(func);
-    oss << "Function attributes:" << std::endl;
-    oss << "  is_recursive    : " << (is_recursive ? "true" : "false") << std::endl;
-    oss << "  is_leaf         : " << (is_leaf ? "true" : "false") << std::endl;
-    oss << "  memory_read     : " << (memory_read ? "true" : "false") << std::endl;
-    oss << "  memory_write    : " << (memory_write ? "true" : "false") << std::endl;
-    oss << "  memory_alloc    : " << (memory_alloc ? "true" : "false") << std::endl;
-    oss << "  io_read         : " << (io_read ? "true" : "false") << std::endl;
-    oss << "  io_write        : " << (io_write ? "true" : "false") << std::endl;
-    oss << "  has_return      : " << (has_return ? "true" : "false") << std::endl;
-    oss << "  has_side_effect : " << (has_side_effect ? "true" : "false") << std::endl;
-    oss << "  no_state        : " << (no_state ? "true" : "false") << std::endl;
-    log_trace("\n%s", oss.str().c_str());
+    // const auto &[is_recursive, is_leaf, memory_read, memory_write, memory_alloc, io_read, io_write, has_return,
+    //              has_side_effect, no_state, used_global_variables] = infos.at(func);
+    // oss << "Function attributes:" << std::endl;
+    // oss << "  is_recursive    : " << (is_recursive ? "true" : "false") << std::endl;
+    // oss << "  is_leaf         : " << (is_leaf ? "true" : "false") << std::endl;
+    // oss << "  memory_read     : " << (memory_read ? "true" : "false") << std::endl;
+    // oss << "  memory_write    : " << (memory_write ? "true" : "false") << std::endl;
+    // oss << "  memory_alloc    : " << (memory_alloc ? "true" : "false") << std::endl;
+    // oss << "  io_read         : " << (io_read ? "true" : "false") << std::endl;
+    // oss << "  io_write        : " << (io_write ? "true" : "false") << std::endl;
+    // oss << "  has_return      : " << (has_return ? "true" : "false") << std::endl;
+    // oss << "  has_side_effect : " << (has_side_effect ? "true" : "false") << std::endl;
+    // oss << "  no_state        : " << (no_state ? "true" : "false") << std::endl;
+    // log_trace("\n%s", oss.str().c_str());
 }
 
 void FunctionAnalysis::analyze(const std::shared_ptr<const Mir::Module> module) {

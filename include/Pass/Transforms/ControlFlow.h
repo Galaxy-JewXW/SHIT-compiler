@@ -6,7 +6,6 @@
 #include "Pass/Analyses/FunctionAnalysis.h"
 #include "Pass/Transform.h"
 
-
 namespace Pass {
 /**
  * 简化控制流：
@@ -139,7 +138,7 @@ private:
 
     [[nodiscard]] bool can_inline(const std::shared_ptr<Mir::Function> &func) const;
 
-    void do_inline(const std::shared_ptr<Mir::Function> &func) const;
+    void do_inline(const std::shared_ptr<Mir::Function> &func);
 
     void replace_call(const std::shared_ptr<Mir::Call> &call, const std::shared_ptr<Mir::Function> &caller,
                       const std::shared_ptr<Mir::Function> &callee) const;

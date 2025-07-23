@@ -75,7 +75,9 @@ public:
 
     [[nodiscard]] virtual bool is_constant() const { return false; }
 
-    [[nodiscard]] virtual std::string to_string() const = 0;
+    [[nodiscard]] virtual std::string to_string() const {
+        return get_type()->to_string() + std::string{" "} + get_name();
+    }
 
     class UserRange {
         using UserPtr = std::weak_ptr<User>;
