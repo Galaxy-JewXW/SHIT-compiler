@@ -173,7 +173,11 @@ protected:
 private:
     void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
 
+    void in_block_schedule(const std::shared_ptr<Mir::Function> &func) const;
+
     std::shared_ptr<DominanceGraph> dom_graph{nullptr};
+
+    std::shared_ptr<FunctionAnalysis> func_info{nullptr};
 };
 } // namespace Pass
 
