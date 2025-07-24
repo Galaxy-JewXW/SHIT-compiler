@@ -49,16 +49,16 @@ void log_log(const int level, const char *file, const int line, const char *fmt,
     const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time).count();
 
 #ifdef LOG_USE_COLOR
-    fprintf(stderr, "[%5ldms] %s%-5s\x1b[0m \x1b[90m%s:%d:\x1b[0m ", static_cast<long>(elapsed_ms), level_colors[level],
+    fprintf(stdout, "[%5ldms] %s%-5s\x1b[0m \x1b[90m%s:%d:\x1b[0m ", static_cast<long>(elapsed_ms), level_colors[level],
             level_strings[level], file, line);
 #else
-    fprintf(stderr, "[%5ldms] %-5s %s:%d: ", static_cast<long>(elapsed_ms), level_strings[level], file, line);
+    fprintf(stdout, "[%5ldms] %-5s %s:%d: ", static_cast<long>(elapsed_ms), level_strings[level], file, line);
 #endif
 
     va_list ap;
     va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
+    vfprintf(stdout, fmt, ap);
     va_end(ap);
-    fprintf(stderr, "\n");
-    fflush(stderr);
+    fprintf(stdout, "\n");
+    fflush(stdout);
 }
