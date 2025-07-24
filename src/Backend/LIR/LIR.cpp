@@ -16,26 +16,9 @@ std::shared_ptr<Backend::Variable> Backend::LIR::Module::ensure_variable(const s
 }
 
 void Backend::LIR::Module::load_functional_variables(const std::shared_ptr<Mir::Function> &llvm_function, std::shared_ptr<Backend::LIR::Function> &lir_function) {
-    size_t int_count = 0, float_count = 0;
     for (const std::shared_ptr<Mir::Argument> &llvm_arg : llvm_function->get_arguments()) {
-        std::shared_ptr<Backend::Variable> arg;
         Backend::VariableType arg_type = Backend::Utils::llvm_to_riscv(*llvm_arg->get_type());
-        std::shared_ptr<Backend::Variable> arg_ = std::make_shared<Backend::Variable>(llvm_arg->get_name(), arg_type, VariableWide::LOCAL);
-        if (Backend::Utils::is_int(arg_type)) {
-            if (int_count++ < 8) {
-                arg = std::make_shared<Backend::Variable>(llvm_arg->get_name(), arg_type, VariableWide::LOCAL);
-            } else {
-                arg = std::make_shared<Backend::Variable>(llvm_arg->get_name() + "_imem", Backend::Utils::to_pointer(arg_type), VariableWide::FUNCTIONAL);
-                lir_function->blocks.front()->instructions.push_back(std::make_shared<LoadInt>(arg, arg_));
-            }
-        } else {
-            if (float_count++ < 8) {
-                arg = std::make_shared<Backend::Variable>(llvm_arg->get_name(), arg_type, VariableWide::LOCAL);
-            } else {
-                arg = std::make_shared<Backend::Variable>(llvm_arg->get_name() + "_fmem", Backend::Utils::to_pointer(arg_type), VariableWide::FUNCTIONAL);
-                lir_function->blocks.front()->instructions.push_back(std::make_shared<LoadFloat>(arg, arg_));
-            }
-        }
+        std::shared_ptr<Backend::Variable> arg = std::make_shared<Backend::Variable>(llvm_arg->get_name(), arg_type, VariableWide::LOCAL);
         lir_function->add_variable(arg);
         lir_function->parameters.push_back(arg);
     }
