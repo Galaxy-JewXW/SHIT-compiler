@@ -136,7 +136,8 @@ void Helper::build() {
 
 namespace Pass {
 void RemovePhi::run_on_func(const std::shared_ptr<Function> &func) {
-    for (const auto &block: func->get_blocks()) {
+    const auto snap{func->get_blocks()};
+    for (const auto &block: snap) {
         if (block->get_instructions().front()->get_op() != Operator::PHI)
             continue;
         std::vector<std::shared_ptr<Phi>> phis;
