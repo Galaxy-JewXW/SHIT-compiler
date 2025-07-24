@@ -76,7 +76,7 @@ void LoopUnSwitch::handle_branch(std::shared_ptr<LoopNodeTreeNode> &node,
         clone_infos.push_back(new_info);
         auto new_node = new_info->node_cpy;
 
-        for (int j = 0; j < branch_vector.size(); j++) {
+        for (size_t j = 0; j < branch_vector.size(); j++) {
             auto cond_instr = new_info->get_value_reflect(branch_vector[j])->as<Mir::Instruction>();
             auto cond_block = cond_instr->get_block();
             cond_block->get_instructions().erase(Utils::inst_as_iter(cond_instr).value());
