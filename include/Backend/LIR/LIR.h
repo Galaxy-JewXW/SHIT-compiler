@@ -33,6 +33,7 @@ namespace Backend::LIR {
         MOD, FMOD,
         LOAD, LOAD_IMM, LOAD_ADDR,
         FLOAD, LOAD_FLOAT_IMM,
+        I2F, F2I,
         STORE, FSTORE,
         CALL,
         RETURN,
@@ -57,8 +58,10 @@ namespace Backend::LIR {
     class LoadFloat;
     class StoreInt;
     class StoreFloat;
+    class Convert;
     class BranchInstruction;
-    class JumpInstruction;
+    class FBranchInstruction;
+    class Jump;
     class Return;
     class Move;
 };
@@ -184,7 +187,9 @@ class Backend::LIR::Instruction {
         Instruction(InstructionType type) : type(type) {}
 
         virtual std::shared_ptr<Backend::Variable> get_defined_variable() const { return nullptr; }
+        virtual void update_defined_variable(const std::shared_ptr<Backend::Variable> &var) {}
         virtual std::vector<std::shared_ptr<Backend::Variable>> get_used_variables() const { return {}; }
+        virtual void update_used_variable(const std::shared_ptr<Backend::Variable> &original, const std::shared_ptr<Backend::Variable> &update_to) {}
 
         virtual std::string to_string() const = 0;
 };
@@ -221,15 +226,15 @@ class Backend::LIR::Function {
 
         virtual ~Function() = default;
 
-        inline void add_variable(const std::shared_ptr<Backend::Variable> &variable) {
+        void add_variable(const std::shared_ptr<Backend::Variable> &variable) {
             variables[variable->name] = variable;
         }
 
-        inline void remove_variable(const std::shared_ptr<Backend::Variable> &variable) {
+        void remove_variable(const std::shared_ptr<Backend::Variable> &variable) {
             variables.erase(variable->name);
         }
 
-        [[nodiscard]] inline std::shared_ptr<Backend::Variable> find_variable(const std::string &name) const {
+        [[nodiscard]] std::shared_ptr<Backend::Variable> find_variable(const std::string &name) const {
             std::map<std::string, std::shared_ptr<Backend::Variable>>::const_iterator it = variables.find(name);
             if (it != variables.end()) {
                 return it->second;
@@ -237,26 +242,12 @@ class Backend::LIR::Function {
             return nullptr;
         }
 
-        inline void add_block(const std::shared_ptr<Backend::LIR::Block> &block) {
+        void add_block(const std::shared_ptr<Backend::LIR::Block> &block) {
             blocks.push_back(block);
             blocks_index[block->name] = block;
         }
 
-        inline void spill(std::shared_ptr<Backend::Variable> &local_variable) {
-            if (local_variable->lifetime != VariableWide::LOCAL)
-                log_error("Only variable in register can be spilled.");
-            local_variable->lifetime = VariableWide::FUNCTIONAL;
-            for (std::shared_ptr<Backend::LIR::Block> &block : blocks) {
-                for (std::shared_ptr<Backend::LIR::Instruction> &instr : block->instructions) {
-                    if (instr->get_defined_variable() == local_variable) {
-                        // TODO
-                        // insert `store` after the instruction
-                        // block->instructions.insert(block->instructions.begin() + (std::find(block->instructions.begin(), block->instructions.end(), instr) - block->instructions.begin()) + 1, store_instr);
-                    }
-                }
-            }
-        }
-
+        void spill(std::shared_ptr<Backend::Variable> &local_variable);
         void analyze_live_variables();
 
         [[nodiscard]] std::string to_string() const {

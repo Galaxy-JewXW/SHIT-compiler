@@ -215,11 +215,11 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
         case Backend::LIR::InstructionType::LOAD: {
             std::shared_ptr<Backend::LIR::LoadInt> instr = std::static_pointer_cast<Backend::LIR::LoadInt>(instruction);
             std::shared_ptr<Backend::Variable> addr = instr->var_in_mem;
-            std::shared_ptr<Backend::Variable> dest = std::static_pointer_cast<Backend::Variable>(instr->var_in_reg);
+            std::shared_ptr<Backend::Variable> dest = instr->var_in_reg;
             RISCV::Registers::ABI dest_reg = register_allocator->get_register(dest);
             if (addr->lifetime == Backend::VariableWide::GLOBAL) {
                 instrs.push_back(std::make_shared<RISCV::Instructions::LoadAddress>(dest_reg, addr));
-                instrs.push_back(std::make_shared<RISCV::Instructions::LoadWord>(dest_reg, dest_reg));
+                instrs.push_back(std::make_shared<RISCV::Instructions::LoadWord>(dest_reg, dest_reg, instr->offset));
             } else {
                 instrs.push_back(std::make_shared<RISCV::Instructions::LoadWordFromStack>(dest_reg, addr, stack));
             }
@@ -251,7 +251,7 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
             break;
         }
         case Backend::LIR::InstructionType::JUMP: {
-            std::shared_ptr<Backend::LIR::JumpInstruction> instr = std::static_pointer_cast<Backend::LIR::JumpInstruction>(instruction);
+            std::shared_ptr<Backend::LIR::Jump> instr = std::static_pointer_cast<Backend::LIR::Jump>(instruction);
             std::string target_block_name = instr->target_block->name;
             std::shared_ptr<RISCV::Block> target_block = find_block(target_block_name);
             instrs.push_back(std::make_shared<RISCV::Instructions::Jump>(target_block));
