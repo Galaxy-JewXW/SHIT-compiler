@@ -71,7 +71,7 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
                 // otherwise, load from an element pointer
                 std::shared_ptr<Backend::Pointer> ep = std::static_pointer_cast<Backend::Pointer>(load_from);
                 if (ep->offset->operand_type == Backend::OperandType::CONSTANT) {
-                    lir_block->instructions.push_back(std::make_shared<Backend::LIR::LoadInt>(ep->base, load_to, std::static_pointer_cast<Backend::IntValue>(ep->offset)->int32_value));
+                    lir_block->instructions.push_back(std::make_shared<Backend::LIR::LoadInt>(ep->base, load_to, std::static_pointer_cast<Backend::IntValue>(ep->offset)->int32_value * Backend::Utils::type_to_size(ep->base->workload_type)));
                 } else {
                     // base & offset both variable, we need to calculate before load
                     std::shared_ptr<Backend::Variable> base = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("addr"), Backend::VariableType::INT32_PTR, VariableWide::LOCAL);
@@ -101,7 +101,7 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
                     lir_block->instructions.push_back(std::make_shared<Backend::LIR::LoadAddress>(ep->base, base));
                 }
                 if (ep->offset->operand_type == Backend::OperandType::CONSTANT) {
-                    lir_block->instructions.push_back(std::make_shared<Backend::LIR::StoreInt>(base, store_from, std::static_pointer_cast<Backend::IntValue>(ep->offset)->int32_value));
+                    lir_block->instructions.push_back(std::make_shared<Backend::LIR::StoreInt>(base, store_from, std::static_pointer_cast<Backend::IntValue>(ep->offset)->int32_value * Backend::Utils::type_to_size(ep->base->workload_type)));
                 } else {
                     base = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("addr"), Backend::VariableType::INT32_PTR, VariableWide::LOCAL);
                     lir_block->parent_function.lock()->add_variable(base);
@@ -250,6 +250,30 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
             break;
         }
         default: break;
+    }
+}
+
+void Backend::LIR::Function::spill(std::shared_ptr<Backend::Variable> &local_variable) {
+    if (local_variable->lifetime != VariableWide::LOCAL)
+        log_error("Only variable in register can be spilled.");
+    local_variable->lifetime = VariableWide::FUNCTIONAL;
+    for (std::shared_ptr<Backend::LIR::Block> &block : blocks) {
+        for (size_t i = 0; i < block->instructions.size(); i++) {
+            std::shared_ptr<Backend::LIR::Instruction> &instr = block->instructions[i];
+            if (instr->get_defined_variable() == local_variable) {
+                // insert `store` after the instruction
+                std::shared_ptr<Backend::Variable> new_var = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("spill_"), local_variable->workload_type, VariableWide::LOCAL);
+                instr->update_defined_variable(new_var);
+                log_debug("Spilling variable %s to %s", local_variable->name.c_str(), new_var->name.c_str());
+                block->instructions.insert(block->instructions.begin() + i + 1, std::make_shared<Backend::LIR::StoreInt>(local_variable, new_var));
+            } else if (std::find(instr->get_used_variables().begin(), instr->get_used_variables().end(), local_variable) != instr->get_used_variables().end()) {
+                // insert `load` before the instruction
+                std::shared_ptr<Backend::Variable> new_var = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("spill_"), local_variable->workload_type, VariableWide::LOCAL);
+                instr->update_used_variable(local_variable, new_var);
+                log_debug("Loading spilled variable %s to %s", local_variable->name.c_str(), new_var->name.c_str());
+                block->instructions.insert(block->instructions.begin() + i, std::make_shared<Backend::LIR::LoadInt>(new_var, local_variable));
+            }
+        }
     }
 }
 

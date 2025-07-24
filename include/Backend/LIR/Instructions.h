@@ -24,12 +24,19 @@ class Backend::LIR::IntArithmetic : public Backend::LIR::Instruction {
 
         std::shared_ptr<Variable> get_defined_variable() const override { return result; }
 
+        void update_defined_variable(const std::shared_ptr<Backend::Variable> &var) override { result = var; }
+
         std::vector<std::shared_ptr<Variable>> get_used_variables() const override {
             std::vector<std::shared_ptr<Backend::Variable>> used;
             used.push_back(std::static_pointer_cast<Variable>(lhs));
             if (rhs->operand_type == OperandType::VARIABLE)
                 used.push_back(std::static_pointer_cast<Variable>(rhs));
             return used;
+        }
+
+        void update_used_variable(const std::shared_ptr<Backend::Variable> &original, const std::shared_ptr<Backend::Variable> &update_to) override {
+            if (lhs == original) lhs = update_to;
+            if (rhs->operand_type == OperandType::VARIABLE && std::static_pointer_cast<Variable>(rhs) == original) rhs = update_to;
         }
 };
 
@@ -49,12 +56,19 @@ class Backend::LIR::FloatArithmetic : public Backend::LIR::Instruction {
 
         std::shared_ptr<Variable> get_defined_variable() const override { return result; }
 
+        void update_defined_variable(const std::shared_ptr<Backend::Variable> &var) override { result = var; }
+
         std::vector<std::shared_ptr<Backend::Variable>> get_used_variables() const override {
             std::vector<std::shared_ptr<Backend::Variable>> used;
             used.push_back(std::static_pointer_cast<Variable>(lhs));
             if (rhs->operand_type == OperandType::VARIABLE)
                 used.push_back(std::static_pointer_cast<Variable>(rhs));
             return used;
+        }
+
+        void update_used_variable(const std::shared_ptr<Backend::Variable> &original, const std::shared_ptr<Backend::Variable> &update_to) override {
+            if (lhs == original) lhs = update_to;
+            if (rhs->operand_type == OperandType::VARIABLE && std::static_pointer_cast<Variable>(rhs) == original) rhs = update_to;
         }
 };
 
@@ -75,6 +89,8 @@ class Backend::LIR::LoadIntImm : public Backend::LIR::Instruction {
         }
 
         std::shared_ptr<Variable> get_defined_variable() const override { return var_in_reg; }
+
+        void update_defined_variable(const std::shared_ptr<Backend::Variable> &var) override { var_in_reg = var; }
 };
 
 /*
@@ -94,6 +110,8 @@ class Backend::LIR::LoadFloatImm : public Backend::LIR::Instruction {
         }
 
         std::shared_ptr<Variable> get_defined_variable() const override { return var_in_reg; }
+
+        void update_defined_variable(const std::shared_ptr<Backend::Variable> &var) override { var_in_reg = var; }
 };
 
 /*
@@ -131,8 +149,14 @@ class Backend::LIR::Move : public Backend::LIR::Instruction {
 
         std::shared_ptr<Variable> get_defined_variable() const override { return target; }
 
+        void update_defined_variable(const std::shared_ptr<Backend::Variable> &var) override { target = var; }
+
         std::vector<std::shared_ptr<Backend::Variable>> get_used_variables() const override {
             return {source};
+        }
+
+        void update_used_variable(const std::shared_ptr<Backend::Variable> &original, const std::shared_ptr<Backend::Variable> &update_to) override {
+            if (source == original) source = update_to;
         }
 };
 
@@ -141,7 +165,7 @@ class Backend::LIR::Move : public Backend::LIR::Instruction {
  */
 class Backend::LIR::Call : public Backend::LIR::Instruction {
     public:
-        const std::shared_ptr<Backend::Variable> result;
+        std::shared_ptr<Backend::Variable> result;
         std::shared_ptr<Backend::LIR::Function> function;
         std::vector<std::shared_ptr<Backend::Variable>> arguments;
 
@@ -162,11 +186,21 @@ class Backend::LIR::Call : public Backend::LIR::Instruction {
 
         std::shared_ptr<Variable> get_defined_variable() const override { return result; }
 
+        void update_defined_variable(const std::shared_ptr<Backend::Variable> &var) override {
+            if (result) result = var;
+        }
+
         std::vector<std::shared_ptr<Backend::Variable>> get_used_variables() const override {
             std::vector<std::shared_ptr<Backend::Variable>> used;
             for (const std::shared_ptr<Backend::Variable> &arg : arguments)
                 used.push_back(arg);
             return used;
+        }
+
+        void update_used_variable(const std::shared_ptr<Backend::Variable> &original, const std::shared_ptr<Backend::Variable> &update_to) override {
+            for (auto &arg : arguments) {
+                if (arg == original) arg = update_to;
+            }
         }
 };
 
@@ -186,6 +220,8 @@ class Backend::LIR::LoadInt : public Backend::LIR::Instruction {
         }
 
         std::shared_ptr<Variable> get_defined_variable() const override { return var_in_reg; }
+
+        void update_defined_variable(const std::shared_ptr<Backend::Variable> &var) override { var_in_reg = var; }
 };
 
 class Backend::LIR::LoadFloat : public Backend::LIR::Instruction {
@@ -204,6 +240,8 @@ class Backend::LIR::LoadFloat : public Backend::LIR::Instruction {
         }
 
         std::shared_ptr<Variable> get_defined_variable() const override { return var_in_reg; }
+
+        void update_defined_variable(const std::shared_ptr<Backend::Variable> &var) override { var_in_reg = var; }
 };
 
 class Backend::LIR::StoreInt : public Backend::LIR::Instruction {
@@ -224,6 +262,10 @@ class Backend::LIR::StoreInt : public Backend::LIR::Instruction {
         std::vector<std::shared_ptr<Backend::Variable>> get_used_variables() const override {
             return {var_in_reg};
         }
+
+        void update_used_variable(const std::shared_ptr<Backend::Variable> &original, const std::shared_ptr<Backend::Variable> &update_to) override {
+            if (var_in_reg == original) var_in_reg = update_to;
+        }
 };
 
 class Backend::LIR::StoreFloat : public Backend::LIR::Instruction {
@@ -235,7 +277,7 @@ class Backend::LIR::StoreFloat : public Backend::LIR::Instruction {
         StoreFloat(const std::shared_ptr<Variable> &var_in_mem, const std::shared_ptr<Variable> &var_in_reg, int32_t offset) : Instruction(InstructionType::FSTORE), var_in_mem(var_in_mem), var_in_reg(var_in_reg), offset(offset) {}
         StoreFloat(const std::shared_ptr<Variable> &var_in_mem, const std::shared_ptr<Variable> &var_in_reg) : Instruction(InstructionType::FSTORE), var_in_mem(var_in_mem), var_in_reg(var_in_reg) {}
 
-        inline std::string to_string() const override {
+        std::string to_string() const override {
             std::ostringstream oss;
             oss << "store from " << var_in_reg->to_string() << " to " << var_in_mem->to_string() << " + " << offset;
             return oss.str();
@@ -244,6 +286,10 @@ class Backend::LIR::StoreFloat : public Backend::LIR::Instruction {
         std::vector<std::shared_ptr<Backend::Variable>> get_used_variables() const override {
             return {var_in_reg};
         }
+
+        void update_used_variable(const std::shared_ptr<Backend::Variable> &original, const std::shared_ptr<Backend::Variable> &update_to) override {
+            if (var_in_reg == original) var_in_reg = update_to;
+        }
 };
 
 class Backend::LIR::Jump : public Backend::LIR::Instruction {
@@ -251,7 +297,7 @@ class Backend::LIR::Jump : public Backend::LIR::Instruction {
         std::shared_ptr<Backend::LIR::Block> target_block;
         Jump(const std::shared_ptr<Backend::LIR::Block> &target_block) : Instruction(InstructionType::JUMP), target_block(target_block) {}
 
-        inline std::string to_string() const override {
+        std::string to_string() const override {
             std::ostringstream oss;
             oss << "goto " << target_block->name;
             return oss.str();
@@ -271,7 +317,7 @@ class Backend::LIR::BranchInstruction : public Backend::LIR::Instruction {
         BranchInstruction(const InstructionType type, const std::shared_ptr<Backend::Variable> &lhs, const std::shared_ptr<Backend::Variable> &rhs, const std::shared_ptr<Backend::LIR::Block> &target_block) : Instruction(type), lhs(lhs), rhs(rhs), target_block(target_block) {}
         BranchInstruction(const InstructionType type, const std::shared_ptr<Backend::Variable> &lhs, const std::shared_ptr<Backend::LIR::Block> &target_block) : Instruction(type), lhs(lhs), target_block(target_block) {}
 
-        inline std::string to_string() const override {
+        std::string to_string() const override {
             std::ostringstream oss;
             oss << lhs->to_string()
                 << " " << Backend::Utils::to_string(type)
@@ -284,36 +330,18 @@ class Backend::LIR::BranchInstruction : public Backend::LIR::Instruction {
             if (rhs) {
                 return {lhs, rhs};
             } return {lhs};
+        }
+
+        void update_used_variable(const std::shared_ptr<Backend::Variable> &original, const std::shared_ptr<Backend::Variable> &update_to) override {
+            if (lhs == original) lhs = update_to;
+            if (rhs && rhs == original) rhs = update_to;
         }
 };
 
-/*
- * Condition jump.
- * If `rhs` refers to `zero`, then `rhs = nullptr`.
- */
-class Backend::LIR::FBranchInstruction : public Backend::LIR::Instruction {
+class Backend::LIR::FBranchInstruction : public Backend::LIR::BranchInstruction {
     public:
-        std::shared_ptr<Backend::Variable> lhs;
-        std::shared_ptr<Backend::Variable> rhs;
-        std::shared_ptr<Backend::LIR::Block> target_block;
-
-        FBranchInstruction(const InstructionType type, const std::shared_ptr<Backend::Variable> &lhs, const std::shared_ptr<Backend::Variable> &rhs, const std::shared_ptr<Backend::LIR::Block> &target_block) : Instruction(type), lhs(lhs), rhs(rhs), target_block(target_block) {}
-        FBranchInstruction(const InstructionType type, const std::shared_ptr<Backend::Variable> &lhs, const std::shared_ptr<Backend::LIR::Block> &target_block) : Instruction(type), lhs(lhs), target_block(target_block) {}
-
-        inline std::string to_string() const override {
-            std::ostringstream oss;
-            oss << lhs->to_string()
-                << " " << Backend::Utils::to_string(type)
-                << " " << (rhs ? rhs->to_string() : "0")
-                << " goto " << target_block->name;
-            return oss.str();
-        }
-
-        std::vector<std::shared_ptr<Backend::Variable>> get_used_variables() const override {
-            if (rhs) {
-                return {lhs, rhs};
-            } return {lhs};
-        }
+        FBranchInstruction(const InstructionType type, const std::shared_ptr<Backend::Variable> &lhs, const std::shared_ptr<Backend::Variable> &rhs, const std::shared_ptr<Backend::LIR::Block> &target_block) : BranchInstruction(type, lhs, rhs, target_block) {}
+        FBranchInstruction(const InstructionType type, const std::shared_ptr<Backend::Variable> &lhs, const std::shared_ptr<Backend::LIR::Block> &target_block) : BranchInstruction(type, lhs, target_block) {}
 };
 
 /*
@@ -326,7 +354,7 @@ class Backend::LIR::Convert : public Backend::LIR::Instruction {
 
         Convert(const InstructionType type, const std::shared_ptr<Backend::Variable> &source, const std::shared_ptr<Backend::Variable> &dest) : Instruction(type), source(source), dest(dest) {}
 
-        inline std::string to_string() const override {
+        std::string to_string() const override {
             std::ostringstream oss;
             oss << source->to_string()
                 << " " << Backend::Utils::to_string(type)
@@ -335,7 +363,11 @@ class Backend::LIR::Convert : public Backend::LIR::Instruction {
         }
 
         std::shared_ptr<Backend::Variable> get_defined_variable() const override { return dest; }
+        void update_defined_variable(const std::shared_ptr<Backend::Variable> &var) override { dest = var; }
         std::vector<std::shared_ptr<Backend::Variable>> get_used_variables() const override { return {source}; }
+        void update_used_variable(const std::shared_ptr<Backend::Variable> &original, const std::shared_ptr<Backend::Variable> &update_to) override {
+            if (source == original) source = update_to;
+        }
 };
 
 /*
@@ -348,7 +380,7 @@ class Backend::LIR::Return : public Backend::LIR::Instruction {
         Return(const std::shared_ptr<Variable> &return_value) : Instruction(Backend::LIR::InstructionType::RETURN), return_value(return_value) {}
         Return() : Instruction(Backend::LIR::InstructionType::RETURN) {}
 
-        inline std::string to_string() const override {
+        std::string to_string() const override {
             std::ostringstream oss;
             oss << "return " << (return_value ? return_value->to_string() : "void");
             return oss.str();
@@ -356,6 +388,10 @@ class Backend::LIR::Return : public Backend::LIR::Instruction {
 
         std::vector<std::shared_ptr<Backend::Variable>> get_used_variables() const override {
             return return_value ? std::vector<std::shared_ptr<Backend::Variable>>{return_value} : std::vector<std::shared_ptr<Backend::Variable>>();
+        }
+
+        void update_used_variable(const std::shared_ptr<Backend::Variable> &original, const std::shared_ptr<Backend::Variable> &update_to) override {
+            if (return_value == original) return_value = update_to;
         }
 };
 #endif

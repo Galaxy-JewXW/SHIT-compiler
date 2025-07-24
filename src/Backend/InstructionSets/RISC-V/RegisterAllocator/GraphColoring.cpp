@@ -67,7 +67,8 @@ void RISCV::RegisterAllocator::GraphColoring::create_registers() {
                 // move return value to a0
                 std::shared_ptr<Backend::LIR::Return> ret = std::static_pointer_cast<Backend::LIR::Return>(instruction);
                 if (ret->return_value)
-                    block->instructions.insert(block->instructions.begin() + i++, std::make_shared<Backend::LIR::Move>(ret->return_value, lir_function->variables[RISCV::Registers::to_string(RISCV::Registers::ABI::A0)]));
+                    block->instructions.insert(block->instructions.begin() + i++, std::make_shared<Backend::LIR::Move>(ret->return_value, lir_function->variables[RISCV::Registers::to_string(RISCV::Registers::ABI::A0)])),
+                    ret->return_value = lir_function->variables[RISCV::Registers::to_string(RISCV::Registers::ABI::A0)];
                 for (const RISCV::Registers::ABI reg : callee_saved)
                     block->instructions.insert(block->instructions.begin() + i++, std::make_shared<Backend::LIR::Move>(lir_function->variables[RISCV::Registers::to_string(reg) + "_mem"], lir_function->variables[RISCV::Registers::to_string(reg)]));
             } else if (instruction->type == Backend::LIR::InstructionType::CALL) {
@@ -77,7 +78,9 @@ void RISCV::RegisterAllocator::GraphColoring::create_registers() {
                     const std::shared_ptr<Backend::Variable> &arg = call->arguments[j];
                     if (Backend::Utils::is_int(arg->workload_type)) {
                         if (k < 8) {
-                            block->instructions.insert(block->instructions.begin() + i++, std::make_shared<Backend::LIR::Move>(call->arguments[j], lir_function->variables[RISCV::Registers::to_string(RISCV::Registers::ABI::A0 + k++)]));
+                            const std::shared_ptr<Backend::Variable> &phyReg = lir_function->variables[RISCV::Registers::to_string(RISCV::Registers::ABI::A0 + k++)];
+                            block->instructions.insert(block->instructions.begin() + i++, std::make_shared<Backend::LIR::Move>(call->arguments[j], phyReg));
+                            call->arguments[j] = phyReg;
                         } else {
                             // TODO
                         }
@@ -335,7 +338,7 @@ void RISCV::RegisterAllocator::GraphColoring::coalesce_nodes(const std::string& 
     std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> n1 = interference_graph[node1];
     std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> n2 = interference_graph[node2];
     if (n2->is_colored) std::swap(n1, n2);
-    log_debug("Coalesced variables %s and %s", n1->variable->name.c_str(), n2->variable->name.c_str());
+    log_debug("Coalesced %s and %s", n1->variable->name.c_str(), n2->variable->name.c_str());
     lir_function->remove_variable(n2->variable);
     n1->move_related_neighbors.insert(n2->move_related_neighbors.begin(), n2->move_related_neighbors.end());
     n1->move_related_neighbors.erase(n1);

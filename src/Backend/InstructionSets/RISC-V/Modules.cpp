@@ -215,11 +215,11 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
         case Backend::LIR::InstructionType::LOAD: {
             std::shared_ptr<Backend::LIR::LoadInt> instr = std::static_pointer_cast<Backend::LIR::LoadInt>(instruction);
             std::shared_ptr<Backend::Variable> addr = instr->var_in_mem;
-            std::shared_ptr<Backend::Variable> dest = std::static_pointer_cast<Backend::Variable>(instr->var_in_reg);
+            std::shared_ptr<Backend::Variable> dest = instr->var_in_reg;
             RISCV::Registers::ABI dest_reg = register_allocator->get_register(dest);
             if (addr->lifetime == Backend::VariableWide::GLOBAL) {
                 instrs.push_back(std::make_shared<RISCV::Instructions::LoadAddress>(dest_reg, addr));
-                instrs.push_back(std::make_shared<RISCV::Instructions::LoadWord>(dest_reg, dest_reg));
+                instrs.push_back(std::make_shared<RISCV::Instructions::LoadWord>(dest_reg, dest_reg, instr->offset));
             } else {
                 instrs.push_back(std::make_shared<RISCV::Instructions::LoadWordFromStack>(dest_reg, addr, stack));
             }

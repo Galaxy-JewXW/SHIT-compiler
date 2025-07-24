@@ -46,14 +46,14 @@ class Backend::Constant : public Backend::Operand {
 class Backend::IntValue : public Backend::Constant {
     public:
         const int32_t int32_value{0};
-        explicit IntValue(const int32_t value) : Backend::Constant("i32 " + std::to_string(value), Backend::VariableType::INT32), int32_value(value) {};
+        explicit IntValue(const int32_t value) : Backend::Constant(std::to_string(value), Backend::VariableType::INT32), int32_value(value) {};
         ~IntValue() override = default;
 };
 
 class Backend::FloatValue : public Backend::Constant {
     public:
         const double float_value{0.0};
-        explicit FloatValue(const double value) : Backend::Constant("float " + std::to_string(value), Backend::VariableType::FLOAT), float_value(value) {};
+        explicit FloatValue(const double value) : Backend::Constant(std::to_string(value), Backend::VariableType::FLOAT), float_value(value) {};
         ~FloatValue() override = default;
 };
 
