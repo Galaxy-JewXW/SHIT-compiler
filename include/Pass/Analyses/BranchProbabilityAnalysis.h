@@ -11,7 +11,7 @@ public:
     struct Edge {
         const Mir::Block *src;
         const Mir::Block *dst;
-        double weight;
+        int weight;
 
         struct Hash {
             std::size_t operator()(const Edge &e) const {
@@ -21,7 +21,7 @@ public:
 
     private:
         Edge(const Mir::Block *src, const Mir::Block *dst) :
-            src(src), dst(dst), weight(0.0) {}
+            src(src), dst(dst), weight(0) {}
 
     public:
         bool operator==(const Edge &other) const {
@@ -32,6 +32,10 @@ public:
             static std::unordered_set<Edge, Hash> edge_pool;
             const auto result = edge_pool.insert({src, dst});
             return const_cast<Edge &>(*result.first);
+        }
+
+        static Edge &make_edge(const std::shared_ptr<Mir::Block> &src, const std::shared_ptr<Mir::Block> &dst) {
+            return make_edge(src.get(), dst.get());
         }
     };
 

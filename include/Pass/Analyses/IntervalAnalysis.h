@@ -728,6 +728,73 @@ public:
             return result;
         }
 
+        [[nodiscard]] std::pair<double, double> get_proportions(T val) const {
+            if (is_undefined_ || is_empty()) {
+                return {0.5, 0.5};
+            }
+
+            double size_less = 0.0;
+            double size_greater = 0.0;
+            bool less_is_infinite = false;
+            bool greater_is_infinite = false;
+            constexpr auto limits = numeric_limits_v<T>{};
+
+            for (const auto &interval: intervals_) {
+                const T lower = interval.lower;
+                const T upper = interval.upper;
+
+                // 区间 [lower, upper] 与 (-∞, val) 的交集。
+                if (lower < val) {
+                    if (lower == limits.neg_infinity) {
+                        less_is_infinite = true;
+                    } else {
+                        if constexpr (std::is_integral_v<T>) {
+                            T effective_upper = std::min(upper, static_cast<T>(val - 1));
+                            if (lower <= effective_upper) {
+                                size_less += static_cast<double>(effective_upper) - static_cast<double>(lower) + 1.0;
+                            }
+                        } else {
+                            T effective_upper = std::min(upper, val);
+                            size_less += effective_upper - lower;
+                        }
+                    }
+                }
+                // 区间 [lower, upper] 与 (val, +∞) 的交集。
+                if (upper > val) {
+                    if (upper == limits.infinity) {
+                        greater_is_infinite = true;
+                    } else {
+                        if constexpr (std::is_integral_v<T>) {
+                            T effective_lower = std::max(lower, static_cast<T>(val + 1));
+                            if (effective_lower <= upper) {
+                                size_greater += static_cast<double>(upper) - static_cast<double>(effective_lower) + 1.0;
+                            }
+                        } else {
+                            T effective_lower = std::max(lower, val);
+                            size_greater += upper - effective_lower;
+                        }
+                    }
+                }
+            }
+
+            if (less_is_infinite && greater_is_infinite) {
+                return {0.5, 0.5};
+            }
+            if (less_is_infinite) {
+                return {1.0, 0.0};
+            }
+            if (greater_is_infinite) {
+                return {0.0, 1.0};
+            }
+            // 两部分的大小都是有限的。
+            const double total_comparable_size = size_less + size_greater;
+            // 如果集合只包含 'val' 本身，避免除以零。
+            if (total_comparable_size < std::numeric_limits<double>::epsilon()) {
+                return {0.5, 0.5};
+            }
+            return {size_less / total_comparable_size, size_greater / total_comparable_size};
+        }
+
         [[nodiscard]] std::string to_string() const {
             if (is_undefined_) {
                 return "Undefined (X_N)";
@@ -908,10 +975,10 @@ public:
         std::unordered_map<std::shared_ptr<Mir::Value>, AnyIntervalSet> intervals{};
     };
 
+    Context ctx_after(const std::shared_ptr<Mir::Instruction> &inst);
+
 protected:
     void analyze(std::shared_ptr<const Mir::Module> module) override;
-
-    Context ctx_after(const std::shared_ptr<Mir::Instruction> &inst);
 
 private:
     [[nodiscard]]
