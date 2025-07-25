@@ -29,10 +29,12 @@ enum class Operator {
     FCMP,
     ICMP,
     ZEXT,
+    // terminator begins
     BRANCH,
     JUMP,
     RET,
     SWITCH,
+    // terminator ends
     CALL,
     INTBINARY,
     FLOATBINARY,
@@ -983,8 +985,8 @@ public:
     }
 
     static std::shared_ptr<Move> create(const std::shared_ptr<Value> &to_value,
-                                           const std::shared_ptr<Value> &from_value,
-                                           const std::shared_ptr<Block> &block);
+                                        const std::shared_ptr<Value> &from_value,
+                                        const std::shared_ptr<Block> &block);
 
     [[nodiscard]] std::shared_ptr<Value> get_to_value() const { return operands_[0]; }
 
