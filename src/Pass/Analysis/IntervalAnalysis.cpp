@@ -82,7 +82,7 @@ void evaluate(const std::shared_ptr<Instruction> &inst, Context &ctx, const Summ
         case Operator::FLOATTERNARY: {
             const auto &floatternary{inst->as<FloatTernary>()};
             const auto x1{ctx.get(floatternary->get_x())}, x2{ctx.get(floatternary->get_y())},
-                    x3{ctx.get(floatternary->get_z())};
+                       x3{ctx.get(floatternary->get_z())};
             result_interval = std::visit(
                     [&](const auto &a, const auto &b, const auto &c) {
                         const auto x{IntervalSetDouble(a)}, y{IntervalSetDouble(b)}, z{IntervalSetDouble(c)};
@@ -172,7 +172,7 @@ void evaluate(const std::shared_ptr<Instruction> &inst, Context &ctx, const Summ
 
 namespace Pass {
 IntervalAnalysis::Summary IntervalAnalysis::rabai_function(const std::shared_ptr<Function> &func,
-                                                           const SummaryManager &summary_manager) const {
+                                                           const SummaryManager &summary_manager) {
     std::unordered_map<std::shared_ptr<Block>, Context> in_ctxs;
     std::unordered_map<std::shared_ptr<Block>, Context> out_ctxs;
     for (const auto &block: func->get_blocks()) {
@@ -331,23 +331,44 @@ IntervalAnalysis::Summary IntervalAnalysis::rabai_function(const std::shared_ptr
     // }
     // std::cout << "=== End of Analysis ===\n" << std::endl;
 
+    for (const auto &[b, ctx]: in_ctxs) {
+        block_in_ctxs.insert({b.get(), ctx});
+    }
+
     return Summary{};
+}
+
+Context IntervalAnalysis::ctx_after(const std::shared_ptr<Instruction> &inst) {
+    const auto block{inst->get_block()};
+    const auto it{block_in_ctxs.find(block.get())};
+    if (it == block_in_ctxs.end()) {
+        return {};
+    }
+    Context current_ctx{it->second};
+    bool flag{false};
+    for (const auto &i: block->get_instructions()) {
+        if (flag)
+            break;
+        if (i == inst)
+            flag = true;
+        evaluate(i, current_ctx, summary_manager);
+    }
+    return current_ctx;
 }
 
 void IntervalAnalysis::analyze(const std::shared_ptr<const Module> module) {
     // 保证对于每一个函数，只有一个返回点
     create<StandardizeBinary>()->run_on(std::const_pointer_cast<Module>(module));
     create<SingleReturnTransform>()->run_on(std::const_pointer_cast<Module>(module));
-    cfg_info = get_analysis_result<ControlFlowGraph>(module);
     func_info = get_analysis_result<FunctionAnalysis>(module);
     loop_info = get_analysis_result<LoopAnalysis>(module);
+    block_in_ctxs.clear();
 
     auto topo{func_info->topo()};
     std::reverse(topo.begin(), topo.end());
     std::unordered_set worklist(topo.begin(), topo.end());
 
-    SummaryManager summary_manager;
-
+    summary_manager.clear();
     while (!worklist.empty()) {
         const auto func{*worklist.begin()};
         worklist.erase(worklist.begin());
@@ -363,7 +384,6 @@ void IntervalAnalysis::analyze(const std::shared_ptr<const Module> module) {
         }
     }
 
-    cfg_info = nullptr;
     func_info = nullptr;
     loop_info = nullptr;
 }
