@@ -1,14 +1,12 @@
-# 工作流名称
-name: Build and Sync to GitLab (Dual Job)
+name: Build and Sync
 
 # 触发器配置
 on:
   # 1. 手动触发器：可以在 Actions 页面手动运行此工作流
   workflow_dispatch:
 
-  # 2. 定时触发器：在北京时间 (UTC+8) 每天 00:00 自动运行
   schedule:
-    - cron: '0 16 * * *' # 这是 16:00 UTC，即 00:00 UTC+8
+    - cron: '0 17 * * *'
 
 # 定义所有作业
 jobs:
@@ -72,7 +70,7 @@ jobs:
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
         run: |
-          git clone --branch master --single-branch "https://pat:${GITLAB_TOKEN}@gitlab.eduxiji.net/T202510006205548/one-big-beautiful-shit-compiler.git" gitlab-repo
+          git clone --branch main --single-branch "https://pat:${GITLAB_TOKEN}@gitlab.eduxiji.net/T202510006205548/one-big-beautiful-shit-compiler.git" gitlab-repo
 
       # 步骤 4: 同步文件、格式化并根据触发方式提交
       - name: Sync, format, and commit
