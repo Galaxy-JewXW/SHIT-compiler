@@ -154,8 +154,13 @@ void BranchProbabilityImpl::calc_branch(const Branch *const branch) const {
             return;
         }
     }
-    MAKE_EDGE(current_block, true_block).weight = BRANCH_TAKEN_WEIGHT;
-    MAKE_EDGE(current_block, false_block).weight = BRANCH_TAKEN_WEIGHT;
+    if (true_block->get_instructions().size() >= false_block->get_instructions().size()) {
+        MAKE_EDGE(current_block, true_block).weight = 17;
+        MAKE_EDGE(current_block, false_block).weight = 15;
+    } else {
+        MAKE_EDGE(current_block, true_block).weight = 15;
+        MAKE_EDGE(current_block, false_block).weight = 17;
+    }
 }
 
 void BranchProbabilityImpl::impl() const {

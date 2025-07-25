@@ -7,6 +7,10 @@
 #include "Pass/Transform.h"
 
 namespace Pass {
+class BranchProbabilityAnalysis;
+}
+
+namespace Pass {
 /**
  * 简化控制流：
  * 1. 删除没有前驱块（即无法到达）的基本块
@@ -50,6 +54,8 @@ private:
     void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
 
     std::shared_ptr<ControlFlowGraph> cfg_info{nullptr};
+
+    std::shared_ptr<BranchProbabilityAnalysis> branch_prob_info{nullptr};
 };
 
 // 合并嵌套的分支，减少控制流复杂度

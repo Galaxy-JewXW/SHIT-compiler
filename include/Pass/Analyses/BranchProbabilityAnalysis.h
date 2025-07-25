@@ -48,6 +48,20 @@ public:
     explicit BranchProbabilityAnalysis() :
         Analysis("BranchProbabilityAnalysis") {}
 
+    const std::unordered_map<Edge, double, Edge::Hash> &edges_prob(const Mir::Function *function) const {
+        if (edge_probabilities.find(function) == edge_probabilities.end()) [[unlikely]] {
+            log_error("Should not reach here");
+        }
+        return edge_probabilities.at(function);
+    }
+
+    const std::unordered_map<const Mir::Block *, double> &blocks_prob(const Mir::Function *function) const {
+        if (block_probabilities.find(function) == block_probabilities.end()) [[unlikely]] {
+            log_error("Should not reach here");
+        }
+        return block_probabilities.at(function);
+    }
+
 protected:
     void analyze(std::shared_ptr<const Mir::Module> module) override;
 };
