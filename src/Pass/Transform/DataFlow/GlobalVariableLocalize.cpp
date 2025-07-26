@@ -61,14 +61,15 @@ void localize(const std::shared_ptr<Module> &module) {
         entry->get_instructions().insert(entry->get_instructions().begin(), new_alloc);
         gv->replace_by_new_value(new_alloc);
     }
-    if (!can_replaced.empty()) {
-        for (auto it = module->get_global_variables().begin(); it != module->get_global_variables().end();) {
-            if (can_replaced.find(*it) == can_replaced.end()) {
-                ++it;
-            } else {
-                it = module->get_global_variables().erase(it);
-            }
+    const auto origin_size = module->get_global_variables().size();
+    for (auto it = module->get_global_variables().begin(); it != module->get_global_variables().end();) {
+        if ((*it)->users().size() == 0) {
+            it = module->get_global_variables().erase(it);
+        } else {
+            ++it;
         }
+    }
+    if (origin_size != module->get_global_variables().size()) {
         Pass::Pass::create<Pass::Mem2Reg>()->run_on(module);
     }
 }

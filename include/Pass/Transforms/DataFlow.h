@@ -161,6 +161,24 @@ private:
 
     std::unordered_set<std::shared_ptr<Mir::Instruction>> to_be_deleted;
 };
+
+// 指令调度
+class InstSchedule final : public Transform {
+public:
+    explicit InstSchedule() : Transform("InstSchedule") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+private:
+    void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
+
+    void in_block_schedule(const std::shared_ptr<Mir::Function> &func) const;
+
+    std::shared_ptr<DominanceGraph> dom_graph{nullptr};
+
+    std::shared_ptr<FunctionAnalysis> func_info{nullptr};
+};
 } // namespace Pass
 
 #endif // DATAFLOW_H
