@@ -223,6 +223,7 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
             break;
         }
         case Mir::Operator::INTBINARY: {
+            // TODO
             std::shared_ptr<Mir::IntBinary> int_operation_ = std::static_pointer_cast<Mir::IntBinary>(llvm_instruction);
             std::shared_ptr<Backend::Operand> lhs = find_operand(int_operation_->get_lhs(), lir_block->parent_function.lock());
             std::shared_ptr<Backend::Operand> rhs = find_operand(int_operation_->get_rhs(), lir_block->parent_function.lock());
@@ -232,9 +233,8 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
                 int32_t result_value = Backend::Utils::compute<int32_t>(Backend::Utils::llvm_to_lir(int_operation_->op), std::static_pointer_cast<Backend::IntValue>(lhs)->int32_value, std::static_pointer_cast<Backend::IntValue>(rhs)->int32_value);
                 lir_block->instructions.push_back(std::make_shared<Backend::LIR::LoadIntImm>(result, std::make_shared<Backend::IntValue>(result_value)));
                 break;
-            } else if (lhs->operand_type == Backend::OperandType::CONSTANT) {
+            } else if (lhs->operand_type == Backend::OperandType::CONSTANT)
                 std::swap(lhs, rhs);
-            }
             lir_block->instructions.push_back(std::make_shared<Backend::LIR::IntArithmetic>(Backend::Utils::llvm_to_lir(int_operation_->op), std::static_pointer_cast<Backend::Variable>(lhs), rhs, result));
             break;
         }
@@ -260,18 +260,21 @@ void Backend::LIR::Function::spill(std::shared_ptr<Backend::Variable> &local_var
     for (std::shared_ptr<Backend::LIR::Block> &block : blocks) {
         for (size_t i = 0; i < block->instructions.size(); i++) {
             std::shared_ptr<Backend::LIR::Instruction> &instr = block->instructions[i];
+            std::vector<std::shared_ptr<Backend::Variable>> used = instr->get_used_variables();
             if (instr->get_defined_variable() == local_variable) {
                 // insert `store` after the instruction
                 std::shared_ptr<Backend::Variable> new_var = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("spill_"), local_variable->workload_type, VariableWide::LOCAL);
+                add_variable(new_var);
                 instr->update_defined_variable(new_var);
                 log_debug("Spilling variable %s to %s", local_variable->name.c_str(), new_var->name.c_str());
                 block->instructions.insert(block->instructions.begin() + i + 1, std::make_shared<Backend::LIR::StoreInt>(local_variable, new_var));
-            } else if (std::find(instr->get_used_variables().begin(), instr->get_used_variables().end(), local_variable) != instr->get_used_variables().end()) {
+            } else if (std::find(used.begin(), used.end(), local_variable) != used.end()) {
                 // insert `load` before the instruction
                 std::shared_ptr<Backend::Variable> new_var = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("spill_"), local_variable->workload_type, VariableWide::LOCAL);
+                add_variable(new_var);
                 instr->update_used_variable(local_variable, new_var);
                 log_debug("Loading spilled variable %s to %s", local_variable->name.c_str(), new_var->name.c_str());
-                block->instructions.insert(block->instructions.begin() + i, std::make_shared<Backend::LIR::LoadInt>(new_var, local_variable));
+                block->instructions.insert(block->instructions.begin() + i, std::make_shared<Backend::LIR::LoadInt>(local_variable, new_var));
             }
         }
     }

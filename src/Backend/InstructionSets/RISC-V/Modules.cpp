@@ -47,7 +47,7 @@ RISCV::Function::Function(const std::shared_ptr<Backend::LIR::Function> &lir_fun
 
 void RISCV::Function::generate_prologue() {
     std::shared_ptr<RISCV::Block> block_entry = blocks.front();
-    block_entry->instructions.push_back(std::make_shared<Instructions::AllocStack>(stack));
+    block_entry->instructions.insert(block_entry->instructions.begin(), std::make_shared<Instructions::AllocStack>(stack));
     if (lir_function->is_caller)
         block_entry->instructions.push_back(std::make_shared<Instructions::StoreRA>(stack));
 }
@@ -230,7 +230,7 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
             std::shared_ptr<Backend::Variable> dest = instr->var_in_mem;
             std::shared_ptr<Backend::Variable> src = instr->var_in_reg;
             RISCV::Registers::ABI src_reg = register_allocator->get_register(src);
-            if (src->lifetime == Backend::VariableWide::FUNCTIONAL)
+            if (dest->lifetime == Backend::VariableWide::FUNCTIONAL)
                 instrs.push_back(std::make_shared<RISCV::Instructions::StoreWordToStack>(src_reg, dest, stack));
             else
                 instrs.push_back(std::make_shared<RISCV::Instructions::StoreWord>(register_allocator->get_register(dest), src_reg, instr->offset));
@@ -238,15 +238,6 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
         }
         case Backend::LIR::InstructionType::CALL: {
             std::shared_ptr<Backend::LIR::Call> instr = std::static_pointer_cast<Backend::LIR::Call>(instruction);
-            const std::vector<std::shared_ptr<Backend::Variable>> &params = instr->arguments;
-            for (size_t i = 0; i < params.size(); i++) {
-                std::shared_ptr<Backend::Variable> arg = params[i];
-                if (i < 8) {
-                    //
-                } else {
-                    //
-                }
-            }
             instrs.push_back(std::make_shared<RISCV::Instructions::Call>(instr->function->name));
             break;
         }

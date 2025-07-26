@@ -14,15 +14,20 @@ void RISCV::RegisterAllocator::GraphColoring::allocate() {
         else if (spill_phase(simplify_stack, K)) continue;
         else if (assign_colors(simplify_stack)) break;
     }
-    for (const auto& [var_name, node] : interference_graph)
-        if (node->is_colored && node->color != RISCV::Registers::ABI::ZERO)
-            var_to_reg[var_name] = node->color;
-        else
-            stack->add_variable(node->variable);
+    __allocate__();
+    std::cout << to_string() << "\n";
+}
+
+void RISCV::RegisterAllocator::GraphColoring::__allocate__() {
     for (const auto& [var_name, node] : lir_function->variables)
         if (node->lifetime == Backend::VariableWide::FUNCTIONAL)
             stack->add_variable(node);
-    std::cout << to_string() << "\n";
+    for (const auto& [var_name, node] : interference_graph)
+        if (node->is_colored && node->color != RISCV::Registers::ABI::ZERO) {
+            var_to_reg[var_name] = node->color;
+            for (const std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> &coalesced: node->coalesced)
+                var_to_reg[coalesced->variable->name] = node->color;
+        } else stack->add_variable(node->variable);
 }
 
 void RISCV::RegisterAllocator::GraphColoring::create_registers() {
@@ -88,7 +93,8 @@ void RISCV::RegisterAllocator::GraphColoring::create_registers() {
                 }
                 // move result of the call to a0
                 if (call->result)
-                    block->instructions.insert(block->instructions.begin() + i + 1, std::make_shared<Backend::LIR::Move>(lir_function->variables[RISCV::Registers::to_string(RISCV::Registers::ABI::A0)], call->result));
+                    block->instructions.insert(block->instructions.begin() + i + 1, std::make_shared<Backend::LIR::Move>(lir_function->variables[RISCV::Registers::to_string(RISCV::Registers::ABI::A0)], call->result)),
+                    call->result = lir_function->variables[RISCV::Registers::to_string(RISCV::Registers::ABI::A0)];
             }
         }
     }
@@ -104,6 +110,10 @@ void RISCV::RegisterAllocator::GraphColoring::create_interference_nodes() {
         interference_graph[RISCV::Registers::to_string(reg)]->is_colored = true;
         interference_graph[RISCV::Registers::to_string(reg)]->color = reg;
     }
+    for (const RISCV::Registers::ABI reg1 : available_integer_regs)
+        for (const RISCV::Registers::ABI reg2 : available_integer_regs)
+            if (reg1 != reg2)
+                interference_graph[RISCV::Registers::to_string(reg1)]->non_move_related_neighbors.insert(interference_graph[RISCV::Registers::to_string(reg2)]);
 }
 
 void RISCV::RegisterAllocator::GraphColoring::build_interference_graph() {
@@ -141,7 +151,11 @@ void RISCV::RegisterAllocator::GraphColoring::build_interference_graph() {
                 live.insert(used_var->name);
         }
     }
-    // print_interference_graph();
+    for (const auto& [var_name, node] : interference_graph)
+        for (const std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> &neighbor : node->non_move_related_neighbors)
+            node->move_related_neighbors.erase(neighbor);
+    calculate_spill_costs();
+    print_interference_graph();
 }
 
 void RISCV::RegisterAllocator::GraphColoring::print_interference_graph() {
@@ -217,12 +231,12 @@ void RISCV::RegisterAllocator::GraphColoring::simplify_phase(std::stack<std::str
         for (const std::string &var_name : workload) {
             std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> node = interference_graph[var_name];
             if (node->degree() < K && node->move_related_neighbors.empty()) {
-                log_debug("Simplify variable %s", var_name.c_str());
-                simplify_stack.push(var_name);
-                for (std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> neighbor : node->move_related_neighbors)
+                log_debug("Simplify variable %s", node->variable->name.c_str());
+                simplify_stack.push(node->variable->name);
+                for (std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> neighbor : node->non_move_related_neighbors)
                     neighbor->non_move_related_neighbors.erase(node);
                 node->is_spilled = true;
-                workload.erase(std::remove(workload.begin(), workload.end(), var_name), workload.end());
+                workload.erase(std::remove(workload.begin(), workload.end(), node->variable->name), workload.end());
                 changed = true;
                 break;
             }
@@ -247,11 +261,11 @@ bool RISCV::RegisterAllocator::GraphColoring::coalesce_phase(const size_t K) {
 
 bool RISCV::RegisterAllocator::GraphColoring::freeze_phase(const size_t K) {
     for (const auto& [var_name, node] : interference_graph)
-        if (!node->is_spilled)
+        if (!node->is_spilled && !node->is_colored && node->degree() < K)
             if (!node->move_related_neighbors.empty()) {
-                std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> move_neighbor = *node->move_related_neighbors.begin();
-                node->move_related_neighbors.erase(move_neighbor);
-                move_neighbor->move_related_neighbors.erase(node);
+                for (std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> neighbor: node->move_related_neighbors)
+                    neighbor->move_related_neighbors.erase(node);
+                node->move_related_neighbors.clear();
                 log_debug("Freeze %s", node->variable->name.c_str());
                 return true;
             }
@@ -262,8 +276,13 @@ bool RISCV::RegisterAllocator::GraphColoring::spill_phase(std::stack<std::string
     std::string best_candidate = select_spill_candidate();
     if (!best_candidate.empty()) {
         simplify_stack.push(best_candidate);
-        auto node = interference_graph[best_candidate];
+        std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode>  node = interference_graph[best_candidate];
         node->is_spilled = true;
+        for (std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> neighbor: node->move_related_neighbors)
+            neighbor->move_related_neighbors.erase(node);
+        for (std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> neighbor: node->non_move_related_neighbors)
+            neighbor->non_move_related_neighbors.erase(node);
+        log_debug("Select %s as spill candidate.", best_candidate.c_str());
         return true;
     }
     return false;
@@ -285,11 +304,17 @@ std::string RISCV::RegisterAllocator::GraphColoring::select_spill_candidate() {
 }
 
 bool RISCV::RegisterAllocator::GraphColoring::assign_colors(std::stack<std::string> &stack) {
+    for (const RISCV::Registers::ABI reg: available_integer_regs) {
+        std::set<std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode>> &colored_ = interference_graph[RISCV::Registers::to_string(reg)]->coalesced;
+        for (std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> node : colored_) {
+            node->is_colored = true;
+            node->color = reg;
+        }
+    }
     while (!stack.empty()) {
         std::string var_name = stack.top();
         stack.pop();
-        auto node = interference_graph[var_name];
-        node->is_spilled = false;
+        std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> &node = interference_graph[var_name];
         std::unordered_set<RISCV::Registers::ABI> used_colors;
         for (const std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> &neighbor : node->non_move_related_neighbors) {
             if (neighbor->is_colored) {
@@ -318,8 +343,6 @@ bool RISCV::RegisterAllocator::GraphColoring::assign_colors(std::stack<std::stri
 bool RISCV::RegisterAllocator::GraphColoring::can_coalesce_briggs(const std::string& node1, const std::string& node2, const size_t K) {
     std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> n1 = interference_graph[node1];
     std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> n2 = interference_graph[node2];
-    if (n2->non_move_related_neighbors.find(n1) != n2->non_move_related_neighbors.end())
-        return false;
     std::set<std::shared_ptr<InterferenceNode>> combined_neighbors;
     combined_neighbors.insert(n1->move_related_neighbors.begin(), n1->move_related_neighbors.end());
     combined_neighbors.insert(n1->non_move_related_neighbors.begin(), n1->non_move_related_neighbors.end());
@@ -329,7 +352,10 @@ bool RISCV::RegisterAllocator::GraphColoring::can_coalesce_briggs(const std::str
     combined_neighbors.erase(n2);
     size_t high_degree_neighbors = 0;
     for (const std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> &neighbor : combined_neighbors)
-        if (neighbor->degree() >= K)
+        if (neighbor->non_move_related_neighbors.find(n1) != neighbor->non_move_related_neighbors.end() && neighbor->non_move_related_neighbors.find(n2) != neighbor->non_move_related_neighbors.end()) {
+            if (neighbor->degree() >= K + 1)
+                high_degree_neighbors++;
+        } else if (neighbor->degree() >= K)
             high_degree_neighbors++;
     return high_degree_neighbors < K;
 }
@@ -338,20 +364,7 @@ void RISCV::RegisterAllocator::GraphColoring::coalesce_nodes(const std::string& 
     std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> n1 = interference_graph[node1];
     std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> n2 = interference_graph[node2];
     if (n2->is_colored) std::swap(n1, n2);
+    *n1 += n2;
     log_debug("Coalesced %s and %s", n1->variable->name.c_str(), n2->variable->name.c_str());
-    lir_function->remove_variable(n2->variable);
-    n1->move_related_neighbors.insert(n2->move_related_neighbors.begin(), n2->move_related_neighbors.end());
-    n1->move_related_neighbors.erase(n1);
-    n1->move_related_neighbors.erase(n2);
-    n1->non_move_related_neighbors.insert(n2->non_move_related_neighbors.begin(), n2->non_move_related_neighbors.end());
     interference_graph.erase(n2->variable->name);
-    for (std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> move_neighbor : n1->move_related_neighbors) {
-        move_neighbor->move_related_neighbors.erase(n2);
-        move_neighbor->move_related_neighbors.insert(n1);
-    }
-    for (std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> move_neighbor : n1->non_move_related_neighbors) {
-        move_neighbor->non_move_related_neighbors.erase(n2);
-        move_neighbor->non_move_related_neighbors.insert(n1);
-    }
-    n2->variable->name = n1->variable->name;
 }

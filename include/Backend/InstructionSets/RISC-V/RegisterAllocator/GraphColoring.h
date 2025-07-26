@@ -25,6 +25,7 @@ class RISCV::RegisterAllocator::GraphColoring : public RISCV::RegisterAllocator:
                 std::shared_ptr<Backend::Variable> variable;
                 std::set<std::shared_ptr<InterferenceNode>> move_related_neighbors;
                 std::set<std::shared_ptr<InterferenceNode>> non_move_related_neighbors;
+                std::set<std::shared_ptr<InterferenceNode>> coalesced;
                 bool is_spilled{false};
                 bool is_colored{false};
                 RISCV::Registers::ABI color{RISCV::Registers::ABI::ZERO};
@@ -33,7 +34,27 @@ class RISCV::RegisterAllocator::GraphColoring : public RISCV::RegisterAllocator:
                 explicit InterferenceNode(RISCV::Registers::ABI reg) : variable(nullptr), is_colored(true), color(reg) {};
 
                 [[nodiscard]] inline size_t degree() const {
-                    return move_related_neighbors.size() + non_move_related_neighbors.size();
+                    return non_move_related_neighbors.size();
+                }
+
+                InterferenceNode& operator+=(const std::shared_ptr<InterferenceNode> &other) {
+                    coalesced.insert(other);
+                    coalesced.insert(other->coalesced.begin(), other->coalesced.end());
+                    for (std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> move_neighbor : other->move_related_neighbors) {
+                        move_neighbor->move_related_neighbors.erase(other);
+                        move_neighbor->move_related_neighbors.insert(shared_from_this());
+                    }
+                    for (std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> non_move_neighbor : other->non_move_related_neighbors) {
+                        move_related_neighbors.erase(non_move_neighbor);
+                        non_move_neighbor->move_related_neighbors.erase(shared_from_this());
+                        non_move_neighbor->non_move_related_neighbors.erase(other);
+                        non_move_neighbor->non_move_related_neighbors.insert(shared_from_this());
+                    }
+                    move_related_neighbors.insert(other->move_related_neighbors.begin(), other->move_related_neighbors.end());
+                    move_related_neighbors.erase(shared_from_this());
+                    non_move_related_neighbors.insert(other->non_move_related_neighbors.begin(), other->non_move_related_neighbors.end());
+                    non_move_related_neighbors.erase(shared_from_this());
+                    return *this;
                 }
         };
 
@@ -57,6 +78,7 @@ class RISCV::RegisterAllocator::GraphColoring : public RISCV::RegisterAllocator:
         std::vector<RISCV::Registers::ABI> lru;
         std::vector<SpillInfo> call_spill_list;
 
+        void __allocate__();
         // Create variable for physical registers and insert `move` instructions for parameters.
         void create_registers();
         // Create nodes for variables stored in registers and physical registers.
