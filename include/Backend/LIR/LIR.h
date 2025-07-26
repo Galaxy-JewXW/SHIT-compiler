@@ -187,8 +187,21 @@ class Backend::LIR::Instruction {
         Instruction(InstructionType type) : type(type) {}
 
         virtual std::shared_ptr<Backend::Variable> get_defined_variable() const { return nullptr; }
+        std::shared_ptr<Backend::Variable> get_defined_variable(bool (*is_consistent)(const Backend::VariableType &type)) const {
+            std::shared_ptr<Backend::Variable> variable = get_defined_variable();
+            if (variable && is_consistent(variable->workload_type)) {
+                return variable;
+            } else return nullptr;
+        }
         virtual void update_defined_variable(const std::shared_ptr<Backend::Variable> &var) {}
         virtual std::vector<std::shared_ptr<Backend::Variable>> get_used_variables() const { return {}; }
+        std::vector<std::shared_ptr<Backend::Variable>> get_used_variables(bool (*is_consistent)(const Backend::VariableType &type)) const {
+            std::vector<std::shared_ptr<Backend::Variable>> result = get_used_variables();
+            result.erase(std::remove_if(result.begin(), result.end(), [is_consistent](const std::shared_ptr<Backend::Variable> &var) {
+                return !is_consistent(var->workload_type);
+            }), result.end());
+            return result;
+        }
         virtual void update_used_variable(const std::shared_ptr<Backend::Variable> &original, const std::shared_ptr<Backend::Variable> &update_to) {}
 
         virtual std::string to_string() const = 0;
@@ -247,7 +260,9 @@ class Backend::LIR::Function {
             blocks_index[block->name] = block;
         }
 
+        template <typename T_store, typename T_load>
         void spill(std::shared_ptr<Backend::Variable> &local_variable);
+        template<bool (*is_consistent)(const Backend::VariableType &type)>
         void analyze_live_variables();
 
         [[nodiscard]] std::string to_string() const {
@@ -281,6 +296,7 @@ class Backend::LIR::Function {
             return oss.str();
         }
     private:
+        template<bool (*is_consistent)(const Backend::VariableType &type)>
         bool analyze_live_variables(std::shared_ptr<Backend::LIR::Block> &block, std::unordered_set<std::string> &visited);
 };
 

@@ -25,12 +25,12 @@ namespace Backend::Utils {
     [[nodiscard]] VariableType llvm_to_riscv(const Mir::Type::Type& type);
     [[nodiscard]] VariableType to_pointer(VariableType type);
     [[nodiscard]] VariableType to_reference(VariableType type);
-    [[nodiscard]] size_t type_to_size(VariableType type);
-    [[nodiscard]] std::string to_string(VariableType type);
-    [[nodiscard]] std::string to_riscv_indicator(VariableType type);
-    [[nodiscard]] bool is_pointer(VariableType type);
-    [[nodiscard]] bool is_int(VariableType type);
-    [[nodiscard]] bool is_float(VariableType type);
+    [[nodiscard]] size_t type_to_size(const VariableType &type);
+    [[nodiscard]] std::string to_string(const VariableType &type);
+    [[nodiscard]] std::string to_riscv_indicator(const VariableType &type);
+    [[nodiscard]] bool is_pointer(const VariableType &type);
+    [[nodiscard]] bool is_int(const VariableType &type);
+    [[nodiscard]] bool is_float(const VariableType &type);
 }
 
 #endif

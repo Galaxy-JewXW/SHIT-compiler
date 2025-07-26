@@ -37,7 +37,7 @@
     }
 }
 
-[[nodiscard]] size_t Backend::Utils::type_to_size(Backend::VariableType type) {
+[[nodiscard]] size_t Backend::Utils::type_to_size(const Backend::VariableType &type) {
     switch (type) {
         case INT1: return __BYTE__;
         case INT8: return __BYTE__;
@@ -47,7 +47,7 @@
     }
 }
 
-[[nodiscard]] std::string Backend::Utils::to_riscv_indicator(Backend::VariableType type) {
+[[nodiscard]] std::string Backend::Utils::to_riscv_indicator(const Backend::VariableType &type) {
     switch (type) {
         case INT1: return ".byte";
         case INT8: return ".byte";
@@ -58,7 +58,7 @@
     }
 }
 
-[[nodiscard]] bool Backend::Utils::is_pointer(Backend::VariableType type) {
+[[nodiscard]] bool Backend::Utils::is_pointer(const Backend::VariableType &type) {
     switch (type) {
         case Backend::VariableType::INT1_PTR:
         case Backend::VariableType::INT8_PTR:
@@ -73,7 +73,7 @@
     }
 }
 
-[[nodiscard]] bool Backend::Utils::is_int(Backend::VariableType type) {
+[[nodiscard]] bool Backend::Utils::is_int(const Backend::VariableType &type) {
     switch (type) {
         case Backend::VariableType::INT1:
         case Backend::VariableType::INT8:
@@ -84,17 +84,17 @@
         case Backend::VariableType::INT32_PTR:
         case Backend::VariableType::INT64_PTR:
         case Backend::VariableType::STRING_PTR:
+        case Backend::VariableType::FLOAT_PTR:
+        case Backend::VariableType::DOUBLE_PTR:
             return true;
         default:
             return false;
     }
 }
 
-[[nodiscard]] bool Backend::Utils::is_float(Backend::VariableType type) {
+[[nodiscard]] bool Backend::Utils::is_float(const Backend::VariableType &type) {
     switch (type) {
-        case Backend::VariableType::FLOAT_PTR:
         case Backend::VariableType::FLOAT:
-        case Backend::VariableType::DOUBLE_PTR:
         case Backend::VariableType::DOUBLE:
             return true;
         default:

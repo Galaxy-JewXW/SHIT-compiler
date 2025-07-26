@@ -29,6 +29,8 @@ class RISCV::Stack {
         uint64_t stack_size{RA_SIZE};
 
         inline void add_variable(const std::shared_ptr<Backend::Variable> &variable) {
+            if (stack_index.find(variable->name) != stack_index.end())
+                return;
             stack_size += Backend::Utils::type_to_size(variable->workload_type);
             stack_index[variable->name] = stack_size;
             stack.push_back(variable);

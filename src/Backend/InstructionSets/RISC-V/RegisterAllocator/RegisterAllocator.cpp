@@ -22,9 +22,8 @@ RISCV::Registers::ABI RISCV::RegisterAllocator::Allocator::get_register(const st
 
 std::string RISCV::RegisterAllocator::Allocator::to_string() const {
     std::ostringstream oss;
-    oss << "\nRegister Allocator for function: " << lir_function->name << "\n";
     for (const std::pair<std::string, std::shared_ptr<Backend::Variable>> name_var : lir_function->variables)
-        if(name_var.first.find('%') != 0) // skip physical registers
+        if (name_var.first.find('%') != 0) // skip physical registers
             continue;
         else if (var_to_reg.find(name_var.first) != var_to_reg.end())
             oss << "  " << name_var.first << " -> " << RISCV::Registers::to_string(var_to_reg.at(name_var.first)) << "\n";

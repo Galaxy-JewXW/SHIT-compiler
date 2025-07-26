@@ -43,7 +43,31 @@
         case ABI::FT5:   return "ft5";
         case ABI::FT6:   return "ft6";
         case ABI::FT7:   return "ft7";
+        case ABI::FS0:   return "fs0";
+        case ABI::FS1:   return "fs1";
+        case ABI::FA0:   return "fa0";
+        case ABI::FA1:   return "fa1";
+        case ABI::FA2:   return "fa2";
+        case ABI::FA3:   return "fa3";
+        case ABI::FA4:   return "fa4";
+        case ABI::FA5:   return "fa5";
+        case ABI::FA6:   return "fa6";
+        case ABI::FA7:   return "fa7";
+        case ABI::FS2:   return "fs2";
+        case ABI::FS3:   return "fs3";
+        case ABI::FS4:   return "fs4";
+        case ABI::FS5:   return "fs5";
+        case ABI::FS6:   return "fs6";
+        case ABI::FS7:   return "fs7";
+        case ABI::FS8:   return "fs8";
+        case ABI::FS9:   return "fs9";
+        case ABI::FS10:  return "fs10";
+        case ABI::FS11:  return "fs11";
+        case ABI::FT8:   return "ft8";
+        case ABI::FT9:   return "ft9";
+        case ABI::FT10:  return "ft10";
+        case ABI::FT11:  return "ft11";
 
-        default: return "stack";
+        default: throw std::invalid_argument("Invalid RISC-V register ABI");
     }
 }
