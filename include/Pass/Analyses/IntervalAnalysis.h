@@ -202,6 +202,8 @@ public:
 
         [[nodiscard]] bool is_empty() const { return !is_undefined_ && intervals_.empty(); }
 
+        [[nodiscard]] const std::vector<Interval<T>> &intervals() const { return intervals_; }
+
         // 区间集的并集运算
         IntervalSet &union_with(const IntervalSet &other) {
             if (other.is_undefined()) {
@@ -730,7 +732,7 @@ public:
 
         [[nodiscard]] std::pair<double, double> get_proportions(T val) const {
             if (is_undefined_ || is_empty()) {
-                return {0.5, 0.5};
+                return {0.0, 0.0};
             }
 
             double size_less = 0.0;

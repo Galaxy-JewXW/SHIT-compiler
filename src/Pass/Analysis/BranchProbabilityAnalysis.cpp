@@ -91,7 +91,7 @@ void BranchProbabilityImpl::calc_branch(const Branch *const branch) const {
                     case Icmp::Op::LE:
                     case Icmp::Op::LT: {
                         MAKE_EDGE(current_block, true_block).weight = BRANCH_NOTTAKEN_WEIGHT;
-                        MAKE_EDGE(current_block, false_block).weight = BACKEDGE_TAKEN_WEIGHT;
+                        MAKE_EDGE(current_block, false_block).weight = BRANCH_TAKEN_WEIGHT;
                         return;
                     }
                     case Icmp::Op::GT:
@@ -108,7 +108,7 @@ void BranchProbabilityImpl::calc_branch(const Branch *const branch) const {
                 switch (icmp->icmp_op()) {
                     case Icmp::Op::EQ: {
                         MAKE_EDGE(current_block, true_block).weight = BRANCH_NOTTAKEN_WEIGHT;
-                        MAKE_EDGE(current_block, false_block).weight = BACKEDGE_TAKEN_WEIGHT;
+                        MAKE_EDGE(current_block, false_block).weight = BRANCH_TAKEN_WEIGHT;
                         return;
                     }
                     case Icmp::Op::NE: {
@@ -123,8 +123,12 @@ void BranchProbabilityImpl::calc_branch(const Branch *const branch) const {
                         ctx.get(icmp->get_lhs()));
                 interval != Pass::IntervalAnalysis::IntervalSet<int>::make_any()) {
                 const auto p = interval.get_proportions(rhs);
-                const auto true_value = static_cast<int>((BRANCH_TAKEN_WEIGHT + BRANCH_NOTTAKEN_WEIGHT) * p.first);
-                const auto false_value = static_cast<int>((BRANCH_TAKEN_WEIGHT + BRANCH_NOTTAKEN_WEIGHT) * p.second);
+                auto true_value = static_cast<int>((BRANCH_TAKEN_WEIGHT + BRANCH_NOTTAKEN_WEIGHT) * p.first);
+                auto false_value = static_cast<int>((BRANCH_TAKEN_WEIGHT + BRANCH_NOTTAKEN_WEIGHT) * p.second);
+                if (true_value == 0)
+                    true_value = BRANCH_NOTTAKEN_WEIGHT;
+                if (false_value == 0)
+                    false_value = BRANCH_NOTTAKEN_WEIGHT;
                 switch (icmp->icmp_op()) {
                     case Icmp::Op::LT:
                     case Icmp::Op::LE: {
