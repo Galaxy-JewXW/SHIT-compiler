@@ -184,28 +184,15 @@ Pass::IntervalAnalysis::IntervalSet<T> BranchConstrainReduceImpl::get_interval(c
 }
 
 template<typename T>
-T min_value(const Pass::IntervalAnalysis::IntervalSet<T> &set) {
+std::pair<T, T> interval_limit(const Pass::IntervalAnalysis::IntervalSet<T> &set) {
     const auto &intervals = set.intervals();
     T _min = Pass::numeric_limits_v<T>::infinity;
-    for (const auto &i: intervals) {
-        _min = std::min(_min, i.lower);
-    }
-    return _min;
-}
-
-template<typename T>
-T max_value(const Pass::IntervalAnalysis::IntervalSet<T> &set) {
-    const auto &intervals = set.intervals();
     T _max = Pass::numeric_limits_v<T>::neg_infinity;
     for (const auto &i: intervals) {
+        _min = std::min(_min, i.lower);
         _max = std::max(_max, i.upper);
     }
-    return _max;
-}
-
-template<typename T>
-std::pair<T, T> interval_limit(const Pass::IntervalAnalysis::IntervalSet<T> &set) {
-    return {min_value(set), max_value(set)};
+    return {_min, _max};
 }
 
 template<typename T>
