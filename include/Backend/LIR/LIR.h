@@ -247,6 +247,7 @@ class Backend::LIR::Function {
             blocks_index[block->name] = block;
         }
 
+        template <typename T_store, typename T_load>
         void spill(std::shared_ptr<Backend::Variable> &local_variable);
         void analyze_live_variables();
 

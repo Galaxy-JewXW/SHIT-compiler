@@ -6,6 +6,7 @@
 #include <memory>
 #include "Backend/InstructionSets/RISC-V/Registers.h"
 #include "Backend/LIR/LIR.h"
+#include "Backend/VariableTypes.h"
 
 namespace RISCV {
     class Stack;

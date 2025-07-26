@@ -253,6 +253,7 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
     }
 }
 
+template <typename T_store, typename T_load>
 void Backend::LIR::Function::spill(std::shared_ptr<Backend::Variable> &local_variable) {
     if (local_variable->lifetime != VariableWide::LOCAL)
         log_error("Only variable in register can be spilled.");
@@ -267,14 +268,14 @@ void Backend::LIR::Function::spill(std::shared_ptr<Backend::Variable> &local_var
                 add_variable(new_var);
                 instr->update_defined_variable(new_var);
                 log_debug("Spilling variable %s to %s", local_variable->name.c_str(), new_var->name.c_str());
-                block->instructions.insert(block->instructions.begin() + i + 1, std::make_shared<Backend::LIR::StoreInt>(local_variable, new_var));
+                block->instructions.insert(block->instructions.begin() + i + 1, std::make_shared<T_store>(local_variable, new_var));
             } else if (std::find(used.begin(), used.end(), local_variable) != used.end()) {
                 // insert `load` before the instruction
                 std::shared_ptr<Backend::Variable> new_var = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("spill_"), local_variable->workload_type, VariableWide::LOCAL);
                 add_variable(new_var);
                 instr->update_used_variable(local_variable, new_var);
                 log_debug("Loading spilled variable %s to %s", local_variable->name.c_str(), new_var->name.c_str());
-                block->instructions.insert(block->instructions.begin() + i, std::make_shared<Backend::LIR::LoadInt>(local_variable, new_var));
+                block->instructions.insert(block->instructions.begin() + i, std::make_shared<T_load>(local_variable, new_var));
             }
         }
     }
@@ -317,3 +318,6 @@ bool Backend::LIR::Function::analyze_live_variables(std::shared_ptr<Backend::LIR
     }
     return changed || block->live_in.size() != old_in_size || block->live_out.size() != old_out_size;
 }
+
+template void Backend::LIR::Function::spill<Backend::LIR::StoreInt, Backend::LIR::LoadInt>(std::shared_ptr<Backend::Variable> &local_variable);
+template void Backend::LIR::Function::spill<Backend::LIR::StoreFloat, Backend::LIR::LoadFloat>(std::shared_ptr<Backend::Variable> &local_variable);

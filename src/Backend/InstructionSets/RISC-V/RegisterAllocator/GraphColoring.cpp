@@ -41,7 +41,7 @@ void RISCV::RegisterAllocator::GraphColoring::create_registers() {
     lir_function->blocks.insert(lir_function->blocks.begin(), block_entry);
     // 2. add a0-t6
     for (const RISCV::Registers::ABI reg : available_integer_regs)
-        lir_function->add_variable(std::make_shared<Backend::Variable>(RISCV::Registers::to_string(reg), Backend::VariableType::INT32, Backend::VariableWide::LOCAL));
+        lir_function->add_variable(std::make_shared<Backend::Variable>(RISCV::Registers::to_string(reg), Backend::VariableType::INT64, Backend::VariableWide::LOCAL));
     int counter = 0;
     for (const std::shared_ptr<Backend::Variable> &param : lir_function->parameters)
         if (param->lifetime == Backend::VariableWide::LOCAL) {
@@ -61,7 +61,7 @@ void RISCV::RegisterAllocator::GraphColoring::create_registers() {
     }
     // at the very beginning of the function, copy callee-saved registers
     for (const RISCV::Registers::ABI reg : callee_saved) {
-        std::shared_ptr<Backend::Variable> var = std::make_shared<Backend::Variable>(RISCV::Registers::to_string(reg) + "_mem", Backend::VariableType::INT32, Backend::VariableWide::LOCAL);
+        std::shared_ptr<Backend::Variable> var = std::make_shared<Backend::Variable>(RISCV::Registers::to_string(reg) + "_mem", Backend::VariableType::INT64, Backend::VariableWide::LOCAL);
         lir_function->add_variable(var);
         block_entry->instructions.insert(block_entry->instructions.begin(), std::make_shared<Backend::LIR::Move>(lir_function->variables[RISCV::Registers::to_string(reg)], var));
     }
@@ -155,7 +155,7 @@ void RISCV::RegisterAllocator::GraphColoring::build_interference_graph() {
         for (const std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> &neighbor : node->non_move_related_neighbors)
             node->move_related_neighbors.erase(neighbor);
     calculate_spill_costs();
-    print_interference_graph();
+    // print_interference_graph();
 }
 
 void RISCV::RegisterAllocator::GraphColoring::print_interference_graph() {
@@ -331,7 +331,7 @@ bool RISCV::RegisterAllocator::GraphColoring::assign_colors(std::stack<std::stri
             node->is_colored = true;
         } else {
             log_debug("No available color for variable %s, marked for actual spilling", var_name.c_str());
-            lir_function->spill(node->variable);
+            lir_function->spill<Backend::LIR::StoreInt, Backend::LIR::LoadInt>(node->variable);
             build_interference_graph();
             while (!stack.empty()) stack.pop();
             return false;
