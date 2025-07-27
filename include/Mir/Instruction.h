@@ -706,6 +706,21 @@ public:
                 return false;
         }
     }
+
+    static bool is_associative_op(const Op op) {
+        switch (op) {
+            case Op::ADD:
+            case Op::MUL:
+            case Op::AND:
+            case Op::OR:
+            case Op::XOR:
+            case Op::SMAX:
+            case Op::SMIN:
+                return true;
+            default:
+                return false;
+        }
+    }
 };
 
 class FloatBinary : public Binary {
