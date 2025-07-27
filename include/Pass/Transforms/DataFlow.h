@@ -136,6 +136,7 @@ private:
 };
 
 // 强度削弱
+// 根据区间分析的结果削弱部分的icmp等运算
 class ConstrainReduce final : public Transform {
 public:
     explicit ConstrainReduce() : Transform("ConstrainReduce") {}

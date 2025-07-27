@@ -84,7 +84,7 @@ void BranchProbabilityImpl::calc_branch(const Branch *const branch) const {
     const auto cond{branch->get_cond()};
     if (const auto icmp{cond->is<Icmp>()}) {
         if (icmp->get_rhs()->is_constant()) {
-            const auto ctx = interval_info->ctx_after(icmp);
+            const auto ctx = interval_info->ctx_after(icmp, branch->get_block());
             if (const auto rhs{**icmp->get_rhs()->as<ConstInt>()}; rhs == 0) {
                 switch (icmp->icmp_op()) {
                     case Icmp::Op::EQ:

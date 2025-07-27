@@ -338,11 +338,14 @@ IntervalAnalysis::Summary IntervalAnalysis::rabai_function(const std::shared_ptr
     return Summary{};
 }
 
-Context IntervalAnalysis::ctx_after(const std::shared_ptr<Instruction> &inst) {
-    const auto block{inst->get_block()};
+Context IntervalAnalysis::ctx_after(const std::shared_ptr<Instruction> &inst, const std::shared_ptr<Block> &block) {
+    const auto cache_key = std::pair{inst.get(), block.get()};
+    if (const auto cache_it = after_ctx_cache_.find(cache_key); cache_it != after_ctx_cache_.end()) {
+        return cache_it->second;
+    }
     const auto it{block_in_ctxs.find(block.get())};
-    if (it == block_in_ctxs.end()) {
-        return {};
+    if (it == block_in_ctxs.end()) [[unlikely]] {
+        log_error("Unfound block: %s", block->to_string().c_str());
     }
     Context current_ctx{it->second};
     bool flag{false};
@@ -353,7 +356,8 @@ Context IntervalAnalysis::ctx_after(const std::shared_ptr<Instruction> &inst) {
             flag = true;
         evaluate(i, current_ctx, summary_manager);
     }
-    return current_ctx;
+    const auto &[inserted_it, success] = after_ctx_cache_.emplace(cache_key, current_ctx);
+    return inserted_it->second;
 }
 
 void IntervalAnalysis::analyze(const std::shared_ptr<const Module> module) {
