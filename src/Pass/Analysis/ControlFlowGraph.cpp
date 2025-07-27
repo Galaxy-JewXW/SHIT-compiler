@@ -4,6 +4,7 @@
 #include "Pass/Analyses/ControlFlowGraph.h"
 #include "Pass/Analyses/DominanceGraph.h"
 #include "Pass/Util.h"
+#include "Pass/Analyses/LoopAnalysis.h"
 
 using FunctionPtr = std::shared_ptr<Mir::Function>;
 using BlockPtr = std::shared_ptr<Mir::Block>;
@@ -48,8 +49,8 @@ void build_predecessors_successors(const FunctionPtr &func,
     for (const auto &block: func->get_blocks()) {
         const auto &preds = pred_map[block], &succs = succ_map[block];
         oss << "  ■ Block: \"" << block->get_name() << "\"\n"
-            << "    ├─←←← " << Pass::Utils::format_blocks(preds) << "\n"
-            << "    └─→→→ " << Pass::Utils::format_blocks(succs) << "\n";
+                << "    ├─←←← " << Pass::Utils::format_blocks(preds) << "\n"
+                << "    └─→→→ " << Pass::Utils::format_blocks(succs) << "\n";
     }
     // log_trace("%s", oss.str().c_str());
 }
@@ -138,5 +139,6 @@ void ControlFlowGraph::set_dirty(const FunctionPtr &func) {
     }
     dirty_funcs_[func] = true;
     set_analysis_result_dirty<DominanceGraph>(func);
+    set_analysis_result_dirty<LoopAnalysis>(func);
 }
 } // namespace Pass

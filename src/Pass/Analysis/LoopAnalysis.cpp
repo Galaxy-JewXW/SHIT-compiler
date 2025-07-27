@@ -164,6 +164,8 @@ void LoopAnalysis::set_dirty(const FunctionPtr &func) {
         return;
     }
     dirty_funcs_[func] = true;
+    set_analysis_result_dirty<ControlFlowGraph>(func);
+    set_analysis_result_dirty<DominanceGraph>(func);
 }
 
 std::shared_ptr<LoopNodeTreeNode> LoopNodeTreeNode::find_block_in_loop(const std::shared_ptr<Mir::Block> &block) {
