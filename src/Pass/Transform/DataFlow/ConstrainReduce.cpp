@@ -1,11 +1,12 @@
 #include "Pass/Analyses/IntervalAnalysis.h"
 #include "Pass/Transforms/Common.h"
+#include "Pass/Transforms/DCE.h"
 #include "Pass/Transforms/DataFlow.h"
 
 using namespace Mir;
 
 namespace {
-constexpr long max_depth = 200l;
+constexpr long max_depth = 128l;
 
 class Constraint {
 public:
@@ -31,7 +32,12 @@ public:
 
     void propagate();
 
+    // icmp提供的数值约束
     void add_relation(long i, long j, Icmp::Op icmp_type);
+
+    // 添加直接的差分约束
+    // v_i - v_j <= diff
+    void add_relation(long i, long j, long diff);
 
     [[nodiscard]] std::optional<bool> deduce_relation(long i, long j, Icmp::Op icmp_type);
 
@@ -56,10 +62,14 @@ void Constraint::propagate() {
 void Constraint::add_relation(const long i, const long j, const Icmp::Op icmp_type) {
     switch (icmp_type) {
         case Icmp::Op::EQ: {
+            // v_i - v_j <= 0
+            // v_j - v_i <= 0
             matrix[i][j] = std::min(matrix[i][j], 0l);
-            matrix[j][i] = std::max(matrix[j][i], 0l);
+            matrix[j][i] = std::min(matrix[j][i], 0l);
             break;
         }
+        // 非对称关系只代表一个单向约束 v_i - v_j <= -1
+        // 只需要更新 matrix[i][j] 即可
         case Icmp::Op::LT: {
             matrix[i][j] = std::min(matrix[i][j], -1l);
             break;
@@ -69,7 +79,7 @@ void Constraint::add_relation(const long i, const long j, const Icmp::Op icmp_ty
             break;
         }
         case Icmp::Op::GT: {
-            matrix[j][i] = std::min(matrix[j][i], 1l);
+            matrix[j][i] = std::min(matrix[j][i], -1l);
             break;
         }
         case Icmp::Op::GE: {
@@ -80,6 +90,11 @@ void Constraint::add_relation(const long i, const long j, const Icmp::Op icmp_ty
         default:
             break;
     }
+}
+
+// v_i - v_j <= diff
+void Constraint::add_relation(const long i, const long j, const long diff) {
+    matrix[i][j] = std::min(matrix[i][j], diff);
 }
 
 std::optional<bool> Constraint::deduce_relation(const long i, const long j, const Icmp::Op icmp_type) {
@@ -162,58 +177,30 @@ private:
     bool changed{false};
 
     template<typename T>
-    Pass::IntervalAnalysis::IntervalSet<T> get_interval(const std::shared_ptr<Value> &value);
+    Pass::IntervalAnalysis::IntervalSet<T> get_interval(const std::shared_ptr<Value> &value,
+                                                        const std::shared_ptr<Block> &block);
 
     void run_on_block(const std::shared_ptr<Block> &block, Constraint &constraint);
 };
 
 template<typename T>
-Pass::IntervalAnalysis::IntervalSet<T> BranchConstrainReduceImpl::get_interval(const std::shared_ptr<Value> &value) {
+Pass::IntervalAnalysis::IntervalSet<T> BranchConstrainReduceImpl::get_interval(const std::shared_ptr<Value> &value,
+                                                                               const std::shared_ptr<Block> &block) {
     if (value->is_constant()) {
         const auto constant = value->as<Const>()->get_constant_value();
         return std::visit([](const auto c) {
             return Pass::IntervalAnalysis::IntervalSet<T>(c);
         }, constant);
     }
-    const auto inst = value->is<Instruction>();
-    if (inst == nullptr) [[unlikely]] {
-        log_error("Invalid value: %s", value->to_string().c_str());
+    if (const auto inst = value->is<Instruction>()) {
+        const auto ctx = interval->ctx_after(inst, block);
+        return std::get<Pass::IntervalAnalysis::IntervalSet<T>>(ctx.get(inst));
     }
-    const auto ctx = interval->ctx_after(inst);
-    return std::get<Pass::IntervalAnalysis::IntervalSet<T>>(ctx.get(inst));
-}
-
-template<typename T>
-T min_value(const Pass::IntervalAnalysis::IntervalSet<T> &set) {
-    const auto &intervals = set.intervals();
-    T _min = Pass::numeric_limits_v<T>::infinity;
-    for (const auto &i: intervals) {
-        _min = std::min(_min, i.lower);
+    if (const auto arg = value->is<Argument>()) {
+        const auto ctx = interval->ctx_after(block->get_instructions().back(), block);
+        return std::get<Pass::IntervalAnalysis::IntervalSet<T>>(ctx.get(arg));
     }
-    return _min;
-}
-
-template<typename T>
-T max_value(const Pass::IntervalAnalysis::IntervalSet<T> &set) {
-    const auto &intervals = set.intervals();
-    T _max = Pass::numeric_limits_v<T>::neg_infinity;
-    for (const auto &i: intervals) {
-        _max = std::max(_max, i.upper);
-    }
-    return _max;
-}
-
-template<typename T>
-std::pair<T, T> interval_limit(const Pass::IntervalAnalysis::IntervalSet<T> &set) {
-    return {min_value(set), max_value(set)};
-}
-
-template<typename T>
-bool interval_hit(const Pass::IntervalAnalysis::IntervalSet<T> &set, T val) {
-    const auto &intervals = set.intervals();
-    return std::any_of(intervals.begin(), intervals.end(), [&val](const auto &i) {
-        return i.lower <= val && val <= i.upper;
-    });
+    log_error("Unsupported value: %s", value->to_string().c_str());
 }
 
 void BranchConstrainReduceImpl::run_on_block(const std::shared_ptr<Block> &block, Constraint &constraint) {
@@ -224,14 +211,23 @@ void BranchConstrainReduceImpl::run_on_block(const std::shared_ptr<Block> &block
             continue;
         const auto intbinary = inst->as<IntBinary>();
         const auto lhs = intbinary->get_lhs(), rhs = intbinary->get_rhs();
-        const auto lhs_range = get_interval<int>(lhs), rhs_range = get_interval<int>(rhs);
+        const auto lhs_range = get_interval<int>(lhs, block), rhs_range = get_interval<int>(rhs, block);
         const int intbinary_id = id_map[intbinary];
         switch (intbinary->intbinary_op()) {
             case IntBinary::Op::ADD: {
                 // c = a + b
+                if (rhs->is_constant()) {
+                    // b是常数 => c - a = b, a - c = -b
+                    // c - a <= b, a - c <= -b
+                    const auto constant_rhs = **rhs->as<ConstInt>();
+                    const int idx = id_map[lhs];
+                    constraint.add_relation(intbinary_id, idx, constant_rhs);
+                    constraint.add_relation(idx, intbinary_id, -constant_rhs);
+                    break;
+                }
                 if (!lhs->is_constant()) {
                     const int idx = id_map[lhs];
-                    if (const auto [min, max] = interval_limit(rhs_range); min > 0) {
+                    if (const auto [min, max] = Pass::interval_limit(rhs_range); min > 0) {
                         // b > 0  => c > a
                         constraint.add_relation(intbinary_id, idx, Icmp::Op::GT);
                     } else if (min == 0) {
@@ -247,7 +243,7 @@ void BranchConstrainReduceImpl::run_on_block(const std::shared_ptr<Block> &block
                 }
                 if (!rhs->is_constant()) {
                     const int idx = id_map[rhs];
-                    if (const auto [min, max] = interval_limit(lhs_range); min > 0) {
+                    if (const auto [min, max] = Pass::interval_limit(lhs_range); min > 0) {
                         // a > 0 => c > b
                         constraint.add_relation(intbinary_id, idx, Icmp::Op::GT);
                     } else if (min == 0) {
@@ -265,9 +261,18 @@ void BranchConstrainReduceImpl::run_on_block(const std::shared_ptr<Block> &block
             }
             case IntBinary::Op::SUB: {
                 // c = a - b;
+                if (rhs->is_constant()) {
+                    // b是常数 => c - a = -b, a - c = b
+                    // c - a <= -b, a - c <= b
+                    const auto constant_rhs = **rhs->as<ConstInt>();
+                    const int idx = id_map[lhs];
+                    constraint.add_relation(intbinary_id, idx, -constant_rhs);
+                    constraint.add_relation(idx, intbinary_id, constant_rhs);
+                    break;
+                }
                 if (!lhs->is_constant()) {
                     const int idx = id_map[lhs];
-                    if (const auto [min, max] = interval_limit(rhs_range); min > 0) {
+                    if (const auto [min, max] = Pass::interval_limit(rhs_range); min > 0) {
                         // b > 0 => c < a
                         constraint.add_relation(intbinary_id, idx, Icmp::Op::LT);
                     } else if (min == 0) {
@@ -291,8 +296,8 @@ void BranchConstrainReduceImpl::run_on_block(const std::shared_ptr<Block> &block
                         // c = a * 1 => c = a;
                         constraint.add_relation(intbinary_id, idx, Icmp::Op::EQ);
                     }
-                    const auto [lhs_range_min, lhs_range_max] = interval_limit(lhs_range);
-                    if (const auto [rhs_range_min, rhs_range_max] = interval_limit(rhs_range);
+                    const auto [lhs_range_min, lhs_range_max] = Pass::interval_limit(lhs_range);
+                    if (const auto [rhs_range_min, rhs_range_max] = Pass::interval_limit(rhs_range);
                         rhs_range_min >= 2) {
                         // b >= 2
                         if (lhs_range_min >= 1) {
@@ -309,8 +314,8 @@ void BranchConstrainReduceImpl::run_on_block(const std::shared_ptr<Block> &block
                     if (lhs->is_constant() && **lhs->as<ConstInt>() == 1) {
                         constraint.add_relation(intbinary_id, idx, Icmp::Op::EQ);
                     }
-                    const auto [rhs_range_min, rhs_range_max] = interval_limit(rhs_range);
-                    if (const auto [lhs_range_min, lhs_range_max] = interval_limit(lhs_range);
+                    const auto [rhs_range_min, rhs_range_max] = Pass::interval_limit(rhs_range);
+                    if (const auto [lhs_range_min, lhs_range_max] = Pass::interval_limit(lhs_range);
                         lhs_range_min >= 2) {
                         if (rhs_range_min >= 1) {
                             constraint.add_relation(intbinary_id, idx, Icmp::Op::GT);
@@ -329,8 +334,8 @@ void BranchConstrainReduceImpl::run_on_block(const std::shared_ptr<Block> &block
                         // c = a / 1 => c = a;
                         constraint.add_relation(intbinary_id, idx, Icmp::Op::EQ);
                     }
-                    const auto [lhs_range_min, lhs_range_max] = interval_limit(lhs_range);
-                    const auto [rhs_range_min, rhs_range_max] = interval_limit(rhs_range);
+                    const auto [lhs_range_min, lhs_range_max] = Pass::interval_limit(lhs_range);
+                    const auto [rhs_range_min, rhs_range_max] = Pass::interval_limit(rhs_range);
                     if (rhs_range_min >= 2) {
                         if (lhs_range_min >= 0) {
                             // a >= 0, b >= 2 => c <= a/2 <= a (should consider a=0,1)
@@ -360,8 +365,8 @@ void BranchConstrainReduceImpl::run_on_block(const std::shared_ptr<Block> &block
     constraint.propagate();
     if (const auto terminator{block->get_instructions().back()}; terminator->get_op() == Operator::BRANCH) {
         const auto branch = terminator->as<Branch>();
-        if (const auto icmp = terminator->as<Branch>()->get_cond()->is<Icmp>()) {
-            if (const auto &lhs = icmp->get_lhs(), &rhs = icmp->get_rhs();
+        if (const auto icmp = branch->get_cond()->is<Icmp>()) {
+            if (const auto lhs = icmp->get_lhs(), rhs = icmp->get_rhs();
                 !lhs->is_constant() && !rhs->is_constant()) {
                 const auto idx1 = id_map[lhs], idx2 = id_map[rhs];
                 if (const auto res = constraint.deduce_relation(idx1, idx2, icmp->icmp_op())) {
@@ -373,16 +378,16 @@ void BranchConstrainReduceImpl::run_on_block(const std::shared_ptr<Block> &block
                         Jump::create(branch->get_false_block(), block);
                     }
                 }
-            } else if (rhs->is_constant()) {
+            } else if (rhs->is_constant() && !lhs->is_constant()) {
                 const auto constant_rhs = **rhs->as<ConstInt>();
-                const auto lhs_range = get_interval<int>(lhs);
-                const auto [lhs_min, lhs_max] = interval_limit(lhs_range);
+                const auto lhs_range = get_interval<int>(lhs, block);
+                const auto [lhs_min, lhs_max] = Pass::interval_limit(lhs_range);
                 std::shared_ptr<Block> target_block{nullptr};
                 switch (icmp->icmp_op()) {
                     case Icmp::Op::EQ: {
                         if (lhs_min == constant_rhs && lhs_max == constant_rhs) {
                             target_block = branch->get_true_block();
-                        } else if (!interval_hit(lhs_range, constant_rhs)) {
+                        } else if (!Pass::interval_hit(lhs_range, constant_rhs)) {
                             target_block = branch->get_false_block();
                         }
                         break;
@@ -390,7 +395,7 @@ void BranchConstrainReduceImpl::run_on_block(const std::shared_ptr<Block> &block
                     case Icmp::Op::NE: {
                         if (lhs_min == constant_rhs && lhs_max == constant_rhs) {
                             target_block = branch->get_false_block();
-                        } else if (!interval_hit(lhs_range, constant_rhs)) {
+                        } else if (!Pass::interval_hit(lhs_range, constant_rhs)) {
                             target_block = branch->get_true_block();
                         }
                     }
@@ -435,14 +440,95 @@ void BranchConstrainReduceImpl::run_on_block(const std::shared_ptr<Block> &block
                     Jump::create(target_block, block);
                 }
             }
+        } else if (const auto fcmp = branch->get_cond()->is<Fcmp>()) {
+            // ReSharper disable once CppTooWideScopeInitStatement
+            constexpr double tolerance = 1e-5;
+            if (const auto lhs = fcmp->get_lhs(), rhs = fcmp->get_rhs();
+                !lhs->is_constant() && !rhs->is_constant()) {
+                const auto [lhs_min, lhs_max] = Pass::interval_limit(get_interval<double>(lhs, block));
+                const auto [rhs_min, rhs_max] = Pass::interval_limit(get_interval<double>(rhs, block));
+                std::shared_ptr<Block> target_block{nullptr};
+                switch (fcmp->fcmp_op()) {
+                    case Fcmp::Op::LT:
+                    case Fcmp::Op::LE: {
+                        if (lhs_max + tolerance < rhs_min) {
+                            target_block = branch->get_true_block();
+                        } else if (rhs_max + tolerance < lhs_min) {
+                            target_block = branch->get_false_block();
+                        }
+                        break;
+                    }
+                    case Fcmp::Op::GT:
+                    case Fcmp::Op::GE: {
+                        if (lhs_max + tolerance < rhs_min) {
+                            target_block = branch->get_false_block();
+                        } else if (rhs_max + tolerance < lhs_min) {
+                            target_block = branch->get_true_block();
+                        }
+                        break;
+                    }
+                    default:
+                        break;
+                }
+                if (target_block) {
+                    block->get_instructions().pop_back();
+                    changed = true;
+                    Jump::create(target_block, block);
+                }
+            } else if (rhs->is_constant() && !lhs->is_constant()) {
+                // TODO
+                const auto constant_rhs = **rhs->as<ConstFloat>();
+                const auto lhs_range = get_interval<double>(lhs, block);
+                const auto [lhs_min, lhs_max] = Pass::interval_limit(lhs_range);
+                std::shared_ptr<Block> target_block{nullptr};
+                switch (fcmp->fcmp_op()) {
+                    case Fcmp::Op::EQ: {
+                        if (!Pass::interval_hit(lhs_range, constant_rhs, tolerance)) {
+                            target_block = branch->get_false_block();
+                        }
+                        break;
+                    }
+                    case Fcmp::Op::NE: {
+                        if (!Pass::interval_hit(lhs_range, constant_rhs, tolerance)) {
+                            target_block = branch->get_true_block();
+                        }
+                        break;
+                    }
+                    case Fcmp::Op::LT:
+                    case Fcmp::Op::LE: {
+                        if (lhs_max + tolerance < constant_rhs) {
+                            target_block = branch->get_true_block();
+                        } else if (constant_rhs + tolerance < lhs_min) {
+                            target_block = branch->get_false_block();
+                        }
+                        break;
+                    }
+                    case Fcmp::Op::GT:
+                    case Fcmp::Op::GE: {
+                        if (lhs_max + tolerance < constant_rhs) {
+                            target_block = branch->get_false_block();
+                        } else if (constant_rhs + tolerance < lhs_min) {
+                            target_block = branch->get_true_block();
+                        }
+                        break;
+                    }
+                    default:
+                        break;
+                }
+                if (target_block) {
+                    block->get_instructions().pop_back();
+                    changed = true;
+                    Jump::create(target_block, block);
+                }
+            }
         }
     } else if (terminator->get_op() == Operator::SWITCH) {
         if (const auto switch_ = terminator->as<Switch>(); switch_->get_base()->get_type()->is_int32()) {
             std::vector<std::shared_ptr<ConstInt>> case_to_remove;
             case_to_remove.reserve(switch_->cases().size());
-            const auto base_interval = get_interval<int>(switch_->get_base());
+            const auto base_interval = get_interval<int>(switch_->get_base(), block);
             for (const auto &[v, b]: switch_->cases()) {
-                if (const auto c = v->as<ConstInt>(); !interval_hit(base_interval, **c)) {
+                if (const auto c = v->as<ConstInt>(); !Pass::interval_hit(base_interval, **c)) {
                     case_to_remove.push_back(c);
                 }
             }
@@ -508,5 +594,6 @@ void ConstrainReduce::transform(const std::shared_ptr<Module> module) {
             set_analysis_result_dirty<DominanceGraph>(func);
         }
     }
+    create<DeadInstEliminate>()->run_on(module);
 }
 } // namespace Pass

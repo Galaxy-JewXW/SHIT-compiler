@@ -34,8 +34,10 @@ int main(int argc, char *argv[]) {
 
     if (options.opt_level >= Optimize_level::O1) {
         execute_O1_passes(module);
-        emit_llvm(module, options._emit_options);
+    } else {
+        execute_O0_passes(module);
     }
+    emit_llvm(module, options._emit_options);
 
     if (options._emit_options.emit_riscv) {
         RISCV::Assembler assembler(module);

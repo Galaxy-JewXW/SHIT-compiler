@@ -122,7 +122,7 @@ protected:
 };
 
 // 树高平衡，实现指令级并行性
-class TreeHeightBalance final : public Transform {
+class [[deprecated("Use Reassociate Pass instead")]] TreeHeightBalance final : public Transform {
 public:
     explicit TreeHeightBalance() : Transform("TreeHeightBalance") {}
 
@@ -135,15 +135,24 @@ private:
     static void run_on_func(const std::shared_ptr<Mir::Function> &func);
 };
 
+// 重新关联
+// 如果满足结合律的二元操作（如加法、乘法、位运算的 AND/OR/XOR），则尝试对操作数进行重新关联和排序
+class Reassociate final : public Transform {
+public:
+    explicit Reassociate() : Transform("Reassociate") {}
+
+protected:
+    void transform(std::shared_ptr<Mir::Module> module) override;
+};
+
 // 强度削弱
+// 根据区间分析的结果削弱部分的icmp等运算
 class ConstrainReduce final : public Transform {
 public:
     explicit ConstrainReduce() : Transform("ConstrainReduce") {}
 
 protected:
     void transform(std::shared_ptr<Mir::Module> module) override;
-
-    // static void run_on_func(const std::shared_ptr<Mir::Function> &func);
 };
 
 // 移除phi，是后端的必备操作
