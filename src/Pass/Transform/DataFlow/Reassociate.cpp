@@ -204,7 +204,7 @@ std::vector<std::shared_ptr<Value>> SimpleReassociateImpl::linearize(const std::
     return operands;
 }
 
-struct Ranker {
+struct {
     using Key = std::pair<int, uintptr_t>;
 
     Key operator()(const std::shared_ptr<Value> &value) const {
@@ -219,7 +219,7 @@ struct Ranker {
             rank_val = 5;
         return {rank_val, reinterpret_cast<uintptr_t>(value.get())};
     }
-};
+} ranker;
 
 std::shared_ptr<Value> SimpleReassociateImpl::rebuild_right_deep_tree(
         std::vector<std::shared_ptr<Value>> &operand_lists,
@@ -242,9 +242,8 @@ std::shared_ptr<Value> SimpleReassociateImpl::rebuild_right_deep_tree(
 
 void SimpleReassociateImpl::main_loop() {
     while (!worklist.empty()) {
-        auto instruction_iter = worklist.begin();
-        auto instruction = *instruction_iter;
-        worklist.erase(instruction_iter);
+        const auto instruction = *worklist.begin();
+        worklist.erase(instruction);
 
         if (to_erase.count(instruction))
             continue;
@@ -259,7 +258,7 @@ void SimpleReassociateImpl::main_loop() {
 
         std::sort(operands_list.begin(), operands_list.end(),
                   [](const std::shared_ptr<Value> &a, const std::shared_ptr<Value> &b) {
-                      return Ranker{}(a) < Ranker{}(b);
+                      return ranker(a) < ranker(b);
                   });
 
         if (auto new_value = rebuild_right_deep_tree(operands_list, instruction);
