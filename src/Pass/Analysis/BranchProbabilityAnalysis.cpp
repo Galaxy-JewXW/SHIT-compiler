@@ -256,6 +256,9 @@ void BranchProbabilityImpl::impl() const {
 
 namespace Pass {
 void BranchProbabilityAnalysis::analyze(const std::shared_ptr<const Module> module) {
+    edge_probabilities.clear();
+    block_probabilities.clear();
+
     create<StandardizeBinary>()->run_on(std::const_pointer_cast<Module>(module));
     const auto cfg_info = get_analysis_result<ControlFlowGraph>(module);
     const auto loop_info = get_analysis_result<LoopAnalysis>(module);

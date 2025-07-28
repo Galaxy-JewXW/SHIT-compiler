@@ -67,14 +67,16 @@ void set_analysis_result_dirty(const std::shared_ptr<Mir::Function> &function) {
 template<typename T, typename... Args>
 std::shared_ptr<T> get_analysis_result(const std::shared_ptr<Mir::Module> module, Args &&...args) {
     static_assert(std::is_base_of_v<Analysis, T>, "T must be a subclass of Analysis");
-    const std::type_index idx(typeid(T));
-    if (const auto it = _analysis_results().find(idx); it != _analysis_results().end() && !it->second->is_dirty()) {
-        return std::static_pointer_cast<T>(it->second);
-    }
-    // 检查 PassType 是否是 Pass 的派生类
-    static_assert(std::is_base_of_v<Pass, T>, "PassType must be a derived class of Pass::Pass");
     // 检查 PassType 是否是非抽象类
     static_assert(!std::is_abstract_v<T>, "PassType must not be an abstract class");
+    const std::type_index idx(typeid(T));
+    if (const auto it = _analysis_results().find(idx); it != _analysis_results().end()) {
+        const auto existing_analysis = it->second;
+        if (existing_analysis->is_dirty()) {
+            existing_analysis->run_on(module);
+        }
+        return std::static_pointer_cast<T>(existing_analysis);
+    }
     const auto analysis = std::make_shared<T>(std::forward<Args>(args)...);
     analysis->run_on(module);
     _analysis_results()[idx] = analysis;
