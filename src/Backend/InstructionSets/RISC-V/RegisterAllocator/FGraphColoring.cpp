@@ -21,7 +21,7 @@ void RISCV::RegisterAllocator::FGraphColoring::allocate() {
 void RISCV::RegisterAllocator::FGraphColoring::create_registers() {
     create_entry();
     std::shared_ptr<Backend::LIR::Block> block_entry = lir_function->blocks.front();
-    // 2. add fa0-ft6
+    // 2. add fa0-ft11
     for (const RISCV::Registers::ABI reg : RISCV::Registers::Floats::registers)
         lir_function->add_variable(std::make_shared<Backend::Variable>(RISCV::Registers::to_string(reg), Backend::VariableType::DOUBLE, Backend::VariableWide::LOCAL));
     // 3. move parameters

@@ -46,8 +46,7 @@ void Backend::DataSection::Variable::load_from_llvm(const std::shared_ptr<Mir::I
 }
 
 void Backend::DataSection::Variable::load_from_llvm(const Mir::Init::Array &value)  {
-    length = value.get_size();
-    this->length = length;
+    length = value.get_type()->as<Mir::Type::Array>()->get_flattened_size();
     this->init_value = std::make_shared<Variable::Constants>(std::vector<std::shared_ptr<Backend::Constant>>{});
     std::shared_ptr<Variable::Constants> init_value = std::static_pointer_cast<Variable::Constants>(this->init_value);
     if (!value.zero_initialized()) {

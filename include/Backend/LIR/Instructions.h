@@ -139,7 +139,10 @@ class Backend::LIR::Move : public Backend::LIR::Instruction {
         std::shared_ptr<Variable> source;
         std::shared_ptr<Variable> target;
 
-        Move(const std::shared_ptr<Variable> &source, const std::shared_ptr<Variable> &target) : Backend::LIR::Instruction(InstructionType::MOVE), source(source), target(target) {}
+        Move(const std::shared_ptr<Variable> &source, const std::shared_ptr<Variable> &target) : Backend::LIR::Instruction(InstructionType::MOVE), source(source), target(target) {
+            if (Backend::Utils::is_float(target->workload_type))
+                type = InstructionType::FMOVE;
+        }
 
         inline std::string to_string() const override {
             std::ostringstream oss;
@@ -235,7 +238,7 @@ class Backend::LIR::LoadFloat : public Backend::LIR::Instruction {
 
         inline std::string to_string() const override {
             std::ostringstream oss;
-            oss << "load from " << var_in_mem->to_string() << " + " << offset << " to " << var_in_reg->to_string();
+            oss << "fload from " << var_in_mem->to_string() << " + " << offset << " to " << var_in_reg->to_string();
             return oss.str();
         }
 
@@ -279,7 +282,7 @@ class Backend::LIR::StoreFloat : public Backend::LIR::Instruction {
 
         std::string to_string() const override {
             std::ostringstream oss;
-            oss << "store from " << var_in_reg->to_string() << " to " << var_in_mem->to_string() << " + " << offset;
+            oss << "fstore from " << var_in_reg->to_string() << " to " << var_in_mem->to_string() << " + " << offset;
             return oss.str();
         }
 

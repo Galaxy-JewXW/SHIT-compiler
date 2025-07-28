@@ -43,10 +43,7 @@ namespace Backend::LIR {
         BITWISE_AND, BITWISE_OR, BITWISE_XOR, BITWISE_NOT,
         SHIFT_LEFT,
         SHIFT_RIGHT,
-        SHIFT_LEFT_LOGICAL,
-        SHIFT_RIGHT_LOGICAL,
-        SHIFT_RIGHT_ARITHMETIC,
-        MOVE,
+        MOVE, FMOVE,
     };
     class IntArithmetic;
     class FloatArithmetic;
@@ -124,9 +121,6 @@ namespace Backend::Utils {
             case Backend::LIR::InstructionType::BITWISE_NOT: return "!";
             case Backend::LIR::InstructionType::SHIFT_LEFT: return "<<";
             case Backend::LIR::InstructionType::SHIFT_RIGHT: return ">>";
-            case Backend::LIR::InstructionType::SHIFT_LEFT_LOGICAL: return "SHIFT_LEFT_LOGICAL";
-            case Backend::LIR::InstructionType::SHIFT_RIGHT_LOGICAL: return "SHIFT_RIGHT_LOGICAL";
-            case Backend::LIR::InstructionType::SHIFT_RIGHT_ARITHMETIC: return "SHIFT_RIGHT_ARITHMETIC";
             case Backend::LIR::InstructionType::LOAD_ADDR: return "&";
             default: return "";
         }
@@ -438,6 +432,11 @@ class Backend::LIR::Module : public std::enable_shared_from_this<Backend::LIR::M
                     it = lir_function->variables.erase(it);
                 else it++;
         }
+
+        template<typename StoreInst, Backend::VariableType PTR>
+        void load_store_instruction(const std::shared_ptr<Backend::Variable> &store_to, const std::shared_ptr<Backend::Variable> &store_from, std::shared_ptr<Backend::LIR::Block> &lir_block);
+        template<typename LoadInst>
+        void load_load_instruction(const std::shared_ptr<Backend::Variable> &load_from, const std::shared_ptr<Backend::Variable> &load_to, std::shared_ptr<Backend::LIR::Block> &lir_block);
 };
 
 #endif

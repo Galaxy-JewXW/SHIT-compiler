@@ -91,6 +91,23 @@ namespace RISCV::Instructions {
             [[nodiscard]] std::string to_string() const override;
     };
 
+    class FAdd : public Rtype {
+        public:
+            FAdd(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class FSGNJ : public Rtype {
+        public:
+            FSGNJ(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class Fmv : public FSGNJ {
+        public:
+            Fmv(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs) : FSGNJ{rd, rs, rs} {}
+    };
+
     class AddImmediate : public Itype {
         public:
             AddImmediate(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, int32_t imm) : Itype{rd, rs1, imm} {}
@@ -109,10 +126,21 @@ namespace RISCV::Instructions {
             [[nodiscard]] std::string to_string() const override;
     };
 
+    class FSub : public Rtype {
+        public:
+            FSub(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
     class StoreDoubleword : public Stype {
         public:
             StoreDoubleword(const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, int32_t imm) : Stype{rs1, rs2, imm} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
 
+    class FStoreDoubleword : public Stype {
+        public:
+            FStoreDoubleword(const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, int32_t imm) : Stype{rs1, rs2, imm} {}
             [[nodiscard]] std::string to_string() const override;
     };
 
@@ -125,9 +153,21 @@ namespace RISCV::Instructions {
             [[nodiscard]] std::string to_string() const override;
     };
 
+    class FStoreWordToStack : public StoreWordToStack {
+        public:
+            FStoreWordToStack(const RISCV::Registers::ABI rd, std::shared_ptr<Backend::Variable> &variable, std::shared_ptr<RISCV::Stack> &stack) : StoreWordToStack{rd, variable, stack} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
     class StoreWord : public Stype {
         public:
             StoreWord(const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, int32_t imm) : Stype{rs1, rs2, imm} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class FStoreWord : public Stype {
+        public:
+            FStoreWord(const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, int32_t imm) : Stype{rs1, rs2, imm} {}
             [[nodiscard]] std::string to_string() const override;
     };
 
@@ -145,12 +185,25 @@ namespace RISCV::Instructions {
             [[nodiscard]] std::string to_string() const override;
     };
 
+    class FLoadWord : public Itype {
+        public:
+            FLoadWord(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, int32_t imm) : Itype{rd, rs1, imm} {}
+            FLoadWord(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1) : Itype{rd, rs1, 0} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
     class LoadWordFromStack : public StackInstruction {
         public:
             const RISCV::Registers::ABI rd;
             std::shared_ptr<Backend::Variable> variable;
             int64_t offset{0};
             LoadWordFromStack(const RISCV::Registers::ABI rd, std::shared_ptr<Backend::Variable> &variable, std::shared_ptr<RISCV::Stack> &stack) : StackInstruction(stack), rd{rd}, variable{variable} {}
+            [[nodiscard]] virtual std::string to_string() const override;
+    };
+
+    class FLoadWordFromStack : public LoadWordFromStack {
+        public:
+            FLoadWordFromStack(const RISCV::Registers::ABI rd, std::shared_ptr<Backend::Variable> &variable, std::shared_ptr<RISCV::Stack> &stack) : LoadWordFromStack{rd, variable, stack} {}
             [[nodiscard]] std::string to_string() const override;
     };
 
@@ -165,21 +218,30 @@ namespace RISCV::Instructions {
     class Mul : public Rtype{
         public:
             Mul(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
 
+    class FMul : public Rtype {
+        public:
+            FMul(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
             [[nodiscard]] std::string to_string() const override;
     };
 
     class Div : public Rtype {
         public:
             Div(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
 
+    class FDiv : public Rtype {
+        public:
+            FDiv(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
             [[nodiscard]] std::string to_string() const override;
     };
 
     class Mod : public Rtype {
         public:
             Mod(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
-
             [[nodiscard]] std::string to_string() const override;
     };
 
@@ -191,18 +253,14 @@ namespace RISCV::Instructions {
     class Call final : public Instruction {
         public:
             const std::string function_name;
-
             Call(const std::string &function_name) : function_name{function_name} {}
-
             [[nodiscard]] std::string to_string() const override;
     };
 
     class Jump final : public Instruction {
         public:
             std::shared_ptr<RISCV::Block> target_block;
-
             Jump(const std::shared_ptr<RISCV::Block> &target_block) : target_block{target_block} {}
-
             [[nodiscard]] std::string to_string() const override;
     };
 
@@ -275,6 +333,42 @@ namespace RISCV::Instructions {
     class LoadSP final : public StackInstruction {
         public:
             explicit LoadSP(const std::shared_ptr<RISCV::Stack> &stack) : StackInstruction{stack} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class Fcvt_S_W final : public Rtype{
+        public:
+            Fcvt_S_W(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1) : Rtype{rd, rs1, rs1} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class Fcvt_W_S final : public Rtype{
+        public:
+            Fcvt_W_S(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1) : Rtype{rd, rs1, rs1} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class SLL final : public Rtype{
+        public:
+            SLL(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class SLLI final : public Itype {
+        public:
+            SLLI(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const int32_t shamt) : Itype{rd, rs1, shamt} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class SRL final : public Rtype{
+        public:
+            SRL(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class SRLI final : public Itype {
+        public:
+            SRLI(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const int32_t shamt) : Itype{rd, rs1, shamt} {}
             [[nodiscard]] std::string to_string() const override;
     };
 }

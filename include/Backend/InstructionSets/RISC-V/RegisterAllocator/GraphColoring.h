@@ -40,30 +40,28 @@ class RISCV::RegisterAllocator::GraphColoring : public RISCV::RegisterAllocator:
                 bool is_colored{false};
                 RISCV::Registers::ABI color{RISCV::Registers::ABI::ZERO};
 
-                explicit InterferenceNode(const std::shared_ptr<Backend::Variable> &var) : variable(var) {};
-                explicit InterferenceNode(RISCV::Registers::ABI reg) : variable(nullptr), is_colored(true), color(reg) {};
-
-                [[nodiscard]] inline size_t degree() const {
-                    return non_move_related_neighbors.size();
-                }
+                explicit InterferenceNode(const std::shared_ptr<Backend::Variable> &var) : variable(var) {}
+                explicit InterferenceNode(RISCV::Registers::ABI reg) : variable(nullptr), is_colored(true), color(reg) {}
+                [[nodiscard]] inline size_t degree() const { return non_move_related_neighbors.size(); }
 
                 InterferenceNode& operator+=(const std::shared_ptr<InterferenceNode> &other) {
                     coalesced.insert(other);
                     coalesced.insert(other->coalesced.begin(), other->coalesced.end());
+                    move_related_neighbors.erase(other);
                     for (std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> move_neighbor : other->move_related_neighbors) {
-                        move_neighbor->move_related_neighbors.erase(other);
-                        move_neighbor->move_related_neighbors.insert(shared_from_this());
+                        if (move_neighbor != shared_from_this()) {
+                            move_neighbor->move_related_neighbors.erase(other);
+                            move_neighbor->move_related_neighbors.insert(shared_from_this());
+                            move_related_neighbors.insert(move_neighbor);
+                        }
                     }
                     for (std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> non_move_neighbor : other->non_move_related_neighbors) {
                         move_related_neighbors.erase(non_move_neighbor);
+                        non_move_related_neighbors.insert(non_move_neighbor);
                         non_move_neighbor->move_related_neighbors.erase(shared_from_this());
                         non_move_neighbor->non_move_related_neighbors.erase(other);
                         non_move_neighbor->non_move_related_neighbors.insert(shared_from_this());
                     }
-                    move_related_neighbors.insert(other->move_related_neighbors.begin(), other->move_related_neighbors.end());
-                    move_related_neighbors.erase(shared_from_this());
-                    non_move_related_neighbors.insert(other->non_move_related_neighbors.begin(), other->non_move_related_neighbors.end());
-                    non_move_related_neighbors.erase(shared_from_this());
                     return *this;
                 }
         };
