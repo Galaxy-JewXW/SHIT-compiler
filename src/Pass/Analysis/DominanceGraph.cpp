@@ -4,6 +4,7 @@
 #include "Pass/Analyses/ControlFlowGraph.h"
 #include "Pass/Analyses/DominanceGraph.h"
 #include "Pass/Util.h"
+#include "Pass/Analyses/LoopAnalysis.h"
 
 using FunctionPtr = std::shared_ptr<Mir::Function>;
 using BlockPtr = std::shared_ptr<Mir::Block>;
@@ -62,7 +63,7 @@ void build_dominators_dominated(const FunctionPtr &func,
     for (const auto &block: func->get_blocks()) {
         const auto &dominated_blocks = dominated[block];
         oss << "  ■ Block: \"" << block->get_name() << "\"\n"
-            << "    └─ Dominates: " << Pass::Utils::format_blocks(dominated_blocks) << "\n";
+                << "    └─ Dominates: " << Pass::Utils::format_blocks(dominated_blocks) << "\n";
     }
     // log_trace("%s", oss.str().c_str());
 }
@@ -224,7 +225,7 @@ void build_dominance_children(const FunctionPtr &func, const std::unordered_map<
     for (const auto &block: func->get_blocks()) {
         const auto &children = dominance_children_map[block];
         oss << "  ■ Block: \"" << block->get_name() << "\"\n"
-            << "    └─ Children: " << Pass::Utils::format_blocks(children) << "\n";
+                << "    └─ Children: " << Pass::Utils::format_blocks(children) << "\n";
     }
     // log_trace("%s", oss.str().c_str());
 }
@@ -272,7 +273,7 @@ void build_dominance_frontier(const FunctionPtr &func,
     for (const auto &block: func->get_blocks()) {
         const auto &frontier = dominance_frontier[block];
         oss << "  ■ Block: \"" << block->get_name() << "\"\n"
-            << "    └─ Frontier: " << Pass::Utils::format_blocks(frontier) << "\n";
+                << "    └─ Frontier: " << Pass::Utils::format_blocks(frontier) << "\n";
     }
     // log_trace("%s", oss.str().c_str());
 }
@@ -299,10 +300,10 @@ void DominanceGraph::analyze(const std::shared_ptr<const Mir::Module> module) {
         }
         graphs_.try_emplace(func, Graph{});
         auto &dominator_map = graphs_[func].dominator_blocks, // 支配该块的所有块集合（含自身）
-                &dominated_map = graphs_[func].dominated_blocks; // 被该块支配的所有块集合（含自身）
+             &dominated_map = graphs_[func].dominated_blocks; // 被该块支配的所有块集合（含自身）
         auto &imm_dom_map = graphs_[func].immediate_dominator; // 该块的唯一直接支配者（支配树中的父节点）
         auto &dominance_children_map = graphs_[func].dominance_children, // 该块在支配树中的直接子节点
-                &dominance_frontier_map = graphs_[func].dominance_frontier; // 该块的支配边界
+             &dominance_frontier_map = graphs_[func].dominance_frontier; // 该块的支配边界
         build_dominators_dominated(func, cfg->graph(func).predecessors, dominator_map, dominated_map);
         LengauerTarjan lt(cfg->graph(func).successors);
         lt.compute(func);
@@ -331,6 +332,7 @@ void DominanceGraph::set_dirty(const FunctionPtr &func) {
     }
     dirty_funcs_[func] = true;
     set_analysis_result_dirty<ControlFlowGraph>(func);
+    set_analysis_result_dirty<LoopAnalysis>(func);
 }
 
 std::vector<BlockPtr> DominanceGraph::pre_order_blocks(const FunctionPtr &func) {

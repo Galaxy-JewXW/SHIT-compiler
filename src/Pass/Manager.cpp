@@ -8,16 +8,18 @@
 
 [[maybe_unused]]
 void execute_O0_passes(std::shared_ptr<Mir::Module> &module) {
-    apply<Pass::Mem2Reg, Pass::GlobalValueNumbering>(module);
+    apply<Pass::Mem2Reg, Pass::GlobalValueNumbering, Pass::GepFolding>(module);
 }
 
 void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
-    apply<Pass::Mem2Reg, Pass::TreeHeightBalance, Pass::AlgebraicSimplify,
+    apply<Pass::Mem2Reg, Pass::AlgebraicSimplify,
           // Pass::LoopSimplyForm,
           // Pass::LCSSA,
-          Pass::DeadCodeEliminate, Pass::BranchMerging, Pass::GepFolding, Pass::GlobalVariableLocalize,
+          Pass::BranchMerging, Pass::GepFolding, Pass::GlobalVariableLocalize,
           Pass::GlobalArrayLocalize, Pass::LoadEliminate, Pass::StoreEliminate, Pass::SROA, Pass::ConstexprFuncEval,
-          Pass::DeadCodeEliminate, Pass::GlobalValueNumbering, Pass::TailCallOptimize, Pass::Inlining,
-          Pass::SimplifyControlFlow>(module);
+          Pass::GlobalValueNumbering, Pass::TailCallOptimize>(module);
+    apply<Pass::DeadFuncEliminate, Pass::DeadFuncArgEliminate, Pass::DeadReturnEliminate>(module);
+    apply<Pass::ConstrainReduce, Pass::SimplifyControlFlow>(module);
+    apply<Pass::Reassociate>(module);
     apply<Pass::RemovePhi, Pass::BlockPositioning>(module);
 }

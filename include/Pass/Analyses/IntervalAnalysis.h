@@ -36,6 +36,8 @@ public:
     // 代表一个闭区间 [lower, upper]
     template<typename T>
     struct Interval {
+        static_assert(std::is_same_v<T, int> || std::is_same_v<T, double>, "Only support int or double");
+
         T lower;
         T upper;
 
@@ -977,7 +979,23 @@ public:
         std::unordered_map<std::shared_ptr<Mir::Value>, AnyIntervalSet> intervals{};
     };
 
-    Context ctx_after(const std::shared_ptr<Mir::Instruction> &inst);
+    struct PtrPairHash {
+        template<class T1, class T2>
+        std::size_t operator()(const std::pair<T1, T2> &p) const {
+            auto h1 = std::hash<T1>{}(p.first);
+            auto h2 = std::hash<T2>{}(p.second);
+            // ReSharper disable once CppRedundantParentheses
+            return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
+        }
+    };
+
+    mutable std::unordered_map<
+        std::pair<const Mir::Instruction *, const Mir::Block *>,
+        Context,
+        PtrPairHash
+    > after_ctx_cache_{};
+
+    Context ctx_after(const std::shared_ptr<Mir::Instruction> &inst, const std::shared_ptr<Mir::Block> &block);
 
 protected:
     void analyze(std::shared_ptr<const Mir::Module> module) override;
@@ -994,6 +1012,36 @@ private:
 
     std::unordered_map<const Mir::Block *, Context> block_in_ctxs;
 };
+
+template<typename T>
+std::pair<T, T> interval_limit(const IntervalAnalysis::IntervalSet<T> &set) {
+    const auto &intervals = set.intervals();
+    T _min = numeric_limits_v<T>::infinity;
+    T _max = numeric_limits_v<T>::neg_infinity;
+    for (const auto &i: intervals) {
+        _min = std::min(_min, i.lower);
+        _max = std::max(_max, i.upper);
+    }
+    return {_min, _max};
+}
+
+template<typename T>
+bool interval_hit(const IntervalAnalysis::IntervalSet<T> &set, T val, T epsilon = T(0)) {
+    const auto &intervals = set.intervals();
+
+    if constexpr (std::is_floating_point_v<T>) {
+        return std::any_of(intervals.begin(), intervals.end(),
+                           [&val, epsilon](const auto &i) {
+                               return (val > i.lower || std::fabs(val - i.lower) < epsilon) &&
+                                      (val < i.upper || std::fabs(val - i.upper) < epsilon);
+                           });
+    } else {
+        return std::any_of(intervals.begin(), intervals.end(),
+                           [&val](const auto &i) {
+                               return i.lower <= val && val <= i.upper;
+                           });
+    }
+}
 } // namespace Pass
 
 #endif // INTERVALANALYSIS_H

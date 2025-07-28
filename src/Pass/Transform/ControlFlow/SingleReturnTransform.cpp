@@ -20,14 +20,10 @@ void SingleReturnTransform::run_on_func(const std::shared_ptr<Function> &func) {
     const auto ret_block{Block::create("ret_block", func)};
     for (const auto &[block, ret]: rets) {
         block->get_instructions().pop_back();
-        if (!block->get_instructions().empty()) {
-            Jump::create(ret_block, block);
-        } else {
-            block->replace_by_new_value(ret_block);
-            block->set_deleted();
-        }
+        Jump::create(ret_block, block);
     }
     set_analysis_result_dirty<ControlFlowGraph>(func);
+    set_analysis_result_dirty<DominanceGraph>(func);
     if (func->get_return_type()->is_void()) {
         Ret::create(ret_block);
         return;
@@ -46,7 +42,6 @@ void SingleReturnTransform::run_on_func(const std::shared_ptr<Function> &func) {
         }
     }
     Ret::create(phi, ret_block);
-    SimplifyControlFlow::remove_deleted_blocks(func);
 }
 
 void SingleReturnTransform::transform(const std::shared_ptr<Module> module) {
