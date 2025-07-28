@@ -203,6 +203,10 @@ void AliasAnalysis::run_on_func(const std::shared_ptr<Mir::Function> &func) {
 }
 
 void AliasAnalysis::analyze(const std::shared_ptr<const Mir::Module> module) {
+    this->module = nullptr;
+    this->dom_graph = nullptr;
+    this->results.clear();
+
     this->module = std::const_pointer_cast<Mir::Module>(module);
     dom_graph = get_analysis_result<DominanceGraph>(module);
     for (const auto &func: *module) {

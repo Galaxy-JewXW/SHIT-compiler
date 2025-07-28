@@ -361,12 +361,16 @@ Context IntervalAnalysis::ctx_after(const std::shared_ptr<Instruction> &inst, co
 }
 
 void IntervalAnalysis::analyze(const std::shared_ptr<const Module> module) {
+    block_in_ctxs.clear();
+    func_info = nullptr;
+    loop_info = nullptr;
+    summary_manager = SummaryManager{};
+
     // 保证对于每一个函数，只有一个返回点
     create<StandardizeBinary>()->run_on(std::const_pointer_cast<Module>(module));
     create<SingleReturnTransform>()->run_on(std::const_pointer_cast<Module>(module));
     func_info = get_analysis_result<FunctionAnalysis>(module);
     loop_info = get_analysis_result<LoopAnalysis>(module);
-    block_in_ctxs.clear();
 
     auto topo{func_info->topo()};
     std::reverse(topo.begin(), topo.end());

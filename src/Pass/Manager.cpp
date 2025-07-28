@@ -9,12 +9,11 @@
 [[maybe_unused]]
 void execute_O0_passes(std::shared_ptr<Mir::Module> &module) {
     apply<Pass::Mem2Reg, Pass::GlobalValueNumbering, Pass::GepFolding>(module);
+    apply<Pass::RemovePhi, Pass::BlockPositioning>(module);
 }
 
 void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
     apply<Pass::Mem2Reg, Pass::AlgebraicSimplify,
-          // Pass::LoopSimplyForm,
-          // Pass::LCSSA,
           Pass::BranchMerging, Pass::GepFolding, Pass::GlobalVariableLocalize,
           Pass::GlobalArrayLocalize, Pass::LoadEliminate, Pass::StoreEliminate, Pass::SROA, Pass::ConstexprFuncEval,
           Pass::GlobalValueNumbering, Pass::TailCallOptimize>(module);
