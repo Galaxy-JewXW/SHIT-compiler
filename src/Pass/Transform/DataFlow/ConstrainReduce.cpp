@@ -602,9 +602,9 @@ bool BranchConstrainReduceImpl::impl() {
 namespace Pass {
 void ConstrainReduce::transform(const std::shared_ptr<Module> module) {
     create<StandardizeBinary>()->run_on(module);
+    const auto interval = get_analysis_result<IntervalAnalysis>(module);
     const auto cfg_info = get_analysis_result<ControlFlowGraph>(module);
     const auto dom_info = get_analysis_result<DominanceGraph>(module);
-    const auto interval = get_analysis_result<IntervalAnalysis>(module);
     const auto loop_info = get_analysis_result<LoopAnalysis>(module);
     for (const auto &func: module->get_functions()) {
         // ReSharper disable once CppTooWideScopeInitStatement
