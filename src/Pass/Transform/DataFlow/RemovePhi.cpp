@@ -25,6 +25,8 @@ public:
            const std::vector<std::shared_ptr<Phi>> &phis) :
         block{block}, cfg_info{cfg_info}, phis{phis} {}
 
+    std::unordered_set<std::shared_ptr<Value>> phicopy_variables{};
+
     void build();
 };
 
@@ -119,7 +121,9 @@ void Helper::build() {
 
     // 收集所有 move 操作，并按照前驱块分组
     for (const auto &phi: phis) {
-        phi_map[phi] = std::make_shared<Value>(make_name(), phi->get_type());
+        const auto phicopy_value = std::make_shared<Value>(make_name(), phi->get_type());
+        phi_map[phi] = phicopy_value;
+        phicopy_variables.insert(phicopy_value->as<Value>());
         for (const auto &[pre, value]: phi->get_optional_values()) {
             move_map.try_emplace(pre, std::vector<std::shared_ptr<Move>>{});
             move_map[pre].push_back(Move::create(phi_map[phi], value, nullptr));
@@ -148,6 +152,8 @@ void RemovePhi::run_on_func(const std::shared_ptr<Function> &func) {
         }
         Helper helper{block, cfg_info->graph(func), phis};
         helper.build();
+        func->phicopy_values().insert(func->phicopy_values().end(), helper.phicopy_variables.begin(),
+                                      helper.phicopy_variables.end());
         to_be_deleted.insert(phis.begin(), phis.end());
         set_analysis_result_dirty<ControlFlowGraph>(func);
     }
