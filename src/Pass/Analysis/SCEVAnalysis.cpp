@@ -2,6 +2,7 @@
 namespace Pass {
 
 void SCEVAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
+    get_SCEVinfo().clear();
     const auto loop_info = get_analysis_result<LoopAnalysis>(module);
 
     for (const auto &func: *module) {

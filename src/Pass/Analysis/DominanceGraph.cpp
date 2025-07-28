@@ -384,14 +384,13 @@ std::vector<BlockPtr> DominanceGraph::dom_tree_layer(const FunctionPtr &func) {
         const auto current = queue.front();
         queue.pop();
         dom_tree_layer_order.push_back(current);
-        if (graphs_[func].dominance_children.count(current)) {
-            for (const auto &child: graphs_[func].dominance_children.at(current)) {
-                if (!visited.count(child)) {
-                    queue.push(child);
-                    visited.insert(child);
-                }
+        for (const auto &child: graphs_[func].dominated_blocks.at(current)) {
+            if (!visited.count(child)) {
+                queue.push(child);
+                visited.insert(child);
             }
         }
+
     }
 
     return dom_tree_layer_order;

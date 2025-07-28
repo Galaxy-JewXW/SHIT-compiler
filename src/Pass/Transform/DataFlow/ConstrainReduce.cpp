@@ -6,6 +6,23 @@
 using namespace Mir;
 
 namespace {
+bool is_back_edge(const std::vector<std::shared_ptr<Pass::Loop>> &loops, const std::shared_ptr<Block> &b,
+                  const std::shared_ptr<Block> &pred) {
+    for (const auto &loop: loops) {
+        if (loop->get_header() != b) {
+            continue;
+        }
+        if (const auto &latchs{loop->get_latch_blocks()};
+            std::find_if(latchs.begin(), latchs.end(), [&pred](const auto &latch) {
+                return latch == pred;
+            }) == latchs.end()) {
+            continue;
+        }
+        return true;
+    }
+    return false;
+}
+
 constexpr long max_depth = 128l;
 
 class Constraint {
@@ -161,8 +178,10 @@ public:
     BranchConstrainReduceImpl(const std::shared_ptr<Function> &current_func,
                               const Pass::ControlFlowGraph::Graph &cfg_graph,
                               const Pass::DominanceGraph::Graph &dom_graph,
-                              const std::shared_ptr<Pass::IntervalAnalysis> &interval) :
-        current_func(current_func), cfg_graph(cfg_graph), dom_graph(dom_graph), interval(interval) {}
+                              const std::shared_ptr<Pass::IntervalAnalysis> &interval,
+                              const std::vector<std::shared_ptr<Pass::Loop>> &loops) :
+        current_func(current_func), cfg_graph(cfg_graph), dom_graph(dom_graph), interval(interval),
+        loops(loops) {}
 
     bool impl();
 
@@ -171,6 +190,7 @@ private:
     const Pass::ControlFlowGraph::Graph &cfg_graph;
     const Pass::DominanceGraph::Graph &dom_graph;
     const std::shared_ptr<Pass::IntervalAnalysis> &interval;
+    const std::vector<std::shared_ptr<Pass::Loop>> &loops;
 
     Map<std::shared_ptr<Value>> id_map{};
     std::unordered_map<std::shared_ptr<Block>, Constraint> constraint_map{};
@@ -434,7 +454,7 @@ void BranchConstrainReduceImpl::run_on_block(const std::shared_ptr<Block> &block
                     default:
                         break;
                 }
-                if (target_block) {
+                if (target_block && !is_back_edge(loops, target_block, block)) {
                     block->get_instructions().pop_back();
                     changed = true;
                     Jump::create(target_block, block);
@@ -470,13 +490,12 @@ void BranchConstrainReduceImpl::run_on_block(const std::shared_ptr<Block> &block
                     default:
                         break;
                 }
-                if (target_block) {
+                if (target_block && !is_back_edge(loops, target_block, block)) {
                     block->get_instructions().pop_back();
                     changed = true;
                     Jump::create(target_block, block);
                 }
             } else if (rhs->is_constant() && !lhs->is_constant()) {
-                // TODO
                 const auto constant_rhs = **rhs->as<ConstFloat>();
                 const auto lhs_range = get_interval<double>(lhs, block);
                 const auto [lhs_min, lhs_max] = Pass::interval_limit(lhs_range);
@@ -515,7 +534,7 @@ void BranchConstrainReduceImpl::run_on_block(const std::shared_ptr<Block> &block
                     default:
                         break;
                 }
-                if (target_block) {
+                if (target_block && !is_back_edge(loops, target_block, block)) {
                     block->get_instructions().pop_back();
                     changed = true;
                     Jump::create(target_block, block);
@@ -583,12 +602,14 @@ bool BranchConstrainReduceImpl::impl() {
 namespace Pass {
 void ConstrainReduce::transform(const std::shared_ptr<Module> module) {
     create<StandardizeBinary>()->run_on(module);
+    const auto interval = get_analysis_result<IntervalAnalysis>(module);
     const auto cfg_info = get_analysis_result<ControlFlowGraph>(module);
     const auto dom_info = get_analysis_result<DominanceGraph>(module);
-    const auto interval = get_analysis_result<IntervalAnalysis>(module);
+    const auto loop_info = get_analysis_result<LoopAnalysis>(module);
     for (const auto &func: module->get_functions()) {
         // ReSharper disable once CppTooWideScopeInitStatement
-        BranchConstrainReduceImpl impl{func, cfg_info->graph(func), dom_info->graph(func), interval};
+        BranchConstrainReduceImpl impl{func, cfg_info->graph(func), dom_info->graph(func), interval,
+                                       loop_info->loops(func)};
         if (impl.impl()) {
             set_analysis_result_dirty<ControlFlowGraph>(func);
             set_analysis_result_dirty<DominanceGraph>(func);

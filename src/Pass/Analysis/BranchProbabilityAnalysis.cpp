@@ -10,21 +10,9 @@ using namespace Mir;
 #define MAKE_EDGE(src, dst) (Edge::make_edge(src, dst))
 
 namespace {
-bool is_back_edge(const std::vector<std::shared_ptr<Pass::Loop>> &loops, const std::shared_ptr<Block> &b,
-                  const std::shared_ptr<Block> &pred) {
-    for (const auto &loop: loops) {
-        if (loop->get_header() != b) {
-            continue;
-        }
-        if (const auto &latchs{loop->get_latch_blocks()};
-            std::find_if(latchs.begin(), latchs.end(), [&pred](const auto &latch) {
-                return latch == pred;
-            }) == latchs.end()) {
-            continue;
-        }
-        return true;
-    }
-    return false;
+bool is_exiting_loop(const std::shared_ptr<Block> &block, const std::shared_ptr<Pass::Loop> &loop) {
+    const auto &exits{loop->get_exits()};
+    return std::find(exits.begin(), exits.end(), block) != exits.end();
 }
 
 using Edge = Pass::BranchProbabilityAnalysis::Edge;
@@ -71,15 +59,21 @@ void BranchProbabilityImpl::calc_branch(const Branch *const branch) const {
     const auto true_block{branch->get_true_block()}, false_block{branch->get_false_block()};
     const auto current_block{branch->get_block()};
     // 回边的概率一般要比退出边的概率高很多
-    if (is_back_edge(loop_info->loops(current_function), true_block, current_block)) {
-        MAKE_EDGE(current_block, true_block).weight = BACKEDGE_TAKEN_WEIGHT;
-        MAKE_EDGE(current_block, false_block).weight = BACKEDGE_NOTTAKEN_WEIGHT;
-        return;
-    }
-    if (is_back_edge(loop_info->loops(current_function), false_block, current_block)) {
-        MAKE_EDGE(current_block, true_block).weight = BACKEDGE_NOTTAKEN_WEIGHT;
-        MAKE_EDGE(current_block, false_block).weight = BACKEDGE_TAKEN_WEIGHT;
-        return;
+    if (const auto loop_node = loop_info->find_block_in_forest(current_function, current_block)) {
+        const auto loop = loop_node->get_loop();
+        if (const auto &exitings = loop->get_exitings();
+            std::find(exitings.begin(), exitings.end(), current_block) != loop->get_exits().end()) {
+            if (is_exiting_loop(true_block, loop)) {
+                MAKE_EDGE(current_block, true_block).weight = BACKEDGE_TAKEN_WEIGHT;
+                MAKE_EDGE(current_block, false_block).weight = BACKEDGE_NOTTAKEN_WEIGHT;
+                return;
+            }
+            if (is_exiting_loop(false_block, loop)) {
+                MAKE_EDGE(current_block, true_block).weight = BACKEDGE_NOTTAKEN_WEIGHT;
+                MAKE_EDGE(current_block, false_block).weight = BACKEDGE_TAKEN_WEIGHT;
+                return;
+            }
+        }
     }
     const auto cond{branch->get_cond()};
     if (const auto icmp{cond->is<Icmp>()}) {
@@ -256,10 +250,13 @@ void BranchProbabilityImpl::impl() const {
 
 namespace Pass {
 void BranchProbabilityAnalysis::analyze(const std::shared_ptr<const Module> module) {
+    edge_probabilities.clear();
+    block_probabilities.clear();
+
     create<StandardizeBinary>()->run_on(std::const_pointer_cast<Module>(module));
+    const auto interval_info = get_analysis_result<IntervalAnalysis>(module);
     const auto cfg_info = get_analysis_result<ControlFlowGraph>(module);
     const auto loop_info = get_analysis_result<LoopAnalysis>(module);
-    const auto interval_info = get_analysis_result<IntervalAnalysis>(module);
     for (const auto &func: module->get_functions()) {
         BranchProbabilityImpl impl{func, cfg_info->graph(func), loop_info, interval_info,
                                    edge_probabilities[func.get()], block_probabilities[func.get()]};

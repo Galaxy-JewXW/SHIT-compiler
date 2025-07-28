@@ -5,6 +5,72 @@
 
 using namespace Mir;
 
+// TODO: scalar evolution support
+
+namespace {
+std::shared_ptr<Value> base_addr(const std::shared_ptr<Value> &inst) {
+    auto ret = inst;
+    while (ret->is<BitCast>() != nullptr || ret->is<GetElementPtr>() != nullptr) {
+        if (const auto bitcast = ret->is<BitCast>()) {
+            ret = bitcast->get_value();
+        } else if (const auto gep = ret->is<GetElementPtr>()) {
+            ret = gep->get_addr();
+        }
+    }
+    return ret;
+}
+
+struct BinaryOpKey {
+    IntBinary::Op op_type;
+    std::shared_ptr<Value> lhs;
+    std::shared_ptr<Value> rhs;
+
+    bool operator==(const BinaryOpKey &other) const {
+        return op_type == other.op_type && lhs == other.lhs && rhs == other.rhs;
+    }
+
+    BinaryOpKey(const IntBinary::Op &op_type, const std::shared_ptr<Value> &l, const std::shared_ptr<Value> &r) :
+        op_type(op_type), lhs(l), rhs(r) {
+        const auto a = reinterpret_cast<uintptr_t>(l.get());
+        // ReSharper disable once CppTooWideScopeInitStatement
+        const auto b = reinterpret_cast<uintptr_t>(r.get());
+        if (IntBinary::is_associative_op(op_type) && a > b)
+            std::swap(lhs, rhs);
+    }
+};
+
+struct BinaryOpKeyHasher {
+    std::size_t operator()(const BinaryOpKey &k) const {
+        const std::size_t h1 = std::hash<int>()(static_cast<int>(k.op_type));
+        const std::size_t h2 = std::hash<void *>()(k.lhs.get());
+        const std::size_t h3 = std::hash<void *>()(k.rhs.get());
+        return h1 ^ (h2 << 1) ^ (h3 << 2);
+    }
+};
+
+struct {
+    using Key = std::pair<int, uintptr_t>;
+
+    Key operator()(const std::shared_ptr<Value> &value) const {
+        int rank_val;
+        if (const auto inst = value->is<Instruction>()) {
+            if (inst->get_op() == Operator::LOAD &&
+                base_addr(inst->as<Load>()->get_addr())->is<GlobalVariable>() != nullptr) {
+                rank_val = 3;
+            } else {
+                rank_val = 1;
+            }
+        } else if (value->is<Argument>())
+            rank_val = 2;
+        else if (value->is_constant())
+            rank_val = 4;
+        else
+            rank_val = 5;
+        return {rank_val, reinterpret_cast<uintptr_t>(value.get())};
+    }
+} ranker;
+}
+
 namespace {
 class SimpleReassociateImpl {
 public:
@@ -19,25 +85,6 @@ public:
     }
 
 private:
-    struct BinaryOpKey {
-        IntBinary::Op op_type;
-        std::shared_ptr<Value> lhs;
-        std::shared_ptr<Value> rhs;
-
-        bool operator==(const BinaryOpKey &other) const {
-            return op_type == other.op_type && lhs == other.lhs && rhs == other.rhs;
-        }
-    };
-
-    struct BinaryOpKeyHasher {
-        std::size_t operator()(const BinaryOpKey &k) const {
-            const std::size_t h1 = std::hash<int>()(static_cast<int>(k.op_type));
-            const std::size_t h2 = std::hash<void *>()(k.lhs.get());
-            const std::size_t h3 = std::hash<void *>()(k.rhs.get());
-            return h1 ^ (h2 << 1) ^ (h3 << 2);
-        }
-    };
-
     const std::shared_ptr<Function> &current_function;
     std::unordered_set<std::shared_ptr<IntBinary>> worklist{};
     std::unordered_set<std::shared_ptr<Instruction>> to_erase{};
@@ -57,15 +104,15 @@ private:
     std::shared_ptr<Value> rebuild_right_deep_tree(std::vector<std::shared_ptr<Value>> &operand_lists,
                                                    const std::shared_ptr<IntBinary> &origin);
 
-    std::shared_ptr<Value> get_or_create_binary_op(const std::shared_ptr<Value> &lhs,
-                                                   const std::shared_ptr<Value> &rhs,
-                                                   IntBinary::Op type,
-                                                   const std::shared_ptr<Instruction> &origin);
+    std::shared_ptr<Value> get_or_create(const std::shared_ptr<Value> &lhs,
+                                         const std::shared_ptr<Value> &rhs,
+                                         IntBinary::Op type,
+                                         const std::shared_ptr<Instruction> &origin);
 };
 
 bool SimpleReassociateImpl::is_candidate(const std::shared_ptr<Instruction> &instruction) {
-    if (const auto int_binary = std::dynamic_pointer_cast<IntBinary>(instruction)) {
-        return int_binary->is_associative();
+    if (instruction->get_op() == Operator::INTBINARY) {
+        return instruction->as<IntBinary>()->is_associative();
     }
     return false;
 }
@@ -99,10 +146,10 @@ void SimpleReassociateImpl::initialize() {
     }
 }
 
-std::shared_ptr<Value> SimpleReassociateImpl::get_or_create_binary_op(const std::shared_ptr<Value> &lhs,
-                                                                      const std::shared_ptr<Value> &rhs,
-                                                                      const IntBinary::Op type,
-                                                                      const std::shared_ptr<Instruction> &origin) {
+std::shared_ptr<Value> SimpleReassociateImpl::get_or_create(const std::shared_ptr<Value> &lhs,
+                                                            const std::shared_ptr<Value> &rhs,
+                                                            const IntBinary::Op type,
+                                                            const std::shared_ptr<Instruction> &origin) {
     if (lhs->is_constant() && rhs->is_constant()) {
         const auto _l = **lhs->as<ConstInt>(), _r = **rhs->as<ConstInt>();
         const auto _res = [&]() -> int {
@@ -176,7 +223,7 @@ std::vector<std::shared_ptr<Value>> SimpleReassociateImpl::linearize(const std::
         if (v->is_constant()) {
             return ConstInt::create(-**v->as<ConstInt>());
         }
-        return get_or_create_binary_op(ConstInt::create(0), v, IntBinary::Op::SUB, intbinary);
+        return get_or_create(ConstInt::create(0), v, IntBinary::Op::SUB, intbinary);
     };
 
     while (!stack.empty()) {
@@ -204,23 +251,6 @@ std::vector<std::shared_ptr<Value>> SimpleReassociateImpl::linearize(const std::
     return operands;
 }
 
-struct Ranker {
-    using Key = std::pair<int, uintptr_t>;
-
-    Key operator()(const std::shared_ptr<Value> &value) const {
-        int rank_val;
-        if (value->is<Instruction>())
-            rank_val = 1;
-        else if (value->is<Argument>())
-            rank_val = 2;
-        else if (value->is_constant())
-            rank_val = 4;
-        else
-            rank_val = 5;
-        return {rank_val, reinterpret_cast<uintptr_t>(value.get())};
-    }
-};
-
 std::shared_ptr<Value> SimpleReassociateImpl::rebuild_right_deep_tree(
         std::vector<std::shared_ptr<Value>> &operand_lists,
         const std::shared_ptr<IntBinary> &origin) {
@@ -235,16 +265,15 @@ std::shared_ptr<Value> SimpleReassociateImpl::rebuild_right_deep_tree(
 
     for (size_t i = 1; i < operand_lists.size(); ++i) {
         // result 始终作为右操作数，形成右斜树
-        result = get_or_create_binary_op(operand_lists[i], result, type, origin);
+        result = get_or_create(operand_lists[i], result, type, origin);
     }
     return result;
 }
 
 void SimpleReassociateImpl::main_loop() {
     while (!worklist.empty()) {
-        auto instruction_iter = worklist.begin();
-        auto instruction = *instruction_iter;
-        worklist.erase(instruction_iter);
+        const auto instruction = *worklist.begin();
+        worklist.erase(instruction);
 
         if (to_erase.count(instruction))
             continue;
@@ -259,7 +288,7 @@ void SimpleReassociateImpl::main_loop() {
 
         std::sort(operands_list.begin(), operands_list.end(),
                   [](const std::shared_ptr<Value> &a, const std::shared_ptr<Value> &b) {
-                      return Ranker{}(a) < Ranker{}(b);
+                      return ranker(a) < ranker(b);
                   });
 
         if (auto new_value = rebuild_right_deep_tree(operands_list, instruction);
@@ -304,15 +333,62 @@ void SimpleReassociateImpl::cleanup() const {
 }
 
 namespace {
-// TODO
-class [[maybe_unused]] NaryReassociateImpl {};
+// 参见：https://github.com/llvm/llvm-project/blob/main/llvm/lib/Transforms/Scalar/NaryReassociate.cpp
+class [[maybe_unused]] NaryReassociateImpl {
+public:
+    explicit NaryReassociateImpl(const std::shared_ptr<Function> &current_function,
+                                 const Pass::DominanceGraph::Graph &dom_graph) :
+        current_function(current_function), dom_graph(dom_graph) {}
+
+    bool run();
+
+private:
+    const std::shared_ptr<Function> &current_function;
+    const Pass::DominanceGraph::Graph &dom_graph;
+    std::unordered_set<std::shared_ptr<IntBinary>> worklist{};
+    std::unordered_set<std::shared_ptr<Instruction>> to_erase{};
+    bool changed{false};
+
+    static bool is_candidate(const std::shared_ptr<Instruction> &instruction);
+
+    void run_on_block(const std::shared_ptr<Block> &block,
+                      const std::unordered_map<BinaryOpKey, std::shared_ptr<IntBinary>, BinaryOpKeyHasher> &value_map);
+};
+
+bool NaryReassociateImpl::is_candidate(const std::shared_ptr<Instruction> &instruction) {
+    if (instruction->get_op() == Operator::INTBINARY) {
+        return instruction->as<IntBinary>()->is_associative();
+    }
+    return false;
+}
+
+void NaryReassociateImpl::run_on_block(const std::shared_ptr<Block> &block,
+                                       const std::unordered_map<
+                                           BinaryOpKey, std::shared_ptr<IntBinary>, BinaryOpKeyHasher> &value_map) {
+    // TODO
+    const auto local_map = value_map;
+    for (const auto &child: dom_graph.dominance_children.at(block)) {
+        run_on_block(child, local_map);
+    }
+}
+
+bool NaryReassociateImpl::run() {
+    std::unordered_map<BinaryOpKey, std::shared_ptr<IntBinary>, BinaryOpKeyHasher> value_table;
+    run_on_block(current_function->get_blocks().front(), value_table);
+    return changed;
+}
 }
 
 void Pass::Reassociate::transform(const std::shared_ptr<Module> module) {
+    create<AlgebraicSimplify>()->run_on(module);
     create<StandardizeBinary>()->run_on(module);
+    const auto dom_info = get_analysis_result<DominanceGraph>(module);
     for (const auto &func: module->get_functions()) {
         if (SimpleReassociateImpl{func}.run()) {
-            create<DeadInstEliminate>()->run_on(func);
+            create<DeadCodeEliminate>()->run_on(func);
+        }
+        if (NaryReassociateImpl{func, dom_info->graph(func)}.run()) {
+            create<DeadCodeEliminate>()->run_on(func);
         }
     }
 }
