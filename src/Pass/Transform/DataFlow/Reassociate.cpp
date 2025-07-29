@@ -192,6 +192,8 @@ std::shared_ptr<Value> SimpleReassociateImpl::get_or_create(const std::shared_pt
         switch (type) {
             case IntBinary::Op::ADD:
                 return Add::create("%add" + std::to_string(++id), lhs, rhs, origin->get_block());
+            case IntBinary::Op::SUB:
+                return Sub::create("%sub" + std::to_string(++id), lhs, rhs, origin->get_block());
             case IntBinary::Op::MUL:
                 return Mul::create("%mul" + std::to_string(++id), lhs, rhs, origin->get_block());
             case IntBinary::Op::AND:
