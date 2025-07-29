@@ -960,7 +960,7 @@ public:
             return *this;
         }
 
-        bool operator==(const Context &other) const { return this->intervals == other.intervals; }
+        bool operator==(const Context &other) const { return to_string() == other.to_string(); }
 
         bool operator!=(const Context &other) const { return !(*this == other); }
 

@@ -71,13 +71,13 @@ bool ConstexprFuncEval::run_on_func(const std::shared_ptr<Function> &func) const
                 cache->put(key, result);
             }
             const auto new_value = [&]() -> std::shared_ptr<Value> {
-                if (func->get_return_type()->is_int32()) {
+                if (called_func->get_return_type()->is_int32()) {
                     return ConstInt::create(result.get<int>());
                 }
-                if (func->get_return_type()->is_float()) {
+                if (called_func->get_return_type()->is_float()) {
                     return ConstFloat::create(result.get<double>());
                 }
-                log_error("Invalid return type %s", func->get_return_type()->to_string().c_str());
+                log_error("Invalid return type %s", called_func->get_return_type()->to_string().c_str());
             }();
             call->replace_by_new_value(new_value);
             changed = true;

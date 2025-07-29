@@ -375,6 +375,10 @@ void IntervalAnalysis::analyze(const std::shared_ptr<const Module> module) {
     auto topo{func_info->topo()};
     std::reverse(topo.begin(), topo.end());
     std::unordered_set worklist(topo.begin(), topo.end());
+    for (const auto &func: module->get_functions()) {
+        if (!worklist.count(func))
+            worklist.insert(func);
+    }
 
     summary_manager.clear();
     while (!worklist.empty()) {
