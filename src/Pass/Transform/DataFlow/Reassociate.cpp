@@ -382,8 +382,6 @@ bool NaryReassociateImpl::run() {
 void Pass::Reassociate::transform(const std::shared_ptr<Module> module) {
     create<AlgebraicSimplify>()->run_on(module);
     create<StandardizeBinary>()->run_on(module);
-    module->update_id();
-    log_debug("%s", module->to_string().c_str());
     const auto dom_info = get_analysis_result<DominanceGraph>(module);
     for (const auto &func: module->get_functions()) {
         if (SimpleReassociateImpl{func}.run()) {
