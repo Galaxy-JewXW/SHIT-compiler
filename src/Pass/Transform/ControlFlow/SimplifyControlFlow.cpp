@@ -277,6 +277,9 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
     // 合并冗余分支：分支指令的两个目标为同一个块，或者分支指令的条件变量为常数
     [[maybe_unused]] const auto fold_redundant_branch = [&]() -> void {
         for (const auto &block: func->get_blocks()) {
+            if (block->is_deleted()) {
+                continue;
+            }
             auto &last_instruction = block->get_instructions().back();
             if (last_instruction->get_op() != Operator::BRANCH) {
                 continue;

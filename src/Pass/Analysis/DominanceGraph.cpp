@@ -238,33 +238,31 @@ void build_dominance_frontier(const FunctionPtr &func,
     dominance_frontier.clear();
     const BlockPtr entry_block = func->get_blocks().front();
     for (const auto &x_block: func->get_blocks()) {
-        const auto &x_preds = pred_map.at(x_block);
-        for (const auto &p: x_preds) {
-            // 遍历每个前驱块
+        // 只有拥有多个前驱的块才可能产生非空的支配边界集合。
+        // （或只有一个前驱但该前驱不支配它的块，例如循环头）
+        if (pred_map.at(x_block).size() < 2) {
+            continue;
+        }
+        const auto it = imm_dom_map.find(x_block);
+        // 一个不可达的块（非入口块）不会有直接支配节点
+        if (it == imm_dom_map.end() && x_block != entry_block) {
+            continue;
+        }
+        BlockPtr x_idom = x_block == entry_block ? nullptr : it->second;
+        for (const auto &p: pred_map.at(x_block)) {
             BlockPtr runner = p;
-            BlockPtr x_idom = nullptr;
-            // 获取X块的直接支配者
-            if (x_block == entry_block) {
-                x_idom = entry_block; // 入口块支配自身
-            } else {
-                const auto it = imm_dom_map.find(x_block);
-                if (it == imm_dom_map.end()) {
-                    log_error("Block %s has no immediate dominator", x_block->get_name().c_str());
-                }
-                x_idom = it->second;
-            }
-            // 沿支配链向上传播支配边界
+            // 从前驱 'p' 开始，沿着支配树向上回溯
             while (runner != x_idom) {
+                // 将 'x_block' 添加到 'runner' 的支配边界中
                 dominance_frontier[runner].insert(x_block);
-                // 处理入口块的边界情况
-                if (runner == entry_block)
-                    break; // 入口无法继续回溯
-                // 获取当前runner的直接支配者
+                // 查找当前 'runner' 的直接支配节点
                 const auto runner_it = imm_dom_map.find(runner);
                 if (runner_it == imm_dom_map.end()) {
-                    log_error("Block %s has no immediate dominator", runner->get_name().c_str());
+                    // 如果 'runner' 没有直接支配节点，那么它一定是一个不可达块
+                    // (或者是入口块，此时 x_idom 为 nullptr)。停止向上回溯。
+                    break;
                 }
-                runner = runner_it->second; // 向上回溯
+                runner = runner_it->second; // 继续向上回溯
             }
         }
     }
