@@ -51,8 +51,10 @@ class RISCV::RegisterAllocator::GraphColoring : public RISCV::RegisterAllocator:
                     for (std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> move_neighbor : other->move_related_neighbors) {
                         if (move_neighbor != shared_from_this()) {
                             move_neighbor->move_related_neighbors.erase(other);
-                            move_neighbor->move_related_neighbors.insert(shared_from_this());
-                            move_related_neighbors.insert(move_neighbor);
+                            if (non_move_related_neighbors.find(move_neighbor) == non_move_related_neighbors.end()) {
+                                move_neighbor->move_related_neighbors.insert(shared_from_this());
+                                move_related_neighbors.insert(move_neighbor);
+                            }
                         }
                     }
                     for (std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> non_move_neighbor : other->non_move_related_neighbors) {

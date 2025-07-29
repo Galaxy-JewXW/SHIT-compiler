@@ -215,7 +215,10 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
         case Backend::LIR::InstructionType::LOAD_ADDR: {
             std::shared_ptr<Backend::LIR::LoadAddress> instr = std::static_pointer_cast<Backend::LIR::LoadAddress>(instruction);
             RISCV::Registers::ABI rd = register_allocator->get_register(instr->addr);
-            instrs.push_back(std::make_shared<RISCV::Instructions::LoadAddress>(rd, instr->var_in_mem));
+            if (instr->var_in_mem->lifetime == Backend::VariableWide::GLOBAL)
+                instrs.push_back(std::make_shared<RISCV::Instructions::LoadAddress>(rd, instr->var_in_mem));
+            else
+                instrs.push_back(std::make_shared<RISCV::Instructions::Add>(rd, RISCV::Registers::ABI::ZERO, RISCV::Registers::ABI::SP));
             break;
         }
         case Backend::LIR::InstructionType::MOVE: {
@@ -238,11 +241,12 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
             std::shared_ptr<Backend::LIR::LoadInt> instr = std::static_pointer_cast<Backend::LIR::LoadInt>(instruction);
             std::shared_ptr<Backend::Variable> addr = instr->var_in_mem;
             std::shared_ptr<Backend::Variable> dest = instr->var_in_reg;
+            RISCV::Registers::ABI base_reg = register_allocator->get_register(addr);
             RISCV::Registers::ABI dest_reg = register_allocator->get_register(dest);
-            if (addr->lifetime == Backend::VariableWide::GLOBAL) {
-                instrs.push_back(std::make_shared<RISCV::Instructions::LoadAddress>(dest_reg, addr));
-                instrs.push_back(std::make_shared<RISCV::Instructions::LoadWord>(dest_reg, dest_reg, instr->offset));
-            } else instrs.push_back(std::make_shared<RISCV::Instructions::LoadWordFromStack>(dest_reg, addr, stack));
+            if (base_reg != RISCV::Registers::ABI::ZERO)
+                instrs.push_back(std::make_shared<RISCV::Instructions::LoadWord>(dest_reg, base_reg, instr->offset));
+            else
+                instrs.push_back(std::make_shared<RISCV::Instructions::LoadWordFromStack>(dest_reg, addr, stack));
             break;
         }
         case Backend::LIR::InstructionType::FLOAD: {

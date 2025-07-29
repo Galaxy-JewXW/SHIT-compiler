@@ -8,8 +8,8 @@
 
 [[maybe_unused]]
 void execute_O0_passes(std::shared_ptr<Mir::Module> &module) {
-    apply<Pass::Mem2Reg, Pass::GlobalValueNumbering, Pass::GepFolding>(module);
-    apply<Pass::RemovePhi, Pass::BlockPositioning>(module);
+    // apply<Pass::Mem2Reg, Pass::GlobalValueNumbering, Pass::GepFolding>(module);
+    // apply<Pass::RemovePhi, Pass::BlockPositioning>(module);
 }
 
 void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {

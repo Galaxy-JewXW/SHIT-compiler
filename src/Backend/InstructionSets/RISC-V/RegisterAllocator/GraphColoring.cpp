@@ -231,22 +231,21 @@ double RISCV::RegisterAllocator::GraphColoring::calculate_spill_cost(const RISCV
 }
 
 void RISCV::RegisterAllocator::GraphColoring::simplify_phase(std::stack<std::string>& simplify_stack, const size_t K) {
-    std::vector<std::string> workload;
-    for (const auto& [var_name, node] : interference_graph)
-        if (!node->is_spilled && !node->is_colored)
-            workload.push_back(var_name);
+    std::set<std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode>> workload;
+    for (const std::pair<std::string, std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode>> pair : interference_graph)
+        if (!pair.second->is_spilled && !pair.second->is_colored)
+            workload.insert(pair.second);
     bool changed = true;
     while (changed) {
         changed = false;
-        for (const std::string &var_name : workload) {
-            std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> node = interference_graph[var_name];
+        for (std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> node : workload) {
             if (node->degree() < K && node->move_related_neighbors.empty()) {
                 log_debug("Simplify variable %s", node->variable->name.c_str());
                 simplify_stack.push(node->variable->name);
                 for (std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> neighbor : node->non_move_related_neighbors)
                     neighbor->non_move_related_neighbors.erase(node);
                 node->is_spilled = true;
-                workload.erase(std::remove(workload.begin(), workload.end(), node->variable->name), workload.end());
+                workload.erase(node);
                 changed = true;
                 break;
             }

@@ -13,6 +13,8 @@
 #include "Backend/Value.h"
 #include "Mir/Structure.h"
 #include "Mir/Instruction.h"
+#include "Pass/Analysis.h"
+#include "Pass/Analyses/DominanceGraph.h"
 #include "Utils/Log.h"
 
 namespace Backend::LIR {
@@ -234,7 +236,8 @@ class Backend::LIR::Function {
         virtual ~Function() = default;
 
         void add_variable(const std::shared_ptr<Backend::Variable> &variable) {
-            variables[variable->name] = variable;
+            if (variables.find(variable->name) == variables.end())
+                variables[variable->name] = variable;
         }
 
         void remove_variable(const std::shared_ptr<Backend::Variable> &variable) {
@@ -324,7 +327,7 @@ class Backend::LIR::Module : public std::enable_shared_from_this<Backend::LIR::M
         std::vector<std::shared_ptr<Backend::LIR::Function>> functions;
         std::shared_ptr<Backend::DataSection> global_data;
 
-        explicit Module(const std::shared_ptr<Mir::Module> &llvm_module) : llvm_module(llvm_module) {
+        explicit Module(const std::shared_ptr<Mir::Module> &llvm_module) : llvm_module(llvm_module), dom_info(Pass::get_analysis_result<Pass::DominanceGraph>(llvm_module)) {
             load_global_data();
             load_functions_and_blocks();
             for (const std::shared_ptr<Mir::Function> &llvm_function : llvm_module->get_functions()) {
@@ -347,6 +350,8 @@ class Backend::LIR::Module : public std::enable_shared_from_this<Backend::LIR::M
             return oss.str();
         }
     private:
+        const std::shared_ptr<Pass::DominanceGraph> dom_info;
+
         void load_global_data()  {
             this->global_data = std::make_shared<Backend::DataSection>();
             this->global_data->load_global_variables(llvm_module->get_global_variables());

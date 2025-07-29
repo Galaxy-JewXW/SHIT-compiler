@@ -54,30 +54,45 @@ void Backend::LIR::Module::load_functions_and_blocks() {
 template<typename StoreInst, Backend::VariableType PTR>
 void Backend::LIR::Module::load_store_instruction(const std::shared_ptr<Backend::Variable> &store_to, const std::shared_ptr<Backend::Variable> &store_from, std::shared_ptr<Backend::LIR::Block> &lir_block) {
     if (store_to->lifetime == VariableWide::GLOBAL) {
+        // (single) global variable
         std::shared_ptr<Backend::Variable> addr_var = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("addr"), PTR, VariableWide::LOCAL);
         lir_block->parent_function.lock()->add_variable(addr_var);
         lir_block->instructions.push_back(std::make_shared<Backend::LIR::LoadAddress>(store_to, addr_var));
         lir_block->instructions.push_back(std::make_shared<StoreInst>(addr_var, store_from));
     } else if (store_to->var_type == Variable::Type::PTR) {
+        // element pointer
         std::shared_ptr<Backend::Pointer> ep = std::static_pointer_cast<Backend::Pointer>(store_to);
-        std::shared_ptr<Backend::Variable> base = ep->base;
-        if (base->lifetime == VariableWide::GLOBAL) {
-            base = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("addr"), PTR, VariableWide::LOCAL);
+        if (ep->base->lifetime == VariableWide::GLOBAL) {
+            std::shared_ptr<Backend::Variable> base = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("addr"), PTR, VariableWide::LOCAL);
             lir_block->parent_function.lock()->add_variable(base);
             lir_block->instructions.push_back(std::make_shared<Backend::LIR::LoadAddress>(ep->base, base));
+            ep->base = base;
         }
         if (ep->offset->operand_type == Backend::OperandType::CONSTANT) {
-            lir_block->instructions.push_back(std::make_shared<StoreInst>(base, store_from, std::static_pointer_cast<Backend::IntValue>(ep->offset)->int32_value * Backend::Utils::type_to_size(ep->base->workload_type)));
-        } else {
-            base = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("addr"), PTR, VariableWide::LOCAL);
+            lir_block->instructions.push_back(std::make_shared<StoreInst>(ep->base, store_from, std::static_pointer_cast<Backend::IntValue>(ep->offset)->int32_value * Backend::Utils::type_to_size(ep->base->workload_type)));
+        } else if (Backend::Utils::is_pointer(ep->base->workload_type)) {
+            std::shared_ptr<Backend::Variable> base = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("addr"), PTR, VariableWide::LOCAL);
             lir_block->parent_function.lock()->add_variable(base);
+            std::shared_ptr<Backend::Variable> offset = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("offset"), VariableType::INT32, VariableWide::LOCAL);
+            lir_block->parent_function.lock()->add_variable(offset);
+            lir_block->instructions.push_back(std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::SHIFT_LEFT, std::static_pointer_cast<Backend::Variable>(ep->offset), std::make_shared<Backend::IntValue>(2), offset));
+            lir_block->instructions.push_back(std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::ADD, ep->base, offset, base));
+            lir_block->instructions.push_back(std::make_shared<StoreInst>(base, store_from));
+        } else {
+            std::shared_ptr<Backend::Variable> base = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("addr"), PTR, VariableWide::LOCAL);
+            lir_block->parent_function.lock()->add_variable(base);
+            lir_block->instructions.push_back(std::make_shared<Backend::LIR::LoadAddress>(ep->base, base));
             ep->base = base;
             base = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("addr"), PTR, VariableWide::LOCAL);
             lir_block->parent_function.lock()->add_variable(base);
-            lir_block->instructions.push_back(std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::ADD, ep->base, ep->offset, base));
+            std::shared_ptr<Backend::Variable> offset = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("offset"), VariableType::INT32, VariableWide::LOCAL);
+            lir_block->parent_function.lock()->add_variable(offset);
+            lir_block->instructions.push_back(std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::SHIFT_LEFT, std::static_pointer_cast<Backend::Variable>(ep->offset), std::make_shared<Backend::IntValue>(2), offset));
+            lir_block->instructions.push_back(std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::ADD, ep->base, offset, base));
             lir_block->instructions.push_back(std::make_shared<StoreInst>(base, store_from));
         }
     } else {
+        // allocated
         lir_block->instructions.push_back(std::make_shared<StoreInst>(store_to, store_from));
     }
 }
