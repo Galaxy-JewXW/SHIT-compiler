@@ -223,6 +223,12 @@ class Backend::LIR::LoadInt : public Backend::LIR::Instruction {
         }
 
         std::shared_ptr<Variable> get_defined_variable() const override { return var_in_reg; }
+        std::vector<std::shared_ptr<Backend::Variable>> get_used_variables() const override {
+            if (var_in_mem->lifetime == VariableWide::LOCAL)
+                return {var_in_mem};
+            else
+                return {};
+        }
 
         void update_defined_variable(const std::shared_ptr<Backend::Variable> &var) override { var_in_reg = var; }
 };
@@ -263,7 +269,10 @@ class Backend::LIR::StoreInt : public Backend::LIR::Instruction {
         }
 
         std::vector<std::shared_ptr<Backend::Variable>> get_used_variables() const override {
-            return {var_in_reg};
+            if (var_in_mem->lifetime == VariableWide::LOCAL)
+                return {var_in_mem, var_in_reg};
+            else
+                return {var_in_reg};
         }
 
         void update_used_variable(const std::shared_ptr<Backend::Variable> &original, const std::shared_ptr<Backend::Variable> &update_to) override {

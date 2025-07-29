@@ -45,16 +45,16 @@ namespace RISCV::Instructions {
 
     std::string StoreWordToStack::to_string() const {
         if (Backend::Utils::type_to_size(variable->workload_type) == 8 * __BYTE__)
-            return std::make_shared<Instructions::StoreDoubleword>(RISCV::Registers::ABI::SP, rd, stack->stack_size - stack->stack_index[variable->name] + offset)->to_string();
+            return std::make_shared<Instructions::StoreDoubleword>(RISCV::Registers::ABI::SP, rd, stack->stack_size - (stack->stack_index[variable->name] + offset))->to_string();
         else
-            return std::make_shared<Instructions::StoreWord>(RISCV::Registers::ABI::SP, rd, stack->stack_size - stack->stack_index[variable->name] + offset)->to_string();
+            return std::make_shared<Instructions::StoreWord>(RISCV::Registers::ABI::SP, rd, stack->stack_size - (stack->stack_index[variable->name] + offset))->to_string();
     }
 
     std::string FStoreWordToStack::to_string() const {
         if (Backend::Utils::type_to_size(variable->workload_type) == 8 * __BYTE__)
-            return std::make_shared<Instructions::FStoreDoubleword>(RISCV::Registers::ABI::SP, rd, stack->stack_size - stack->stack_index[variable->name] + offset)->to_string();
+            return std::make_shared<Instructions::FStoreDoubleword>(RISCV::Registers::ABI::SP, rd, stack->stack_size - (stack->stack_index[variable->name] + offset))->to_string();
         else
-            return std::make_shared<Instructions::FStoreWord>(RISCV::Registers::ABI::SP, rd, stack->stack_size - stack->stack_index[variable->name] + offset)->to_string();
+            return std::make_shared<Instructions::FStoreWord>(RISCV::Registers::ABI::SP, rd, stack->stack_size - (stack->stack_index[variable->name] + offset))->to_string();
     }
 
     std::string LoadDoubleword::to_string() const {
@@ -105,15 +105,19 @@ namespace RISCV::Instructions {
         return oss.str();
     }
 
+    std::string LoadAddressFromStack::to_string() const {
+        return std::make_shared<Instructions::AddImmediate>(rd, RISCV::Registers::ABI::SP, stack->stack_size - stack->stack_index[variable->name])->to_string();
+    }
+
     std::string LoadWordFromStack::to_string() const {
         if (Backend::Utils::type_to_size(variable->workload_type) == 8 * __BYTE__)
-            return std::make_shared<Instructions::LoadDoubleword>(rd, RISCV::Registers::ABI::SP, stack->stack_size - stack->stack_index[variable->name] + offset)->to_string();
+            return std::make_shared<Instructions::LoadDoubleword>(rd, RISCV::Registers::ABI::SP, stack->stack_size - (stack->stack_index[variable->name] + offset))->to_string();
         else
-            return std::make_shared<Instructions::LoadWord>(rd, RISCV::Registers::ABI::SP, stack->stack_size - stack->stack_index[variable->name] + offset)->to_string();
+            return std::make_shared<Instructions::LoadWord>(rd, RISCV::Registers::ABI::SP, stack->stack_size - (stack->stack_index[variable->name] + offset))->to_string();
     }
 
     std::string FLoadWordFromStack::to_string() const {
-        return std::make_shared<Instructions::FLoadWord>(rd, RISCV::Registers::ABI::SP, stack->stack_size - stack->stack_index[variable->name] + offset)->to_string();
+        return std::make_shared<Instructions::FLoadWord>(rd, RISCV::Registers::ABI::SP, stack->stack_size - (stack->stack_index[variable->name] + offset))->to_string();
     }
 
     std::string Call::to_string() const {

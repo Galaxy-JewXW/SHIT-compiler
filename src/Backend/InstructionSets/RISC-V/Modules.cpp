@@ -218,7 +218,7 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
             if (instr->var_in_mem->lifetime == Backend::VariableWide::GLOBAL)
                 instrs.push_back(std::make_shared<RISCV::Instructions::LoadAddress>(rd, instr->var_in_mem));
             else
-                instrs.push_back(std::make_shared<RISCV::Instructions::Add>(rd, RISCV::Registers::ABI::ZERO, RISCV::Registers::ABI::SP));
+                instrs.push_back(std::make_shared<RISCV::Instructions::LoadAddressFromStack>(rd, instr->var_in_mem, stack));
             break;
         }
         case Backend::LIR::InstructionType::MOVE: {
@@ -246,7 +246,7 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
             if (base_reg != RISCV::Registers::ABI::ZERO)
                 instrs.push_back(std::make_shared<RISCV::Instructions::LoadWord>(dest_reg, base_reg, instr->offset));
             else
-                instrs.push_back(std::make_shared<RISCV::Instructions::LoadWordFromStack>(dest_reg, addr, stack));
+                instrs.push_back(std::make_shared<RISCV::Instructions::LoadWordFromStack>(dest_reg, addr, stack, instr->offset));
             break;
         }
         case Backend::LIR::InstructionType::FLOAD: {
@@ -257,7 +257,7 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
             if (addr->lifetime == Backend::VariableWide::LOCAL)
                 instrs.push_back(std::make_shared<RISCV::Instructions::FLoadWord>(dest_reg, dest_reg, instr->offset));
             else
-                instrs.push_back(std::make_shared<RISCV::Instructions::FLoadWordFromStack>(dest_reg, addr, stack));
+                instrs.push_back(std::make_shared<RISCV::Instructions::FLoadWordFromStack>(dest_reg, addr, stack, instr->offset));
             break;
         }
         case Backend::LIR::InstructionType::STORE: {
@@ -266,7 +266,7 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
             std::shared_ptr<Backend::Variable> src = instr->var_in_reg;
             RISCV::Registers::ABI src_reg = register_allocator->get_register(src);
             if (dest->lifetime == Backend::VariableWide::FUNCTIONAL)
-                instrs.push_back(std::make_shared<RISCV::Instructions::StoreWordToStack>(src_reg, dest, stack));
+                instrs.push_back(std::make_shared<RISCV::Instructions::StoreWordToStack>(src_reg, dest, stack, instr->offset));
             else
                 instrs.push_back(std::make_shared<RISCV::Instructions::StoreWord>(register_allocator->get_register(dest), src_reg, instr->offset));
             break;
@@ -277,7 +277,7 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
             std::shared_ptr<Backend::Variable> src = instr->var_in_reg;
             RISCV::Registers::ABI src_reg = register_allocator->get_register(src);
             if (dest->lifetime == Backend::VariableWide::FUNCTIONAL)
-                instrs.push_back(std::make_shared<RISCV::Instructions::FStoreWordToStack>(src_reg, dest, stack));
+                instrs.push_back(std::make_shared<RISCV::Instructions::FStoreWordToStack>(src_reg, dest, stack, instr->offset));
             else
                 instrs.push_back(std::make_shared<RISCV::Instructions::FStoreWord>(register_allocator->get_register(dest), src_reg, instr->offset));
             break;

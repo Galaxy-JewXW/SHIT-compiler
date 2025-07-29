@@ -150,12 +150,14 @@ namespace RISCV::Instructions {
             std::shared_ptr<Backend::Variable> variable;
             int64_t offset{0};
             StoreWordToStack(const RISCV::Registers::ABI rd, std::shared_ptr<Backend::Variable> &variable, std::shared_ptr<RISCV::Stack> &stack) : StackInstruction(stack), rd{rd}, variable{variable} {}
+            StoreWordToStack(const RISCV::Registers::ABI rd, std::shared_ptr<Backend::Variable> &variable, std::shared_ptr<RISCV::Stack> &stack, const int64_t offset) : StackInstruction(stack), rd{rd}, variable{variable}, offset{offset} {}
             [[nodiscard]] std::string to_string() const override;
     };
 
     class FStoreWordToStack : public StoreWordToStack {
         public:
             FStoreWordToStack(const RISCV::Registers::ABI rd, std::shared_ptr<Backend::Variable> &variable, std::shared_ptr<RISCV::Stack> &stack) : StoreWordToStack{rd, variable, stack} {}
+            FStoreWordToStack(const RISCV::Registers::ABI rd, std::shared_ptr<Backend::Variable> &variable, std::shared_ptr<RISCV::Stack> &stack, const int64_t offset) : StoreWordToStack{rd, variable, stack, offset} {}
             [[nodiscard]] std::string to_string() const override;
     };
 
@@ -198,12 +200,14 @@ namespace RISCV::Instructions {
             std::shared_ptr<Backend::Variable> variable;
             int64_t offset{0};
             LoadWordFromStack(const RISCV::Registers::ABI rd, std::shared_ptr<Backend::Variable> &variable, std::shared_ptr<RISCV::Stack> &stack) : StackInstruction(stack), rd{rd}, variable{variable} {}
+            LoadWordFromStack(const RISCV::Registers::ABI rd, std::shared_ptr<Backend::Variable> &variable, std::shared_ptr<RISCV::Stack> &stack, const int64_t offset) : StackInstruction(stack), rd{rd}, variable{variable}, offset{offset} {}
             [[nodiscard]] virtual std::string to_string() const override;
     };
 
     class FLoadWordFromStack : public LoadWordFromStack {
         public:
             FLoadWordFromStack(const RISCV::Registers::ABI rd, std::shared_ptr<Backend::Variable> &variable, std::shared_ptr<RISCV::Stack> &stack) : LoadWordFromStack{rd, variable, stack} {}
+            FLoadWordFromStack(const RISCV::Registers::ABI rd, std::shared_ptr<Backend::Variable> &variable, std::shared_ptr<RISCV::Stack> &stack, const int64_t offset) : LoadWordFromStack{rd, variable, stack, offset} {}
             [[nodiscard]] std::string to_string() const override;
     };
 
@@ -212,6 +216,14 @@ namespace RISCV::Instructions {
             const RISCV::Registers::ABI rd;
             std::shared_ptr<Backend::Variable> variable;
             LoadAddress(const RISCV::Registers::ABI rd, std::shared_ptr<Backend::Variable> &variable) : rd{rd} , variable{variable} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class LoadAddressFromStack : public StackInstruction {
+        public:
+            const RISCV::Registers::ABI rd;
+            std::shared_ptr<Backend::Variable> variable;
+            LoadAddressFromStack(const RISCV::Registers::ABI rd, std::shared_ptr<Backend::Variable> &variable, std::shared_ptr<RISCV::Stack> &stack) : StackInstruction(stack), rd{rd}, variable{variable} {}
             [[nodiscard]] std::string to_string() const override;
     };
 
