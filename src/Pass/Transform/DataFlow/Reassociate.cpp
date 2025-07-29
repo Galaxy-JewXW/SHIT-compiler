@@ -391,4 +391,6 @@ void Pass::Reassociate::transform(const std::shared_ptr<Module> module) {
             create<DeadCodeEliminate>()->run_on(func);
         }
     }
+    create<TreeHeightBalance>()->run_on(module);
+    create<DeadCodeEliminate>()->run_on(module);
 }
