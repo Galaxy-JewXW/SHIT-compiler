@@ -122,6 +122,7 @@ class Block;
 class Function final : public User {
     std::vector<std::shared_ptr<Argument>> arguments;
     std::vector<std::shared_ptr<Block>> blocks;
+    std::vector<std::shared_ptr<Value>> phicopy_values_;
     const bool is_runtime_function;
 
 public:
@@ -162,6 +163,8 @@ public:
 
     [[nodiscard]] std::vector<std::shared_ptr<Block>> &get_blocks() { return blocks; }
 
+    [[nodiscard]] auto &phicopy_values() { return phicopy_values_; }
+
     // 清除流图后需要更新基本块和指令的id
     void update_id() const;
 
@@ -176,7 +179,8 @@ class Block final : public User {
     bool deleted{false};
 
 public:
-    explicit Block(const std::string &name) : User(name, Type::Label::label) {}
+    explicit Block(const std::string &name) :
+        User(name, Type::Label::label) {}
 
     static std::shared_ptr<Block> create(const std::string &name, const std::shared_ptr<Function> &function = nullptr) {
         const auto block = std::make_shared<Block>(name);
@@ -210,7 +214,9 @@ public:
 
     std::shared_ptr<Block> cloneinfo_to_func(const std::shared_ptr<Pass::LoopNodeClone> &clone_info,
                                              const std::shared_ptr<Function> &function);
+
     void fix_clone_info(const std::shared_ptr<Pass::LoopNodeClone> &clone_info);
+
     std::shared_ptr<std::vector<std::shared_ptr<Instruction>>> get_phis() const;
 };
 } // namespace Mir
