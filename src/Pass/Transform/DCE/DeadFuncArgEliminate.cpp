@@ -79,6 +79,7 @@ void DeadFuncArgEliminate::run_on_func(const std::shared_ptr<Function> &func) co
         } else {
             new_call = Call::create(call->get_name(), func, new_params, nullptr);
         }
+        new_call->set_tail_call(call->is_tail_call());
         const auto target_block = call->get_block();
         new_call->set_block(target_block, false);
         call->replace_by_new_value(new_call);

@@ -128,6 +128,48 @@ bool path_without_stack_access(const std::shared_ptr<Call> &call, const std::sha
     return true;
 }
 
+// Helper function to check for stack access within a range of instructions
+bool has_stack_access_in_range(const std::vector<std::shared_ptr<Instruction>>::const_iterator &begin,
+                               const std::vector<std::shared_ptr<Instruction>>::const_iterator &end,
+                               const std::unordered_set<std::shared_ptr<Value>> &stack_allocs) {
+    const auto access_stack = [&stack_allocs](auto &&self, const std::shared_ptr<Value> &value) -> bool {
+        if (stack_allocs.count(value)) {
+            return true;
+        }
+        if (const auto gep{value->is<GetElementPtr>()}) {
+            return self(self, gep->get_addr());
+        }
+        if (const auto bitcast{value->is<BitCast>()}) {
+            return self(self, bitcast->get_value());
+        }
+        if (const auto load{value->is<Load>()}) {
+            return self(self, load->get_addr());
+        }
+        return false;
+    };
+    const auto stack_access_in_inst = [&](const std::shared_ptr<Instruction> &inst) -> bool {
+        switch (inst->get_op()) {
+            case Operator::LOAD: {
+                return access_stack(access_stack, inst->as<Load>()->get_addr());
+            }
+            case Operator::STORE: {
+                return access_stack(access_stack, inst->as<Store>()->get_addr());
+            }
+            case Operator::CALL: {
+                const auto _call{inst->as<Call>()};
+                const auto params{_call->get_params()};
+                return std::any_of(params.begin(), params.end(),
+                                   [&](const auto &param) { return access_stack(access_stack, param); });
+            }
+            default:
+                break;
+        }
+        return false;
+    };
+
+    return std::any_of(begin, end, stack_access_in_inst);
+}
+
 // 获取二元运算的恒等元素（单位元）
 // 恒等元用于在 phi 节点初始化时能够正确地表示“还没累积任何值”的状态
 std::shared_ptr<Value> get_identity_element(const std::shared_ptr<Instruction> &inst) {
@@ -150,20 +192,7 @@ std::shared_ptr<Value> get_identity_element(const std::shared_ptr<Instruction> &
 
 namespace Pass {
 void TailCallOptimize::tail_call_detect(const std::shared_ptr<Function> &func) const {
-    std::vector<std::shared_ptr<Call>> candidates;
-    for (const auto &block: func->get_blocks()) {
-        for (const auto &inst: block->get_instructions()) {
-            if (inst->get_op() != Operator::CALL) [[likely]] {
-                continue;
-            }
-            const auto &call{inst->as<Call>()};
-            if (call->get_function()->as<Function>()->is_runtime_func()) {
-                continue;
-            }
-            candidates.push_back(call);
-        }
-    }
-    // 收集当前函数中所有的 alloca 指令（栈帧内存）
+    // 1. 收集所有 alloca 指令 (栈分配)
     std::unordered_set<std::shared_ptr<Value>> stack_allocs;
     for (const auto &block: func->get_blocks()) {
         for (const auto &inst: block->get_instructions()) {
@@ -172,32 +201,90 @@ void TailCallOptimize::tail_call_detect(const std::shared_ptr<Function> &func) c
             }
         }
     }
-
-    // 从 call 到 ret 的所有路径上，不能存在对调用者函数栈帧上由 alloca
-    // 指令分配的内存的读写操作 一旦栈帧被重用，这些内存就会失效
-    const auto is_valid_call = [&](const std::shared_ptr<Call> &call) -> bool {
-        // log_info("%s", call->to_string().c_str());
-        // 检查从 call 指令所在块到所有 ret 指令的路径
-        const auto call_block = call->get_block();
-        const auto &cfg = cfg_info->graph(func);
-        // 收集所有包含 ret 指令的块
-        std::vector<std::shared_ptr<Block>> ret_blocks;
+    if (stack_allocs.empty()) {
+        // 如果没有栈分配，所有对自身函数的调用都可以是尾调用
         for (const auto &block: func->get_blocks()) {
-            if (const auto last_inst = block->get_instructions().back(); last_inst->get_op() == Operator::RET) {
-                ret_blocks.push_back(block);
+            for (const auto &inst: block->get_instructions()) {
+                if (inst->get_op() == Operator::CALL && inst->as<Call>()->get_function() == func) {
+                    inst->as<Call>()->set_tail_call();
+                }
             }
         }
-        // 检查从 call 块到每个 ret 块的路径
-        return std::all_of(ret_blocks.begin(), ret_blocks.end(), [&](const auto &ret_block) {
-            return path_without_stack_access(call, ret_block, stack_allocs, cfg);
-        });
-    };
+        return;
+    }
 
-    // 过滤出可以进行尾调用优化的候选调用
-    std::vector<std::shared_ptr<Call>> valid_calls;
-    std::copy_if(candidates.begin(), candidates.end(), std::back_inserter(valid_calls), is_valid_call);
-    // 将 call 指令标记为 tail call 的逻辑
-    std::for_each(valid_calls.begin(), valid_calls.end(), [](const auto &call) { call->set_tail_call(); });
+    // 识别所有直接包含栈访问的块
+    std::unordered_set<std::shared_ptr<Block>> blocks_with_stack_access;
+    for (const auto &block: func->get_blocks()) {
+        if (has_stack_access_in_range(block->get_instructions().begin(), block->get_instructions().end(),
+                                      stack_allocs)) {
+            blocks_with_stack_access.insert(block);
+        }
+    }
+
+    // [数据流分析] 计算 MayAccessStackOnExit
+    std::unordered_map<std::shared_ptr<Block>, bool> may_access_stack_on_exit;
+    std::vector<std::shared_ptr<Block>> worklist;
+    const auto &cfg = cfg_info->graph(func);
+
+    for (const auto &block: func->get_blocks()) {
+        may_access_stack_on_exit[block] = false;
+        worklist.push_back(block);
+    }
+
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        // 在后向分析中，从CFG的尾部向前迭代通常能更快收敛
+        for (auto it = func->get_blocks().rbegin(); it != func->get_blocks().rend(); ++it) {
+            const auto &block = *it;
+            const bool old_value = may_access_stack_on_exit.at(block);
+            bool new_value = false;
+
+            // 应用数据流方程
+            if (cfg.successors.count(block)) {
+                for (const auto &succ: cfg.successors.at(block)) {
+                    if (blocks_with_stack_access.count(succ) || may_access_stack_on_exit.at(succ)) {
+                        new_value = true;
+                        break;
+                    }
+                }
+            }
+            if (new_value != old_value) {
+                may_access_stack_on_exit[block] = new_value;
+                changed = true;
+            }
+        }
+    }
+
+    std::vector<std::shared_ptr<Call>> candidates;
+    for (const auto &block: func->get_blocks()) {
+        for (const auto &inst: block->get_instructions()) {
+            if (inst->get_op() == Operator::CALL && inst->as<Call>()->get_function() == func) {
+                candidates.push_back(inst->as<Call>());
+            }
+        }
+    }
+
+    for (const auto &call: candidates) {
+        const auto call_block = call->get_block();
+        const auto call_iter = Utils::inst_as_iter(call);
+
+        if (!call_iter.has_value())
+            continue;
+
+        // call 之后、块结尾之前，是否有栈访问
+        const bool access_after_call_in_block = has_stack_access_in_range(
+                std::next(call_iter.value()), call_block->get_instructions().end(), stack_allocs);
+        if (access_after_call_in_block) {
+            continue;
+        }
+        // 从该块退出后，路径上是否可能有栈访问
+        if (may_access_stack_on_exit.at(call_block)) {
+            continue;
+        }
+        call->set_tail_call();
+    }
 }
 
 // 参见：https://github.com/llvm/llvm-project/blob/main/llvm/lib/Transforms/Scalar/TailRecursionElimination.cpp
@@ -455,6 +542,7 @@ void TailCallOptimize::run_on_func(const std::shared_ptr<Function> &func) const 
 }
 
 void TailCallOptimize::transform(const std::shared_ptr<Module> module) {
+    create<SimplifyControlFlow>()->run_on(module);
     cfg_info = get_analysis_result<ControlFlowGraph>(module);
     func_info = get_analysis_result<FunctionAnalysis>(module);
     for (const auto &func: module->get_functions()) {
@@ -465,6 +553,7 @@ void TailCallOptimize::transform(const std::shared_ptr<Module> module) {
 }
 
 void TailCallOptimize::transform(const std::shared_ptr<Function> &func) {
+    create<SimplifyControlFlow>()->run_on(Module::instance());
     cfg_info = get_analysis_result<ControlFlowGraph>(Module::instance());
     func_info = get_analysis_result<FunctionAnalysis>(Module::instance());
     run_on_func(func);

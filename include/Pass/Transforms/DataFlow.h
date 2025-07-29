@@ -122,7 +122,7 @@ protected:
 };
 
 // 树高平衡，实现指令级并行性
-class [[deprecated("Use Reassociate Pass instead")]] TreeHeightBalance final : public Transform {
+class TreeHeightBalance final : public Transform {
 public:
     explicit TreeHeightBalance() : Transform("TreeHeightBalance") {}
 
