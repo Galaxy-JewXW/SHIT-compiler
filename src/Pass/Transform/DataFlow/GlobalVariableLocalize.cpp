@@ -44,9 +44,6 @@ void localize(const std::shared_ptr<Module> &module) {
             continue;
         }
         const auto &func = *use_function.begin();
-        if (func->get_name() != "main") {
-            continue;
-        }
         if (func_analysis->func_info(func).is_recursive) {
             continue;
         }

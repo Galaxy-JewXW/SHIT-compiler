@@ -206,21 +206,24 @@ private:
 template<typename T>
 Pass::IntervalAnalysis::IntervalSet<T> BranchConstrainReduceImpl::get_interval(const std::shared_ptr<Value> &value,
                                                                                const std::shared_ptr<Block> &block) {
+    Pass::IntervalAnalysis::IntervalSet<T> res;
     if (value->is_constant()) {
         const auto constant = value->as<Const>()->get_constant_value();
-        return std::visit([](const auto c) {
+        res = std::visit([](const auto c) {
             return Pass::IntervalAnalysis::IntervalSet<T>(c);
         }, constant);
-    }
-    if (const auto inst = value->is<Instruction>()) {
+    } else if (const auto inst = value->is<Instruction>()) {
         const auto ctx = interval->ctx_after(inst, block);
-        return std::get<Pass::IntervalAnalysis::IntervalSet<T>>(ctx.get(inst));
-    }
-    if (const auto arg = value->is<Argument>()) {
+        res = std::get<Pass::IntervalAnalysis::IntervalSet<T>>(ctx.get(inst));
+    } else if (const auto arg = value->is<Argument>()) {
         const auto ctx = interval->ctx_after(block->get_instructions().back(), block);
-        return std::get<Pass::IntervalAnalysis::IntervalSet<T>>(ctx.get(arg));
+        res = std::get<Pass::IntervalAnalysis::IntervalSet<T>>(ctx.get(arg));
+    } else
+        log_error("Unsupported value: %s", value->to_string().c_str());
+    if (res.is_undefined()) {
+        return Pass::IntervalAnalysis::IntervalSet<T>::make_any();
     }
-    log_error("Unsupported value: %s", value->to_string().c_str());
+    return res;
 }
 
 void BranchConstrainReduceImpl::run_on_block(const std::shared_ptr<Block> &block, Constraint &constraint) {

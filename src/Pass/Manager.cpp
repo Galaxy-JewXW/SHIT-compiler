@@ -17,8 +17,10 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
           Pass::BranchMerging, Pass::GepFolding, Pass::GlobalVariableLocalize,
           Pass::GlobalArrayLocalize, Pass::LoadEliminate, Pass::StoreEliminate, Pass::SROA, Pass::ConstexprFuncEval,
           Pass::GlobalValueNumbering, Pass::TailCallOptimize>(module);
-    apply<Pass::DeadFuncEliminate, Pass::DeadFuncArgEliminate, Pass::DeadReturnEliminate>(module);
+    apply<Pass::GlobalVariableLocalize, Pass::DeadFuncEliminate, Pass::DeadFuncArgEliminate,
+          Pass::DeadReturnEliminate>(module);
     apply<Pass::ConstrainReduce, Pass::SimplifyControlFlow>(module);
+    apply<Pass::DeadFuncEliminate, Pass::DeadFuncArgEliminate, Pass::DeadReturnEliminate>(module);
     apply<Pass::Reassociate, Pass::GlobalValueNumbering, Pass::SimplifyControlFlow>(module);
     apply<Pass::RemovePhi, Pass::SimplifyControlFlow, Pass::BlockPositioning>(module);
 }
