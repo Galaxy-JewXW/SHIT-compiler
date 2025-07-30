@@ -20,6 +20,7 @@ void RISCV::RegisterAllocator::GraphColoring::allocate() {
     }
     __allocate__();
     log_info("Allocated integer registers for %s", lir_function->name.c_str());
+    stack->align(16);
     std::cout << to_string() << "\n";
 }
 

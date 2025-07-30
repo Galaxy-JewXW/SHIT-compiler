@@ -113,6 +113,7 @@ void Backend::LIR::Module::load_load_instruction(const std::shared_ptr<Backend::
         // global variable or allocated variable
         if (load_from->lifetime == VariableWide::GLOBAL) {
             std::shared_ptr<Backend::Variable> base = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("addr"), Backend::Utils::to_pointer(load_from->workload_type), VariableWide::LOCAL);
+            lir_block->parent_function.lock()->add_variable(base);
             lir_block->instructions.push_back(std::make_shared<Backend::LIR::LoadAddress>(load_from, base));
             lir_block->instructions.push_back(std::make_shared<LoadInst>(base, load_to));
         } else lir_block->instructions.push_back(std::make_shared<LoadInst>(load_from, load_to));

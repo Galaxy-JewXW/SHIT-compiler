@@ -403,7 +403,10 @@ class Backend::LIR::Module : public std::enable_shared_from_this<Backend::LIR::M
                         )
                     );
             }
-            return find_variable(name, function);
+            std::shared_ptr<Backend::Variable> var = find_variable(name, function);
+            if (!var)
+                log_error("%s not found in function %s", name.c_str(), function->name.c_str());
+            return var;
         }
 
         /*
