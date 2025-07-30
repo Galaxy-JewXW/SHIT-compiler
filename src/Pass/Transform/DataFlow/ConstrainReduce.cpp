@@ -418,6 +418,7 @@ void BranchConstrainReduceImpl::run_on_block(const std::shared_ptr<Block> &block
                         } else if (!Pass::interval_hit(lhs_range, constant_rhs)) {
                             target_block = branch->get_true_block();
                         }
+                        break;
                     }
                     case Icmp::Op::LT: {
                         if (lhs_max < constant_rhs) {
