@@ -479,9 +479,10 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
                 continue;
             }
             const auto candidate = get_candidate_predecessors(block);
-            if (candidate.empty()) {
+            if (candidate.size() != 1) {
                 continue;
             }
+            const auto candidate_block = *candidate.begin();
             auto locked_users{block->users().lock()};
             const auto is_available = [&](const std::shared_ptr<User> &user) -> bool {
                 if (const auto phi{user->is<Phi>()}) {
@@ -497,33 +498,17 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
             if (!std::all_of(locked_users.begin(), locked_users.end(), is_available)) {
                 continue;
             }
-            for (const auto &pre: candidate) {
-                const auto &last_instruction = pre->get_instructions().back();
-                last_instruction->clear_operands();
-                pre->get_instructions().pop_back();
-                if (last_instruction->get_op() != Operator::JUMP) {
-                    log_error("last instruction should be a jump");
-                }
-                if (const auto jump = last_instruction->as<Jump>(); jump->get_target_block() != block) {
-                    log_error("jump target should be the block to be removed");
-                }
-                Branch::create(branch->get_cond(), branch->get_true_block(), branch->get_false_block(), pre);
+            const auto &last_instruction = candidate_block->get_instructions().back();
+            last_instruction->clear_operands();
+            candidate_block->get_instructions().pop_back();
+            if (last_instruction->get_op() != Operator::JUMP) {
+                log_error("last instruction should be a jump");
             }
-            for (const auto &user: locked_users) {
-                if (const auto phi = user->is<Phi>()) {
-                    auto &options = phi->get_optional_values();
-                    auto it = options.find(block);
-                    if (it == options.end()) {
-                        log_error("Phi operand not found");
-                    }
-                    const auto value = it->second;
-                    for (const auto &pre: candidate) {
-                        phi->set_optional_value(pre, value);
-                        pre->add_user(phi);
-                    }
-                    phi->remove_optional_value(block);
-                }
+            if (const auto jump = last_instruction->as<Jump>(); jump->get_target_block() != block) {
+                log_error("jump target should be the block to be removed");
             }
+            Branch::create(branch->get_cond(), branch->get_true_block(), branch->get_false_block(), candidate_block);
+            block->replace_by_new_value(candidate_block);
             // 手动维护cfg
             for (const auto &pre: candidate) {
                 successors.at(pre).erase(block);
@@ -571,8 +556,10 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
         fold_redundant_branch();
         combine_blocks();
         remove_empty_blocks();
+        log_debug("%s", func->to_string().c_str());
         hoist_branch();
-        cleanup_switch();
+        log_debug("%s", func->to_string().c_str());
+        // cleanup_switch();
         if (changed) {
             remove_deleted_blocks(func);
         }
