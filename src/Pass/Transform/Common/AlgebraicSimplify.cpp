@@ -251,6 +251,34 @@ bool _reduce_cmp_with_div(const std::shared_ptr<Compare> &cmp, std::vector<std::
     return false;
 }
 
+// %1 = icmp eq i32 %0, 0
+// %2 = zext i1 %1 to i32
+// %3 = icmp ne i32 %2, 0
+template<typename Compare = Icmp>
+bool _reduce_icmp_with_zext(std::vector<std::shared_ptr<Instruction>> &instructions, const size_t &idx,
+                            const std::shared_ptr<Block> &) {
+    static_assert(std::is_same_v<Compare, Icmp>);
+    const auto cmp{instructions[idx]->as<Icmp>()};
+    const auto &lhs{cmp->get_lhs()};
+
+    if (const auto &rhs{cmp->get_rhs()}; **rhs->as<ConstInt>() != 0)
+        return false;
+    if (cmp->icmp_op() != Icmp::Op::NE)
+        return false;
+
+    const auto zext = lhs->as<Zext>();
+    const auto icmp = zext->get_value()->is<Icmp>();
+    if (icmp == nullptr || icmp->icmp_op() != Icmp::Op::EQ)
+        return false;
+    if (!(!icmp->get_lhs()->is_constant() && icmp->get_rhs()->is_constant()))
+        return false;
+    if (**icmp->get_rhs()->as<ConstInt>() != 0)
+        return false;
+
+    cmp->replace_by_new_value(icmp);
+    return true;
+}
+
 template<typename Compare>
 bool reduce_cmp(std::vector<std::shared_ptr<Instruction>> &instructions, const size_t &idx,
                 const std::shared_ptr<Block> &current_block) {
@@ -272,7 +300,14 @@ bool reduce_cmp(std::vector<std::shared_ptr<Instruction>> &instructions, const s
     const auto inst{lhs->template is<typename Trait<Compare>::Binary>()};
     const Base constant_value{**rhs->template as<ConstantType>()};
     if (inst == nullptr) {
-        return false;
+        if constexpr (std::is_same_v<Compare, Icmp>) {
+            if (const auto zext = lhs->template is<Zext>()) {
+                return _reduce_icmp_with_zext<Compare>(instructions, idx, current_block);
+            }
+            return false;
+        } else {
+            return false;
+        }
     }
     const auto t{inst->op};
     if (t == Trait<Compare>::Binary::Op::ADD) {
