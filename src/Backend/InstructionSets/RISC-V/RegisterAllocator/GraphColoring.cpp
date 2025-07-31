@@ -241,7 +241,7 @@ void RISCV::RegisterAllocator::GraphColoring::simplify_phase(std::stack<std::str
         changed = false;
         for (std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> node : workload) {
             if (node->degree() < K && node->move_related_neighbors.empty()) {
-                log_debug("Simplify variable %s", node->variable->name.c_str());
+                // log_debug("Simplify variable %s", node->variable->name.c_str());
                 simplify_stack.push(node->variable->name);
                 for (std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> neighbor : node->non_move_related_neighbors)
                     neighbor->non_move_related_neighbors.erase(node);

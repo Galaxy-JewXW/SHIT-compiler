@@ -424,7 +424,7 @@ class Backend::LIR::Module : public std::enable_shared_from_this<Backend::LIR::M
          * Translate instructions of a single function from LLVM to LIR.
          */
         void load_instructions(const std::shared_ptr<Mir::Function> &llvm_function, std::shared_ptr<Backend::LIR::Function> &lir_function) {
-            for (const std::shared_ptr<Mir::Block> &llvm_block : llvm_function->get_blocks()) {
+            for (const std::shared_ptr<Mir::Block> &llvm_block : dom_info->dom_tree_layer(llvm_function)) {
                 std::shared_ptr<Backend::LIR::Block> lir_block = lir_function->blocks_index[llvm_block->get_name()];
                 for (const std::shared_ptr<Mir::Instruction> &llvm_instruction : llvm_block->get_instructions())
                     load_instruction(llvm_instruction, lir_block);
