@@ -12,7 +12,8 @@ namespace Pass {
 // 提供其它pass需要查询的信息并提供查询接口
 class Analysis : public Pass {
 public:
-    explicit Analysis(const std::string &name) : Pass(PassType::ANALYSIS, name) {}
+    explicit Analysis(const std::string &name) :
+        Pass(PassType::ANALYSIS, name) {}
 
     void run_on(const std::shared_ptr<Mir::Module> module) override {
         // 强制转换为const版本保证只读访问
@@ -48,7 +49,7 @@ struct has_set_dirty : std::false_type {};
 template<typename T>
 struct has_set_dirty<T,
                      std::void_t<decltype(std::declval<T>().set_dirty(std::declval<std::shared_ptr<Mir::Function>>()))>>
-    : std::true_type {};
+        : std::true_type {};
 
 template<typename T>
 inline constexpr bool has_set_dirty_v = has_set_dirty<T>::value;
@@ -64,8 +65,20 @@ void set_analysis_result_dirty(const std::shared_ptr<Mir::Function> &function) {
     }
 }
 
+template<typename T>
+void set_analysis_result_dirty(const std::shared_ptr<Mir::Module> &module) {
+    static_assert(std::is_base_of_v<Analysis, T>, "T must be a subclass of Analysis");
+    static_assert(has_set_dirty_v<T>, "Analysis type T cannot set dirty");
+    const std::type_index idx(typeid(T));
+    if (const auto it = _analysis_results().find(idx); it != _analysis_results().end()) {
+        for (const auto &func: module->get_functions()) {
+            std::static_pointer_cast<T>(it->second)->set_dirty(func);
+        }
+    }
+}
+
 template<typename T, typename... Args>
-std::shared_ptr<T> get_analysis_result(const std::shared_ptr<Mir::Module> module, Args &&...args) {
+std::shared_ptr<T> get_analysis_result(const std::shared_ptr<Mir::Module> module, Args &&... args) {
     static_assert(std::is_base_of_v<Analysis, T>, "T must be a subclass of Analysis");
     // 检查 PassType 是否是非抽象类
     static_assert(!std::is_abstract_v<T>, "PassType must not be an abstract class");
@@ -84,7 +97,7 @@ std::shared_ptr<T> get_analysis_result(const std::shared_ptr<Mir::Module> module
 }
 
 template<typename T, typename... Args>
-std::shared_ptr<T> get_analysis_result(const std::shared_ptr<const Mir::Module> &module, Args &&...args) {
+std::shared_ptr<T> get_analysis_result(const std::shared_ptr<const Mir::Module> &module, Args &&... args) {
     static_assert(std::is_base_of_v<Analysis, T>, "T must be a subclass of Analysis");
     return get_analysis_result<T, Args...>(std::const_pointer_cast<Mir::Module>(module), std::forward<Args>(args)...);
 }

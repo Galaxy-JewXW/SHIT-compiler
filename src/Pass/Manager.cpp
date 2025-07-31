@@ -25,6 +25,6 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
     apply<Pass::ConstrainReduce, Pass::SimplifyControlFlow>(module);
     apply<Pass::DeadFuncEliminate, Pass::DeadFuncArgEliminate, Pass::DeadReturnEliminate>(module);
     apply<Pass::DeadCodeEliminate>(module);
-    // apply<Pass::Reassociate, Pass::GlobalValueNumbering, Pass::SimplifyControlFlow>(module);
-    // apply<Pass::RemovePhi, Pass::BlockPositioning>(module);
+    apply<Pass::Reassociate, Pass::GlobalValueNumbering, Pass::SimplifyControlFlow>(module);
+    apply<Pass::RemovePhi, Pass::BlockPositioning>(module);
 }

@@ -37,6 +37,11 @@ struct BinaryOpKey {
         if (IntBinary::is_associative_op(op_type) && a > b)
             std::swap(lhs, rhs);
     }
+
+    explicit BinaryOpKey(const std::shared_ptr<IntBinary> &intbinary) :
+        BinaryOpKey(intbinary->intbinary_op(),
+                    intbinary->get_lhs(),
+                    intbinary->get_rhs()) {}
 };
 
 struct BinaryOpKeyHasher {
@@ -124,7 +129,7 @@ void SimpleReassociateImpl::initialize() {
                 continue;
             auto int_binary = inst->as<IntBinary>();
 
-            BinaryOpKey key{int_binary->intbinary_op(), int_binary->get_lhs(), int_binary->get_rhs()};
+            BinaryOpKey key{int_binary};
             value_table[key] = int_binary;
 
             bool is_root{true};
@@ -175,13 +180,7 @@ std::shared_ptr<Value> SimpleReassociateImpl::get_or_create(const std::shared_pt
         return ConstInt::create(_res);
     }
 
-    BinaryOpKey key{type, lhs, rhs};
-    if (IntBinary::is_associative_op(type)) {
-        if (reinterpret_cast<uintptr_t>(lhs.get()) > reinterpret_cast<uintptr_t>(rhs.get())) {
-            key.rhs = lhs;
-            key.lhs = rhs;
-        }
-    }
+    const BinaryOpKey key{type, lhs, rhs};
 
     if (value_table.count(key)) {
         return value_table.at(key);
@@ -301,7 +300,7 @@ void SimpleReassociateImpl::main_loop() {
             instruction->replace_by_new_value(new_value);
             instruction->clear_operands();
             to_erase.insert(instruction);
-            if (const BinaryOpKey old_key{instruction->intbinary_op(), instruction->get_lhs(), instruction->get_rhs()};
+            if (const BinaryOpKey old_key{instruction};
                 value_table.count(old_key) && value_table.at(old_key) == instruction) {
                 value_table.erase(old_key);
             }
@@ -336,25 +335,33 @@ void SimpleReassociateImpl::cleanup() const {
 
 namespace {
 // 参见：https://github.com/llvm/llvm-project/blob/main/llvm/lib/Transforms/Scalar/NaryReassociate.cpp
-class [[maybe_unused]] NaryReassociateImpl {
-public:
-    explicit NaryReassociateImpl(const std::shared_ptr<Function> &current_function,
-                                 const Pass::DominanceGraph::Graph &dom_graph) :
-        current_function(current_function), dom_graph(dom_graph) {}
+class NaryReassociateImpl {
+    using Map = std::unordered_map<BinaryOpKey, std::shared_ptr<IntBinary>, BinaryOpKeyHasher>;
 
-    bool run();
+public:
+    explicit NaryReassociateImpl(const std::shared_ptr<Function> &p_current_function,
+                                 const Pass::DominanceGraph::Graph &graph) :
+        current_function(p_current_function), graph(graph) {}
+
+    bool run() {
+        Map seen_computations{};
+        run_on_block(current_function->get_blocks().front(), seen_computations);
+        Pass::Utils::delete_instruction_set(Module::instance(), to_erase);
+        return changed;
+    }
 
 private:
     const std::shared_ptr<Function> &current_function;
-    const Pass::DominanceGraph::Graph &dom_graph;
+    const Pass::DominanceGraph::Graph &graph;
     std::unordered_set<std::shared_ptr<IntBinary>> worklist{};
     std::unordered_set<std::shared_ptr<Instruction>> to_erase{};
     bool changed{false};
 
-    static bool is_candidate(const std::shared_ptr<Instruction> &instruction);
+    void run_on_block(const std::shared_ptr<Block> &block, const Map &seen_computations);
 
-    void run_on_block(const std::shared_ptr<Block> &block,
-                      const std::unordered_map<BinaryOpKey, std::shared_ptr<IntBinary>, BinaryOpKeyHasher> &value_map);
+    bool try_rewrite(const std::shared_ptr<IntBinary> &instruction, const Map &seen_computations);
+
+    static bool is_candidate(const std::shared_ptr<Instruction> &instruction);
 };
 
 bool NaryReassociateImpl::is_candidate(const std::shared_ptr<Instruction> &instruction) {
@@ -364,20 +371,27 @@ bool NaryReassociateImpl::is_candidate(const std::shared_ptr<Instruction> &instr
     return false;
 }
 
-void NaryReassociateImpl::run_on_block(const std::shared_ptr<Block> &block,
-                                       const std::unordered_map<
-                                           BinaryOpKey, std::shared_ptr<IntBinary>, BinaryOpKeyHasher> &value_map) {
-    // TODO
-    const auto local_map = value_map;
-    for (const auto &child: dom_graph.dominance_children.at(block)) {
-        run_on_block(child, local_map);
-    }
+bool NaryReassociateImpl::try_rewrite(const std::shared_ptr<IntBinary> &instruction, const Map &seen_computations) {
+    return false;
 }
 
-bool NaryReassociateImpl::run() {
-    std::unordered_map<BinaryOpKey, std::shared_ptr<IntBinary>, BinaryOpKeyHasher> value_table;
-    run_on_block(current_function->get_blocks().front(), value_table);
-    return changed;
+void NaryReassociateImpl::run_on_block(const std::shared_ptr<Block> &block, const Map &seen_computations) {
+    auto local_computations = seen_computations;
+    const auto &instructions = block->get_instructions();
+    for (const auto &instruction: instructions) {
+        if (instruction->get_op() != Operator::INTBINARY)
+            continue;
+
+        if (const auto intbinary = instruction->as<IntBinary>(); try_rewrite(intbinary, local_computations)) {
+            changed = true;
+            to_erase.insert(instruction);
+        } else {
+            local_computations[BinaryOpKey{intbinary}] = intbinary;
+        }
+    }
+
+    for (const auto &child: graph.dominance_children.at(block))
+        run_on_block(child, local_computations);
 }
 }
 
@@ -389,9 +403,9 @@ void Pass::Reassociate::transform(const std::shared_ptr<Module> module) {
         if (SimpleReassociateImpl{func}.run()) {
             create<DeadCodeEliminate>()->run_on(func);
         }
-        if (NaryReassociateImpl{func, dom_info->graph(func)}.run()) {
-            create<DeadCodeEliminate>()->run_on(func);
-        }
+        // if (NaryReassociateImpl{func, dom_info->graph(func)}.run()) {
+        //     create<DeadCodeEliminate>()->run_on(func);
+        // }
     }
     create<TreeHeightBalance>()->run_on(module);
     create<DeadCodeEliminate>()->run_on(module);
