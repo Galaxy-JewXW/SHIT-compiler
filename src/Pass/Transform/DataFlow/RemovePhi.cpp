@@ -166,6 +166,7 @@ void RemovePhi::transform(const std::shared_ptr<Module> module) {
     }
     Utils::delete_instruction_set(module, to_be_deleted);
     to_be_deleted.clear();
+    set_analysis_result_dirty<ControlFlowGraph>(module);
     cfg_info = nullptr;
 }
 }

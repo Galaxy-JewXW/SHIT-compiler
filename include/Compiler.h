@@ -19,7 +19,7 @@
 
 enum class Optimize_level { O0, O1, O2 };
 
-constexpr auto default_opt_level = Optimize_level::O1;
+constexpr auto default_opt_level = Optimize_level::O0;
 
 struct emit_options {
     bool emit_tokens = false;
