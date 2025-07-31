@@ -14,7 +14,7 @@
 #include "Mir/Structure.h"
 #include "Mir/Instruction.h"
 #include "Pass/Analysis.h"
-#include "Pass/Analyses/DominanceGraph.h"
+#include "Pass/Analyses/ControlFlowGraph.h"
 #include "Utils/Log.h"
 
 namespace Backend::LIR {
@@ -327,7 +327,7 @@ class Backend::LIR::Module : public std::enable_shared_from_this<Backend::LIR::M
         std::vector<std::shared_ptr<Backend::LIR::Function>> functions;
         std::shared_ptr<Backend::DataSection> global_data;
 
-        explicit Module(const std::shared_ptr<Mir::Module> &llvm_module) : llvm_module(llvm_module), dom_info(Pass::get_analysis_result<Pass::DominanceGraph>(llvm_module)) {
+        explicit Module(const std::shared_ptr<Mir::Module> &llvm_module) : llvm_module(llvm_module), cfg(Pass::get_analysis_result<Pass::ControlFlowGraph>(llvm_module)) {
             load_global_data();
             load_functions_and_blocks();
             for (const std::shared_ptr<Mir::Function> &llvm_function : llvm_module->get_functions()) {
@@ -350,7 +350,7 @@ class Backend::LIR::Module : public std::enable_shared_from_this<Backend::LIR::M
             return oss.str();
         }
     private:
-        const std::shared_ptr<Pass::DominanceGraph> dom_info;
+        const std::shared_ptr<Pass::ControlFlowGraph> cfg;
 
         void load_global_data()  {
             this->global_data = std::make_shared<Backend::DataSection>();
@@ -424,7 +424,8 @@ class Backend::LIR::Module : public std::enable_shared_from_this<Backend::LIR::M
          * Translate instructions of a single function from LLVM to LIR.
          */
         void load_instructions(const std::shared_ptr<Mir::Function> &llvm_function, std::shared_ptr<Backend::LIR::Function> &lir_function) {
-            for (const std::shared_ptr<Mir::Block> &llvm_block : dom_info->dom_tree_layer(llvm_function)) {
+            for (const std::shared_ptr<Mir::Block> &llvm_block : cfg->reverse_post_order(llvm_function)) {
+                log_debug("Converting %s in function %s", llvm_block->get_name().c_str(), llvm_function->get_name().c_str());
                 std::shared_ptr<Backend::LIR::Block> lir_block = lir_function->blocks_index[llvm_block->get_name()];
                 for (const std::shared_ptr<Mir::Instruction> &llvm_instruction : llvm_block->get_instructions())
                     load_instruction(llvm_instruction, lir_block);
