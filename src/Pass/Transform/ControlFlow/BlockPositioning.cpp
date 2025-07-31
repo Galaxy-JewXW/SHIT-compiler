@@ -47,6 +47,8 @@ void static_probability_placement(const std::shared_ptr<Function> &func,
     const auto &edge_prob{branch_prob->edges_prob(func.get())};
     const auto &graph{cfg->graph(func)};
 
+    log_debug("\n%s", func->to_string().c_str());
+
     std::unordered_set<std::shared_ptr<Block>> placed;
     const auto build_chain = [&placed, &edge_prob, &graph](const std::shared_ptr<Block> &block)
         -> std::vector<std::shared_ptr<Block>> {

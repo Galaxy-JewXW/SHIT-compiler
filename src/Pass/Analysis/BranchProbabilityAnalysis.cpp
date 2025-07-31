@@ -254,13 +254,13 @@ void BranchProbabilityAnalysis::analyze(const std::shared_ptr<const Module> modu
     block_probabilities.clear();
 
     create<StandardizeBinary>()->run_on(std::const_pointer_cast<Module>(module));
-    module->update_id();
-    log_debug("%s", module->to_string().c_str());
+    // module->update_id();
+    // log_debug("%s", module->to_string().c_str());
     const auto interval_info = get_analysis_result<IntervalAnalysis>(module);
     const auto cfg_info = get_analysis_result<ControlFlowGraph>(module);
     const auto loop_info = get_analysis_result<LoopAnalysis>(module);
-    module->update_id();
-    log_debug("%s", module->to_string().c_str());
+    // module->update_id();
+    // log_debug("%s", module->to_string().c_str());
     for (const auto &func: module->get_functions()) {
         BranchProbabilityImpl impl{func, cfg_info->graph(func), loop_info, interval_info,
                                    edge_probabilities[func.get()], block_probabilities[func.get()]};

@@ -152,6 +152,12 @@ void evaluate(const std::shared_ptr<Instruction> &inst, Context &ctx, const Summ
             }
             break;
         }
+        case Operator::MOVE: {
+            const auto move = inst->as<Move>();
+            const auto &src = move->get_from_value(), &dst = move->get_to_value();
+            ctx.insert(dst, ctx.get(src));
+            return;
+        }
         default: {
             if (inst->get_type()->is_void()) {
                 return;
