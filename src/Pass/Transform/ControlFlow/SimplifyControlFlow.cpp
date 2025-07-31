@@ -99,99 +99,6 @@ void cleanup_phi(const std::shared_ptr<Function> &func, const std::shared_ptr<Pa
         }
     }
 }
-
-// 识别并消除那些只包含 phi 指令和一条无条件跳转指令的“中间”基本块。
-// 将这个中间块的 phi 指令合并到后继基本块的 phi 指令中，并修改前驱基本块的跳转目标
-void merge_phi(const std::shared_ptr<Function> &func, std::shared_ptr<Pass::ControlFlowGraph> &cfg_info) {
-    bool changed{false};
-    do {
-        changed = false;
-        std::vector<std::shared_ptr<Block>> candidates;
-        candidates.reserve(func->get_blocks().size());
-        for (const auto &block: func->get_blocks()) {
-            const auto &instructions{block->get_instructions()};
-            if (instructions.back()->get_op() != Operator::JUMP) {
-                continue;
-            }
-            if (instructions.size() == 1) {
-                continue;
-            }
-            bool flag{true};
-            for (size_t i{0}; i < instructions.size() - 1; ++i) {
-                if (instructions[i]->get_op() != Operator::PHI) {
-                    flag = false;
-                    break;
-                }
-            }
-            if (flag) {
-                candidates.push_back(block);
-            }
-        }
-
-        for (const auto &block: candidates) {
-            const auto target{block->get_instructions().back()->as<Jump>()->get_target_block()};
-            // 检查当前块的前驱和目标块的前驱是否有交集
-            const auto &prevs1{cfg_info->graph(func).predecessors.at(block)},
-                    &prevs2{cfg_info->graph(func).predecessors.at(target)};
-            if (std::any_of(prevs1.begin(), prevs1.end(),
-                            [&prevs2](const auto &prev) { return prevs2.find(prev) != prevs2.end(); }))
-                continue;
-
-            // 要求当前块中所有的 phi 指令，它们的所有使用者（users）必须是目标块中的 phi 指令
-            std::vector<std::shared_ptr<Phi>> phis;
-            for (const auto &phi: block->get_instructions()) {
-                if (phi->get_op() != Operator::PHI) {
-                    break;
-                }
-                phis.push_back(phi->as<Phi>());
-            }
-
-            bool flag{true};
-            for (const auto &phi: phis) {
-                const auto users{phi->users().lock()};
-                const auto is_available_phi = [&](const std::shared_ptr<User> &user) -> bool {
-                    if (const auto phi_user{user->is<Phi>()}) {
-                        if (phi_user->get_block() == target && phi_user->get_optional_values().count(block)) {
-                            return true;
-                        }
-                    }
-                    return false;
-                };
-                if (!std::all_of(users.begin(), users.end(), is_available_phi)) {
-                    flag = false;
-                    break;
-                }
-            }
-            if (!flag) {
-                continue;
-            }
-
-            for (const auto &phi: phis) {
-                const auto users{phi->users().lock()};
-                for (const auto &user: users) {
-                    const auto phi_user{user->as<Phi>()};
-                    phi_user->remove_optional_value(block);
-                    for (const auto &[block, value]: phi->get_optional_values()) {
-                        phi_user->set_optional_value(block, value);
-                    }
-                }
-            }
-
-            block->replace_by_new_value(target);
-            block->set_deleted();
-            for (const auto &inst: block->get_instructions()) {
-                inst->clear_operands();
-            }
-            block->get_instructions().clear();
-            func->get_blocks().erase(std::find(func->get_blocks().begin(), func->get_blocks().end(), block));
-            Pass::set_analysis_result_dirty<Pass::ControlFlowGraph>(func);
-            Pass::set_analysis_result_dirty<Pass::DominanceGraph>(func);
-            cfg_info = Pass::get_analysis_result<Pass::ControlFlowGraph>(Module::instance());
-            changed = true;
-            break;
-        }
-    } while (changed);
-}
 } // namespace
 
 namespace Pass {
@@ -290,8 +197,9 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
                 if (cond_value == nullptr) {
                     log_error("Cond is not a ConstBool object");
                 }
-                const auto target_block = cond_value->get_constant_value().get<int>() ? branch->get_true_block()
-                                                                                      : branch->get_false_block();
+                const auto target_block = cond_value->get_constant_value().get<int>()
+                                              ? branch->get_true_block()
+                                              : branch->get_false_block();
                 const auto jump = Jump::create(target_block, nullptr);
                 jump->set_block(block, false);
                 last_instruction->replace_by_new_value(jump);
@@ -572,24 +480,21 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
 
 void SimplifyControlFlow::transform(const std::shared_ptr<Module> module) {
     // 预处理：清除不可达基本块
-    for (const auto &func: *module) {
+    for (const auto &func: module->get_functions()) {
         remove_unreachable_blocks(func);
     }
 
     cfg_info = get_analysis_result<ControlFlowGraph>(module);
-    for (const auto &func: *module) {
+    for (const auto &func: module->get_functions()) {
         run_on_func(func);
     }
     cfg_info = get_analysis_result<ControlFlowGraph>(module);
 
-    for (const auto &func: *module) {
+    for (const auto &func: module->get_functions()) {
         cleanup_phi(func, cfg_info);
     }
 
-    cfg_info = get_analysis_result<ControlFlowGraph>(module);
-    for (const auto &func: *module) {
-        merge_phi(func, cfg_info);
-    }
+    set_analysis_result_dirty<ControlFlowGraph>(module);
     cfg_info = nullptr;
 }
 
@@ -599,8 +504,7 @@ void SimplifyControlFlow::transform(const std::shared_ptr<Function> &func) {
     run_on_func(func);
     cfg_info = get_analysis_result<ControlFlowGraph>(Module::instance());
     cleanup_phi(func, cfg_info);
-    cfg_info = get_analysis_result<ControlFlowGraph>(Module::instance());
-    merge_phi(func, cfg_info);
+    set_analysis_result_dirty<ControlFlowGraph>(func);
     cfg_info = nullptr;
 }
 } // namespace Pass

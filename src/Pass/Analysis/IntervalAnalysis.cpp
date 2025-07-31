@@ -263,16 +263,45 @@ IntervalAnalysis::AnyIntervalSet IntervalAnalysis::rabai_function(const std::sha
         ctx.insert(icmp->get_lhs(), lhs);
     };
 
-    const auto propagate = [&](const std::shared_ptr<Block> &pred, decltype(pred) succ, const Context &ctx) {
+    const auto propagate = [&](const std::shared_ptr<Block> &pred, decltype(pred) succ, const Context &pred_out_ctx) {
         const auto old_in_succ{in_ctxs[succ]};
         auto new_in_succ = old_in_succ;
+        new_in_succ = new_in_succ.union_with(pred_out_ctx);
 
-        if (is_back_edge(succ, pred)) {
-            new_in_succ = new_in_succ.widen(ctx);
-        } else {
-            new_in_succ = new_in_succ.union_with(ctx);
+        bool changed{false};
+        for (const auto &inst: succ->get_instructions()) {
+            if (inst->get_op() != Operator::PHI)
+                break;
+            const auto phi{inst->as<Phi>()};
+            if (phi->get_optional_values().count(pred) == 0)
+                continue;
+            const auto incoming_value{phi->get_optional_values().at(pred)};
+            const auto incoming_interval = pred_out_ctx.get(incoming_value);
+            const auto old_phi_interval = new_in_succ.get(phi);
+            AnyIntervalSet new_phi_interval = std::visit(
+                    [&](const auto &old_v) -> AnyIntervalSet {
+                        return std::visit(
+                                [&](const auto &incoming_v) -> AnyIntervalSet {
+                                    if constexpr (std::is_same_v<decltype(old_v), decltype(incoming_v)>) {
+                                        if (is_back_edge(succ, pred)) {
+                                            auto old_copy = old_v;
+                                            return old_copy.widen(incoming_v);
+                                        }
+                                        auto old_copy = old_v;
+                                        return old_copy.union_with(incoming_v);
+                                    } else {
+                                        log_error("Type mismatch in PHI node! old: %s, incoming: %s",
+                                                  old_v.to_string().c_str(), incoming_v.to_string().c_str());
+                                    }
+                                }, incoming_interval);
+                    }, old_phi_interval);
+            if (new_phi_interval != old_phi_interval) {
+                new_in_succ.insert(phi, new_phi_interval);
+                changed = true;
+            }
         }
-        if (new_in_succ != old_in_succ || worklist_set.find(succ) == worklist_set.end()) {
+
+        if (changed || worklist_set.find(succ) == worklist_set.end()) {
             in_ctxs[succ] = new_in_succ;
             worklist.push(succ);
             worklist_set.insert(succ);
@@ -283,7 +312,7 @@ IntervalAnalysis::AnyIntervalSet IntervalAnalysis::rabai_function(const std::sha
     const auto &entry{func->get_blocks().front()};
     Context arg_ctx;
     for (const auto &arg: func->get_arguments()) {
-        arg_ctx.insert_undefined(arg);
+        arg_ctx.insert_top(arg);
     }
     in_ctxs[entry] = std::move(arg_ctx);
     worklist.push(func->get_blocks().front());
@@ -361,7 +390,6 @@ IntervalAnalysis::AnyIntervalSet IntervalAnalysis::rabai_function(const std::sha
             default:
                 break;
         }
-
     }
 
     // std::cout << "=== Interval Analysis Results for Function: " << func->get_name() << " ===" << std::endl;
@@ -457,6 +485,18 @@ void IntervalAnalysis::analyze(const std::shared_ptr<const Module> module) {
             }
         }
     }
+
+    // for (const auto &[func, any_summary] : summary_manager.get_summaries()) {
+    //     if (func->get_return_type()->is_void())
+    //         continue;
+    //     if (func->get_return_type()->is_int32()) {
+    //         const auto summary = std::get<IntervalSetInt>(any_summary);
+    //         log_debug("\n%s\n%s", func->get_name().c_str(), summary.to_string().c_str());
+    //     } else if (func->get_return_type()->is_float()) {
+    //         const auto summary = std::get<IntervalSetDouble>(any_summary);
+    //         log_debug("\n%s\n%s", func->get_name().c_str(), summary.to_string().c_str());
+    //     }
+    // }
 
     func_info = nullptr;
     loop_info = nullptr;

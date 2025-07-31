@@ -72,32 +72,6 @@ void build_post_order(const FunctionPtr &func,
     };
     dfs(dfs, func->get_blocks().front());
 }
-
-[[maybe_unused]]
-void build_dom_tree_layer_order(const FunctionPtr &func,
-                                const std::unordered_map<BlockPtr, std::unordered_set<BlockPtr>> &dom_children_map,
-                                std::vector<BlockPtr> &dom_tree_layer_order) {
-    std::unordered_set<BlockPtr> visited;
-    std::queue<BlockPtr> queue;
-
-    const auto entry = func->get_blocks().front();
-    queue.push(entry);
-    visited.insert(entry);
-
-    while (!queue.empty()) {
-        const auto current = queue.front();
-        queue.pop();
-        dom_tree_layer_order.push_back(current);
-        if (dom_children_map.count(current)) {
-            for (const auto &child: dom_children_map.at(current)) {
-                if (!visited.count(child)) {
-                    queue.push(child);
-                    visited.insert(child);
-                }
-            }
-        }
-    }
-}
 } // namespace
 
 namespace Pass {
@@ -140,5 +114,22 @@ void ControlFlowGraph::set_dirty(const FunctionPtr &func) {
     dirty_funcs_[func] = true;
     set_analysis_result_dirty<DominanceGraph>(func);
     set_analysis_result_dirty<LoopAnalysis>(func);
+}
+
+std::vector<BlockPtr> ControlFlowGraph::reverse_post_order(const FunctionPtr &func) const {
+    std::vector<BlockPtr> post_order;
+    std::unordered_set<BlockPtr> visited;
+    auto dfs = [&](auto &&self, const BlockPtr &block) -> void {
+        if (visited.count(block)) {
+            return;
+        }
+        visited.insert(block);
+        for (const auto &child: graphs_.at(func).successors.at(block)) {
+            self(self, child);
+        }
+        post_order.push_back(block);
+    };
+    dfs(dfs, func->get_blocks().front());
+    return post_order;
 }
 } // namespace Pass

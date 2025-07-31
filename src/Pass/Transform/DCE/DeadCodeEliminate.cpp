@@ -19,7 +19,8 @@ void DeadCodeEliminate::init_useful_instruction(const std::shared_ptr<Function> 
         if (func->is_runtime_func()) {
             return func->get_name().find("memset") == std::string::npos;
         }
-        if (const auto info = function_analysis_->func_info(func); info.io_read || info.io_write) {
+        if (const auto info = function_analysis_->func_info(func);
+            info.io_read || info.io_write || info.memory_write || info.has_side_effect || !info.no_state) {
             return true;
         }
         return false;

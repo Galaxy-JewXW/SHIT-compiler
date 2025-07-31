@@ -39,6 +39,8 @@ public:
 
     void remove(const FunctionPtr &func) { graphs_.erase(func); }
 
+    [[nodiscard]] std::vector<BlockPtr> reverse_post_order(const FunctionPtr &func) const;
+
 protected:
     void analyze(std::shared_ptr<const Mir::Module> module) override;
 
