@@ -9,7 +9,6 @@
 #include "FunctionAnalysis.h"
 #include "LoopAnalysis.h"
 #include "Mir/Const.h"
-#include "Pass/Analyses/ControlFlowGraph.h"
 #include "Pass/Analysis.h"
 #include "Pass/Util.h"
 
@@ -819,35 +818,18 @@ public:
 
     using AnyIntervalSet = std::variant<IntervalSet<int>, IntervalSet<double>>;
 
-    struct Summary {
-        using ConditionsMap = std::unordered_map<std::shared_ptr<Mir::Value>, AnyIntervalSet>;
-
-        // 前置条件
-        ConditionsMap constraints{};
-        // 后置条件
-        ConditionsMap post_conditions{};
-
-        explicit Summary() = default;
-
-        bool operator==(const Summary &other) const {
-            return constraints == other.constraints && post_conditions == other.post_conditions;
-        }
-
-        bool operator!=(const Summary &other) const { return !(*this == other); }
-    };
-
     class SummaryManager {
     public:
-        using FunctionSummaryMap = std::unordered_map<std::shared_ptr<Mir::Function>, Summary>;
+        using FunctionSummaryMap = std::unordered_map<std::shared_ptr<Mir::Function>, AnyIntervalSet>;
 
-        void update(const std::shared_ptr<Mir::Function> &func, const Summary &s) { summaries_[func] = s; }
+        void update(const std::shared_ptr<Mir::Function> &func, const AnyIntervalSet &s) { summaries_[func] = s; }
 
-        Summary get(const std::shared_ptr<Mir::Function> &func) const {
+        AnyIntervalSet get(const std::shared_ptr<Mir::Function> &func) const {
             if (const auto it = summaries_.find(func); it != summaries_.end()) {
                 return it->second;
             }
             // 如果找不到摘要，返回一个空的默认摘要
-            return Summary{};
+            return AnyIntervalSet{};
         }
 
         void clear() { summaries_.clear(); }
@@ -1002,7 +984,7 @@ protected:
 
 private:
     [[nodiscard]]
-    Summary rabai_function(const std::shared_ptr<Mir::Function> &func, const SummaryManager &summary_manager);
+    AnyIntervalSet rabai_function(const std::shared_ptr<Mir::Function> &func, const SummaryManager &summary_manager);
 
     std::shared_ptr<FunctionAnalysis> func_info{nullptr};
 

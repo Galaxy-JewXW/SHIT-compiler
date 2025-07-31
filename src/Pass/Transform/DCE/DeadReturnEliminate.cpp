@@ -29,8 +29,9 @@ void DeadReturnEliminate::run_on_func(const std::shared_ptr<Function> &func) {
         terminator = new_return;
     }
     for (const auto &user: func->users()) {
-        if (user->is<Call>()) {
-            user->set_name("");
+        if (const auto call = user->is<Call>()) {
+            call->set_name("");
+            call->set_type(Type::Void::void_);
         }
     }
 }

@@ -106,7 +106,7 @@ protected:
 
     void tail_call_detect(const std::shared_ptr<Mir::Function> &func) const;
 
-    void tail_call_eliminate(const std::shared_ptr<Mir::Function> &func) const;
+    [[deprecated("Bugs")]] void tail_call_eliminate(const std::shared_ptr<Mir::Function> &func) const;
 
     static bool handle_tail_call(const std::shared_ptr<Mir::Call> &call);
 

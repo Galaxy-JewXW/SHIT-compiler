@@ -538,7 +538,7 @@ bool TailCallOptimize::handle_tail_call(const std::shared_ptr<Call> &call) {
 
 void TailCallOptimize::run_on_func(const std::shared_ptr<Function> &func) const {
     tail_call_detect(func);
-    tail_call_eliminate(func);
+    // tail_call_eliminate(func);
 }
 
 void TailCallOptimize::transform(const std::shared_ptr<Module> module) {

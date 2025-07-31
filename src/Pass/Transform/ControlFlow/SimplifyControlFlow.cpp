@@ -556,10 +556,8 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
         fold_redundant_branch();
         combine_blocks();
         remove_empty_blocks();
-        log_debug("%s", func->to_string().c_str());
         hoist_branch();
-        log_debug("%s", func->to_string().c_str());
-        // cleanup_switch();
+        cleanup_switch();
         if (changed) {
             remove_deleted_blocks(func);
         }

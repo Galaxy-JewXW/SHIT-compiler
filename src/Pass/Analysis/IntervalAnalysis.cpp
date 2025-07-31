@@ -143,15 +143,20 @@ void evaluate(const std::shared_ptr<Instruction> &inst, Context &ctx, const Summ
                     result_interval = IntervalSetInt::make_any();
                 }
             } else {
-                // TODO: summary的处理
                 const auto summary = summary_manager.get(func);
                 if (func->get_return_type()->is_float()) {
-                    result_interval = IntervalSetDouble::make_any();
+                    result_interval = std::get<IntervalSetDouble>(summary);
                 } else {
-                    result_interval = IntervalSetInt::make_any();
+                    result_interval = std::get<IntervalSetInt>(summary);
                 }
             }
             break;
+        }
+        case Operator::MOVE: {
+            const auto move = inst->as<Move>();
+            const auto &src = move->get_from_value(), &dst = move->get_to_value();
+            ctx.insert(dst, ctx.get(src));
+            return;
         }
         default: {
             if (inst->get_type()->is_void()) {
@@ -171,10 +176,12 @@ void evaluate(const std::shared_ptr<Instruction> &inst, Context &ctx, const Summ
 } // namespace
 
 namespace Pass {
-IntervalAnalysis::Summary IntervalAnalysis::rabai_function(const std::shared_ptr<Function> &func,
-                                                           const SummaryManager &summary_manager) {
+IntervalAnalysis::AnyIntervalSet IntervalAnalysis::rabai_function(const std::shared_ptr<Function> &func,
+                                                                  const SummaryManager &summary_manager) {
     std::unordered_map<std::shared_ptr<Block>, Context> in_ctxs;
     std::unordered_map<std::shared_ptr<Block>, Context> out_ctxs;
+    std::unordered_map<std::shared_ptr<Ret>, AnyIntervalSet> ret_ctxs;
+
     for (const auto &block: func->get_blocks()) {
         in_ctxs.emplace(block, Context{});
         out_ctxs.emplace(block, Context{});
@@ -288,35 +295,73 @@ IntervalAnalysis::Summary IntervalAnalysis::rabai_function(const std::shared_ptr
         for (const auto &inst: current_block->get_instructions()) {
             evaluate(inst, out_ctxs[current_block], summary_manager);
         }
-        const auto &terminator{current_block->get_instructions().back()};
-        if (const auto branch{terminator->is<Branch>()}) {
-            const auto &true_block{branch->get_true_block()}, &false_block{branch->get_false_block()};
-            const auto &cond{branch->get_cond()};
-            auto true_context{out_ctxs[current_block]}, false_context{out_ctxs[current_block]};
-            refine_context(cond, true, true_context);
-            refine_context(cond, false, false_context);
-            propagate(current_block, true_block, true_context);
-            propagate(current_block, false_block, false_context);
-        } else if (const auto switch_{terminator->is<Switch>()}) {
-            // 处理所有case分支
-            for (const auto &[value, block]: switch_->cases()) {
-                auto case_context{out_ctxs[current_block]};
-                auto interval = std::get<IntervalSetInt>(case_context.get(switch_->get_base()));
-                interval = interval.intersect_with(IntervalSetInt{**value->as<ConstInt>()});
-                case_context.insert(switch_->get_base(), interval);
-                propagate(current_block, block, case_context);
+        switch (const auto terminator{current_block->get_instructions().back()};
+            terminator->get_op()) {
+            case Operator::BRANCH: {
+                const auto branch = terminator->as<Branch>();
+                const auto &true_block{branch->get_true_block()}, &false_block{branch->get_false_block()};
+                const auto &cond{branch->get_cond()};
+                auto true_context{out_ctxs[current_block]}, false_context{out_ctxs[current_block]};
+                refine_context(cond, true, true_context);
+                refine_context(cond, false, false_context);
+                propagate(current_block, true_block, true_context);
+                propagate(current_block, false_block, false_context);
+                break;
             }
-            // 处理default分支
-            auto default_context{out_ctxs[current_block]};
-            auto interval = std::get<IntervalSetInt>(default_context.get(switch_->get_base()));
-            for (const auto &[value, block]: switch_->cases()) {
-                interval = interval.difference(IntervalSetInt{**value->as<ConstInt>()});
+            case Operator::SWITCH: {
+                const auto switch_{terminator->as<Switch>()};
+                // 处理所有case分支
+                for (const auto &[value, block]: switch_->cases()) {
+                    auto case_context{out_ctxs[current_block]};
+                    auto interval = std::get<IntervalSetInt>(case_context.get(switch_->get_base()));
+                    interval = interval.intersect_with(IntervalSetInt{**value->as<ConstInt>()});
+                    case_context.insert(switch_->get_base(), interval);
+                    propagate(current_block, block, case_context);
+                }
+                // 处理default分支
+                auto default_context{out_ctxs[current_block]};
+                auto interval = std::get<IntervalSetInt>(default_context.get(switch_->get_base()));
+                for (const auto &[value, block]: switch_->cases()) {
+                    interval = interval.difference(IntervalSetInt{**value->as<ConstInt>()});
+                }
+                default_context.insert(switch_->get_base(), interval);
+                propagate(current_block, switch_->get_default_block(), default_context);
+                break;
             }
-            default_context.insert(switch_->get_base(), interval);
-            propagate(current_block, switch_->get_default_block(), default_context);
-        } else if (const auto jump{terminator->is<Jump>()}) {
-            propagate(current_block, jump->get_target_block(), out_ctxs[current_block]);
+            case Operator::JUMP: {
+                const auto jump = terminator->as<Jump>();
+                propagate(current_block, jump->get_target_block(), out_ctxs[current_block]);
+                break;
+            }
+            case Operator::RET: {
+                const auto ret = terminator->as<Ret>();
+                if (func->get_return_type()->is_void())
+                    break;
+
+                AnyIntervalSet interval_set;
+                if (const auto inst = ret->get_value()->is<Instruction>()) {
+                    interval_set = out_ctxs[current_block].get(inst);
+                } else if (const auto constant = ret->get_value()->is<Const>()) {
+                    interval_set = std::visit([](const auto x) -> AnyIntervalSet {
+                        return IntervalSet<std::decay_t<decltype(x)>>{x};
+                    }, constant->get_constant_value());
+                } else {
+                    // set to all
+                    if (func->get_return_type()->is_int32()) {
+                        interval_set = IntervalSetInt::make_any();
+                    } else if (func->get_return_type()->is_float()) {
+                        interval_set = IntervalSetDouble::make_any();
+                    } else {
+                        log_error("Invalid type");
+                    }
+                }
+                ret_ctxs[ret] = interval_set;
+                break;
+            }
+            default:
+                break;
         }
+
     }
 
     // std::cout << "=== Interval Analysis Results for Function: " << func->get_name() << " ===" << std::endl;
@@ -335,7 +380,21 @@ IntervalAnalysis::Summary IntervalAnalysis::rabai_function(const std::shared_ptr
         block_in_ctxs.insert({b.get(), ctx});
     }
 
-    return Summary{};
+    if (func->get_return_type()->is_int32()) {
+        IntervalSet<int> return_intervals;
+        for (const auto &[ret, interval]: ret_ctxs) {
+            return_intervals = return_intervals.union_with(std::get<decltype(return_intervals)>(interval));
+        }
+        return return_intervals;
+    }
+    if (func->get_return_type()->is_float()) {
+        IntervalSet<double> return_intervals;
+        for (const auto &[ret, interval]: ret_ctxs) {
+            return_intervals = return_intervals.union_with(std::get<decltype(return_intervals)>(interval));
+        }
+        return return_intervals;
+    }
+    return IntervalSetInt::make_undefined();
 }
 
 Context IntervalAnalysis::ctx_after(const std::shared_ptr<Instruction> &inst, const std::shared_ptr<Block> &block) {
@@ -368,7 +427,7 @@ void IntervalAnalysis::analyze(const std::shared_ptr<const Module> module) {
 
     // 保证对于每一个函数，只有一个返回点
     create<StandardizeBinary>()->run_on(std::const_pointer_cast<Module>(module));
-    create<SingleReturnTransform>()->run_on(std::const_pointer_cast<Module>(module));
+    // create<SingleReturnTransform>()->run_on(std::const_pointer_cast<Module>(module));
     func_info = get_analysis_result<FunctionAnalysis>(module);
     loop_info = get_analysis_result<LoopAnalysis>(module);
 
@@ -386,6 +445,9 @@ void IntervalAnalysis::analyze(const std::shared_ptr<const Module> module) {
         worklist.erase(worklist.begin());
         const auto old_summary{summary_manager.get(func)};
         const auto new_summary = rabai_function(func, summary_manager);
+        if (func->get_return_type()->is_void()) {
+            continue;
+        }
         summary_manager.update(func, new_summary);
         if (old_summary != new_summary) {
             for (const auto &g: func_info->call_graph_reverse_func(func)) {
