@@ -31,9 +31,13 @@ class RISCV::Stack {
         inline void add_variable(const std::shared_ptr<Backend::Variable> &variable) {
             if (stack_index.find(variable->name) != stack_index.end())
                 return;
-            stack_size += Backend::Utils::type_to_size(variable->workload_type);
+            stack_size += variable->size();
             stack_index[variable->name] = stack_size;
             stack.push_back(variable);
+        }
+
+        void align(const size_t alignment) {
+            stack_size = (stack_size + alignment - 1) & ~(alignment - 1);
         }
 };
 
@@ -77,8 +81,8 @@ class RISCV::Function : public std::enable_shared_from_this<RISCV::Function> {
         }
         [[nodiscard]] std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> translate_instruction(const std::shared_ptr<Backend::LIR::Instruction>& instruction);
 
-        template<typename T_instr, typename T_imm, typename T_reg>
-        void translate_iactions(const std::shared_ptr<T_instr> &instr, std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> &instrs);
+        template<typename T_imm, typename T_reg>
+        void translate_iactions(const std::shared_ptr<Backend::LIR::IntArithmetic> &instr, std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> &instrs);
         template<typename T_instr>
         void translate_bactions(const std::shared_ptr<Backend::LIR::BranchInstruction> &instr, std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> &instrs);
 };

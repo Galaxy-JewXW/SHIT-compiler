@@ -19,3 +19,4 @@ riscv
 *.o
 *.txt
 riscv.out
+llvm

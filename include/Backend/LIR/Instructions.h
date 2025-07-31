@@ -139,7 +139,10 @@ class Backend::LIR::Move : public Backend::LIR::Instruction {
         std::shared_ptr<Variable> source;
         std::shared_ptr<Variable> target;
 
-        Move(const std::shared_ptr<Variable> &source, const std::shared_ptr<Variable> &target) : Backend::LIR::Instruction(InstructionType::MOVE), source(source), target(target) {}
+        Move(const std::shared_ptr<Variable> &source, const std::shared_ptr<Variable> &target) : Backend::LIR::Instruction(InstructionType::MOVE), source(source), target(target) {
+            if (Backend::Utils::is_float(target->workload_type))
+                type = InstructionType::FMOVE;
+        }
 
         inline std::string to_string() const override {
             std::ostringstream oss;
@@ -220,6 +223,12 @@ class Backend::LIR::LoadInt : public Backend::LIR::Instruction {
         }
 
         std::shared_ptr<Variable> get_defined_variable() const override { return var_in_reg; }
+        std::vector<std::shared_ptr<Backend::Variable>> get_used_variables() const override {
+            if (var_in_mem->lifetime == VariableWide::LOCAL)
+                return {var_in_mem};
+            else
+                return {};
+        }
 
         void update_defined_variable(const std::shared_ptr<Backend::Variable> &var) override { var_in_reg = var; }
 };
@@ -235,7 +244,7 @@ class Backend::LIR::LoadFloat : public Backend::LIR::Instruction {
 
         inline std::string to_string() const override {
             std::ostringstream oss;
-            oss << "load from " << var_in_mem->to_string() << " + " << offset << " to " << var_in_reg->to_string();
+            oss << "fload from " << var_in_mem->to_string() << " + " << offset << " to " << var_in_reg->to_string();
             return oss.str();
         }
 
@@ -260,7 +269,10 @@ class Backend::LIR::StoreInt : public Backend::LIR::Instruction {
         }
 
         std::vector<std::shared_ptr<Backend::Variable>> get_used_variables() const override {
-            return {var_in_reg};
+            if (var_in_mem->lifetime == VariableWide::LOCAL)
+                return {var_in_mem, var_in_reg};
+            else
+                return {var_in_reg};
         }
 
         void update_used_variable(const std::shared_ptr<Backend::Variable> &original, const std::shared_ptr<Backend::Variable> &update_to) override {
@@ -279,7 +291,7 @@ class Backend::LIR::StoreFloat : public Backend::LIR::Instruction {
 
         std::string to_string() const override {
             std::ostringstream oss;
-            oss << "store from " << var_in_reg->to_string() << " to " << var_in_mem->to_string() << " + " << offset;
+            oss << "fstore from " << var_in_reg->to_string() << " to " << var_in_mem->to_string() << " + " << offset;
             return oss.str();
         }
 

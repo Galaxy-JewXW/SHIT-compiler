@@ -13,6 +13,8 @@
 #include "Backend/Value.h"
 #include "Mir/Structure.h"
 #include "Mir/Instruction.h"
+#include "Pass/Analysis.h"
+#include "Pass/Analyses/DominanceGraph.h"
 #include "Utils/Log.h"
 
 namespace Backend::LIR {
@@ -43,10 +45,7 @@ namespace Backend::LIR {
         BITWISE_AND, BITWISE_OR, BITWISE_XOR, BITWISE_NOT,
         SHIFT_LEFT,
         SHIFT_RIGHT,
-        SHIFT_LEFT_LOGICAL,
-        SHIFT_RIGHT_LOGICAL,
-        SHIFT_RIGHT_ARITHMETIC,
-        MOVE,
+        MOVE, FMOVE,
     };
     class IntArithmetic;
     class FloatArithmetic;
@@ -124,9 +123,6 @@ namespace Backend::Utils {
             case Backend::LIR::InstructionType::BITWISE_NOT: return "!";
             case Backend::LIR::InstructionType::SHIFT_LEFT: return "<<";
             case Backend::LIR::InstructionType::SHIFT_RIGHT: return ">>";
-            case Backend::LIR::InstructionType::SHIFT_LEFT_LOGICAL: return "SHIFT_LEFT_LOGICAL";
-            case Backend::LIR::InstructionType::SHIFT_RIGHT_LOGICAL: return "SHIFT_RIGHT_LOGICAL";
-            case Backend::LIR::InstructionType::SHIFT_RIGHT_ARITHMETIC: return "SHIFT_RIGHT_ARITHMETIC";
             case Backend::LIR::InstructionType::LOAD_ADDR: return "&";
             default: return "";
         }
@@ -240,7 +236,8 @@ class Backend::LIR::Function {
         virtual ~Function() = default;
 
         void add_variable(const std::shared_ptr<Backend::Variable> &variable) {
-            variables[variable->name] = variable;
+            if (variables.find(variable->name) == variables.end())
+                variables[variable->name] = variable;
         }
 
         void remove_variable(const std::shared_ptr<Backend::Variable> &variable) {
@@ -330,7 +327,7 @@ class Backend::LIR::Module : public std::enable_shared_from_this<Backend::LIR::M
         std::vector<std::shared_ptr<Backend::LIR::Function>> functions;
         std::shared_ptr<Backend::DataSection> global_data;
 
-        explicit Module(const std::shared_ptr<Mir::Module> &llvm_module) : llvm_module(llvm_module) {
+        explicit Module(const std::shared_ptr<Mir::Module> &llvm_module) : llvm_module(llvm_module), dom_info(Pass::get_analysis_result<Pass::DominanceGraph>(llvm_module)) {
             load_global_data();
             load_functions_and_blocks();
             for (const std::shared_ptr<Mir::Function> &llvm_function : llvm_module->get_functions()) {
@@ -353,6 +350,8 @@ class Backend::LIR::Module : public std::enable_shared_from_this<Backend::LIR::M
             return oss.str();
         }
     private:
+        const std::shared_ptr<Pass::DominanceGraph> dom_info;
+
         void load_global_data()  {
             this->global_data = std::make_shared<Backend::DataSection>();
             this->global_data->load_global_variables(llvm_module->get_global_variables());
@@ -404,7 +403,10 @@ class Backend::LIR::Module : public std::enable_shared_from_this<Backend::LIR::M
                         )
                     );
             }
-            return find_variable(name, function);
+            std::shared_ptr<Backend::Variable> var = find_variable(name, function);
+            if (!var)
+                log_error("%s not found in function %s", name.c_str(), function->name.c_str());
+            return var;
         }
 
         /*
@@ -422,7 +424,7 @@ class Backend::LIR::Module : public std::enable_shared_from_this<Backend::LIR::M
          * Translate instructions of a single function from LLVM to LIR.
          */
         void load_instructions(const std::shared_ptr<Mir::Function> &llvm_function, std::shared_ptr<Backend::LIR::Function> &lir_function) {
-            for (const std::shared_ptr<Mir::Block> &llvm_block : llvm_function->get_blocks()) {
+            for (const std::shared_ptr<Mir::Block> &llvm_block : dom_info->dom_tree_layer(llvm_function)) {
                 std::shared_ptr<Backend::LIR::Block> lir_block = lir_function->blocks_index[llvm_block->get_name()];
                 for (const std::shared_ptr<Mir::Instruction> &llvm_instruction : llvm_block->get_instructions())
                     load_instruction(llvm_instruction, lir_block);
@@ -438,6 +440,12 @@ class Backend::LIR::Module : public std::enable_shared_from_this<Backend::LIR::M
                     it = lir_function->variables.erase(it);
                 else it++;
         }
+
+        template<typename StoreInst, Backend::VariableType PTR>
+        void load_store_instruction(const std::shared_ptr<Backend::Variable> &store_to, const std::shared_ptr<Backend::Variable> &store_from, std::shared_ptr<Backend::LIR::Block> &lir_block);
+        template<typename LoadInst>
+        void load_load_instruction(const std::shared_ptr<Backend::Variable> &load_from, const std::shared_ptr<Backend::Variable> &load_to, std::shared_ptr<Backend::LIR::Block> &lir_block);
+        std::shared_ptr<Backend::Variable> load_addr(const std::shared_ptr<Backend::Pointer> &load_from, std::shared_ptr<Backend::LIR::Block> &lir_block);
 };
 
 #endif
