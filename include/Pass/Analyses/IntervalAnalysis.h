@@ -832,6 +832,8 @@ public:
             return AnyIntervalSet{};
         }
 
+        const FunctionSummaryMap &get_summaries() const { return summaries_; }
+
         void clear() { summaries_.clear(); }
 
     private:
@@ -885,9 +887,9 @@ public:
             }
             // log_error("Does not exist: %s", value->to_string().c_str());
             if (value->get_type()->is_float()) {
-                return IntervalSet<double>::make_any();
+                return IntervalSet<double>::make_undefined();
             }
-            return IntervalSet<int>::make_any();
+            return IntervalSet<int>::make_undefined();
         }
 
         Context &union_with(const Context &other) {
