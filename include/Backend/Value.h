@@ -98,6 +98,9 @@ class Backend::Pointer : public Backend::Variable {
         explicit Pointer(const std::string &name, const std::shared_ptr<Backend::Variable> &base, std::shared_ptr<Backend::Operand> &offset) : Backend::Variable(name, Backend::Utils::to_pointer(base->workload_type), VariableWide::LOCAL), base(base), offset(offset) {
             var_type = Type::PTR;
         }
+        explicit Pointer(const std::string &name, const std::shared_ptr<Backend::Variable> &base) : Backend::Variable(name, Backend::Utils::to_pointer(base->workload_type), VariableWide::LOCAL), base(base) {
+            var_type = Type::PTR;
+        }
         ~Pointer() override = default;
 };
 

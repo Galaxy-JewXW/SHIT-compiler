@@ -2,9 +2,6 @@
 #include "Backend/InstructionSets/RISC-V/Registers.h"
 #include "Backend/InstructionSets/RISC-V/Modules.h"
 #include "Utils/Log.h"
-#include <ostream>
-#include <sstream>
-#include <iomanip>
 
 namespace RISCV::Instructions {
     std::string Sub::to_string() const {
@@ -209,19 +206,49 @@ namespace RISCV::Instructions {
     }
 
     std::string AllocStack::to_string() const {
-        return std::make_shared<Instructions::AddImmediate>(RISCV::Registers::ABI::SP, RISCV::Registers::ABI::SP, -stack->stack_size)->to_string();;
+        if (is_12bit(-stack->stack_size)) {
+            return std::make_shared<Instructions::AddImmediate>(RISCV::Registers::ABI::SP, RISCV::Registers::ABI::SP, -stack->stack_size)->to_string();
+        } else {
+            std::ostringstream oss;
+            oss << std::make_shared<Instructions::LoadImmediate>(RISCV::Registers::ABI::T0, -stack->stack_size)->to_string() << "\n  ";
+            oss << std::make_shared<Instructions::Add>(RISCV::Registers::ABI::SP, RISCV::Registers::ABI::SP, RISCV::Registers::ABI::T0)->to_string();
+            return oss.str();
+        }
     }
 
     std::string FreeStack::to_string() const {
-        return std::make_shared<Instructions::AddImmediate>(RISCV::Registers::ABI::SP, RISCV::Registers::ABI::SP, stack->stack_size)->to_string();;
+        if (is_12bit(stack->stack_size)) {
+            return std::make_shared<Instructions::AddImmediate>(RISCV::Registers::ABI::SP, RISCV::Registers::ABI::SP, stack->stack_size)->to_string();
+        } else {
+            std::ostringstream oss;
+            oss << std::make_shared<Instructions::LoadImmediate>(RISCV::Registers::ABI::T0, stack->stack_size)->to_string() << "\n  ";
+            oss << std::make_shared<Instructions::Add>(RISCV::Registers::ABI::SP, RISCV::Registers::ABI::SP, RISCV::Registers::ABI::T0)->to_string();
+            return oss.str();
+        }
     }
 
     std::string StoreRA::to_string() const {
-        return std::make_shared<Instructions::StoreDoubleword>(RISCV::Registers::ABI::SP, RISCV::Registers::ABI::RA, stack->stack_size - stack->RA_SIZE)->to_string();
+        if (is_12bit(stack->stack_size - stack->RA_SIZE)) {
+            return std::make_shared<Instructions::StoreDoubleword>(RISCV::Registers::ABI::SP, RISCV::Registers::ABI::RA, stack->stack_size - stack->RA_SIZE)->to_string();
+        } else {
+            std::ostringstream oss;
+            oss << std::make_shared<Instructions::LoadImmediate>(RISCV::Registers::ABI::T0, stack->stack_size - stack->RA_SIZE)->to_string() << "\n  ";
+            oss << std::make_shared<Instructions::Add>(RISCV::Registers::ABI::T0, RISCV::Registers::ABI::T0, RISCV::Registers::ABI::SP)->to_string() << "\n  ";
+            oss << std::make_shared<Instructions::StoreDoubleword>(RISCV::Registers::ABI::T0, RISCV::Registers::ABI::RA, 0)->to_string();
+            return oss.str();
+        }
     }
 
     std::string LoadRA::to_string() const {
-        return std::make_shared<Instructions::LoadDoubleword>(RISCV::Registers::ABI::RA, RISCV::Registers::ABI::SP, stack->stack_size - stack->RA_SIZE)->to_string();
+        if (is_12bit(stack->stack_size - stack->RA_SIZE)) {
+            return std::make_shared<Instructions::LoadDoubleword>(RISCV::Registers::ABI::RA, RISCV::Registers::ABI::SP, stack->stack_size - stack->RA_SIZE)->to_string();
+        } else {
+            std::ostringstream oss;
+            oss << std::make_shared<Instructions::LoadImmediate>(RISCV::Registers::ABI::T0, stack->stack_size - stack->RA_SIZE)->to_string() << "\n  ";
+            oss << std::make_shared<Instructions::Add>(RISCV::Registers::ABI::T0, RISCV::Registers::ABI::T0, RISCV::Registers::ABI::SP)->to_string() << "\n  ";
+            oss << std::make_shared<Instructions::LoadDoubleword>(RISCV::Registers::ABI::RA, RISCV::Registers::ABI::T0, 0)->to_string();
+            return oss.str();
+        }
     }
 
     std::string Fcvt_S_W::to_string() const {

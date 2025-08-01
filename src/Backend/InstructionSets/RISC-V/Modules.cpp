@@ -72,7 +72,7 @@ void RISCV::Function::translate_iactions(const std::shared_ptr<Backend::LIR::Int
 }
 
 template<typename T_instr>
-void RISCV::Function::translate_bactions(const std::shared_ptr<Backend::LIR::BranchInstruction> &instr, std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> &instrs) {
+void RISCV::Function::translate_bactions(const std::shared_ptr<Backend::LIR::IBranch> &instr, std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> &instrs) {
     std::shared_ptr<RISCV::Block> target_block = find_block(instr->target_block->name);
     RISCV::Registers::ABI rs1 = register_allocator->get_register(instr->lhs);
     if (!instr->rhs) {
@@ -111,6 +111,7 @@ std::string RISCV::Module::to_string() const {
     for (const std::shared_ptr<RISCV::Function> &function : functions) {
         oss << function->to_string() << "\n";
     }
+    oss << RISCV::ASM::memset_s;
     return oss.str();
 }
 
@@ -310,32 +311,32 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
         }
         case Backend::LIR::InstructionType::EQUAL:
         case Backend::LIR::InstructionType::EQUAL_ZERO: {
-            translate_bactions<RISCV::Instructions::BranchOnEqual>(std::static_pointer_cast<Backend::LIR::BranchInstruction>(instruction), instrs);
+            translate_bactions<RISCV::Instructions::BranchOnEqual>(std::static_pointer_cast<Backend::LIR::IBranch>(instruction), instrs);
             break;
         }
         case Backend::LIR::InstructionType::NOT_EQUAL:
         case Backend::LIR::InstructionType::NOT_EQUAL_ZERO: {
-            translate_bactions<RISCV::Instructions::BranchOnNotEqual>(std::static_pointer_cast<Backend::LIR::BranchInstruction>(instruction), instrs);
+            translate_bactions<RISCV::Instructions::BranchOnNotEqual>(std::static_pointer_cast<Backend::LIR::IBranch>(instruction), instrs);
             break;
         }
         case Backend::LIR::InstructionType::GREATER:
         case Backend::LIR::InstructionType::GREATER_ZERO: {
-            translate_bactions<RISCV::Instructions::BranchOnGreaterThan>(std::static_pointer_cast<Backend::LIR::BranchInstruction>(instruction), instrs);
+            translate_bactions<RISCV::Instructions::BranchOnGreaterThan>(std::static_pointer_cast<Backend::LIR::IBranch>(instruction), instrs);
             break;
         }
         case Backend::LIR::InstructionType::LESS:
         case Backend::LIR::InstructionType::LESS_ZERO: {
-            translate_bactions<RISCV::Instructions::BranchOnLessThan>(std::static_pointer_cast<Backend::LIR::BranchInstruction>(instruction), instrs);
+            translate_bactions<RISCV::Instructions::BranchOnLessThan>(std::static_pointer_cast<Backend::LIR::IBranch>(instruction), instrs);
             break;
         }
         case Backend::LIR::InstructionType::GREATER_EQUAL:
         case Backend::LIR::InstructionType::GREATER_EQUAL_ZERO: {
-            translate_bactions<RISCV::Instructions::BranchOnGreaterThanOrEqual>(std::static_pointer_cast<Backend::LIR::BranchInstruction>(instruction), instrs);
+            translate_bactions<RISCV::Instructions::BranchOnGreaterThanOrEqual>(std::static_pointer_cast<Backend::LIR::IBranch>(instruction), instrs);
             break;
         }
         case Backend::LIR::InstructionType::LESS_EQUAL:
         case Backend::LIR::InstructionType::LESS_EQUAL_ZERO: {
-            translate_bactions<RISCV::Instructions::BranchOnLessThanOrEqual>(std::static_pointer_cast<Backend::LIR::BranchInstruction>(instruction), instrs);
+            translate_bactions<RISCV::Instructions::BranchOnLessThanOrEqual>(std::static_pointer_cast<Backend::LIR::IBranch>(instruction), instrs);
             break;
         }
         case Backend::LIR::InstructionType::RETURN: {

@@ -4,6 +4,9 @@
 #include <cstdint>
 #include <string>
 #include <memory>
+#include <ostream>
+#include <sstream>
+#include <iomanip>
 #include "Backend/InstructionSets/RISC-V/Registers.h"
 #include "Backend/LIR/LIR.h"
 #include "Backend/VariableTypes.h"
@@ -20,6 +23,14 @@ namespace RISCV::Instructions {
             virtual ~Instruction() = default;
             explicit Instruction() = default;
             [[nodiscard]] virtual std::string to_string() const = 0;
+        protected:
+            static inline bool is_12bit(int32_t value) {
+                return value >= -2048 && value <= 2047;
+            }
+
+            static inline bool is_20bit(int32_t value) {
+                return value >= -1048576 && value <= 1048575;
+            }
     };
 
     class Utype : public Instruction {
@@ -27,7 +38,7 @@ namespace RISCV::Instructions {
             const RISCV::Registers::ABI rd;
             int32_t imm;
             Utype(const RISCV::Registers::ABI rd, int32_t imm) : rd{rd}, imm{imm} {
-                if (imm < -1048576 || imm > 1048575) { // 20 bit signed range
+                if (!is_20bit(imm)) {
                     throw std::out_of_range("Immediate value out of 20-bit signed range");
                 }
             }
@@ -47,7 +58,7 @@ namespace RISCV::Instructions {
             const RISCV::Registers::ABI rs1;
             int32_t imm;
             Itype(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, int32_t imm) : rd{rd}, rs1{rs1}, imm{imm} {
-                if (imm < -2048 || imm > 2047) { // 12 bit signed range
+                if (!is_12bit(imm)) {
                     throw std::out_of_range("Immediate value out of 12-bit signed range");
                 }
             }
@@ -59,7 +70,7 @@ namespace RISCV::Instructions {
             const RISCV::Registers::ABI rs2;
             int32_t imm;
             Stype(const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, int32_t imm) : rs1{rs1}, rs2{rs2}, imm{imm} {
-                if (imm < -2048 || imm > 2047) { // 12 bit signed range
+                if (!is_12bit(imm)) {
                     throw std::out_of_range("Immediate value out of 12-bit signed range");
                 }
             }
@@ -79,9 +90,11 @@ namespace RISCV::Instructions {
             StackInstruction(const std::shared_ptr<RISCV::Stack> &stack) : stack{stack} {}
     };
 
-    class LoadImmediate : public Utype {
+    class LoadImmediate : public Instruction {
         public:
-            LoadImmediate(const RISCV::Registers::ABI rd, int32_t imm) : Utype{rd, imm} {}
+            const RISCV::Registers::ABI rd;
+            int32_t imm;
+            LoadImmediate(const RISCV::Registers::ABI rd, int32_t imm) : rd{rd}, imm{imm} {}
             [[nodiscard]] std::string to_string() const override;
     };
 

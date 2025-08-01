@@ -10,6 +10,7 @@
 #include "Backend/InstructionSets/RISC-V/Instructions.h"
 #include "Backend/InstructionSets/RISC-V/RegisterAllocator/RegisterAllocator.h"
 #include "Backend/VariableTypes.h"
+#include "Backend/InstructionSets/RISC-V/memset.h"
 #include "Backend/Value.h"
 
 namespace RISCV {
@@ -84,7 +85,7 @@ class RISCV::Function : public std::enable_shared_from_this<RISCV::Function> {
         template<typename T_imm, typename T_reg>
         void translate_iactions(const std::shared_ptr<Backend::LIR::IntArithmetic> &instr, std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> &instrs);
         template<typename T_instr>
-        void translate_bactions(const std::shared_ptr<Backend::LIR::BranchInstruction> &instr, std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> &instrs);
+        void translate_bactions(const std::shared_ptr<Backend::LIR::IBranch> &instr, std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> &instrs);
 };
 
 class RISCV::Module {
