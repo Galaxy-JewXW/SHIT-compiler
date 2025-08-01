@@ -1,6 +1,8 @@
 #ifndef SCEVANALYSIS_H
 #define SCEVANALYSIS_H
 
+#include <utility>
+
 #include "Pass/Analysis.h"
 #include "Pass/Transforms/Loop.h"
 
@@ -39,7 +41,7 @@ private:
     std::shared_ptr<SCEVExpr> fold_mul(std::shared_ptr<SCEVExpr> &lhs, std::shared_ptr<SCEVExpr> &rhs);
 };
 
-class SCEVExpr final {
+class SCEVExpr final : public std::enable_shared_from_this<SCEVExpr> {
 
 public:
     enum class SCEVTYPE { Constant, AddRec };
@@ -54,6 +56,34 @@ public:
     void add_operand(const std::shared_ptr<SCEVExpr> &operand) { operands.push_back(operand); }
 
     void set_loop(const std::shared_ptr<Loop> &loop) { this->_loop = loop; }
+
+    bool not_negative();
+
+    int get_init();
+    int get_step();
+
+    static int k;
+    static int n;
+    static int c;
+    static int calc(const std::shared_ptr<SCEVExpr>& scev_expr, int N) {
+        n = N;
+        k = 0;
+        c = 1;
+        return calc_helper(scev_expr);
+    }
+
+    static int calc_helper(const std::shared_ptr<SCEVExpr>& scev_expr) {
+        if (k > n) return 0;
+        if(scev_expr->type == SCEVTYPE::Constant) {
+            int pre_c = c;
+            c = (n - k) * c / (k + 1);
+            k ++;
+            return scev_expr->get_constant() + pre_c;
+        }
+        int sum = 0;
+        for (const auto& operand : scev_expr->get_operands()) sum += calc_helper(operand);
+        return sum;
+    }
 
     std::shared_ptr<Loop> &get_loop() { return _loop; }
 
