@@ -116,7 +116,7 @@ void LoopAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
                 oss << "    latch: \"" << block->get_name() << "\"\n";
             }
         }
-        log_debug("%s", oss.str().c_str());
+        // log_debug("%s", oss.str().c_str());
     }
 }
 

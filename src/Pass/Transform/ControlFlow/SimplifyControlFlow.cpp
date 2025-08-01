@@ -468,8 +468,8 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
         cleanup_switch();
         if (changed) {
             remove_deleted_blocks(func);
+            remove_unreachable_blocks(func);
         }
-        changed = false;
         try_constant_fold(func);
     } while (changed);
 
@@ -487,16 +487,19 @@ void SimplifyControlFlow::transform(const std::shared_ptr<Module> module) {
 
     cfg_info = get_analysis_result<ControlFlowGraph>(module);
     for (const auto &func: module->get_functions()) {
-        log_debug("Before: %s", func->to_string().c_str());
+        // log_debug("Before: %s", func->to_string().c_str());
         run_on_func(func);
-        log_debug("After: %s", func->to_string().c_str());
+        // log_debug("After: %s", func->to_string().c_str());
     }
     cfg_info = get_analysis_result<ControlFlowGraph>(module);
-    //
+
     for (const auto &func: module->get_functions()) {
         cleanup_phi(func, cfg_info);
     }
 
+    for (const auto &func: module->get_functions()) {
+        remove_unreachable_blocks(func);
+    }
     set_analysis_result_dirty<ControlFlowGraph>(module);
     cfg_info = nullptr;
 }

@@ -52,7 +52,7 @@ void build_predecessors_successors(const FunctionPtr &func,
                 << "    ├─←←← " << Pass::Utils::format_blocks(preds) << "\n"
                 << "    └─→→→ " << Pass::Utils::format_blocks(succs) << "\n";
     }
-    // log_trace("%s", oss.str().c_str());
+    log_trace("%s", oss.str().c_str());
 }
 
 [[maybe_unused]]
@@ -131,6 +131,9 @@ std::vector<BlockPtr> ControlFlowGraph::reverse_post_order(const FunctionPtr &fu
     };
     dfs(dfs, func->get_blocks().front());
     std::reverse(post_order.begin(), post_order.end());
+    if (post_order.size() != func->get_blocks().size()) {
+        log_error("Unexpected error");
+    }
     return post_order;
 }
 } // namespace Pass
