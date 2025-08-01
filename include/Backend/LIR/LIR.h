@@ -33,6 +33,7 @@ namespace Backend::LIR {
         MUL, FMUL,
         DIV, FDIV,
         MOD, FMOD,
+        FNEG, FABS,
         LOAD, LOAD_IMM, LOAD_ADDR,
         FLOAD, LOAD_FLOAT_IMM,
         I2F, F2I,
@@ -41,6 +42,7 @@ namespace Backend::LIR {
         RETURN,
         JUMP,
         EQUAL, NOT_EQUAL, GREATER, GREATER_EQUAL, LESS, LESS_EQUAL,
+        FEQUAL, FNOT_EQUAL, FGREATER, FGREATER_EQUAL, FLESS, FLESS_EQUAL,
         EQUAL_ZERO, NOT_EQUAL_ZERO, GREATER_ZERO, GREATER_EQUAL_ZERO, LESS_ZERO, LESS_EQUAL_ZERO,
         BITWISE_AND, BITWISE_OR, BITWISE_XOR, BITWISE_NOT,
         SHIFT_LEFT,
@@ -58,14 +60,19 @@ namespace Backend::LIR {
     class StoreInt;
     class StoreFloat;
     class Convert;
-    class BranchInstruction;
-    class FBranchInstruction;
+    class IBranch;
+    class FBranch;
+    class FNeg;
     class Jump;
     class Return;
     class Move;
 };
 
 namespace Backend::Utils {
+    [[nodiscard]] inline bool is_12bit(const int32_t value) {
+        return value >= -2048 && value <= 2047;
+    }
+
     [[nodiscard]] inline Backend::LIR::InstructionType llvm_to_lir(const Mir::IntBinary::Op &op)  {
         switch (op) {
             case Mir::IntBinary::Op::ADD: return Backend::LIR::InstructionType::ADD;
@@ -88,10 +95,23 @@ namespace Backend::Utils {
         }
     }
 
+    [[nodiscard]] inline Backend::LIR::InstructionType llvm_to_lir(const Mir::Fcmp::Op &op)  {
+        switch (op) {
+            case Mir::Fcmp::Op::EQ: return Backend::LIR::InstructionType::FEQUAL;
+            case Mir::Fcmp::Op::NE: return Backend::LIR::InstructionType::FNOT_EQUAL;
+            case Mir::Fcmp::Op::GT: return Backend::LIR::InstructionType::FGREATER;
+            case Mir::Fcmp::Op::LT: return Backend::LIR::InstructionType::FLESS;
+            case Mir::Fcmp::Op::GE: return Backend::LIR::InstructionType::FGREATER_EQUAL;
+            case Mir::Fcmp::Op::LE: return Backend::LIR::InstructionType::FLESS_EQUAL;
+            default: throw std::invalid_argument("Unknown comparison type");
+        }
+    }
+
     [[nodiscard]] inline std::string to_string(const Backend::LIR::InstructionType type) {
         switch (type) {
             case Backend::LIR::InstructionType::ADD:
             case Backend::LIR::InstructionType::FADD: return "+";
+            case Backend::LIR::InstructionType::FNEG:
             case Backend::LIR::InstructionType::SUB:
             case Backend::LIR::InstructionType::FSUB: return "-";
             case Backend::LIR::InstructionType::MUL:
@@ -105,16 +125,22 @@ namespace Backend::Utils {
             case Backend::LIR::InstructionType::CALL: return "call";
             case Backend::LIR::InstructionType::RETURN: return "return";
             case Backend::LIR::InstructionType::JUMP: return "jump";
+            case Backend::LIR::InstructionType::FEQUAL:
             case Backend::LIR::InstructionType::EQUAL: return "==";
             case Backend::LIR::InstructionType::EQUAL_ZERO: return "== 0";
+            case Backend::LIR::InstructionType::FNOT_EQUAL:
             case Backend::LIR::InstructionType::NOT_EQUAL: return "!=";
             case Backend::LIR::InstructionType::NOT_EQUAL_ZERO: return "!= 0";
+            case Backend::LIR::InstructionType::FGREATER:
             case Backend::LIR::InstructionType::GREATER: return ">";
             case Backend::LIR::InstructionType::GREATER_ZERO: return "> 0";
+            case Backend::LIR::InstructionType::FGREATER_EQUAL:
             case Backend::LIR::InstructionType::GREATER_EQUAL: return ">=";
             case Backend::LIR::InstructionType::GREATER_EQUAL_ZERO: return ">= 0";
+            case Backend::LIR::InstructionType::FLESS:
             case Backend::LIR::InstructionType::LESS: return "<";
             case Backend::LIR::InstructionType::LESS_ZERO: return "< 0";
+            case Backend::LIR::InstructionType::FLESS_EQUAL:
             case Backend::LIR::InstructionType::LESS_EQUAL: return "<=";
             case Backend::LIR::InstructionType::LESS_EQUAL_ZERO: return "<= 0";
             case Backend::LIR::InstructionType::BITWISE_AND: return "&";
@@ -305,7 +331,7 @@ class Backend::LIR::PrivilegedFunction : public Backend::LIR::Function {
 };
 
 namespace Backend::LIR {
-    extern inline const std::array<std::shared_ptr<PrivilegedFunction>, 11> privileged_functions = {
+    extern inline const std::array<std::shared_ptr<PrivilegedFunction>, 12> privileged_functions = {
         std::make_shared<PrivilegedFunction>("putf", std::vector<std::shared_ptr<Backend::Variable>>{std::make_shared<Backend::Variable>("%0", Backend::VariableType::STRING_PTR, VariableWide::LOCAL)}),
         std::make_shared<PrivilegedFunction>("getint", std::vector<std::shared_ptr<Backend::Variable>>{}),
         std::make_shared<PrivilegedFunction>("getch", std::vector<std::shared_ptr<Backend::Variable>>{}),
@@ -317,6 +343,7 @@ namespace Backend::LIR {
         std::make_shared<PrivilegedFunction>("putfloat", std::vector<std::shared_ptr<Backend::Variable>>{std::make_shared<Backend::Variable>("%0", Backend::VariableType::FLOAT, VariableWide::LOCAL)}),
         std::make_shared<PrivilegedFunction>("putarray", std::vector<std::shared_ptr<Backend::Variable>>{std::make_shared<Backend::Variable>("%0", Backend::VariableType::INT32, VariableWide::LOCAL), std::make_shared<Backend::Variable>("%1", Backend::VariableType::INT32_PTR, VariableWide::LOCAL)}),
         std::make_shared<PrivilegedFunction>("putfarray", std::vector<std::shared_ptr<Backend::Variable>>{std::make_shared<Backend::Variable>("%0", Backend::VariableType::FLOAT, VariableWide::LOCAL), std::make_shared<Backend::Variable>("%1", Backend::VariableType::FLOAT_PTR, VariableWide::LOCAL)}),
+        std::make_shared<PrivilegedFunction>("memset", std::vector<std::shared_ptr<Backend::Variable>>{std::make_shared<Backend::Variable>("%0", Backend::VariableType::INT32_PTR, VariableWide::LOCAL), std::make_shared<Backend::Variable>("%1", Backend::VariableType::INT32, VariableWide::LOCAL), std::make_shared<Backend::Variable>("%2", Backend::VariableType::INT32, VariableWide::LOCAL)}),
     };
 }
 

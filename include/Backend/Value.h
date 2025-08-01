@@ -3,6 +3,8 @@
 
 #include <string>
 #include <stdexcept>
+
+#include "Value.h"
 #include "Mir/Instruction.h"
 #include "Backend/VariableTypes.h"
 
@@ -11,6 +13,8 @@ namespace Backend {
     class Constant;
     class IntValue;
     class FloatValue;
+    class IntMultiZero;
+    class FloatMultiZero;
     class Variable;
     class Pointer;
     class Comparison;
@@ -57,6 +61,20 @@ class Backend::FloatValue : public Backend::Constant {
         ~FloatValue() override = default;
 };
 
+class Backend::IntMultiZero : public Backend::Constant {
+    public:
+        const size_t zero_count{0};
+        explicit IntMultiZero(const size_t count) : Backend::Constant("int zero " + std::to_string(count), Backend::VariableType::INT32), zero_count(count) {}
+        ~IntMultiZero() override = default;
+};
+
+class Backend::FloatMultiZero : public Backend::Constant {
+    public:
+        const size_t zero_count{0};
+        explicit FloatMultiZero(const size_t count) : Backend::Constant("float zero " + std::to_string(count), Backend::VariableType::FLOAT), zero_count(count) {}
+        ~FloatMultiZero() override = default;
+};
+
 /*
  * Variable represents a variable(array) object itself.
  * `VariableWide` can only be chosen from below:
@@ -96,6 +114,9 @@ class Backend::Pointer : public Backend::Variable {
         std::shared_ptr<Backend::Variable> base;
         std::shared_ptr<Backend::Operand> offset;
         explicit Pointer(const std::string &name, const std::shared_ptr<Backend::Variable> &base, std::shared_ptr<Backend::Operand> &offset) : Backend::Variable(name, Backend::Utils::to_pointer(base->workload_type), VariableWide::LOCAL), base(base), offset(offset) {
+            var_type = Type::PTR;
+        }
+        explicit Pointer(const std::string &name, const std::shared_ptr<Backend::Variable> &base) : Backend::Variable(name, Backend::Utils::to_pointer(base->workload_type), VariableWide::LOCAL), base(base) {
             var_type = Type::PTR;
         }
         ~Pointer() override = default;

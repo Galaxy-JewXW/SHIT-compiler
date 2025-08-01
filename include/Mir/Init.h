@@ -73,7 +73,8 @@ protected:
     std::shared_ptr<Type::Type> type;
 
 public:
-    explicit Init(const std::shared_ptr<Type::Type> &type) : type{type} {}
+    explicit Init(const std::shared_ptr<Type::Type> &type) :
+        type{type} {}
 
     virtual ~Init() = default;
 
@@ -141,6 +142,11 @@ public:
     // 计算最后一个非零元素的索引
     void calculate_last_non_zero() {
         last_non_zero_ = -1;
+        if (std::any_of(init_values.begin(), init_values.end(), [](const auto &init) {
+            return !init->is_constant_init();
+        })) {
+            return;
+        }
         for (int i = static_cast<int>(init_values.size()) - 1; i >= 0; --i) {
             if (const auto &init = init_values[i]; init->is_constant_init()) {
                 if (const auto constant_init = std::static_pointer_cast<Constant>(init); !constant_init->is_zero()) {
@@ -160,6 +166,8 @@ public:
         Init{type}, is_zero_initialized{is_zero_initialized}, init_values{init_values} {
         calculate_last_non_zero();
     }
+
+    [[nodiscard]] const auto &get_init_values() const { return init_values; }
 
     [[nodiscard]] bool is_array_init() const override { return true; }
 
