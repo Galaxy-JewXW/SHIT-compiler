@@ -46,7 +46,7 @@ class Backend::DataSection {
                 std::shared_ptr<InitValue> init_value;
 
                 void load_from_llvm(const std::shared_ptr<Mir::Init::Constant> &value);
-                void load_from_llvm(const Mir::Init::Array &value);
+                void load_from_llvm(const std::shared_ptr<Mir::Init::Array> &value);
 
                 [[nodiscard]] std::string label() const override { return name.substr(1); }
 
