@@ -51,10 +51,10 @@ memset:
 	andi a4, a2, -8
 	add a3, t0, a4
 
-	andi a4, a4, 31*8  # Calculate remainder
+	andi a4, a4, 248  # Calculate remainder
 	beqz a4, 3f        # Shortcut if no remainder
 	neg a4, a4
-	addi a4, a4, 32*8  # Calculate initial offset
+	addi a4, a4, 256  # Calculate initial offset
 
 	# Adjust start address with offset
 	sub t0, t0, a4
