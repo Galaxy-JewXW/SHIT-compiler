@@ -132,6 +132,7 @@ class Backend::LIR::LoadAddress : public Backend::LIR::Instruction {
         }
 
         std::shared_ptr<Variable> get_defined_variable() const override { return addr; }
+        void update_defined_variable(const std::shared_ptr<Backend::Variable> &var) override { addr = var; }
 };
 
 class Backend::LIR::Move : public Backend::LIR::Instruction {
@@ -151,15 +152,12 @@ class Backend::LIR::Move : public Backend::LIR::Instruction {
         }
 
         std::shared_ptr<Variable> get_defined_variable() const override { return target; }
-
         void update_defined_variable(const std::shared_ptr<Backend::Variable> &var) override { target = var; }
-
         std::vector<std::shared_ptr<Backend::Variable>> get_used_variables() const override {
             return {source};
         }
-
         void update_used_variable(const std::shared_ptr<Backend::Variable> &original, const std::shared_ptr<Backend::Variable> &update_to) override {
-            if (source == original) source = update_to;
+            source = update_to;
         }
 };
 
@@ -232,7 +230,7 @@ class Backend::LIR::LoadInt : public Backend::LIR::Instruction {
 
         void update_defined_variable(const std::shared_ptr<Backend::Variable> &var) override { var_in_reg = var; }
         void update_used_variable(const std::shared_ptr<Backend::Variable> &original, const std::shared_ptr<Backend::Variable> &update_to) override {
-            if (var_in_mem == original) var_in_mem = update_to;
+            var_in_mem = update_to;
         }
 };
 
@@ -275,7 +273,7 @@ class Backend::LIR::StoreInt : public Backend::LIR::Instruction {
         }
 
         void update_used_variable(const std::shared_ptr<Backend::Variable> &original, const std::shared_ptr<Backend::Variable> &update_to) override {
-            if (var_in_reg == original) var_in_reg = update_to;
+            var_in_mem = update_to;
         }
 };
 

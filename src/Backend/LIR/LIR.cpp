@@ -59,7 +59,7 @@ std::shared_ptr<Backend::Variable> Backend::LIR::Module::load_addr(const std::sh
         load_from->base = base;
     }
     if (load_from->offset->operand_type == Backend::OperandType::CONSTANT) {
-        if (Backend::Utils::is_12bit(std::static_pointer_cast<Backend::IntValue>(load_from->offset)->int32_value))
+        if (Backend::Utils::is_12bit(std::static_pointer_cast<Backend::IntValue>(load_from->offset)->int32_value << 2))
             return load_from->base;
         else {
             std::shared_ptr<Backend::Variable> offset = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("offset"), VariableType::INT32, VariableWide::LOCAL);
@@ -102,7 +102,7 @@ void Backend::LIR::Module::load_store_instruction(const std::shared_ptr<Backend:
         lir_block->instructions.push_back(std::make_shared<Backend::LIR::LoadAddress>(store_to, addr_var));
         lir_block->instructions.push_back(std::make_shared<StoreInst>(addr_var, store_from));
     } else if (store_to->var_type == Variable::Type::PTR) {
-        std::shared_ptr<Backend::Pointer> ep = std::make_shared<Backend::Pointer>(*std::static_pointer_cast<Backend::Pointer>(store_to));
+        std::shared_ptr<Backend::Pointer> ep = std::static_pointer_cast<Backend::Pointer>(store_to);
         lir_block->instructions.push_back(std::make_shared<StoreInst>(ep->base, store_from, std::static_pointer_cast<Backend::IntValue>(ep->offset)->int32_value * 4));
     } else {
         // allocated
@@ -122,7 +122,7 @@ void Backend::LIR::Module::load_load_instruction(const std::shared_ptr<Backend::
         } else lir_block->instructions.push_back(std::make_shared<LoadInst>(load_from, load_to));
     } else {
         // otherwise, load from an element pointer
-        std::shared_ptr<Backend::Pointer> ep = std::make_shared<Backend::Pointer>(*std::static_pointer_cast<Backend::Pointer>(load_from));
+        std::shared_ptr<Backend::Pointer> ep = std::static_pointer_cast<Backend::Pointer>(load_from);
         lir_block->instructions.push_back(std::make_shared<LoadInst>(ep->base, load_to, std::static_pointer_cast<Backend::IntValue>(ep->offset)->int32_value * 4));
     }
 }
@@ -372,7 +372,7 @@ void Backend::LIR::Function::spill(std::shared_ptr<Backend::Variable> &local_var
                 // insert `store` after the instruction
                 std::shared_ptr<Backend::Variable> new_var = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("spill_"), local_variable->workload_type, VariableWide::LOCAL);
                 add_variable(new_var);
-                log_debug("Spilling %s to %s in %s", local_variable->name.c_str(), new_var->name.c_str(), instr->to_string().c_str());
+                log_debug("Spilling `%s` to `%s` in `%s`", local_variable->name.c_str(), new_var->name.c_str(), instr->to_string().c_str());
                 instr->update_defined_variable(new_var);
                 block->instructions.insert(block->instructions.begin() + i + 1, std::make_shared<T_store>(local_variable, new_var));
                 i++;
@@ -380,7 +380,7 @@ void Backend::LIR::Function::spill(std::shared_ptr<Backend::Variable> &local_var
                 // insert `load` before the instruction
                 std::shared_ptr<Backend::Variable> new_var = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("spill_"), local_variable->workload_type, VariableWide::LOCAL);
                 add_variable(new_var);
-                log_debug("Loading spilled %s to %s in %s", local_variable->name.c_str(), new_var->name.c_str(), instr->to_string().c_str());
+                log_debug("Loading spilled `%s` to `%s` in `%s`", local_variable->name.c_str(), new_var->name.c_str(), instr->to_string().c_str());
                 instr->update_used_variable(local_variable, new_var);
                 block->instructions.insert(block->instructions.begin() + i, std::make_shared<T_load>(local_variable, new_var));
                 i++;

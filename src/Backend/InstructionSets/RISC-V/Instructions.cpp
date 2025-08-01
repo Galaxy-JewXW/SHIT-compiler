@@ -103,7 +103,14 @@ namespace RISCV::Instructions {
     }
 
     std::string LoadAddressFromStack::to_string() const {
-        return std::make_shared<Instructions::AddImmediate>(rd, RISCV::Registers::ABI::SP, stack->stack_size - stack->stack_index[variable->name])->to_string();
+        if (is_12bit(stack->stack_size - stack->stack_index[variable->name]))
+            return std::make_shared<Instructions::AddImmediate>(rd, RISCV::Registers::ABI::SP, stack->stack_size - stack->stack_index[variable->name])->to_string();
+        else {
+            std::ostringstream oss;
+            oss << std::make_shared<Instructions::LoadImmediate>(rd, stack->stack_size - stack->stack_index[variable->name])->to_string() << "\n  ";
+            oss << std::make_shared<Instructions::Add>(rd, RISCV::Registers::ABI::SP, rd)->to_string() << "\n";
+            return oss.str();
+        }
     }
 
     std::string LoadWordFromStack::to_string() const {
