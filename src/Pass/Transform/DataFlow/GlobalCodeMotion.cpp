@@ -112,18 +112,19 @@ void GlobalCodeMotion::schedule_early(const InstructionPtr &instruction) {
         return;
     }
     visited_instructions.insert(instruction);
-    const BlockPtr &entry_block = current_function->get_blocks().front();
-    move_instruction(instruction, entry_block);
-    // 遍历instruction的操作数（输入）
+    BlockPtr earliest_block = current_function->get_blocks().front(); // entry block
+
     for (const auto &operand: instruction->get_operands()) {
-        const auto &input_instruction = std::dynamic_pointer_cast<Instruction>(operand);
+        const auto input_instruction = std::dynamic_pointer_cast<Instruction>(operand);
         if (input_instruction == nullptr) {
             continue;
         }
-        if (dom_tree_depth(instruction->get_block()) < dom_tree_depth(input_instruction->get_block())) {
-            move_instruction(instruction, input_instruction->get_block());
+        schedule_early(input_instruction);
+        if (dom_tree_depth(input_instruction->get_block()) > dom_tree_depth(earliest_block)) {
+            earliest_block = input_instruction->get_block();
         }
     }
+    move_instruction(instruction, earliest_block);
 }
 
 // 尽可能的把指令后移，确定每个指令能被调度到的最晚的基本块。

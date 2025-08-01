@@ -318,18 +318,18 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
                 continue;
             }
             auto locked_users{block->users().lock()};
-            const auto is_available = [&](const std::shared_ptr<User> &user) -> bool {
+            const auto is_not_available = [&](const std::shared_ptr<User> &user) -> bool {
                 if (const auto phi{user->is<Phi>()}) {
                     const auto &options{phi->get_optional_values()};
                     for (const auto &pre: predecessors.at(block)) {
                         if (options.find(pre) != options.end()) {
-                            return false;
+                            return true;
                         }
                     }
                 }
-                return true;
+                return false;
             };
-            if (!std::all_of(locked_users.begin(), locked_users.end(), is_available)) {
+            if (std::any_of(locked_users.begin(), locked_users.end(), is_not_available)) {
                 continue;
             }
             for (const auto &user: locked_users) {
@@ -340,11 +340,11 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
                         log_error("Phi operand not found");
                     }
                     const auto value = it->second;
+                    phi->remove_optional_value(block);
                     for (const auto &pre: predecessors.at(block)) {
                         phi->set_optional_value(pre, value);
                         pre->add_user(phi);
                     }
-                    phi->remove_optional_value(block);
                 } else {
                     user->modify_operand(block, target);
                 }
@@ -469,6 +469,7 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
         if (changed) {
             remove_deleted_blocks(func);
         }
+        changed = false;
         try_constant_fold(func);
     } while (changed);
 
@@ -486,10 +487,12 @@ void SimplifyControlFlow::transform(const std::shared_ptr<Module> module) {
 
     cfg_info = get_analysis_result<ControlFlowGraph>(module);
     for (const auto &func: module->get_functions()) {
+        log_debug("Before: %s", func->to_string().c_str());
         run_on_func(func);
+        log_debug("After: %s", func->to_string().c_str());
     }
     cfg_info = get_analysis_result<ControlFlowGraph>(module);
-
+    //
     for (const auto &func: module->get_functions()) {
         cleanup_phi(func, cfg_info);
     }

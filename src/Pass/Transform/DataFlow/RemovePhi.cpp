@@ -123,7 +123,8 @@ void Helper::build() {
     for (const auto &phi: phis) {
         const auto phicopy_value = std::make_shared<Value>(make_name(), phi->get_type());
         phi_map[phi] = phicopy_value;
-        phicopy_variables.insert(phicopy_value->as<Value>());
+        // log_debug("%s -> %s", phi->to_string().c_str(), phicopy_value->get_name().c_str());
+        phicopy_variables.insert(phicopy_value);
         for (const auto &[pre, value]: phi->get_optional_values()) {
             move_map.try_emplace(pre, std::vector<std::shared_ptr<Move>>{});
             move_map[pre].push_back(Move::create(phi_map[phi], value, nullptr));

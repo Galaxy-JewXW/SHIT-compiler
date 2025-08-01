@@ -96,9 +96,10 @@ void User::remove_operand(const std::shared_ptr<Value> &value) {
 void User::_remove_operand(const std::shared_ptr<Value> &value) {
     if (!value)
         return;
-    this->operands_.erase(std::remove_if(operands_.begin(), operands_.end(),
-                                         [&value](const std::shared_ptr<Value> &operand) { return operand == value; }),
-                          operands_.end());
+    if (const auto it = std::find(operands_.begin(), operands_.end(), value);
+        it != operands_.end()) {
+        operands_.erase(it);
+    }
 }
 
 void User::modify_operand(const std::shared_ptr<Value> &old_value, const std::shared_ptr<Value> &new_value) {

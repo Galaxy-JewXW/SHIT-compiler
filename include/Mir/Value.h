@@ -185,7 +185,7 @@ public:
         (remove_operand(std::forward<Args>(args)), ...);
     }
 
-    void clear_operands();
+    virtual void clear_operands();
 
     virtual void modify_operand(const std::shared_ptr<Value> &old_value, const std::shared_ptr<Value> &new_value);
 

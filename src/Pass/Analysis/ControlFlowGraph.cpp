@@ -130,6 +130,7 @@ std::vector<BlockPtr> ControlFlowGraph::reverse_post_order(const FunctionPtr &fu
         post_order.push_back(block);
     };
     dfs(dfs, func->get_blocks().front());
+    std::reverse(post_order.begin(), post_order.end());
     return post_order;
 }
 } // namespace Pass

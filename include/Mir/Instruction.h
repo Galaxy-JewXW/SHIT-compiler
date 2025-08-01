@@ -547,6 +547,8 @@ public:
 
     void modify_operand(const std::shared_ptr<Value> &old_value, const std::shared_ptr<Value> &new_value) override;
 
+    void clear_operands() override;
+
     std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) override {
         auto sw = create(get_base(), get_default_block(), block);
         for (const auto &[val, blk]: cases()) {
@@ -938,6 +940,8 @@ public:
     void remove_optional_value(const std::shared_ptr<Block> &block);
 
     void modify_operand(const std::shared_ptr<Value> &old_value, const std::shared_ptr<Value> &new_value) override;
+
+    void clear_operands() override;
 
     [[deprecated]] std::shared_ptr<Block> find_optional_block(const std::shared_ptr<Value> &value);
 

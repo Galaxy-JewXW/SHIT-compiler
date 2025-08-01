@@ -22,10 +22,6 @@ void Backend::LIR::Module::load_functional_variables(const std::shared_ptr<Mir::
         lir_function->add_variable(arg);
         lir_function->parameters.push_back(arg);
     }
-    for (const std::shared_ptr<Mir::Value> &var: llvm_function->phicopy_values() ) {
-        std::shared_ptr<Backend::Variable> phi_var = std::make_shared<Backend::Variable>(var->get_name(), Backend::Utils::llvm_to_riscv(*var->get_type()), VariableWide::LOCAL);
-        lir_function->add_variable(phi_var);
-    }
     for (const std::shared_ptr<Mir::Block> &llvm_block : llvm_function->get_blocks()) {
         std::shared_ptr<Backend::LIR::Block> lir_block = lir_function->blocks_index[llvm_block->get_name()];
         for (const std::shared_ptr<Mir::Instruction> &llvm_instruction : llvm_block->get_instructions())
@@ -130,7 +126,8 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
         case Mir::Operator::MOVE: {
             std::shared_ptr<Mir::Move> move = std::static_pointer_cast<Mir::Move>(llvm_instruction);
             std::shared_ptr<Backend::Variable> move_from = ensure_variable(find_operand(move->get_from_value(), lir_block->parent_function.lock()), lir_block);
-            std::shared_ptr<Backend::Variable> move_to = std::make_shared<Backend::Variable>(move->get_to_value()->get_name(), Backend::Utils::llvm_to_riscv(*move->get_to_value()->get_type()), VariableWide::LOCAL);
+            std::shared_ptr<Backend::Variable> move_to = find_variable(move->get_to_value()->get_name(), lir_block->parent_function.lock());
+            if (!move_to) move_to = std::make_shared<Backend::Variable>(move->get_to_value()->get_name(), Backend::Utils::llvm_to_riscv(*move->get_to_value()->get_type()), VariableWide::LOCAL);
             lir_block->parent_function.lock()->add_variable(move_to);
             lir_block->instructions.push_back(std::make_shared<Backend::LIR::Move>(move_from, move_to));
             break;

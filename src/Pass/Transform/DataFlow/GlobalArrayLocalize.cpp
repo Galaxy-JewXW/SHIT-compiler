@@ -13,6 +13,7 @@ void replace_const_array_gv(const std::shared_ptr<Module> &module) {
             can_replaced.push_back(gv);
         }
     }
+
     for (const auto &gv: can_replaced) {
         const auto array_type = gv->get_type()->as<Type::Pointer>()->get_contain_type();
         std::vector<int> array_dimensions;
@@ -22,9 +23,14 @@ void replace_const_array_gv(const std::shared_ptr<Module> &module) {
             _type = _type->as<Type::Array>()->get_element_type();
         }
 
-        std::vector<int> array_strides;
         const auto l = array_dimensions.size();
-        array_strides.reserve(l);
+        if (l == 0) {
+            continue;
+        }
+
+        std::vector<int> array_strides;
+        array_strides.resize(l);
+
         array_strides[l - 1] = 1;
         for (int i = static_cast<int>(l) - 2; i >= 0; --i) {
             array_strides[i] = array_strides[i + 1] * array_dimensions[i + 1];
@@ -39,14 +45,20 @@ void replace_const_array_gv(const std::shared_ptr<Module> &module) {
             int offset{**gep->get_index()->as<ConstInt>()};
             std::vector<int> indexes;
             indexes.reserve(array_strides.size());
+
             for (const auto &stride: array_strides) {
                 indexes.push_back(offset / stride);
                 offset %= stride;
             }
+
             if (offset != 0) [[unlikely]] {
-                log_error("%s", "offset is not zero");
+                continue;
             }
+
             const auto constant_initial = array_initial->get_init_value(indexes)->as<Init::Constant>();
+            if (constant_initial == nullptr) {
+                continue;
+            }
             const auto constant_value = constant_initial->get_const_value();
             for (const auto &_load: gep->users()) {
                 if (const auto load = _load->is<Load>()) {
