@@ -194,7 +194,7 @@ bool Loop::contain_block(const std::shared_ptr<Mir::Block> &block) {
 }
 
 
-void LoopNodeTreeNode::add_block4ancestors(const std::shared_ptr<Mir::Block> &block) {
+    void LoopNodeTreeNode::add_block4ancestors(const std::shared_ptr<Mir::Block> &block) {
     this->loop_->add_block(block);
     if (this->get_parent() != nullptr)
         this->get_parent()->add_block4ancestors(block);
@@ -253,6 +253,7 @@ std::shared_ptr<LoopNodeClone> LoopNodeTreeNode::clone_loop_node() {
         auto new_block = clone_info->get_value_reflect(block)->as<Mir::Block>();
         clone_info->node_cpy->get_loop()->add_exits(new_block);
     }
+    clone_info->node_cpy->get_loop()->set_trip_count(this->get_loop()->get_trip_count());
     return clone_info;
 }
 
