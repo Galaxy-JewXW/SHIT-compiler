@@ -282,6 +282,11 @@ void Switch::modify_operand(const std::shared_ptr<Value> &old_value, const std::
     }
 }
 
+void Switch::clear_operands() {
+    User::clear_operands();
+    cases_table.clear();
+}
+
 std::shared_ptr<Call> Call::create(const std::string &name, const std::shared_ptr<Function> &function,
                                    const std::vector<std::shared_ptr<Value>> &params,
                                    const std::shared_ptr<Block> &block) {
@@ -464,6 +469,11 @@ void Phi::remove_optional_value(const std::shared_ptr<Block> &block) {
     optional_values.erase(block);
     remove_operand(block);
     remove_operand(value);
+}
+
+void Phi::clear_operands() {
+    User::clear_operands();
+    optional_values.clear();
 }
 
 std::shared_ptr<Value> Phi::get_value_by_block(const std::shared_ptr<Block> &block) {
