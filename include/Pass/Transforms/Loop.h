@@ -69,6 +69,22 @@ protected:
                        std::vector<std::shared_ptr<Mir::Branch>> &branch_vector);
 };
 
+class InductionVariables final : public Transform {
+public:
+    explicit InductionVariables() : Transform("InductionVariables") {}
+
+protected:
+
+    std::shared_ptr<SCEVAnalysis> scev_info_;
+    std::shared_ptr<LoopAnalysis> loop_info_;
+    void transform(std::shared_ptr<Mir::Module> module) override;
+
+    void transform(const std::shared_ptr<Mir::Function> &) override;
+    void run(std::shared_ptr<LoopNodeTreeNode> &loop_node);
+    bool get_trip_count(std::shared_ptr<Loop> loop);
+    int get_tick_num(std::shared_ptr<SCEVExpr> scev_expr, Mir::Icmp::Op op, int n);
+};
+
 class LoopInterchange final : public Transform {
 public:
     explicit LoopInterchange() : Transform("LoopInterchange") {}

@@ -4,6 +4,7 @@
 #include "Mir/Instruction.h"
 #include "Pass/Analysis.h"
 
+
 namespace Pass {
 class Loop {
     using FunctionPtr = std::shared_ptr<Mir::Function>;
@@ -15,6 +16,7 @@ class Loop {
     std::vector<BlockPtr> latch_blocks_;
     std::vector<BlockPtr> exitings_;
     std::vector<BlockPtr> exits_;
+    int trip_count_ = -1;
 
 public:
     Loop(BlockPtr header, const std::vector<BlockPtr> &blocks, const std::vector<BlockPtr> &latch_blocks,
@@ -44,6 +46,8 @@ public:
     void add_latch_block(const std::shared_ptr<Mir::Block> &block) { latch_blocks_.push_back(block); }
     void add_exitings(const std::shared_ptr<Mir::Block> &block) { exitings_.push_back(block); }
     void add_exits(const std::shared_ptr<Mir::Block> &block) { exits_.push_back(block); }
+    [[nodiscard]] int get_trip_count() const { return trip_count_; }
+    void set_trip_count(int trip_count) { trip_count_ = trip_count; }
 };
 
 class LoopNodeClone;
