@@ -343,7 +343,6 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
                     phi->remove_optional_value(block);
                     for (const auto &pre: predecessors.at(block)) {
                         phi->set_optional_value(pre, value);
-                        pre->add_user(phi);
                     }
                 } else {
                     user->modify_operand(block, target);
@@ -384,6 +383,16 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
                 continue;
             }
             if (branch->get_true_block()->is_deleted() || branch->get_false_block()->is_deleted()) {
+                continue;
+            }
+            // 检查 'block' 是否有且仅有一个前驱
+            const auto &all_predecessors = predecessors.at(block);
+            if (all_predecessors.size() != 1) {
+                continue;
+            }
+            // 这个唯一的前驱是否也只有 'block' 这一个后继
+            if (const auto predecessor_block = *all_predecessors.begin();
+                successors.at(predecessor_block).size() != 1) {
                 continue;
             }
             const auto candidate = get_candidate_predecessors(block);
@@ -465,12 +474,13 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
         combine_blocks();
         remove_empty_blocks();
         hoist_branch();
-        cleanup_switch();
+        // cleanup_switch();
         if (changed) {
             remove_deleted_blocks(func);
             remove_unreachable_blocks(func);
         }
         try_constant_fold(func);
+        changed = false;
     } while (changed);
 
     if (graph_modified) {
