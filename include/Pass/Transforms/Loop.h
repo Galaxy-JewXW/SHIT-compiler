@@ -5,6 +5,7 @@
 #include "Pass/Analyses/DominanceGraph.h"
 #include "Pass/Analyses/LoopAnalysis.h"
 #include "Pass/Transform.h"
+#include "Pass/Analyses/SCEVAnalysis.h"
 
 namespace Pass {
 class LoopSimplyForm final : public Transform {
@@ -67,6 +68,27 @@ protected:
     void handle_branch(std::shared_ptr<LoopNodeTreeNode> &node,
                        std::vector<std::shared_ptr<Mir::Branch>> &branch_vector);
 };
+
+class LoopInterchange final : public Transform {
+public:
+    explicit LoopInterchange() : Transform("LoopInterchange") {}
+    void transform(std::shared_ptr<Mir::Module> module) override;
+    void run_on(const std::shared_ptr<Mir::Function> &function);
+    bool check_on_nest(const std::shared_ptr<LoopNodeTreeNode>& loop_nest);
+    void transform_on_nest(std::shared_ptr<LoopNodeTreeNode> loop_nest);
+
+protected:
+    std::shared_ptr<LoopAnalysis> loop_info_;
+    std::shared_ptr<SCEVAnalysis> scev_info_;
+    void get_loops(const std::shared_ptr<LoopNodeTreeNode>& loop_nest, std::vector<std::shared_ptr<LoopNodeTreeNode>> &loops);
+    bool is_computable(const std::shared_ptr<LoopNodeTreeNode>& loop_node);
+    bool get_dependence_info(std::vector<std::shared_ptr<LoopNodeTreeNode>> &loops);
+    int min_nest_depth = 2;
+    int max_nest_depth = 10;
+
+    void get_cache_cost_manager(std::vector<std::shared_ptr<LoopNodeTreeNode>> &loops);
+};
+
 class LoopInvariantCodeMotion final : public Transform {
 public:
     explicit LoopInvariantCodeMotion() : Transform("LoopInvariantCodeMotion") {}
