@@ -86,6 +86,8 @@ public:
 
     void fix_clone_info(const std::shared_ptr<LoopNodeClone> &clone_info);
 
+    bool is_nest();
+
 private:
     std::shared_ptr<Loop> loop_;
     std::shared_ptr<LoopNodeTreeNode> parent_;

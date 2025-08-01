@@ -253,6 +253,7 @@ std::shared_ptr<LoopNodeClone> LoopNodeTreeNode::clone_loop_node() {
         auto new_block = clone_info->get_value_reflect(block)->as<Mir::Block>();
         clone_info->node_cpy->get_loop()->add_exits(new_block);
     }
+    return clone_info;
 }
 
 void LoopNodeTreeNode::fix_clone_info(const std::shared_ptr<LoopNodeClone> &clone_info) {
@@ -263,7 +264,13 @@ void LoopNodeTreeNode::fix_clone_info(const std::shared_ptr<LoopNodeClone> &clon
         block->fix_clone_info(clone_info);
 }
 
-int LoopAnalysis::get_block_depth(const FunctionPtr &func, const std::shared_ptr<Mir::Block> &block) {
+    bool LoopNodeTreeNode::is_nest() {
+        if (this->get_children().size() > 1) return false;
+        if (this->get_children().empty()) return true;
+        return this->get_children()[0]->is_nest();
+    }
+
+    int LoopAnalysis::get_block_depth(const FunctionPtr &func, const std::shared_ptr<Mir::Block> &block) {
     auto loop_node = find_block_in_forest(func, block);
     if (nullptr == loop_node)
         return 0;
