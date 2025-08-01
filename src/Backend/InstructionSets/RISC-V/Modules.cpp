@@ -30,10 +30,16 @@ std::string RISCV::Module::to_string(const std::shared_ptr<Backend::DataSection>
             // only int & float can trigger this
             oss << var.second->label() << ":\n";
             const std::vector<std::shared_ptr<Backend::Constant>> &constants = std::static_pointer_cast<Backend::DataSection::Variable::Constants>(var.second->init_value)->constants;
-            for (const std::shared_ptr<Backend::Constant> &value: constants)
-                oss << "  " << Backend::Utils::to_riscv_indicator(value->constant_type) << " " << value->name << "\n";
-            if (constants.size() < var.second->length)
-                oss << "  .zero " << (var.second->length - constants.size()) * Backend::Utils::type_to_size(var.second->workload_type) << "\n";
+            for (const std::shared_ptr<Backend::Constant> &value: constants) {
+                if (std::dynamic_pointer_cast<Backend::IntValue>(value) != nullptr ||
+                    std::dynamic_pointer_cast<Backend::FloatValue>(value) != nullptr) {
+                    oss << "  " << Backend::Utils::to_riscv_indicator(value->constant_type) << " " << value->name << "\n";
+                } else if (const auto int_multi_zero = std::dynamic_pointer_cast<Backend::IntMultiZero>(value)) {
+                    oss << "  .zero " << int_multi_zero->zero_count * Backend::Utils::type_to_size(var.second->workload_type) << "\n";
+                } else if (const auto float_multi_zero = std::dynamic_pointer_cast<Backend::FloatMultiZero>(value)) {
+                    oss << "  .zero " << float_multi_zero->zero_count * Backend::Utils::type_to_size(var.second->workload_type) << "\n";
+                }
+            }
         }
     oss << "# END OF DATA FIELD\n";
     return oss.str();

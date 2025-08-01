@@ -3,6 +3,8 @@
 
 #include <string>
 #include <stdexcept>
+
+#include "Value.h"
 #include "Mir/Instruction.h"
 #include "Backend/VariableTypes.h"
 
@@ -11,6 +13,8 @@ namespace Backend {
     class Constant;
     class IntValue;
     class FloatValue;
+    class IntMultiZero;
+    class FloatMultiZero;
     class Variable;
     class Pointer;
     class Comparison;
@@ -55,6 +59,20 @@ class Backend::FloatValue : public Backend::Constant {
         const double float_value{0.0};
         explicit FloatValue(const double value) : Backend::Constant(std::to_string(value), Backend::VariableType::FLOAT), float_value(value) {};
         ~FloatValue() override = default;
+};
+
+class Backend::IntMultiZero : public Backend::Constant {
+    public:
+        const size_t zero_count{0};
+        explicit IntMultiZero(const size_t count) : Backend::Constant("int zero " + std::to_string(count), Backend::VariableType::INT32), zero_count(count) {}
+        ~IntMultiZero() override = default;
+};
+
+class Backend::FloatMultiZero : public Backend::Constant {
+    public:
+        const size_t zero_count{0};
+        explicit FloatMultiZero(const size_t count) : Backend::Constant("float zero " + std::to_string(count), Backend::VariableType::FLOAT), zero_count(count) {}
+        ~FloatMultiZero() override = default;
 };
 
 /*
