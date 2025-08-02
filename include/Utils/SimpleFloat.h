@@ -25,7 +25,7 @@ public:
     };
 
 private:
-    FloatBits data;
+    FloatBits data{};
 
     void from_long_double(const long double val) {
         // 1. 处理特殊值
@@ -64,8 +64,8 @@ private:
         if (biased_exponent >= (1 << EXPONENT_BITS)) {
             // 上溢
             from_long_double(is_negative
-                                 ? -std::numeric_limits<double>::infinity()
-                                 : std::numeric_limits<double>::infinity());
+                                 ? -std::numeric_limits<long double>::infinity()
+                                 : std::numeric_limits<long double>::infinity());
             return;
         }
         if (biased_exponent <= 0) {
@@ -78,7 +78,7 @@ private:
         // 减去隐藏的整数位 '1'
         const long double fraction = mantissa - 1.0L;
         // 将小数部分转换为23位整数，并进行简单的四舍五入
-        const uint32_t mantissa_bits = static_cast<uint32_t>(fraction * (1ULL << MANTISSA_BITS) + 0.5);
+        const auto mantissa_bits = static_cast<uint32_t>(std::lround(fraction * (1ULL << MANTISSA_BITS)));
 
         // 组合所有部分
         data.u = (sign_bit << 31) |
@@ -87,27 +87,40 @@ private:
     }
 
 public:
-    SimpleFloat() :
-        data{} {}
+    SimpleFloat() = default;
 
     explicit SimpleFloat(const std::string &literal) {
-        const char *start = literal.c_str();
-        const char *end = start + literal.size();
-        long double val = 0.0;
-        if (const auto res = std::from_chars(start, end, val, std::chars_format::hex | std::chars_format::general);
-            res.ec == std::errc()) {
-            from_long_double(val);
+        double val = 0.0;
+        // 检查是否以 "0x" 或 "0X" 开头
+        if (literal.size() >= 2 && (literal[0] == '0' && (literal[1] == 'x' || literal[1] == 'X'))) {
+            // 十六进制格式 - 使用 std::strtod
+            char* endptr;
+            val = std::strtod(literal.c_str(), &endptr);
+            if (endptr == literal.c_str() + literal.size()) {
+                from_long_double(val);
+            } else {
+                std::cerr << "Error: Could not parse hex literal '" << literal << "'\n";
+                data.u = 0;
+            }
         } else {
-            std::cerr << "Error: Could not parse literal '" << literal << "'\n";
-            data.u = 0;
+            // 十进制格式 - 使用 std::from_chars
+            const char* start = literal.c_str();
+            const char *end = start + literal.size();
+            if (const auto [ptr, ec] = std::from_chars(start, end, val, std::chars_format::general);
+                ec == std::errc{} && ptr == end) {
+                from_long_double(val);
+            } else {
+                std::cerr << "Error: Could not parse decimal literal '" << literal << "'\n";
+                data.u = 0;
+            }
         }
     }
 
-    float to_float() const {
+    [[nodiscard]] float to_float() const {
         return data.f;
     }
 
-    uint32_t bits() const {
+    [[nodiscard]] uint32_t bits() const {
         return data.u;
     }
 
