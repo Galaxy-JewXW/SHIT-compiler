@@ -1,4 +1,9 @@
 #include "Pass/Analyses/SCEVAnalysis.h"
+
+int Pass::SCEVExpr::c;
+int Pass::SCEVExpr::k;
+int Pass::SCEVExpr::n;
+
 namespace Pass {
 
 void SCEVAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
