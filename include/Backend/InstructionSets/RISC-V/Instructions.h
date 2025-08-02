@@ -52,6 +52,12 @@ namespace RISCV::Instructions {
             Rtype(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : rd{rd}, rs1{rs1}, rs2{rs2} {}
     };
 
+    class R4type : public Rtype {
+        public:
+            const RISCV::Registers::ABI rs3;
+            R4type(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, const RISCV::Registers::ABI rs3) : Rtype{rd, rs1, rs2}, rs3{rs3} {}
+    };
+
     class Itype : public Instruction {
         public:
             const RISCV::Registers::ABI rd;
@@ -113,6 +119,12 @@ namespace RISCV::Instructions {
     class FSGNJ : public Rtype {
         public:
             FSGNJ(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class FSGNJN : public Rtype {
+        public:
+            FSGNJN(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
             [[nodiscard]] std::string to_string() const override;
     };
 
@@ -289,37 +301,37 @@ namespace RISCV::Instructions {
             [[nodiscard]] std::string to_string() const override;
     };
 
-    class BranchOnEqual final : public Btype {
+    class BranchOnEqual : public Btype {
         public:
             BranchOnEqual(const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, const std::shared_ptr<RISCV::Block> &target_block) : Btype{rs1, rs2, target_block} {}
             [[nodiscard]] std::string to_string() const override;
     };
 
-    class BranchOnNotEqual final : public Btype {
+    class BranchOnNotEqual : public Btype {
         public:
             BranchOnNotEqual(const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, const std::shared_ptr<RISCV::Block> &target_block) : Btype{rs1, rs2, target_block} {}
             [[nodiscard]] std::string to_string() const override;
     };
 
-    class BranchOnLessThan final : public Btype {
+    class BranchOnLessThan : public Btype {
         public:
             BranchOnLessThan(const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, const std::shared_ptr<RISCV::Block> &target_block) : Btype{rs1, rs2, target_block} {}
             [[nodiscard]] std::string to_string() const override;
     };
 
-    class BranchOnLessThanOrEqual final : public Btype {
+    class BranchOnLessThanOrEqual : public Btype {
         public:
             BranchOnLessThanOrEqual(const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, const std::shared_ptr<RISCV::Block> &target_block) : Btype{rs1, rs2, target_block} {}
             [[nodiscard]] std::string to_string() const override;
     };
 
-    class BranchOnGreaterThan final : public Btype {
+    class BranchOnGreaterThan : public Btype {
         public:
             BranchOnGreaterThan(const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, const std::shared_ptr<RISCV::Block> &target_block) : Btype{rs1, rs2, target_block} {}
             [[nodiscard]] std::string to_string() const override;
     };
 
-    class BranchOnGreaterThanOrEqual final : public Btype {
+    class BranchOnGreaterThanOrEqual : public Btype {
         public:
             BranchOnGreaterThanOrEqual(const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, const std::shared_ptr<RISCV::Block> &target_block) : Btype{rs1, rs2, target_block} {}
             [[nodiscard]] std::string to_string() const override;
@@ -394,6 +406,66 @@ namespace RISCV::Instructions {
     class SRLI final : public Itype {
         public:
             SRLI(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const int32_t shamt) : Itype{rd, rs1, shamt} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class F_EQUAL_S : public Rtype {
+        public:
+            F_EQUAL_S(const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, const RISCV::Registers::ABI rd) : Rtype{rd, rs1, rs2} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class F_NOT_EQUAL_S : public Rtype {
+        public:
+            F_NOT_EQUAL_S(const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, const RISCV::Registers::ABI rd) : Rtype{rd, rs1, rs2} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class F_LESS_THAN_S : public Rtype {
+        public:
+            F_LESS_THAN_S(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class F_LESS_THAN_OR_EQUAL_S : public Rtype {
+        public:
+            F_LESS_THAN_OR_EQUAL_S(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class F_GREATER_THAN_S : public Rtype {
+        public:
+            F_GREATER_THAN_S(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class F_GREATER_THAN_OR_EQUAL_S : public Rtype {
+        public:
+            F_GREATER_THAN_OR_EQUAL_S(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class FMAdd : public R4type {
+        public:
+            FMAdd(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, const RISCV::Registers::ABI rs3) : R4type{rd, rs1, rs2, rs3} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class FMSub : public R4type {
+        public:
+            FMSub(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, const RISCV::Registers::ABI rs3) : R4type{rd, rs1, rs2, rs3} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class FNMAdd : public R4type {
+        public:
+            FNMAdd(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, const RISCV::Registers::ABI rs3) : R4type{rd, rs1, rs2, rs3} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class FNMSub : public R4type {
+        public:
+            FNMSub(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, const RISCV::Registers::ABI rs3) : R4type{rd, rs1, rs2, rs3} {}
             [[nodiscard]] std::string to_string() const override;
     };
 }

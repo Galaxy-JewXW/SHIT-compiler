@@ -3,9 +3,9 @@
 #include "Backend/InstructionSets/RISC-V/Modules.h"
 
 void RISCV::RegisterAllocator::GraphColoring::allocate() {
-    // float_allocator = std::make_shared<RISCV::RegisterAllocator::FGraphColoring>(lir_function, stack);
-    // float_allocator->allocate();
-    // var_to_reg.insert(float_allocator->var_to_reg.begin(), float_allocator->var_to_reg.end());
+    float_allocator = std::make_shared<RISCV::RegisterAllocator::FGraphColoring>(lir_function, stack);
+    float_allocator->allocate();
+    var_to_reg.insert(float_allocator->var_to_reg.begin(), float_allocator->var_to_reg.end());
     available_colors.insert(available_colors.end(), RISCV::Registers::Integers::registers.begin(), RISCV::Registers::Integers::registers.end());
     create_registers();
     build_interference_graph();

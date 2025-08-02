@@ -13,6 +13,7 @@
 #include "Backend/InstructionSets/RISC-V/Registers.h"
 #include "Backend/LIR/LIR.h"
 #include "Backend/VariableTypes.h"
+#include "Backend/InstructionSets/RISC-V/ReWrite.h"
 #include "Utils/Log.h"
 
 class RISCV::RegisterAllocator::FGraphColoring : public RISCV::RegisterAllocator::GraphColoring {
