@@ -271,6 +271,17 @@ void LoopNodeTreeNode::fix_clone_info(const std::shared_ptr<LoopNodeClone> &clon
         return this->get_children()[0]->is_nest();
     }
 
+    int LoopNodeTreeNode::get_instr_size() {
+        int sum = 0;
+        for (const auto& block : this->get_loop()->get_blocks()) {
+            sum += block->get_instructions().size();
+        }
+        for (const auto& child_node : this->get_children()) {
+            sum += child_node->get_instr_size();
+        }
+        return sum;
+    }
+
     int LoopAnalysis::get_block_depth(const FunctionPtr &func, const std::shared_ptr<Mir::Block> &block) {
     auto loop_node = find_block_in_forest(func, block);
     if (nullptr == loop_node)

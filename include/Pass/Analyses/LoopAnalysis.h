@@ -48,6 +48,7 @@ public:
     void add_exits(const std::shared_ptr<Mir::Block> &block) { exits_.push_back(block); }
     [[nodiscard]] int get_trip_count() const { return trip_count_; }
     void set_trip_count(int trip_count) { trip_count_ = trip_count; }
+
 };
 
 class LoopNodeClone;
@@ -91,6 +92,7 @@ public:
     void fix_clone_info(const std::shared_ptr<LoopNodeClone> &clone_info);
 
     bool is_nest();
+    int get_instr_size();
 
 private:
     std::shared_ptr<Loop> loop_;
