@@ -31,11 +31,7 @@ class IntNumber final : public Number {
 public:
     explicit IntNumber(const int &value) : value_{value}, value_string_{std::to_string(value)} {}
 
-    explicit IntNumber(const std::string &value) : value_{std::stoi(value)}, value_string_{value} {}
-
     [[nodiscard]] int get_value() const { return value_; }
-
-    [[nodiscard]] std::string get_value_string() const { return value_string_; }
 
     [[nodiscard]] std::string to_string() const override;
 };
