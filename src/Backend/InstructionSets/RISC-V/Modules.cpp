@@ -49,9 +49,11 @@ std::string RISCV::Module::to_string(const std::shared_ptr<Backend::DataSection>
                 if (std::dynamic_pointer_cast<Backend::IntValue>(value) != nullptr ||
                     std::dynamic_pointer_cast<Backend::FloatValue>(value) != nullptr) {
                     oss << "  " << Backend::Utils::to_riscv_indicator(value->constant_type) << " " << value->name << "\n";
-                } else if (const auto int_multi_zero = std::dynamic_pointer_cast<Backend::IntMultiZero>(value)) {
+                } else if (const auto int_multi_zero = std::dynamic_pointer_cast<Backend::IntMultiZero>(value);
+                    int_multi_zero && int_multi_zero->zero_count > 0) {
                     oss << "  .zero " << int_multi_zero->zero_count * Backend::Utils::type_to_size(var.second->workload_type) << "\n";
-                } else if (const auto float_multi_zero = std::dynamic_pointer_cast<Backend::FloatMultiZero>(value)) {
+                } else if (const auto float_multi_zero = std::dynamic_pointer_cast<Backend::FloatMultiZero>(value);
+                    float_multi_zero && float_multi_zero->zero_count > 0) {
                     oss << "  .zero " << float_multi_zero->zero_count * Backend::Utils::type_to_size(var.second->workload_type) << "\n";
                 }
             }
