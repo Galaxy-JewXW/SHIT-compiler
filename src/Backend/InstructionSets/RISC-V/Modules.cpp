@@ -18,10 +18,25 @@ std::string RISCV::Module::to_string(const std::shared_ptr<Backend::DataSection>
         << ".align 2\n";
     for (const std::pair<std::string, std::shared_ptr<Backend::DataSection::Variable>> var : data_section->global_variables)
         if (var.second->read_only) {
-            // only str can trigger this
-            oss << "str." << var.second->name << ":\n";
-            oss << "  .string \"" << std::static_pointer_cast<Backend::DataSection::Variable::ConstString>(var.second->init_value)->str << "\"";
-            oss << "\n";
+            if (var.second->init_value->value_type == Backend::DataSection::Variable::InitValue::Type::STRING) {
+                // only str can trigger this
+                oss << "str." << var.second->name << ":\n"
+                    << "  .string \"" << std::static_pointer_cast<Backend::DataSection::Variable::ConstString>(var.second->init_value)->str << "\""
+                    << "\n";
+            } else {
+                oss << var.second->label() << ":\n";
+                const std::vector<std::shared_ptr<Backend::Constant>> &constants = std::static_pointer_cast<Backend::DataSection::Variable::Constants>(var.second->init_value)->constants;
+                for (const std::shared_ptr<Backend::Constant> &value: constants) {
+                    if (std::dynamic_pointer_cast<Backend::IntValue>(value) != nullptr ||
+                        std::dynamic_pointer_cast<Backend::FloatValue>(value) != nullptr) {
+                        oss << "  " << Backend::Utils::to_riscv_indicator(value->constant_type) << " " << value->name << "\n";
+                    } else if (const auto int_multi_zero = std::dynamic_pointer_cast<Backend::IntMultiZero>(value)) {
+                        oss << "  .zero " << int_multi_zero->zero_count * Backend::Utils::type_to_size(var.second->workload_type) << "\n";
+                    } else if (const auto float_multi_zero = std::dynamic_pointer_cast<Backend::FloatMultiZero>(value)) {
+                        oss << "  .zero " << float_multi_zero->zero_count * Backend::Utils::type_to_size(var.second->workload_type) << "\n";
+                    }
+                }
+            }
         }
     oss << ".section .data\n"
         << ".align 2\n";
@@ -191,12 +206,48 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
             instrs.push_back(std::make_shared<RISCV::Instructions::FAdd>(rd, rs1, rs2));
             break;
         }
+        case Backend::LIR::InstructionType::FMADD: {
+            std::shared_ptr<Backend::LIR::FloatTernary> instr = std::static_pointer_cast<Backend::LIR::FloatTernary>(instruction);
+            RISCV::Registers::ABI rs1 = register_allocator->get_register(std::static_pointer_cast<Backend::Variable>(instr->operand1));
+            RISCV::Registers::ABI rs2 = register_allocator->get_register(std::static_pointer_cast<Backend::Variable>(instr->operand2));
+            RISCV::Registers::ABI rs3 = register_allocator->get_register(std::static_pointer_cast<Backend::Variable>(instr->operand3));
+            RISCV::Registers::ABI rd = register_allocator->get_register(instr->result);
+            instrs.push_back(std::make_shared<RISCV::Instructions::FMAdd>(rd, rs1, rs2, rs3));
+            break;
+        }
+        case Backend::LIR::InstructionType::FNMADD: {
+            std::shared_ptr<Backend::LIR::FloatTernary> instr = std::static_pointer_cast<Backend::LIR::FloatTernary>(instruction);
+            RISCV::Registers::ABI rs1 = register_allocator->get_register(std::static_pointer_cast<Backend::Variable>(instr->operand1));
+            RISCV::Registers::ABI rs2 = register_allocator->get_register(std::static_pointer_cast<Backend::Variable>(instr->operand2));
+            RISCV::Registers::ABI rs3 = register_allocator->get_register(std::static_pointer_cast<Backend::Variable>(instr->operand3));
+            RISCV::Registers::ABI rd = register_allocator->get_register(instr->result);
+            instrs.push_back(std::make_shared<RISCV::Instructions::FNMAdd>(rd, rs1, rs2, rs3));
+            break;
+        }
         case Backend::LIR::InstructionType::FSUB: {
             std::shared_ptr<Backend::LIR::FloatArithmetic> instr = std::static_pointer_cast<Backend::LIR::FloatArithmetic>(instruction);
             RISCV::Registers::ABI rs1 = register_allocator->get_register(std::static_pointer_cast<Backend::Variable>(instr->lhs));
             RISCV::Registers::ABI rs2 = register_allocator->get_register(std::static_pointer_cast<Backend::Variable>(instr->rhs));
             RISCV::Registers::ABI rd = register_allocator->get_register(instr->result);
             instrs.push_back(std::make_shared<RISCV::Instructions::FSub>(rd, rs1, rs2));
+            break;
+        }
+        case Backend::LIR::InstructionType::FMSUB: {
+            std::shared_ptr<Backend::LIR::FloatTernary> instr = std::static_pointer_cast<Backend::LIR::FloatTernary>(instruction);
+            RISCV::Registers::ABI rs1 = register_allocator->get_register(std::static_pointer_cast<Backend::Variable>(instr->operand1));
+            RISCV::Registers::ABI rs2 = register_allocator->get_register(std::static_pointer_cast<Backend::Variable>(instr->operand2));
+            RISCV::Registers::ABI rs3 = register_allocator->get_register(std::static_pointer_cast<Backend::Variable>(instr->operand3));
+            RISCV::Registers::ABI rd = register_allocator->get_register(instr->result);
+            instrs.push_back(std::make_shared<RISCV::Instructions::FMSub>(rd, rs1, rs2, rs3));
+            break;
+        }
+        case Backend::LIR::InstructionType::FNMSUB: {
+            std::shared_ptr<Backend::LIR::FloatTernary> instr = std::static_pointer_cast<Backend::LIR::FloatTernary>(instruction);
+            RISCV::Registers::ABI rs1 = register_allocator->get_register(std::static_pointer_cast<Backend::Variable>(instr->operand1));
+            RISCV::Registers::ABI rs2 = register_allocator->get_register(std::static_pointer_cast<Backend::Variable>(instr->operand2));
+            RISCV::Registers::ABI rs3 = register_allocator->get_register(std::static_pointer_cast<Backend::Variable>(instr->operand3));
+            RISCV::Registers::ABI rd = register_allocator->get_register(instr->result);
+            instrs.push_back(std::make_shared<RISCV::Instructions::FNMSub>(rd, rs1, rs2, rs3));
             break;
         }
         case Backend::LIR::InstructionType::FMUL: {
@@ -213,6 +264,61 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
             RISCV::Registers::ABI rs2 = register_allocator->get_register(std::static_pointer_cast<Backend::Variable>(instr->rhs));
             RISCV::Registers::ABI rd = register_allocator->get_register(instr->result);
             instrs.push_back(std::make_shared<RISCV::Instructions::FDiv>(rd, rs1, rs2));
+            break;
+        }
+        case Backend::LIR::InstructionType::FNEG: {
+            std::shared_ptr<Backend::LIR::FNeg> instr = std::static_pointer_cast<Backend::LIR::FNeg>(instruction);
+            RISCV::Registers::ABI rs1 = register_allocator->get_register(instr->source);
+            RISCV::Registers::ABI rd = register_allocator->get_register(instr->dest);
+            instrs.push_back(std::make_shared<RISCV::Instructions::FSGNJN>(rd, rs1, rs1));
+            break;
+        }
+        case Backend::LIR::InstructionType::FEQUAL: {
+            std::shared_ptr<Backend::LIR::FBranch> instr = std::static_pointer_cast<Backend::LIR::FBranch>(instruction);
+            RISCV::Registers::ABI rs1 = register_allocator->get_register(instr->lhs);
+            RISCV::Registers::ABI rs2 = register_allocator->get_register(instr->rhs);
+            RISCV::Registers::ABI rd = register_allocator->get_register(instr->result);
+            instrs.push_back(std::make_shared<RISCV::Instructions::F_EQUAL_S>(rd, rs1, rs2));
+            break;
+        }
+        case Backend::LIR::InstructionType::FNOT_EQUAL: {
+            std::shared_ptr<Backend::LIR::FBranch> instr = std::static_pointer_cast<Backend::LIR::FBranch>(instruction);
+            RISCV::Registers::ABI rs1 = register_allocator->get_register(instr->lhs);
+            RISCV::Registers::ABI rs2 = register_allocator->get_register(instr->rhs);
+            RISCV::Registers::ABI rd = register_allocator->get_register(instr->result);
+            instrs.push_back(std::make_shared<RISCV::Instructions::F_NOT_EQUAL_S>(rd, rs1, rs2));
+            break;
+        }
+        case Backend::LIR::InstructionType::FGREATER: {
+            std::shared_ptr<Backend::LIR::FBranch> instr = std::static_pointer_cast<Backend::LIR::FBranch>(instruction);
+            RISCV::Registers::ABI rs1 = register_allocator->get_register(instr->lhs);
+            RISCV::Registers::ABI rs2 = register_allocator->get_register(instr->rhs);
+            RISCV::Registers::ABI rd = register_allocator->get_register(instr->result);
+            instrs.push_back(std::make_shared<RISCV::Instructions::F_GREATER_THAN_S>(rd, rs1, rs2));
+            break;
+        }
+        case Backend::LIR::InstructionType::FGREATER_EQUAL: {
+            std::shared_ptr<Backend::LIR::FBranch> instr = std::static_pointer_cast<Backend::LIR::FBranch>(instruction);
+            RISCV::Registers::ABI rs1 = register_allocator->get_register(instr->lhs);
+            RISCV::Registers::ABI rs2 = register_allocator->get_register(instr->rhs);
+            RISCV::Registers::ABI rd = register_allocator->get_register(instr->result);
+            instrs.push_back(std::make_shared<RISCV::Instructions::F_GREATER_THAN_OR_EQUAL_S>(rd, rs1, rs2));
+            break;
+        }
+        case Backend::LIR::InstructionType::FLESS: {
+            std::shared_ptr<Backend::LIR::FBranch> instr = std::static_pointer_cast<Backend::LIR::FBranch>(instruction);
+            RISCV::Registers::ABI rs1 = register_allocator->get_register(instr->lhs);
+            RISCV::Registers::ABI rs2 = register_allocator->get_register(instr->rhs);
+            RISCV::Registers::ABI rd = register_allocator->get_register(instr->result);
+            instrs.push_back(std::make_shared<RISCV::Instructions::F_LESS_THAN_S>(rd, rs1, rs2));
+            break;
+        }
+        case Backend::LIR::InstructionType::FLESS_EQUAL: {
+            std::shared_ptr<Backend::LIR::FBranch> instr = std::static_pointer_cast<Backend::LIR::FBranch>(instruction);
+            RISCV::Registers::ABI rs1 = register_allocator->get_register(instr->lhs);
+            RISCV::Registers::ABI rs2 = register_allocator->get_register(instr->rhs);
+            RISCV::Registers::ABI rd = register_allocator->get_register(instr->result);
+            instrs.push_back(std::make_shared<RISCV::Instructions::F_LESS_THAN_OR_EQUAL_S>(rd, rs1, rs2));
             break;
         }
         case Backend::LIR::InstructionType::LOAD_IMM: {
@@ -262,9 +368,10 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
             std::shared_ptr<Backend::LIR::LoadFloat> instr = std::static_pointer_cast<Backend::LIR::LoadFloat>(instruction);
             std::shared_ptr<Backend::Variable> addr = instr->var_in_mem;
             std::shared_ptr<Backend::Variable> dest = instr->var_in_reg;
+            RISCV::Registers::ABI base_reg = register_allocator->get_register(addr);
             RISCV::Registers::ABI dest_reg = register_allocator->get_register(dest);
             if (addr->lifetime == Backend::VariableWide::LOCAL)
-                instrs.push_back(std::make_shared<RISCV::Instructions::FLoadWord>(dest_reg, dest_reg, instr->offset));
+                instrs.push_back(std::make_shared<RISCV::Instructions::FLoadWord>(dest_reg, base_reg, instr->offset));
             else
                 instrs.push_back(std::make_shared<RISCV::Instructions::FLoadWordFromStack>(dest_reg, addr, stack, instr->offset));
             break;

@@ -72,6 +72,37 @@ class Backend::LIR::FloatArithmetic : public Backend::LIR::Instruction {
         }
 };
 
+class Backend::LIR::FloatTernary : public Backend::LIR::Instruction {
+    public:
+        std::shared_ptr<Variable> operand1;
+        std::shared_ptr<Variable> operand2;
+        std::shared_ptr<Variable> operand3;
+        std::shared_ptr<Variable> result;
+
+        FloatTernary(InstructionType type, const std::shared_ptr<Variable> &operand1, const std::shared_ptr<Variable> &operand2, const std::shared_ptr<Variable> &operand3, const std::shared_ptr<Variable> &result) : Backend::LIR::Instruction(type), operand1(operand1), operand2(operand2), operand3(operand3), result(result) {}
+
+        inline std::string to_string() const override {
+            std::ostringstream oss;
+            oss << result->to_string()
+                << " = " << operand1->to_string() << " "
+                << Backend::Utils::to_string(type)
+                << " " << operand2->to_string()
+                << "(" << operand3->to_string() << ")";
+            return oss.str();
+        }
+
+        std::shared_ptr<Variable> get_defined_variable() const override { return result; }
+        void update_defined_variable(const std::shared_ptr<Backend::Variable> &var) override { result = var; }
+        std::vector<std::shared_ptr<Backend::Variable>> get_used_variables() const override {
+            return {operand1, operand2, operand3};
+        }
+        void update_used_variable(const std::shared_ptr<Backend::Variable> &original, const std::shared_ptr<Backend::Variable> &update_to) override {
+            if (operand1 == original) operand1 = update_to;
+            if (operand2 == original) operand2 = update_to;
+            if (operand3 == original) operand3 = update_to;
+        }
+};
+
 /*
  * Load an immediate 32-bit integer value into a (virtual) register.
  */
@@ -81,27 +112,6 @@ class Backend::LIR::LoadIntImm : public Backend::LIR::Instruction {
         std::shared_ptr<Variable> var_in_reg;
 
         LoadIntImm(const std::shared_ptr<Variable> &var_in_reg, const std::shared_ptr<IntValue> &immediate) : Backend::LIR::Instruction(InstructionType::LOAD_IMM), immediate(immediate), var_in_reg(var_in_reg) {}
-
-        inline std::string to_string() const override {
-            std::ostringstream oss;
-            oss << var_in_reg->to_string() << " = " << immediate->to_string();
-            return oss.str();
-        }
-
-        std::shared_ptr<Variable> get_defined_variable() const override { return var_in_reg; }
-
-        void update_defined_variable(const std::shared_ptr<Backend::Variable> &var) override { var_in_reg = var; }
-};
-
-/*
- * Load an immediate 32-bit float value into a (virtual) register.
- */
-class Backend::LIR::LoadFloatImm : public Backend::LIR::Instruction {
-    public:
-        std::shared_ptr<FloatValue> immediate;
-        std::shared_ptr<Variable> var_in_reg;
-
-        LoadFloatImm(const std::shared_ptr<Variable> &var_in_reg, const std::shared_ptr<FloatValue> &immediate) : Backend::LIR::Instruction(InstructionType::LOAD_FLOAT_IMM), immediate(immediate), var_in_reg(var_in_reg) {}
 
         inline std::string to_string() const override {
             std::ostringstream oss;
@@ -382,9 +392,7 @@ class Backend::LIR::Convert : public Backend::LIR::Instruction {
 
         std::string to_string() const override {
             std::ostringstream oss;
-            oss << source->to_string()
-                << " " << Backend::Utils::to_string(type)
-                << " " << dest->to_string();
+            oss << source->to_string() << " = " << dest->to_string();
             return oss.str();
         }
 
