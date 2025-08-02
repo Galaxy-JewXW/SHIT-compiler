@@ -202,21 +202,18 @@ class Backend::LIR::Call : public Backend::LIR::Instruction {
 
         std::shared_ptr<Variable> get_defined_variable() const override { return result; }
 
-        void update_defined_variable(const std::shared_ptr<Backend::Variable> &var) override {
-            if (result) result = var;
-        }
-
+        void update_defined_variable(const std::shared_ptr<Backend::Variable> &var) override { result = var; }
         std::vector<std::shared_ptr<Backend::Variable>> get_used_variables() const override {
             std::vector<std::shared_ptr<Backend::Variable>> used;
             for (const std::shared_ptr<Backend::Variable> &arg : arguments)
-                used.push_back(arg);
+                if (arg->lifetime == VariableWide::LOCAL)
+                    used.push_back(arg);
             return used;
         }
-
         void update_used_variable(const std::shared_ptr<Backend::Variable> &original, const std::shared_ptr<Backend::Variable> &update_to) override {
-            for (auto &arg : arguments) {
-                if (arg == original) arg = update_to;
-            }
+            for (std::vector<std::shared_ptr<Backend::Variable>>::iterator it = arguments.begin(); it != arguments.end(); ++it)
+                if (*it == original)
+                    *it = update_to;
         }
 };
 
@@ -279,16 +276,14 @@ class Backend::LIR::StoreInt : public Backend::LIR::Instruction {
             oss << "store from " << var_in_reg->to_string() << " to " << var_in_mem->to_string() << " + " << offset;
             return oss.str();
         }
-
         std::vector<std::shared_ptr<Backend::Variable>> get_used_variables() const override {
             if (var_in_mem->lifetime == VariableWide::LOCAL)
                 return {var_in_mem, var_in_reg};
-            else
-                return {var_in_reg};
+            return {var_in_reg};
         }
-
         void update_used_variable(const std::shared_ptr<Backend::Variable> &original, const std::shared_ptr<Backend::Variable> &update_to) override {
-            var_in_mem = update_to;
+            if (var_in_mem == original) var_in_mem = update_to;
+            if (var_in_reg == original) var_in_reg = update_to;
         }
 };
 

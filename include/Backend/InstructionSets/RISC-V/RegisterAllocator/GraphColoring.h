@@ -21,11 +21,7 @@ namespace RISCV::RegisterAllocator {
 
 class RISCV::RegisterAllocator::GraphColoring : public RISCV::RegisterAllocator::Allocator {
     public:
-        explicit GraphColoring(const std::shared_ptr<Backend::LIR::Function> &function, const std::shared_ptr<RISCV::Stack> &stack) : Allocator(function, stack) {
-            for (const std::pair<std::string, std::shared_ptr<Backend::Variable>> pair : lir_function->variables)
-                if (pair.second->lifetime == Backend::VariableWide::FUNCTIONAL)
-                    stack->add_variable(pair.second);
-        };
+        explicit GraphColoring(const std::shared_ptr<Backend::LIR::Function> &function, const std::shared_ptr<RISCV::Stack> &stack) : Allocator(function, stack) {};
         ~GraphColoring() override = default;
         virtual void allocate() override;
     private:
