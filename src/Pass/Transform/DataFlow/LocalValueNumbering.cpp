@@ -306,7 +306,7 @@ bool evaluate_fneg(const std::shared_ptr<FNeg> &inst, double &res) {
 } // namespace
 
 namespace Pass {
-bool GlobalValueNumbering::fold_instruction(const std::shared_ptr<Instruction> &instruction) {
+bool LocalValueNumbering::fold_instruction(const std::shared_ptr<Instruction> &instruction) {
     switch (instruction->get_op()) {
         case Operator::INTBINARY: {
             const auto int_binary = instruction->as<IntBinary>();
@@ -394,48 +394,62 @@ bool GlobalValueNumbering::fold_instruction(const std::shared_ptr<Instruction> &
     return false;
 }
 
-bool GlobalValueNumbering::run_on_block(const FunctionPtr &func, const BlockPtr &block,
+bool LocalValueNumbering::run_on_block(const FunctionPtr &func, const BlockPtr &block,
                                         std::unordered_map<std::string, InstructionPtr> &value_hashmap) {
     bool changed = false;
+    std::vector<std::string> local_hashes;
+
     for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
-        if (fold_instruction(*it)) {
-            (*it)->clear_operands();
+        InstructionPtr current_inst = *it;
+        if (fold_instruction(current_inst)) {
+            current_inst->clear_operands();
             it = block->get_instructions().erase(it);
             changed = true;
+            continue;
         }
-        const auto &instruction_hash = get_instruction_hash(*it, func_analysis);
+
+        const auto &instruction_hash = get_instruction_hash(current_inst, func_analysis);
         if (instruction_hash.empty()) {
             ++it;
             continue;
         }
-        if (value_hashmap.find(instruction_hash) != value_hashmap.end()) {
-            (*it)->replace_by_new_value(value_hashmap[instruction_hash]);
-            (*it)->clear_operands();
+
+        if (value_hashmap.count(instruction_hash)) {
+            InstructionPtr candidate_inst = value_hashmap.at(instruction_hash);
+
+            // 通过状态回溯，可以保证哈希表中的候选项总是支配当前块
+            current_inst->replace_by_new_value(candidate_inst);
+            current_inst->clear_operands();
             it = block->get_instructions().erase(it);
             changed = true;
-        } else {
-            value_hashmap[instruction_hash] = *it;
-            ++it;
+            continue;
         }
+
+        value_hashmap[instruction_hash] = current_inst;
+        local_hashes.push_back(instruction_hash);
+        ++it;
     }
     for (const auto &child: dom_info->graph(func).dominance_children.at(block)) {
         changed |= run_on_block(func, child, value_hashmap);
     }
+    for (const auto &hash : local_hashes) {
+        value_hashmap.erase(hash);
+    }
+
     return changed;
 }
 
-bool GlobalValueNumbering::run_on_func(const FunctionPtr &func) {
+bool LocalValueNumbering::run_on_func(const FunctionPtr &func) {
     const auto &entry_block = func->get_blocks().front();
     std::unordered_map<std::string, InstructionPtr> value_hashmap;
     return run_on_block(func, entry_block, value_hashmap);
 }
 
-void GlobalValueNumbering::transform(const std::shared_ptr<Module> module) {
+void LocalValueNumbering::transform(const std::shared_ptr<Module> module) {
     dom_info = get_analysis_result<DominanceGraph>(module);
     func_analysis = get_analysis_result<FunctionAnalysis>(module);
     create<AlgebraicSimplify>()->run_on(module);
     // 不同的遍历顺序可能导致化简的结果不同
-    // 跑多次GVN直到一个不动点
     bool changed = false;
     do {
         changed = false;
@@ -451,9 +465,6 @@ void GlobalValueNumbering::transform(const std::shared_ptr<Module> module) {
     } while (changed);
     dom_info = nullptr;
     func_analysis = nullptr;
-    // GVN后可能出现一条指令被替换成其另一条指令，但是那条指令并不支配这条指令的users的问题
-    // 可以通过 GCM 解决。在 GCM 中考虑value之间的依赖，会根据依赖将那条指令移动到正确的位置
-    create<GlobalCodeMotion>()->run_on(module);
     create<AlgebraicSimplify>()->run_on(module);
     create<DeadInstEliminate>()->run_on(module);
 }
