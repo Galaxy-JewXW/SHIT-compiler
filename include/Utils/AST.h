@@ -6,6 +6,7 @@
 #include <variant>
 #include <vector>
 
+#include "SimpleFloat.h"
 #include "Log.h"
 #include "Utils/Token.h"
 
@@ -25,22 +26,34 @@ class Number : public Node {};
 
 class IntNumber final : public Number {
     const int value_;
+    const std::string value_string_;
 
 public:
-    explicit IntNumber(const int &value) : value_{value} {}
+    explicit IntNumber(const int &value) : value_{value}, value_string_{std::to_string(value)} {}
+
+    explicit IntNumber(const std::string &value) : value_{std::stoi(value)}, value_string_{value} {}
 
     [[nodiscard]] int get_value() const { return value_; }
+
+    [[nodiscard]] std::string get_value_string() const { return value_string_; }
 
     [[nodiscard]] std::string to_string() const override;
 };
 
 class FloatNumber final : public Number {
     const double value_;
+    const std::string value_string_;
 
 public:
-    explicit FloatNumber(const double &value) : value_{value} {}
+    explicit FloatNumber(const double &value) :
+        value_{value}, value_string_{std::to_string(value)} {}
+
+    explicit FloatNumber(const std::string &value) :
+        value_{IEEE754_Single::SimpleFloat{value}.to_float()}, value_string_{value} {}
 
     [[nodiscard]] double get_value() const { return value_; }
+
+    [[nodiscard]] std::string get_value_string() const { return value_string_; }
 
     [[nodiscard]] std::string to_string() const override;
 };

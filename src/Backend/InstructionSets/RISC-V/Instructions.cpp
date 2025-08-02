@@ -90,6 +90,12 @@ namespace RISCV::Instructions {
         return oss.str();
     }
 
+    std::string FSGNJN::to_string() const {
+        std::ostringstream oss;
+        oss << "fsgnjn.s " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);
+        return oss.str();
+    }
+
     std::string AddImmediate::to_string() const {
         std::ostringstream oss;
         oss << "addi " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << imm;
@@ -103,7 +109,14 @@ namespace RISCV::Instructions {
     }
 
     std::string LoadAddressFromStack::to_string() const {
-        return std::make_shared<Instructions::AddImmediate>(rd, RISCV::Registers::ABI::SP, stack->stack_size - stack->stack_index[variable->name])->to_string();
+        if (is_12bit(stack->stack_size - stack->stack_index[variable->name]))
+            return std::make_shared<Instructions::AddImmediate>(rd, RISCV::Registers::ABI::SP, stack->stack_size - stack->stack_index[variable->name])->to_string();
+        else {
+            std::ostringstream oss;
+            oss << std::make_shared<Instructions::LoadImmediate>(rd, stack->stack_size - stack->stack_index[variable->name])->to_string() << "\n  ";
+            oss << std::make_shared<Instructions::Add>(rd, RISCV::Registers::ABI::SP, rd)->to_string();
+            return oss.str();
+        }
     }
 
     std::string LoadWordFromStack::to_string() const {
@@ -284,6 +297,66 @@ namespace RISCV::Instructions {
     std::string SRLI::to_string() const {
         std::ostringstream oss;
         oss << "srli " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << imm;
+        return oss.str();
+    }
+
+    std::string F_EQUAL_S::to_string() const {
+        std::ostringstream oss;
+        oss << "feq.s " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);
+        return oss.str();
+    }
+
+    std::string F_NOT_EQUAL_S::to_string() const {
+        std::ostringstream oss;
+        oss << "fne.s " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);
+        return oss.str();
+    }
+
+    std::string F_LESS_THAN_S::to_string() const {
+        std::ostringstream oss;
+        oss << "flt.s " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);
+        return oss.str();
+    }
+
+    std::string F_LESS_THAN_OR_EQUAL_S::to_string() const {
+        std::ostringstream oss;
+        oss << "fle.s " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);
+        return oss.str();
+    }
+
+    std::string F_GREATER_THAN_S::to_string() const {
+        std::ostringstream oss;
+        oss << "fgt.s " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);
+        return oss.str();
+    }
+
+    std::string F_GREATER_THAN_OR_EQUAL_S::to_string() const {
+        std::ostringstream oss;
+        oss << "fge.s " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);
+        return oss.str();
+    }
+
+    std::string FMAdd::to_string() const {
+        std::ostringstream oss;
+        oss << "fmadd.s " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2) << ", " << RISCV::Registers::to_string(rs3);
+        return oss.str();
+    }
+
+    std::string FNMAdd::to_string() const {
+        std::ostringstream oss;
+        oss << "fnmadd.s " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2) << ", " << RISCV::Registers::to_string(rs3);
+        return oss.str();
+    }
+
+    std::string FMSub::to_string() const {
+        std::ostringstream oss;
+        oss << "fmsub.s " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2) << ", " << RISCV::Registers::to_string(rs3);
+        return oss.str();
+    }
+
+    std::string FNMSub::to_string() const {
+        std::ostringstream oss;
+        oss << "fnmsub.s " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2) << ", " << RISCV::Registers::to_string(rs3);
         return oss.str();
     }
 }

@@ -3,9 +3,9 @@
 #include "Backend/InstructionSets/RISC-V/Modules.h"
 
 void RISCV::RegisterAllocator::GraphColoring::allocate() {
-    // float_allocator = std::make_shared<RISCV::RegisterAllocator::FGraphColoring>(lir_function, stack);
-    // float_allocator->allocate();
-    // var_to_reg.insert(float_allocator->var_to_reg.begin(), float_allocator->var_to_reg.end());
+    float_allocator = std::make_shared<RISCV::RegisterAllocator::FGraphColoring>(lir_function, stack);
+    float_allocator->allocate();
+    var_to_reg.insert(float_allocator->var_to_reg.begin(), float_allocator->var_to_reg.end());
     available_colors.insert(available_colors.end(), RISCV::Registers::Integers::registers.begin(), RISCV::Registers::Integers::registers.end());
     create_registers();
     build_interference_graph();
@@ -20,14 +20,11 @@ void RISCV::RegisterAllocator::GraphColoring::allocate() {
     }
     __allocate__();
     log_info("Allocated integer registers for %s", lir_function->name.c_str());
-    stack->align(16);
+    stack->stack_size = stack->align(16);
     std::cout << to_string() << "\n";
 }
 
 void RISCV::RegisterAllocator::GraphColoring::__allocate__() {
-    for (const std::pair<std::string, std::shared_ptr<Backend::Variable>> pair : lir_function->variables)
-        if (pair.second->lifetime == Backend::VariableWide::FUNCTIONAL)
-            stack->add_variable(pair.second);
     for (const std::pair<std::string, std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode>> pair : interference_graph)
         if (pair.second->is_colored && pair.second->color != RISCV::Registers::ABI::ZERO) {
             var_to_reg[pair.first] = pair.second->color;
@@ -36,20 +33,8 @@ void RISCV::RegisterAllocator::GraphColoring::__allocate__() {
         }
 }
 
-void RISCV::RegisterAllocator::GraphColoring::create_entry() {
-    std::shared_ptr<Backend::LIR::Block> first_block = lir_function->blocks.front();
-    if (first_block->name == BLOCK_ENTRY)
-        return;
-    std::shared_ptr<Backend::LIR::Block> block_entry = std::make_shared<Backend::LIR::Block>(BLOCK_ENTRY);
-    block_entry->parent_function = lir_function;
-    block_entry->successors.push_back(first_block);
-    first_block->predecessors.push_back(block_entry);
-    lir_function->blocks_index[block_entry->name] = block_entry;
-    lir_function->blocks.insert(lir_function->blocks.begin(), block_entry);
-}
-
 void RISCV::RegisterAllocator::GraphColoring::create_registers() {
-    create_entry();
+    RISCV::ReWrite::create_entry_block(lir_function);
     std::shared_ptr<Backend::LIR::Block> block_entry = lir_function->blocks.front();
     // 2. add a0-t6
     for (const RISCV::Registers::ABI reg : RISCV::Registers::Integers::registers)
@@ -122,6 +107,7 @@ void RISCV::RegisterAllocator::GraphColoring::create_interference_nodes(const st
 }
 
 void RISCV::RegisterAllocator::GraphColoring::build_interference_graph() {
+    RISCV::ReWrite::rewrite_large_offset(lir_function, stack);
     create_interference_nodes(RISCV::Registers::Integers::registers);
     lir_function->analyze_live_variables<Backend::Utils::is_int>();
     build_interference_graph<>(RISCV::Registers::Integers::caller_saved);
@@ -347,6 +333,7 @@ bool RISCV::RegisterAllocator::GraphColoring::assign_colors(std::stack<std::stri
         } else {
             log_debug("Marked %s for actual spilling", var_name.c_str());
             lir_function->spill<StoreInst, LoadInst>(node->variable);
+            this->stack->add_variable(node->variable);
             build_interference_graph();
             while (!stack.empty()) stack.pop();
             return false;

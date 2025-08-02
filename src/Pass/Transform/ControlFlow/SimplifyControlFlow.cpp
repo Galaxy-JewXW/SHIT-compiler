@@ -480,7 +480,6 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
             remove_unreachable_blocks(func);
         }
         try_constant_fold(func);
-        changed = false;
     } while (changed);
 
     if (graph_modified) {

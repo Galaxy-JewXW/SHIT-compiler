@@ -34,8 +34,9 @@ namespace Backend::LIR {
         DIV, FDIV,
         MOD, FMOD,
         FNEG, FABS,
+        FMADD, FMSUB, FNMADD, FNMSUB,
         LOAD, LOAD_IMM, LOAD_ADDR,
-        FLOAD, LOAD_FLOAT_IMM,
+        FLOAD,
         I2F, F2I,
         STORE, FSTORE,
         CALL,
@@ -52,7 +53,6 @@ namespace Backend::LIR {
     class IntArithmetic;
     class FloatArithmetic;
     class LoadIntImm;
-    class LoadFloatImm;
     class Call;
     class LoadAddress;
     class LoadInt;
@@ -66,6 +66,7 @@ namespace Backend::LIR {
     class Jump;
     class Return;
     class Move;
+    class FloatTernary;
 };
 
 namespace Backend::Utils {
@@ -80,6 +81,16 @@ namespace Backend::Utils {
             case Mir::IntBinary::Op::MUL: return Backend::LIR::InstructionType::MUL;
             case Mir::IntBinary::Op::DIV: return Backend::LIR::InstructionType::DIV;
             case Mir::IntBinary::Op::MOD: return Backend::LIR::InstructionType::MOD;
+            default: throw std::invalid_argument("Invalid operation");
+        }
+    }
+
+    [[nodiscard]] inline Backend::LIR::InstructionType llvm_to_lir(const Mir::FloatTernary::Op &op)  {
+        switch (op) {
+            case Mir::FloatTernary::Op::FMADD: return Backend::LIR::InstructionType::FMADD;
+            case Mir::FloatTernary::Op::FMSUB: return Backend::LIR::InstructionType::FMSUB;
+            case Mir::FloatTernary::Op::FNMADD: return Backend::LIR::InstructionType::FNMADD;
+            case Mir::FloatTernary::Op::FNMSUB: return Backend::LIR::InstructionType::FNMSUB;
             default: throw std::invalid_argument("Invalid operation");
         }
     }
@@ -150,6 +161,10 @@ namespace Backend::Utils {
             case Backend::LIR::InstructionType::SHIFT_LEFT: return "<<";
             case Backend::LIR::InstructionType::SHIFT_RIGHT: return ">>";
             case Backend::LIR::InstructionType::LOAD_ADDR: return "&";
+            case Backend::LIR::InstructionType::FMADD: return "fmadd";
+            case Backend::LIR::InstructionType::FMSUB: return "fmsub";
+            case Backend::LIR::InstructionType::FNMADD: return "fnmadd";
+            case Backend::LIR::InstructionType::FNMSUB: return "fnmsub";
             default: return "";
         }
     }
