@@ -5,7 +5,6 @@
 #include "Pass/Analyses/DominanceGraph.h"
 #include "Pass/Analyses/LoopAnalysis.h"
 #include "Pass/Transform.h"
-#include "Pass/Analyses/SCEVAnalysis.h"
 
 namespace Pass {
 class LoopSimplyForm final : public Transform {
@@ -69,6 +68,8 @@ protected:
                        std::vector<std::shared_ptr<Mir::Branch>> &branch_vector);
 };
 
+class SCEVAnalysis;
+class SCEVExpr;
 class InductionVariables final : public Transform {
 public:
     explicit InductionVariables() : Transform("InductionVariables") {}

@@ -943,7 +943,7 @@ public:
 
     void clear_operands() override;
 
-    [[deprecated]] std::shared_ptr<Block> find_optional_block(const std::shared_ptr<Value> &value);
+    std::shared_ptr<Block> find_optional_block(const std::shared_ptr<Value> &value);
 
     std::shared_ptr<Instruction> clone_to_block(const std::shared_ptr<Block> &block) override {
         return create(name_, type_, block, get_optional_values());
