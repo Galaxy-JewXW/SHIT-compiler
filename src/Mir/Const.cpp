@@ -2,6 +2,8 @@
 
 #include "Mir/Const.h"
 
+#include "Utils/SimpleFloat.h"
+
 namespace Mir {
 std::shared_ptr<ConstBool> ConstBool::create(const int value) {
     const int normalized = value ? 1 : 0;
@@ -82,7 +84,11 @@ std::shared_ptr<ConstFloat> ConstFloat::create(const double value) {
             return existing;
         }
     }
-    auto new_const = std::shared_ptr<ConstFloat>(new ConstFloat(value));
+
+    IEEE754_Single::SimpleFloat simple_float;
+    simple_float.encode(value);
+
+    auto new_const = std::shared_ptr<ConstFloat>(new ConstFloat(simple_float.to_float()));
     cache[key] = new_const;
     return new_const;
 }

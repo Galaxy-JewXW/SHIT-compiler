@@ -67,9 +67,9 @@ Token::Token Lexer::consume_number() {
                     number += advance();
                 }
             }
-            return Token::Token{std::to_string(std::stod(number, &idx)), Token::Type::FLOAT_CONST, start_line};
+            return Token::Token{std::move(number), Token::Type::FLOAT_CONST, start_line};
         }
-        return Token::Token{std::to_string(std::stoi(number, &idx, 16)), Token::Type::INT_CONST, start_line};
+        return Token::Token{std::move(number), Token::Type::INT_CONST, start_line};
     }
 
     // 八进制数处理 (0后面紧跟0-7)

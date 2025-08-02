@@ -76,11 +76,13 @@ void Backend::DataSection::Variable::load_from_llvm(const std::shared_ptr<Mir::I
                 for (int i = 0; i <= p; ++i) {
                     res.push_back(load_from_llvm_(std::static_pointer_cast<Mir::Init::Constant>(array_init_values[i])));
                 }
-                const int remaining = static_cast<int>(array->get_size()) - p - 1;
-                if (atomic_type->is_integer()) {
-                    res.push_back(std::make_shared<IntMultiZero>(remaining));
-                } else if (atomic_type->is_float()) {
-                    res.push_back(std::make_shared<FloatMultiZero>(remaining));
+                if (const int remaining = static_cast<int>(array->get_size()) - p - 1;
+                    remaining > 0) {
+                    if (atomic_type->is_integer()) {
+                        res.push_back(std::make_shared<IntMultiZero>(remaining));
+                    } else if (atomic_type->is_float()) {
+                        res.push_back(std::make_shared<FloatMultiZero>(remaining));
+                    }
                 }
             } else {
                 for (const std::shared_ptr<Mir::Init::Init> &element: array_init_values) {
@@ -107,6 +109,17 @@ void Backend::DataSection::Variable::load_from_llvm(const std::shared_ptr<Mir::I
                     continue;
                 }
             }
+            constants.push_back(constant);
+        }
+    } else {
+        for (const std::shared_ptr<Backend::Constant> &constant: res) {
+            if (const auto multi_zero = std::dynamic_pointer_cast<Backend::FloatMultiZero>(constant);
+                multi_zero != nullptr && !constants.empty()) {
+                if (const auto _back = std::dynamic_pointer_cast<Backend::FloatMultiZero>(constants.back())) {
+                    constants.back() = std::make_shared<FloatMultiZero>(multi_zero->zero_count + _back->zero_count);
+                    continue;
+                }
+                }
             constants.push_back(constant);
         }
     }

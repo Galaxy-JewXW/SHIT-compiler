@@ -14,6 +14,18 @@ RISCV::Module::Module(const std::shared_ptr<Backend::LIR::Module>& lir_module, c
 
 std::string RISCV::Module::to_string(const std::shared_ptr<Backend::DataSection> &data_section) {
     std::ostringstream oss;
+
+    auto float_value_to_string = [&oss](const std::shared_ptr<Backend::FloatValue> &float_value) {
+        oss << "  .word  ";
+        const float val = static_cast<float>(float_value->float_value);
+        union {
+            float f;
+            uint32_t i;
+        } x;
+        x.f = val;
+        oss << x.i << "\n";
+    };
+
     oss << ".section .rodata\n"
         << ".align 2\n";
     for (const std::pair<std::string, std::shared_ptr<Backend::DataSection::Variable>> var : data_section->global_variables)
@@ -27,9 +39,10 @@ std::string RISCV::Module::to_string(const std::shared_ptr<Backend::DataSection>
                 oss << var.second->label() << ":\n";
                 const std::vector<std::shared_ptr<Backend::Constant>> &constants = std::static_pointer_cast<Backend::DataSection::Variable::Constants>(var.second->init_value)->constants;
                 for (const std::shared_ptr<Backend::Constant> &value: constants) {
-                    if (std::dynamic_pointer_cast<Backend::IntValue>(value) != nullptr ||
-                        std::dynamic_pointer_cast<Backend::FloatValue>(value) != nullptr) {
+                    if (std::dynamic_pointer_cast<Backend::IntValue>(value) != nullptr) {
                         oss << "  " << Backend::Utils::to_riscv_indicator(value->constant_type) << " " << value->name << "\n";
+                    } else if (const auto f = std::dynamic_pointer_cast<Backend::FloatValue>(value)) {
+                        float_value_to_string(f);
                     } else if (const auto int_multi_zero = std::dynamic_pointer_cast<Backend::IntMultiZero>(value)) {
                         oss << "  .zero " << int_multi_zero->zero_count * Backend::Utils::type_to_size(var.second->workload_type) << "\n";
                     } else if (const auto float_multi_zero = std::dynamic_pointer_cast<Backend::FloatMultiZero>(value)) {
@@ -46,9 +59,10 @@ std::string RISCV::Module::to_string(const std::shared_ptr<Backend::DataSection>
             oss << var.second->label() << ":\n";
             const std::vector<std::shared_ptr<Backend::Constant>> &constants = std::static_pointer_cast<Backend::DataSection::Variable::Constants>(var.second->init_value)->constants;
             for (const std::shared_ptr<Backend::Constant> &value: constants) {
-                if (std::dynamic_pointer_cast<Backend::IntValue>(value) != nullptr ||
-                    std::dynamic_pointer_cast<Backend::FloatValue>(value) != nullptr) {
+                if (std::dynamic_pointer_cast<Backend::IntValue>(value) != nullptr) {
                     oss << "  " << Backend::Utils::to_riscv_indicator(value->constant_type) << " " << value->name << "\n";
+                } else if (const auto f = std::dynamic_pointer_cast<Backend::FloatValue>(value)) {
+                    float_value_to_string(f);
                 } else if (const auto int_multi_zero = std::dynamic_pointer_cast<Backend::IntMultiZero>(value);
                     int_multi_zero && int_multi_zero->zero_count > 0) {
                     oss << "  .zero " << int_multi_zero->zero_count * Backend::Utils::type_to_size(var.second->workload_type) << "\n";
