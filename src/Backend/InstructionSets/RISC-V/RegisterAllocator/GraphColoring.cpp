@@ -45,7 +45,7 @@ void RISCV::RegisterAllocator::GraphColoring::create_registers() {
     std::shared_ptr<Backend::LIR::Block> block_entry = lir_function->blocks.front();
     for (const RISCV::Registers::ABI reg : RISCV::Registers::Integers::registers)
         lir_function->add_variable(std::make_shared<Backend::Variable>(RISCV::Registers::to_string(reg), Backend::VariableType::INT64, Backend::VariableWide::LOCAL));
-    RISCV::ReWrite::rewrite_parameters(lir_function, stack);
+    RISCV::ReWrite::rewrite_parameters_i(lir_function, stack);
     // at the very beginning of the function, copy callee-saved registers
     for (const RISCV::Registers::ABI reg : RISCV::Registers::Integers::callee_saved) {
         std::shared_ptr<Backend::Variable> var = std::make_shared<Backend::Variable>(RISCV::Registers::to_string(reg) + "_mem", Backend::VariableType::INT64, Backend::VariableWide::LOCAL);

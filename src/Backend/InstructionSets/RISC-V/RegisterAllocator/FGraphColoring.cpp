@@ -21,20 +21,9 @@ void RISCV::RegisterAllocator::FGraphColoring::allocate() {
 void RISCV::RegisterAllocator::FGraphColoring::create_registers() {
     RISCV::ReWrite::create_entry_block(lir_function);
     std::shared_ptr<Backend::LIR::Block> block_entry = lir_function->blocks.front();
-    // 2. add fa0-ft11
     for (const RISCV::Registers::ABI reg : RISCV::Registers::Floats::registers)
         lir_function->add_variable(std::make_shared<Backend::Variable>(RISCV::Registers::to_string(reg), Backend::VariableType::DOUBLE, Backend::VariableWide::LOCAL));
-    // 3. move parameters
-    for (size_t i = 0, j = 0; i < lir_function->parameters.size(); i++) {
-        const std::shared_ptr<Backend::Variable> &arg = lir_function->parameters[i];
-        if (Backend::Utils::is_float(arg->workload_type)) {
-            if (j < 8) {
-                block_entry->instructions.push_back(std::make_shared<Backend::LIR::Move>(lir_function->variables[RISCV::Registers::to_string(RISCV::Registers::ABI::FA0 + j++)], arg));
-            } else {
-                // TODO
-            }
-        }
-    }
+    RISCV::ReWrite::rewrite_parameters_f(lir_function, stack);
     // at the very beginning of the function, copy callee-saved registers
     for (const RISCV::Registers::ABI reg : RISCV::Registers::Floats::callee_saved) {
         std::shared_ptr<Backend::Variable> var = std::make_shared<Backend::Variable>(RISCV::Registers::to_string(reg) + "_mem", Backend::VariableType::DOUBLE, Backend::VariableWide::LOCAL);
@@ -52,25 +41,6 @@ void RISCV::RegisterAllocator::FGraphColoring::create_registers() {
                     ret->return_value = lir_function->variables[RISCV::Registers::to_string(RISCV::Registers::ABI::FA0)];
                 for (const RISCV::Registers::ABI reg : RISCV::Registers::Floats::callee_saved)
                     block->instructions.insert(block->instructions.begin() + i++, std::make_shared<Backend::LIR::Move>(lir_function->variables[RISCV::Registers::to_string(reg) + "_mem"], lir_function->variables[RISCV::Registers::to_string(reg)]));
-            } else if (instruction->type == Backend::LIR::InstructionType::CALL) {
-                std::shared_ptr<Backend::LIR::Call> call = std::static_pointer_cast<Backend::LIR::Call>(block->instructions[i]);
-                for (size_t j = 0, k = 0; j < call->arguments.size(); j++) {
-                    const std::shared_ptr<Backend::Variable> &arg = call->arguments[j];
-                    if (Backend::Utils::is_float(arg->workload_type)) {
-                        if (k < 8) {
-                            // move arguments to fa0-fa7
-                            const std::shared_ptr<Backend::Variable> &phyReg = lir_function->variables[RISCV::Registers::to_string(RISCV::Registers::ABI::FA0 + k++)];
-                            block->instructions.insert(block->instructions.begin() + i++, std::make_shared<Backend::LIR::Move>(call->arguments[j], phyReg));
-                            call->arguments[j] = phyReg;
-                        } else {
-                            // TODO
-                        }
-                    }
-                }
-                // move result of the call to fa0
-                if (call->result && Backend::Utils::is_float(call->result->workload_type))
-                    block->instructions.insert(block->instructions.begin() + i + 1, std::make_shared<Backend::LIR::Move>(lir_function->variables[RISCV::Registers::to_string(RISCV::Registers::ABI::FA0)], call->result)),
-                    call->result = lir_function->variables[RISCV::Registers::to_string(RISCV::Registers::ABI::FA0)];
             }
         }
     }

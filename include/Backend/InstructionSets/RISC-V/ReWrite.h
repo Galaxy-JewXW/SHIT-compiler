@@ -14,7 +14,8 @@
 namespace RISCV::ReWrite {
     void create_entry_block(const std::shared_ptr<Backend::LIR::Function> &lir_function);
     void rewrite_large_offset(const std::shared_ptr<Backend::LIR::Function> &lir_function, const std::shared_ptr<RISCV::Stack> &stack);
-    void rewrite_parameters(const std::shared_ptr<Backend::LIR::Function> &lir_function, const std::shared_ptr<RISCV::Stack> &stack);
+    void rewrite_parameters_i(const std::shared_ptr<Backend::LIR::Function> &lir_function, const std::shared_ptr<RISCV::Stack> &stack);
+    void rewrite_parameters_f(const std::shared_ptr<Backend::LIR::Function> &lir_function, const std::shared_ptr<RISCV::Stack> &stack);
 }
 
 #endif
