@@ -7,7 +7,7 @@ namespace Mir::Init {
 std::shared_ptr<Constant> Constant::create_constant_init_value(const std::shared_ptr<Type::Type> &type,
                                                                const std::shared_ptr<AST::AddExp> &addExp,
                                                                const std::shared_ptr<Symbol::Table> &table) {
-    const auto &res = eval_exp(addExp, table);
+    const auto res = eval_exp(addExp, table);
     if (type->is_int32()) {
         const int value = std::visit([](auto &&arg) { return static_cast<int>(arg); }, res);
         return std::make_shared<Constant>(type, ConstInt::create(value));

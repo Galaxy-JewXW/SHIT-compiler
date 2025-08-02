@@ -298,9 +298,9 @@ std::shared_ptr<AST::PrimaryExp> Parser::parsePrimaryExp() {
 
 std::shared_ptr<AST::Number> Parser::parseNumber() const {
     if (next(-1).type == Token::Type::INT_CONST) {
-        return std::make_shared<AST::IntNumber>(stoi(next(-1).content));
+        return std::make_shared<AST::IntNumber>(next(-1).content);
     }
-    return std::make_shared<AST::FloatNumber>(stod(next(-1).content));
+    return std::make_shared<AST::FloatNumber>(next(-1).content);
 }
 
 std::shared_ptr<AST::UnaryExp> Parser::parseUnaryExp() {
