@@ -32,13 +32,23 @@ class RISCV::Stack {
         inline void add_variable(const std::shared_ptr<Backend::Variable> &variable) {
             if (stack_index.find(variable->name) != stack_index.end())
                 return;
+            if (variable->lifetime != Backend::VariableWide::FUNCTIONAL)
+                log_error("`%s` should not be stored in stack", variable->name.c_str());
             stack_size += variable->size();
             stack_index[variable->name] = stack_size;
             stack.push_back(variable);
         }
 
-        void align(const size_t alignment) {
-            stack_size = (stack_size + alignment - 1) & ~(alignment - 1);
+        int align(const size_t alignment) {
+            return (stack_size + alignment - 1) & ~(alignment - 1);
+        }
+
+        int32_t offset_of(const std::shared_ptr<Backend::Variable> &variable) {
+            if (variable->lifetime == Backend::VariableWide::FUNCTIONAL) {
+                if (stack_index.find(variable->name) == stack_index.end())
+                    log_error("`%s` is not stored in stack", variable->name.c_str());
+                return align(16) - stack_index[variable->name];
+            } log_error("`%s` should not be stored in stack", variable->name.c_str());
         }
 };
 

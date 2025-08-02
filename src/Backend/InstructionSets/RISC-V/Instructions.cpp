@@ -108,7 +108,7 @@ namespace RISCV::Instructions {
         else {
             std::ostringstream oss;
             oss << std::make_shared<Instructions::LoadImmediate>(rd, stack->stack_size - stack->stack_index[variable->name])->to_string() << "\n  ";
-            oss << std::make_shared<Instructions::Add>(rd, RISCV::Registers::ABI::SP, rd)->to_string() << "\n";
+            oss << std::make_shared<Instructions::Add>(rd, RISCV::Registers::ABI::SP, rd)->to_string();
             return oss.str();
         }
     }

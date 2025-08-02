@@ -10,11 +10,10 @@
 #include "Backend/InstructionSets/RISC-V/RegisterAllocator/RegisterAllocator.h"
 #include "Backend/LIR/Instructions.h"
 #include "Backend/InstructionSets/RISC-V/Registers.h"
+#include "Backend/InstructionSets/RISC-V/ReWrite.h"
 #include "Backend/LIR/LIR.h"
 #include "Backend/VariableTypes.h"
 #include "Utils/Log.h"
-
-#define BLOCK_ENTRY "block_entry"
 
 namespace RISCV::RegisterAllocator {
     class FGraphColoring;
@@ -22,7 +21,11 @@ namespace RISCV::RegisterAllocator {
 
 class RISCV::RegisterAllocator::GraphColoring : public RISCV::RegisterAllocator::Allocator {
     public:
-        explicit GraphColoring(const std::shared_ptr<Backend::LIR::Function> &function, const std::shared_ptr<RISCV::Stack> &stack) : Allocator(function, stack) {};
+        explicit GraphColoring(const std::shared_ptr<Backend::LIR::Function> &function, const std::shared_ptr<RISCV::Stack> &stack) : Allocator(function, stack) {
+            for (const std::pair<std::string, std::shared_ptr<Backend::Variable>> pair : lir_function->variables)
+                if (pair.second->lifetime == Backend::VariableWide::FUNCTIONAL)
+                    stack->add_variable(pair.second);
+        };
         ~GraphColoring() override = default;
         virtual void allocate() override;
     private:
@@ -81,7 +84,6 @@ class RISCV::RegisterAllocator::GraphColoring : public RISCV::RegisterAllocator:
         std::vector<RISCV::Registers::ABI> available_colors;
 
         void __allocate__();
-        void create_entry();
         // Create variable for physical registers and insert `move` instructions for parameters.
         virtual void create_registers();
         // Create nodes for variables stored in registers and physical registers.

@@ -19,7 +19,7 @@ void RISCV::RegisterAllocator::FGraphColoring::allocate() {
 }
 
 void RISCV::RegisterAllocator::FGraphColoring::create_registers() {
-    create_entry();
+    // create_entry();
     std::shared_ptr<Backend::LIR::Block> block_entry = lir_function->blocks.front();
     // 2. add fa0-ft11
     for (const RISCV::Registers::ABI reg : RISCV::Registers::Floats::registers)

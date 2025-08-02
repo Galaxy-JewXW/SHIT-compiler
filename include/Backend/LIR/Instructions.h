@@ -122,12 +122,17 @@ class Backend::LIR::LoadAddress : public Backend::LIR::Instruction {
     public:
         std::shared_ptr<Variable> var_in_mem;
         std::shared_ptr<Variable> addr;
+        int32_t offset{0};
 
+        LoadAddress(const std::shared_ptr<Variable> &var_in_mem, const std::shared_ptr<Variable> &addr, int32_t offset) : Backend::LIR::Instruction(InstructionType::LOAD_ADDR), var_in_mem(var_in_mem), addr(addr), offset(offset) {}
         LoadAddress(const std::shared_ptr<Variable> &var_in_mem, const std::shared_ptr<Variable> &addr) : Backend::LIR::Instruction(InstructionType::LOAD_ADDR), var_in_mem(var_in_mem), addr(addr) {}
 
         inline std::string to_string() const override {
             std::ostringstream oss;
-            oss << addr->to_string() << " = &" << var_in_mem->to_string();
+            oss << addr->to_string()
+                << " = &"
+                << var_in_mem->to_string()
+                << " + " << offset;
             return oss.str();
         }
 
@@ -415,7 +420,6 @@ class Backend::LIR::Return : public Backend::LIR::Instruction {
             if (return_value == original) return_value = update_to;
         }
 };
-
 
 class Backend::LIR::FNeg : public Backend::LIR::Instruction {
     public:
