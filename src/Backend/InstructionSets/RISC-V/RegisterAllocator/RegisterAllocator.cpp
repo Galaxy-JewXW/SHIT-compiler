@@ -2,7 +2,16 @@
 #include "Backend/InstructionSets/RISC-V/RegisterAllocator/GraphColoring.h"
 #include "Backend/InstructionSets/RISC-V/Modules.h"
 
-RISCV::RegisterAllocator::Allocator::Allocator(const std::shared_ptr<Backend::LIR::Function> &function, const std::shared_ptr<RISCV::Stack> &stack) : stack(stack), lir_function(function) {}
+RISCV::RegisterAllocator::Allocator::Allocator(const std::shared_ptr<Backend::LIR::Function> &function, const std::shared_ptr<RISCV::Stack> &stack) : stack(stack), lir_function(function) {
+    for (const std::shared_ptr<Backend::Variable> &arg: lir_function->parameters) {
+        std::shared_ptr<Backend::Variable> param_in_mem = std::make_shared<Backend::Variable>(arg->name + "_mem", arg->workload_type, Backend::VariableWide::FUNCTIONAL);
+        stack->add_variable(param_in_mem);
+        function->add_variable(param_in_mem);
+    }
+    for (const std::pair<std::string, std::shared_ptr<Backend::Variable>> pair : lir_function->variables)
+        if (pair.second->lifetime == Backend::VariableWide::FUNCTIONAL)
+            stack->add_variable(pair.second);
+}
 
 std::shared_ptr<RISCV::RegisterAllocator::Allocator> RISCV::RegisterAllocator::create(AllocationType type, const std::shared_ptr<Backend::LIR::Function> &function, std::shared_ptr<RISCV::Stack> &stack) {
     switch (type) {

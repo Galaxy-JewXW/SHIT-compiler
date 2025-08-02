@@ -488,7 +488,7 @@ class Backend::LIR::Module : public std::enable_shared_from_this<Backend::LIR::M
         void load_store_instruction(const std::shared_ptr<Backend::Variable> &store_to, const std::shared_ptr<Backend::Variable> &store_from, std::shared_ptr<Backend::LIR::Block> &lir_block);
         template<typename LoadInst>
         void load_load_instruction(const std::shared_ptr<Backend::Variable> &load_from, const std::shared_ptr<Backend::Variable> &load_to, std::shared_ptr<Backend::LIR::Block> &lir_block);
-        std::shared_ptr<Backend::Variable> load_addr(const std::shared_ptr<Backend::Pointer> &load_from, std::shared_ptr<Backend::LIR::Block> &lir_block);
+        std::shared_ptr<Backend::Variable> load_addr(std::shared_ptr<Backend::Pointer> &load_from, std::shared_ptr<Backend::LIR::Block> &lir_block);
 };
 
 #endif

@@ -46,3 +46,45 @@ void RISCV::ReWrite::rewrite_large_offset(const std::shared_ptr<Backend::LIR::Fu
         }
     }
 }
+
+void RISCV::ReWrite::rewrite_parameters(const std::shared_ptr<Backend::LIR::Function> &lir_function, const std::shared_ptr<RISCV::Stack> &stack) {
+    std::shared_ptr<Backend::LIR::Block> block_entry = lir_function->blocks.front();
+    for (size_t i = 0, j = 0; i < lir_function->parameters.size(); i++) {
+        const std::shared_ptr<Backend::Variable> &arg = lir_function->parameters[i];
+        if (!Backend::Utils::is_int(arg->workload_type))
+            continue;
+        if (j < 8)
+            block_entry->instructions.push_back(std::make_shared<Backend::LIR::Move>(lir_function->variables[RISCV::Registers::to_string(RISCV::Registers::ABI::A0 + j++)], arg));
+        else
+            block_entry->instructions.push_back(std::make_shared<Backend::LIR::LoadInt>(lir_function->variables[arg->name + "_mem"], arg));
+    }
+    for (const std::shared_ptr<Backend::LIR::Block> &block : lir_function->blocks) {
+        for (size_t i = 0; i < block->instructions.size(); i++) {
+            std::shared_ptr<Backend::LIR::Instruction> instruction = block->instructions[i];
+            if (instruction->type == Backend::LIR::InstructionType::CALL) {
+                std::shared_ptr<Backend::LIR::Call> call = std::static_pointer_cast<Backend::LIR::Call>(block->instructions[i]);
+                for (size_t j = 0, k = 0, sp_offset = RISCV::Stack::RA_SIZE; j < call->arguments.size(); j++) {
+                    const std::shared_ptr<Backend::Variable> &arg = call->arguments[j];
+                    if (Backend::Utils::is_int(arg->workload_type)) {
+                        sp_offset += Backend::Utils::type_to_size(arg->workload_type);
+                        if (k < 8) {
+                            // move arguments to a0-a7
+                            const std::shared_ptr<Backend::Variable> &phyReg = lir_function->variables[RISCV::Registers::to_string(RISCV::Registers::ABI::A0 + k++)];
+                            block->instructions.insert(block->instructions.begin() + i++, std::make_shared<Backend::LIR::Move>(call->arguments[j], phyReg));
+                            call->arguments[j] = phyReg;
+                        } else {
+                            std::shared_ptr<Backend::Variable> param_ = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("param"), arg->workload_type, Backend::VariableWide::FUNCTIONAL);
+                            stack->add_parameter(param_, sp_offset);
+                            block->instructions.insert(block->instructions.begin() + i++, std::make_shared<Backend::LIR::StoreInt>(param_, arg));
+                            call->arguments[j] = param_;
+                        }
+                    }
+                }
+                // move result of the call to a0
+                if (call->result && Backend::Utils::is_int(call->result->workload_type))
+                    block->instructions.insert(block->instructions.begin() + i + 1, std::make_shared<Backend::LIR::Move>(lir_function->variables[RISCV::Registers::to_string(RISCV::Registers::ABI::A0)], call->result)),
+                    call->result = lir_function->variables[RISCV::Registers::to_string(RISCV::Registers::ABI::A0)];
+            }
+        }
+    }
+}

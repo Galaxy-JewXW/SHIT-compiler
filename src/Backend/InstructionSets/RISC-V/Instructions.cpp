@@ -42,16 +42,16 @@ namespace RISCV::Instructions {
 
     std::string StoreWordToStack::to_string() const {
         if (Backend::Utils::type_to_size(variable->workload_type) == 8 * __BYTE__)
-            return std::make_shared<Instructions::StoreDoubleword>(RISCV::Registers::ABI::SP, rd, stack->stack_size - stack->stack_index[variable->name] + offset)->to_string();
+            return std::make_shared<Instructions::StoreDoubleword>(RISCV::Registers::ABI::SP, rd, stack->offset_of(variable) + offset)->to_string();
         else
-            return std::make_shared<Instructions::StoreWord>(RISCV::Registers::ABI::SP, rd, stack->stack_size - stack->stack_index[variable->name] + offset)->to_string();
+            return std::make_shared<Instructions::StoreWord>(RISCV::Registers::ABI::SP, rd, stack->offset_of(variable) + offset)->to_string();
     }
 
     std::string FStoreWordToStack::to_string() const {
         if (Backend::Utils::type_to_size(variable->workload_type) == 8 * __BYTE__)
-            return std::make_shared<Instructions::FStoreDoubleword>(RISCV::Registers::ABI::SP, rd, stack->stack_size - stack->stack_index[variable->name] + offset)->to_string();
+            return std::make_shared<Instructions::FStoreDoubleword>(RISCV::Registers::ABI::SP, rd, stack->offset_of(variable) + offset)->to_string();
         else
-            return std::make_shared<Instructions::FStoreWord>(RISCV::Registers::ABI::SP, rd, stack->stack_size - stack->stack_index[variable->name] + offset)->to_string();
+            return std::make_shared<Instructions::FStoreWord>(RISCV::Registers::ABI::SP, rd, stack->offset_of(variable) + offset)->to_string();
     }
 
     std::string LoadDoubleword::to_string() const {
@@ -109,11 +109,11 @@ namespace RISCV::Instructions {
     }
 
     std::string LoadAddressFromStack::to_string() const {
-        if (is_12bit(stack->stack_size - stack->stack_index[variable->name]))
-            return std::make_shared<Instructions::AddImmediate>(rd, RISCV::Registers::ABI::SP, stack->stack_size - stack->stack_index[variable->name])->to_string();
+        if (is_12bit(stack->offset_of(variable)))
+            return std::make_shared<Instructions::AddImmediate>(rd, RISCV::Registers::ABI::SP, stack->offset_of(variable))->to_string();
         else {
             std::ostringstream oss;
-            oss << std::make_shared<Instructions::LoadImmediate>(rd, stack->stack_size - stack->stack_index[variable->name])->to_string() << "\n  ";
+            oss << std::make_shared<Instructions::LoadImmediate>(rd, stack->offset_of(variable))->to_string() << "\n  ";
             oss << std::make_shared<Instructions::Add>(rd, RISCV::Registers::ABI::SP, rd)->to_string();
             return oss.str();
         }
@@ -121,13 +121,13 @@ namespace RISCV::Instructions {
 
     std::string LoadWordFromStack::to_string() const {
         if (Backend::Utils::type_to_size(variable->workload_type) == 8 * __BYTE__)
-            return std::make_shared<Instructions::LoadDoubleword>(rd, RISCV::Registers::ABI::SP, stack->stack_size - stack->stack_index[variable->name] + offset)->to_string();
+            return std::make_shared<Instructions::LoadDoubleword>(rd, RISCV::Registers::ABI::SP, stack->offset_of(variable) + offset)->to_string();
         else
-            return std::make_shared<Instructions::LoadWord>(rd, RISCV::Registers::ABI::SP, stack->stack_size - stack->stack_index[variable->name] + offset)->to_string();
+            return std::make_shared<Instructions::LoadWord>(rd, RISCV::Registers::ABI::SP, stack->offset_of(variable) + offset)->to_string();
     }
 
     std::string FLoadWordFromStack::to_string() const {
-        return std::make_shared<Instructions::FLoadWord>(rd, RISCV::Registers::ABI::SP, stack->stack_size - stack->stack_index[variable->name] + offset)->to_string();
+        return std::make_shared<Instructions::FLoadWord>(rd, RISCV::Registers::ABI::SP, stack->offset_of(variable) + offset)->to_string();
     }
 
     std::string Call::to_string() const {
@@ -272,7 +272,7 @@ namespace RISCV::Instructions {
 
     std::string Fcvt_W_S::to_string() const {
         std::ostringstream oss;
-        oss << "fcvt.w.s " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1);
+        oss << "fcvt.w.s " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", rtz";
         return oss.str();
     }
 
