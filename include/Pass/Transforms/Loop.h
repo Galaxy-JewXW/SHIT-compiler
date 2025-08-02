@@ -105,6 +105,21 @@ protected:
     void get_cache_cost_manager(std::vector<std::shared_ptr<LoopNodeTreeNode>> &loops);
 };
 
+class ConstLoopUnroll final : public Transform {
+public:
+    explicit ConstLoopUnroll() : Transform("ConstLoopUnroll") {}
+
+    void transform(std::shared_ptr<Mir::Module> module) override;
+    void transform(const std::shared_ptr<Mir::Function> &) override;
+
+    bool try_unroll(std::shared_ptr<LoopNodeTreeNode> loop_node, std::shared_ptr<Mir::Function> func);
+protected:
+    std::shared_ptr<LoopAnalysis> loop_info_;
+    std::shared_ptr<SCEVAnalysis> scev_info_;
+    std::shared_ptr<ControlFlowGraph> cfg_info_;
+    int max_line_num = 5000;
+};
+
 class LoopInvariantCodeMotion final : public Transform {
 public:
     explicit LoopInvariantCodeMotion() : Transform("LoopInvariantCodeMotion") {}
