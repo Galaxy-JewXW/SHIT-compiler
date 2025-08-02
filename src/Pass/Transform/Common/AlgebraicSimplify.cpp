@@ -267,16 +267,56 @@ bool _reduce_icmp_with_zext(std::vector<std::shared_ptr<Instruction>> &instructi
         return false;
 
     const auto zext = lhs->as<Zext>();
-    const auto icmp = zext->get_value()->is<Icmp>();
-    if (icmp == nullptr || icmp->icmp_op() != Icmp::Op::EQ)
+    if (const auto icmp = zext->get_value()->is<Icmp>()) {
+        if (!(!icmp->get_lhs()->is_constant() && icmp->get_rhs()->is_constant()))
+            return false;
+        if (**icmp->get_rhs()->as<ConstInt>() != 0)
+            return false;
+        cmp->replace_by_new_value(icmp);
+        return true;
+    }
+    if (const auto fcmp = zext->get_value()->is<Fcmp>()) {
+        if (!(!fcmp->get_lhs()->is_constant() && fcmp->get_rhs()->is_constant()))
+            return false;
+        if (**fcmp->get_rhs()->as<ConstFloat>() != 0.0)
+            return false;
+        cmp->replace_by_new_value(fcmp);
+        return true;
+    }
+    return false;
+}
+
+template<typename Compare = Fcmp>
+bool _reduce_fcmp_with_zext(std::vector<std::shared_ptr<Instruction>> &instructions, const size_t &idx,
+                            const std::shared_ptr<Block> &) {
+    static_assert(std::is_same_v<Compare, Fcmp>);
+    const auto cmp{instructions[idx]->as<Fcmp>()};
+    const auto &lhs{cmp->get_lhs()};
+
+    if (const auto &rhs{cmp->get_rhs()}; **rhs->as<ConstFloat>() != 0.0)
         return false;
-    if (!(!icmp->get_lhs()->is_constant() && icmp->get_rhs()->is_constant()))
-        return false;
-    if (**icmp->get_rhs()->as<ConstInt>() != 0)
+    if (cmp->fcmp_op() != Fcmp::Op::NE)
         return false;
 
-    cmp->replace_by_new_value(icmp);
-    return true;
+    const auto sitofp = lhs->is<Sitofp>();
+    if (!sitofp)
+        return false;
+
+    const auto zext = sitofp->get_value()->is<Zext>();
+    if (!zext)
+        return false;
+
+    if (const auto fcmp = zext->get_value()->is<Fcmp>()) {
+        if (!(!fcmp->get_lhs()->is_constant() && fcmp->get_rhs()->is_constant()))
+            return false;
+        if (**fcmp->get_rhs()->as<ConstFloat>() != 0.0)
+            return false;
+        if (fcmp->fcmp_op() != Fcmp::Op::NE)
+            return false;
+        cmp->replace_by_new_value(fcmp);
+        return true;
+    }
+    return false;
 }
 
 template<typename Compare>
@@ -954,6 +994,8 @@ bool handle_intbinary_icmp(const std::shared_ptr<Block> &block) {
             }();
         } else if (t == Operator::ICMP) {
             changed |= reduce_cmp<Icmp>(instructions, i, block);
+        } else if (t == Operator::FCMP) {
+            changed |= _reduce_fcmp_with_zext<Fcmp>(instructions, i, block);
         }
     }
     return changed;
