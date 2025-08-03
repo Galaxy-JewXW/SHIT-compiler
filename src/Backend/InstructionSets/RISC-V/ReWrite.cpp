@@ -78,17 +78,19 @@ void RISCV::ReWrite::rewrite_parameters_i(const std::shared_ptr<Backend::LIR::Fu
                             std::shared_ptr<Backend::Variable> param_ = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("param"), arg->workload_type, Backend::VariableWide::FUNCTIONAL);
                             stack->add_parameter(param_, sp_offset);
                             size_t instert_at = i;
-                            for (size_t i_ = i; i_ >= 0; i_--) {
+                            for (int32_t i_ = i; i_ >= 0; i_--) {
                                 if (block->instructions[i_]->get_defined_variable() == arg) {
-                                    instert_at = i_;
+                                    instert_at = i_ + 1;
                                     break;
-                                }
+                                } else if (block->instructions[i_]->type == Backend::LIR::InstructionType::CALL)
+                                    break;
                             }
                             block->instructions.insert(block->instructions.begin() + instert_at, std::make_shared<Backend::LIR::StoreInt>(param_, arg));
                             call->arguments[j] = param_;
                             i++;
                         }
-                    }
+                    } else
+                        sp_offset += 4;
                 }
                 // move result of the call to a0
                 if (call->result && Backend::Utils::is_int(call->result->workload_type))
@@ -117,8 +119,8 @@ void RISCV::ReWrite::rewrite_parameters_f(const std::shared_ptr<Backend::LIR::Fu
                 std::shared_ptr<Backend::LIR::Call> call = std::static_pointer_cast<Backend::LIR::Call>(block->instructions[i]);
                 for (size_t j = 0, k = 0, sp_offset = RISCV::Stack::RA_SIZE; j < call->arguments.size(); j++) {
                     const std::shared_ptr<Backend::Variable> &arg = call->arguments[j];
+                    sp_offset += Backend::Utils::type_to_size(arg->workload_type);
                     if (Backend::Utils::is_float(arg->workload_type)) {
-                        sp_offset += Backend::Utils::type_to_size(arg->workload_type);
                         if (k < 8) {
                             // move arguments to fa0-fa7
                             const std::shared_ptr<Backend::Variable> &phyReg = lir_function->variables[RISCV::Registers::to_string(RISCV::Registers::ABI::FA0 + k++)];
@@ -127,8 +129,17 @@ void RISCV::ReWrite::rewrite_parameters_f(const std::shared_ptr<Backend::LIR::Fu
                         } else {
                             std::shared_ptr<Backend::Variable> param_ = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("param"), arg->workload_type, Backend::VariableWide::FUNCTIONAL);
                             stack->add_parameter(param_, sp_offset);
-                            block->instructions.insert(block->instructions.begin() + i++, std::make_shared<Backend::LIR::StoreFloat>(param_, arg));
+                            size_t instert_at = i;
+                            for (int32_t i_ = i; i_ >= 0; i_--) {
+                                if (block->instructions[i_]->get_defined_variable() == arg) {
+                                    instert_at = i_ + 1;
+                                    break;
+                                } else if (block->instructions[i_]->type == Backend::LIR::InstructionType::CALL)
+                                    break;
+                            }
+                            block->instructions.insert(block->instructions.begin() + instert_at, std::make_shared<Backend::LIR::StoreFloat>(param_, arg));
                             call->arguments[j] = param_;
+                            i++;
                         }
                     }
                 }
