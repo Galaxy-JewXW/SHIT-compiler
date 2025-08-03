@@ -53,7 +53,7 @@ struct BinaryOpKeyHasher {
     }
 };
 
-struct {
+struct Ranker_ {
     using Key = std::pair<int, uintptr_t>;
 
     Key operator()(const std::shared_ptr<Value> &value) const {
@@ -344,7 +344,7 @@ public:
         current_function(p_current_function), graph(graph) {}
 
     bool run() {
-        Map seen_computations{};
+        const Map seen_computations{};
         run_on_block(current_function->get_blocks().front(), seen_computations);
         Pass::Utils::delete_instruction_set(Module::instance(), to_erase);
         return changed;
@@ -353,15 +353,23 @@ public:
 private:
     const std::shared_ptr<Function> &current_function;
     const Pass::DominanceGraph::Graph &graph;
-    std::unordered_set<std::shared_ptr<IntBinary>> worklist{};
     std::unordered_set<std::shared_ptr<Instruction>> to_erase{};
     bool changed{false};
 
     void run_on_block(const std::shared_ptr<Block> &block, const Map &seen_computations);
 
-    bool try_rewrite(const std::shared_ptr<IntBinary> &instruction, const Map &seen_computations);
+    static bool try_rewrite(const std::shared_ptr<IntBinary> &instruction, const Map &seen_computations);
 
     static bool is_candidate(const std::shared_ptr<Instruction> &instruction);
+
+    static std::shared_ptr<IntBinary> build_tree(const std::shared_ptr<Value> &initial,
+                                                 const std::vector<std::shared_ptr<Value>> &remainings,
+                                                 IntBinary::Op op,
+                                                 const std::shared_ptr<Instruction> &origin);
+
+    static std::shared_ptr<IntBinary> create_int_binary(const std::shared_ptr<Value> &lhs,
+                                                        const std::shared_ptr<Value> &rhs, IntBinary::Op type,
+                                                        const std::shared_ptr<Instruction> &origin);
 };
 
 bool NaryReassociateImpl::is_candidate(const std::shared_ptr<Instruction> &instruction) {
@@ -371,18 +379,108 @@ bool NaryReassociateImpl::is_candidate(const std::shared_ptr<Instruction> &instr
     return false;
 }
 
+std::shared_ptr<IntBinary> NaryReassociateImpl::create_int_binary(const std::shared_ptr<Value> &lhs,
+                                                                  const std::shared_ptr<Value> &rhs,
+                                                                  const IntBinary::Op type,
+                                                                  const std::shared_ptr<Instruction> &origin) {
+    static int id = 0;
+    auto new_inst = [&]() -> std::shared_ptr<IntBinary> {
+        switch (type) {
+            case IntBinary::Op::ADD:
+                return Add::create("%add" + std::to_string(++id), lhs, rhs, origin->get_block());
+            case IntBinary::Op::SUB:
+                return Sub::create("%sub" + std::to_string(++id), lhs, rhs, origin->get_block());
+            case IntBinary::Op::MUL:
+                return Mul::create("%mul" + std::to_string(++id), lhs, rhs, origin->get_block());
+            case IntBinary::Op::AND:
+                return And::create("%and" + std::to_string(++id), lhs, rhs, origin->get_block());
+            case IntBinary::Op::OR:
+                return Or::create("%or" + std::to_string(++id), lhs, rhs, origin->get_block());
+            case IntBinary::Op::XOR:
+                return Xor::create("%xor" + std::to_string(++id), lhs, rhs, origin->get_block());
+            case IntBinary::Op::SMAX:
+                return Smax::create("%smax" + std::to_string(++id), lhs, rhs, origin->get_block());
+            case IntBinary::Op::SMIN:
+                return Smin::create("%smin" + std::to_string(++id), lhs, rhs, origin->get_block());
+            default:
+                log_error("Not supported");
+        }
+    }();
+    Pass::Utils::move_instruction_before(new_inst, origin);
+    return new_inst;
+}
+
+std::shared_ptr<IntBinary> NaryReassociateImpl::build_tree(const std::shared_ptr<Value> &initial,
+                                                           const std::vector<std::shared_ptr<Value>> &remainings,
+                                                           const IntBinary::Op op,
+                                                           const std::shared_ptr<Instruction> &origin) {
+    auto res = create_int_binary(initial, remainings[0], op, origin);
+    for (size_t i = 1; i < remainings.size(); ++i) {
+        res = create_int_binary(res, remainings[i], op, origin);
+    }
+    return res;
+}
+
 bool NaryReassociateImpl::try_rewrite(const std::shared_ptr<IntBinary> &instruction, const Map &seen_computations) {
+    if (!is_candidate(instruction))
+        return false;
+
+    // 将由相同操作符构成的表达式树扁平化为一个操作数列表
+    std::vector<std::shared_ptr<Value>> operands_list;
+    decltype(operands_list) worklist;
+    worklist.push_back(instruction);
+    const auto root_type = instruction->intbinary_op();
+
+    while (!worklist.empty()) {
+        const auto current = worklist.back();
+        worklist.pop_back();
+        if (const auto inst = current->is<IntBinary>(); inst && inst->intbinary_op() == root_type) {
+            worklist.push_back(inst->get_lhs());
+            worklist.push_back(inst->get_rhs());
+        } else {
+            operands_list.push_back(current);
+        }
+    }
+
+    if (operands_list.size() <= 2)
+        return false;
+
+    std::sort(operands_list.begin(), operands_list.end(),
+                  [](const std::shared_ptr<Value> &a, const std::shared_ptr<Value> &b) {
+                      return ranker(a) < ranker(b);
+                  });
+
+    const auto l = operands_list.size();
+    for (size_t i = 0; i < l; ++i) {
+        for (size_t j = i + 1; j < l; ++j) {
+            const auto op1 = operands_list[i];
+            const auto op2 = operands_list[j];
+            const auto key = BinaryOpKey{root_type, op1, op2};
+            if (const auto it = seen_computations.find(key); it != seen_computations.end()) {
+                const auto existing = it->second;
+                decltype(operands_list) remaining_operands_list;
+                for (size_t k = 0; k < l; ++k) {
+                    if (k != i && k != j)
+                        remaining_operands_list.push_back(operands_list[k]);
+                }
+                const auto new_inst = build_tree(existing, remaining_operands_list, root_type, instruction);
+                instruction->replace_by_new_value(new_inst);
+                return true;
+            }
+        }
+    }
+
     return false;
 }
 
 void NaryReassociateImpl::run_on_block(const std::shared_ptr<Block> &block, const Map &seen_computations) {
     auto local_computations = seen_computations;
-    const auto &instructions = block->get_instructions();
+    const auto instructions = block->get_instructions();
     for (const auto &instruction: instructions) {
         if (instruction->get_op() != Operator::INTBINARY)
             continue;
-
-        if (const auto intbinary = instruction->as<IntBinary>(); try_rewrite(intbinary, local_computations)) {
+        if (const auto intbinary = instruction->as<IntBinary>();
+            try_rewrite(intbinary, local_computations)) {
             changed = true;
             to_erase.insert(instruction);
         } else {
@@ -403,10 +501,10 @@ void Pass::Reassociate::transform(const std::shared_ptr<Module> module) {
         if (SimpleReassociateImpl{func}.run()) {
             create<DeadCodeEliminate>()->run_on(func);
         }
-        // if (NaryReassociateImpl{func, dom_info->graph(func)}.run()) {
-        //     create<DeadCodeEliminate>()->run_on(func);
-        // }
+        if (NaryReassociateImpl{func, dom_info->graph(func)}.run()) {
+            create<DeadCodeEliminate>()->run_on(func);
+        }
     }
-    create<TreeHeightBalance>()->run_on(module);
+    create<GlobalValueNumbering>()->run_on(module);
     create<DeadCodeEliminate>()->run_on(module);
 }

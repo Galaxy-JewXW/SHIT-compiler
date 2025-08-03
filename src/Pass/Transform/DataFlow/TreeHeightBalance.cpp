@@ -114,7 +114,7 @@ void handle(const std::shared_ptr<Block> &block) {
         };
         dfs(dfs, root->get_lhs());
         dfs(dfs, root->get_rhs());
-        if (leaves.size() < 2) {
+        if (leaves.size() <= 2) {
             continue;
         }
         const auto new_root = build_balanced<BinaryType>(block, root, leaves, 0, leaves.size());
