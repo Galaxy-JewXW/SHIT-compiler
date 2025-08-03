@@ -1,6 +1,7 @@
 #include <unordered_set>
 
 #include "Pass/Analyses/ControlFlowGraph.h"
+#include "Pass/Transforms/Common.h"
 #include "Pass/Transforms/ControlFlow.h"
 #include "Pass/Transforms/DataFlow.h"
 
@@ -123,7 +124,7 @@ void SimplifyControlFlow::remove_deleted_blocks(const std::shared_ptr<Function> 
     set_analysis_result_dirty<DominanceGraph>(func);
 }
 
-void SimplifyControlFlow::remove_unreachable_blocks(const std::shared_ptr<Function> &func) {
+bool SimplifyControlFlow::remove_unreachable_blocks(const std::shared_ptr<Function> &func) {
     std::unordered_set<std::shared_ptr<Block>> visited_blocks;
 
     auto dfs = [&](auto &&self, const std::shared_ptr<Block> &block) -> void {
@@ -155,6 +156,7 @@ void SimplifyControlFlow::remove_unreachable_blocks(const std::shared_ptr<Functi
 
     dfs(dfs, func->get_blocks().front());
 
+    bool changed = false;
     auto &blocks = func->get_blocks();
     blocks.erase(std::remove_if(blocks.begin(), blocks.end(),
                                 [&](const std::shared_ptr<Block> &block) {
@@ -168,15 +170,17 @@ void SimplifyControlFlow::remove_unreachable_blocks(const std::shared_ptr<Functi
                                     block->clear_operands();
                                     block->set_deleted();
                                     set_analysis_result_dirty<ControlFlowGraph>(func);
+                                    changed = true;
                                     return true;
                                 }),
                  blocks.end());
 
     set_analysis_result_dirty<ControlFlowGraph>(func);
     set_analysis_result_dirty<DominanceGraph>(func);
+    return changed;
 }
 
-void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) const {
+bool SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) const {
     auto predecessors = cfg_info->graph(func).predecessors;
     auto successors = cfg_info->graph(func).successors;
     bool graph_modified{false}, changed{false};
@@ -242,7 +246,14 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
                 continue;
             }
             if (const auto parent = *predecessors.at(child).begin(); parent != block) {
-                log_error("Parent block is not the current block");
+                continue;
+            }
+            const auto &last_inst = block->get_instructions().back();
+            if (last_inst->get_op() != Operator::JUMP) {
+                continue;
+            }
+            if (last_inst->as<Jump>()->get_target_block() != child) {
+                continue;
             }
             perform_merge(block, child);
             modified = true;
@@ -288,21 +299,6 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
             return block->get_instructions().front()->as<Branch>();
         }
         return nullptr;
-    };
-
-    // 检查给定块的前驱是否均只有给定块作为后继
-    const auto get_candidate_predecessors = [&](const std::shared_ptr<Block> &block) {
-        std::unordered_set<std::shared_ptr<Block>> candidates;
-        for (const auto &pre: predecessors.at(block)) {
-            if (successors.at(pre).size() != 1) {
-                continue;
-            }
-            if (*successors.at(pre).begin() != block) {
-                continue;
-            }
-            candidates.insert(pre);
-        }
-        return candidates;
     };
 
     // 移除"空"块：消除只包含单个无条件跳转的基本块
@@ -391,15 +387,14 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
                 continue;
             }
             // 这个唯一的前驱是否也只有 'block' 这一个后继
-            if (const auto predecessor_block = *all_predecessors.begin();
-                successors.at(predecessor_block).size() != 1) {
+            const auto predecessor_block = *all_predecessors.begin();
+            if (successors.at(predecessor_block).size() != 1) {
                 continue;
             }
-            const auto candidate = get_candidate_predecessors(block);
-            if (candidate.size() != 1) {
+            if (predecessor_block->get_instructions().back()->get_op() != Operator::JUMP) {
                 continue;
             }
-            const auto candidate_block = *candidate.begin();
+            const auto &candidate_block = predecessor_block;
             auto locked_users{block->users().lock()};
             const auto is_available = [&](const std::shared_ptr<User> &user) -> bool {
                 if (const auto phi{user->is<Phi>()}) {
@@ -415,7 +410,7 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
             if (!std::all_of(locked_users.begin(), locked_users.end(), is_available)) {
                 continue;
             }
-            const auto &last_instruction = candidate_block->get_instructions().back();
+            const auto last_instruction = candidate_block->get_instructions().back();
             last_instruction->clear_operands();
             candidate_block->get_instructions().pop_back();
             if (last_instruction->get_op() != Operator::JUMP) {
@@ -426,13 +421,13 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
             }
             Branch::create(branch->get_cond(), branch->get_true_block(), branch->get_false_block(), candidate_block);
             block->replace_by_new_value(candidate_block);
+
             // 手动维护cfg
-            for (const auto &pre: candidate) {
-                successors.at(pre).erase(block);
-                successors.at(pre).insert({branch->get_true_block(), branch->get_false_block()});
-                predecessors.at(branch->get_true_block()).insert(pre);
-                predecessors.at(branch->get_false_block()).insert(pre);
-            }
+            successors.at(candidate_block).erase(block);
+            successors.at(candidate_block).insert({branch->get_true_block(), branch->get_false_block()});
+            predecessors.at(branch->get_true_block()).insert(candidate_block);
+            predecessors.at(branch->get_false_block()).insert(candidate_block);
+
             predecessors.erase(block);
             successors.erase(block);
             block->get_instructions().clear();
@@ -474,6 +469,7 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
         combine_blocks();
         remove_empty_blocks();
         hoist_branch();
+        fold_redundant_branch();
         // cleanup_switch();
         if (changed) {
             remove_deleted_blocks(func);
@@ -486,40 +482,51 @@ void SimplifyControlFlow::run_on_func(const std::shared_ptr<Function> &func) con
         set_analysis_result_dirty<ControlFlowGraph>(func);
         set_analysis_result_dirty<DominanceGraph>(func);
     }
+    return graph_modified;
 }
 
 void SimplifyControlFlow::transform(const std::shared_ptr<Module> module) {
     // 预处理：清除不可达基本块
+    create<AlgebraicSimplify>()->run_on(module);
     for (const auto &func: module->get_functions()) {
         remove_unreachable_blocks(func);
     }
 
-    cfg_info = get_analysis_result<ControlFlowGraph>(module);
-    for (const auto &func: module->get_functions()) {
-        // log_debug("Before: %s", func->to_string().c_str());
-        run_on_func(func);
-        // log_debug("After: %s", func->to_string().c_str());
-    }
-    cfg_info = get_analysis_result<ControlFlowGraph>(module);
+    bool changed;
+    do {
+        changed = false;
+        cfg_info = get_analysis_result<ControlFlowGraph>(module);
+        for (const auto &func: module->get_functions()) {
+            // log_debug("Before: %s", func->to_string().c_str());
+            changed |= run_on_func(func);
+            // log_debug("After: %s", func->to_string().c_str());
+        }
+        cfg_info = get_analysis_result<ControlFlowGraph>(module);
 
-    for (const auto &func: module->get_functions()) {
-        cleanup_phi(func, cfg_info);
-    }
+        for (const auto &func: module->get_functions()) {
+            cleanup_phi(func, cfg_info);
+        }
 
-    for (const auto &func: module->get_functions()) {
-        remove_unreachable_blocks(func);
-    }
+        for (const auto &func: module->get_functions()) {
+            remove_unreachable_blocks(func);
+        }
+    } while (changed);
     set_analysis_result_dirty<ControlFlowGraph>(module);
     cfg_info = nullptr;
+    create<AlgebraicSimplify>()->run_on(module);
 }
 
 void SimplifyControlFlow::transform(const std::shared_ptr<Function> &func) {
     remove_unreachable_blocks(func);
-    cfg_info = get_analysis_result<ControlFlowGraph>(Module::instance());
-    run_on_func(func);
-    cfg_info = get_analysis_result<ControlFlowGraph>(Module::instance());
-    cleanup_phi(func, cfg_info);
+    bool changed;
+    do {
+        cfg_info = get_analysis_result<ControlFlowGraph>(Module::instance());
+        changed = run_on_func(func);
+        cfg_info = get_analysis_result<ControlFlowGraph>(Module::instance());
+        cleanup_phi(func, cfg_info);
+    } while (changed);
     set_analysis_result_dirty<ControlFlowGraph>(func);
     cfg_info = nullptr;
+    create<AlgebraicSimplify>()->run_on(func);
 }
 } // namespace Pass

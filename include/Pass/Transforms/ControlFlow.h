@@ -30,12 +30,12 @@ protected:
     void transform(const std::shared_ptr<Mir::Function> &) override;
 
 public:
-    static void remove_unreachable_blocks(const std::shared_ptr<Mir::Function> &func);
+    static bool remove_unreachable_blocks(const std::shared_ptr<Mir::Function> &func);
 
     static void remove_deleted_blocks(const std::shared_ptr<Mir::Function> &func);
 
 private:
-    void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
+    bool run_on_func(const std::shared_ptr<Mir::Function> &func) const;
 
     std::shared_ptr<ControlFlowGraph> cfg_info{nullptr};
 };
