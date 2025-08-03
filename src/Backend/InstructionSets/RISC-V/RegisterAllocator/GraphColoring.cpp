@@ -21,7 +21,7 @@ void RISCV::RegisterAllocator::GraphColoring::allocate() {
     __allocate__();
     log_info("Allocated integer registers for %s", lir_function->name.c_str());
     stack->stack_size = stack->align(16);
-    std::cout << to_string() << "\n";
+    // std::cout << to_string() << "\n";
 }
 
 void RISCV::RegisterAllocator::GraphColoring::__allocate__() {
@@ -344,6 +344,6 @@ void RISCV::RegisterAllocator::GraphColoring::coalesce_nodes(const std::string& 
     std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> n2 = interference_graph[node2];
     if (n2->is_colored) std::swap(n1, n2);
     *n1 += n2;
-    log_debug("Coalesced %s and %s", n1->variable->name.c_str(), n2->variable->name.c_str());
+    // log_debug("Coalesced %s and %s", n1->variable->name.c_str(), n2->variable->name.c_str());
     interference_graph.erase(n2->variable->name);
 }
