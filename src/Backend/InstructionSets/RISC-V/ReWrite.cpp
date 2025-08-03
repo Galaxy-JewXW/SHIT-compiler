@@ -14,8 +14,8 @@ void RISCV::ReWrite::create_entry_block(const std::shared_ptr<Backend::LIR::Func
 
 void RISCV::ReWrite::rewrite_large_offset(const std::shared_ptr<Backend::LIR::Function> &lir_function, const std::shared_ptr<RISCV::Stack> &stack) {
     for (std::shared_ptr<Backend::LIR::Block> block: lir_function->blocks) {
-        for (std::vector<std::shared_ptr<Backend::LIR::Instruction>>::iterator it = block->instructions.begin(); it != block->instructions.end(); it++) {
-            std::shared_ptr<Backend::LIR::Instruction> instruction = *it;
+        for (size_t i = 0; i < block->instructions.size(); ++i) {
+            std::shared_ptr<Backend::LIR::Instruction> instruction = block->instructions[i];
             if (instruction->type == Backend::LIR::InstructionType::LOAD) {
                 std::shared_ptr<Backend::LIR::LoadInt> instruction_ = std::static_pointer_cast<Backend::LIR::LoadInt>(instruction);
                 std::shared_ptr<Backend::Variable> var_in_mem = instruction_->var_in_mem;
@@ -24,7 +24,8 @@ void RISCV::ReWrite::rewrite_large_offset(const std::shared_ptr<Backend::LIR::Fu
                     if (Backend::Utils::is_12bit(offset))
                         continue;
                     std::shared_ptr<Backend::Variable> addr = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("addr"), Backend::Utils::to_pointer(var_in_mem->workload_type), Backend::VariableWide::LOCAL);
-                    block->instructions.insert(it, std::make_shared<Backend::LIR::LoadAddress>(var_in_mem, addr));
+                    lir_function->add_variable(addr);
+                    block->instructions.insert(block->instructions.begin() + i, std::make_shared<Backend::LIR::LoadAddress>(var_in_mem, addr));
                     instruction_->var_in_mem = addr;
                     if (instruction_->offset)
                         log_warn("Offset is not zero!");
@@ -37,7 +38,8 @@ void RISCV::ReWrite::rewrite_large_offset(const std::shared_ptr<Backend::LIR::Fu
                     if (Backend::Utils::is_12bit(offset))
                         continue;
                     std::shared_ptr<Backend::Variable> addr = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("addr"), Backend::Utils::to_pointer(var_in_mem->workload_type), Backend::VariableWide::LOCAL);
-                    block->instructions.insert(it, std::make_shared<Backend::LIR::LoadAddress>(var_in_mem, addr));
+                    lir_function->add_variable(addr);
+                    block->instructions.insert(block->instructions.begin() + i, std::make_shared<Backend::LIR::LoadAddress>(var_in_mem, addr));
                     instruction_->var_in_mem = addr;
                     if (instruction_->offset)
                         log_warn("Offset is not zero!");
@@ -75,8 +77,16 @@ void RISCV::ReWrite::rewrite_parameters_i(const std::shared_ptr<Backend::LIR::Fu
                         } else {
                             std::shared_ptr<Backend::Variable> param_ = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("param"), arg->workload_type, Backend::VariableWide::FUNCTIONAL);
                             stack->add_parameter(param_, sp_offset);
-                            block->instructions.insert(block->instructions.begin() + i++, std::make_shared<Backend::LIR::StoreInt>(param_, arg));
+                            size_t instert_at = i;
+                            for (size_t i_ = i; i_ >= 0; i_--) {
+                                if (block->instructions[i_]->get_defined_variable() == arg) {
+                                    instert_at = i_;
+                                    break;
+                                }
+                            }
+                            block->instructions.insert(block->instructions.begin() + instert_at, std::make_shared<Backend::LIR::StoreInt>(param_, arg));
                             call->arguments[j] = param_;
+                            i++;
                         }
                     }
                 }
