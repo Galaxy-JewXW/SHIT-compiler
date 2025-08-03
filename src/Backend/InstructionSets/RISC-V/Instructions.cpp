@@ -306,12 +306,6 @@ namespace RISCV::Instructions {
         return oss.str();
     }
 
-    std::string F_NOT_EQUAL_S::to_string() const {
-        std::ostringstream oss;
-        oss << "fne.s " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);
-        return oss.str();
-    }
-
     std::string F_LESS_THAN_S::to_string() const {
         std::ostringstream oss;
         oss << "flt.s " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);

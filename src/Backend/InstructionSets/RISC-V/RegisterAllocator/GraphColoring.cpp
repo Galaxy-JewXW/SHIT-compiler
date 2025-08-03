@@ -31,6 +31,8 @@ void RISCV::RegisterAllocator::GraphColoring::__allocate__() {
             for (const std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> &coalesced: pair.second->coalesced)
                 var_to_reg[coalesced->variable->name] = pair.second->color;
         }
+    interference_graph.clear();
+    spill_costs.clear();
 }
 
 /*
@@ -238,7 +240,7 @@ bool RISCV::RegisterAllocator::GraphColoring::freeze_phase(const size_t K) {
             for (std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> neighbor: node->move_related_neighbors)
                 neighbor->move_related_neighbors.erase(node);
             node->move_related_neighbors.clear();
-            log_debug("Freeze %s", node->variable->name.c_str());
+            // log_debug("Freeze %s", node->variable->name.c_str());
             return true;
         }
     return false;
@@ -254,7 +256,7 @@ bool RISCV::RegisterAllocator::GraphColoring::spill_phase(std::stack<std::string
             neighbor->move_related_neighbors.erase(node);
         for (std::shared_ptr<RISCV::RegisterAllocator::GraphColoring::InterferenceNode> neighbor: node->non_move_related_neighbors)
             neighbor->non_move_related_neighbors.erase(node);
-        log_debug("Select %s as spill candidate.", best_candidate.c_str());
+        // log_debug("Select %s as spill candidate.", best_candidate.c_str());
         return true;
     }
     return false;

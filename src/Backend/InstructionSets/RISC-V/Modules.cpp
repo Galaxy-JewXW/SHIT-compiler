@@ -295,14 +295,6 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
             instrs.push_back(std::make_shared<RISCV::Instructions::F_EQUAL_S>(rd, rs1, rs2));
             break;
         }
-        case Backend::LIR::InstructionType::FNOT_EQUAL: {
-            std::shared_ptr<Backend::LIR::FBranch> instr = std::static_pointer_cast<Backend::LIR::FBranch>(instruction);
-            RISCV::Registers::ABI rs1 = register_allocator->get_register(instr->lhs);
-            RISCV::Registers::ABI rs2 = register_allocator->get_register(instr->rhs);
-            RISCV::Registers::ABI rd = register_allocator->get_register(instr->result);
-            instrs.push_back(std::make_shared<RISCV::Instructions::F_NOT_EQUAL_S>(rd, rs1, rs2));
-            break;
-        }
         case Backend::LIR::InstructionType::FGREATER: {
             std::shared_ptr<Backend::LIR::FBranch> instr = std::static_pointer_cast<Backend::LIR::FBranch>(instruction);
             RISCV::Registers::ABI rs1 = register_allocator->get_register(instr->lhs);

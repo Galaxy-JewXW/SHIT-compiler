@@ -411,13 +411,7 @@ namespace RISCV::Instructions {
 
     class F_EQUAL_S : public Rtype {
         public:
-            F_EQUAL_S(const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, const RISCV::Registers::ABI rd) : Rtype{rd, rs1, rs2} {}
-            [[nodiscard]] std::string to_string() const override;
-    };
-
-    class F_NOT_EQUAL_S : public Rtype {
-        public:
-            F_NOT_EQUAL_S(const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, const RISCV::Registers::ABI rd) : Rtype{rd, rs1, rs2} {}
+            F_EQUAL_S(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
             [[nodiscard]] std::string to_string() const override;
     };
 
