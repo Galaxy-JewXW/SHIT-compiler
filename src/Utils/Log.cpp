@@ -62,3 +62,24 @@ void log_log(const int level, const char *file, const int line, const char *fmt,
     fprintf(stdout, "\n");
     fflush(stdout);
 }
+
+std::string log_string_format(const char *fmt, ...) {
+    va_list args1;
+    va_start(args1, fmt);
+
+    va_list args2;
+    va_copy(args2, args1);
+
+    const int size = vsnprintf(nullptr, 0, fmt, args1);
+    va_end(args1);
+
+    if (size < 0) {
+        return std::string{"Error formatting the log message."};
+    }
+
+    std::string result(size, '\0');
+    vsnprintf(&result[0], size + 1, fmt, args2);
+    va_end(args2);
+
+    return result;
+}

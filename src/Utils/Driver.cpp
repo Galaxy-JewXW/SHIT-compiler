@@ -77,7 +77,17 @@ compiler_options parse_args(const int argc, char *argv[]) {
     while (i < argc) {
         std::string arg = argv[i];
         if (arg[0] == '-') {
-            if (arg == "-O0") {
+            if (arg == "-S") {
+                options._emit_options.emit_riscv = true;
+                i++;
+            } else if (arg == "-o") {
+                if (i + 1 >= argc || argv[i + 1][0] == '-') {
+                    usage(argv[0]);
+                    log_fatal("Missing output file after -o");
+                }
+                options._emit_options.riscv_file = argv[i + 1];
+                i += 2;
+            } else if (arg == "-O0") {
                 options.opt_level = Optimize_level::O0;
                 i++;
             } else if (arg == "-O1") {
@@ -152,7 +162,7 @@ compiler_options parse_args(const int argc, char *argv[]) {
         log_fatal("No input file specified");
     }
     if (options._emit_options.emit_llvm && options._emit_options.llvm_file.empty()) {
-        const size_t last_dot = options.input_file.find_last_of('.');
+        const auto last_dot = options.input_file.find_last_of('.');
         options._emit_options.llvm_file = options.input_file.substr(0, last_dot) + ".ll";
     }
 
@@ -163,6 +173,7 @@ compiler_options parse_args(const int argc, char *argv[], compiler_options optio
     if (argc < 2) {
         return options;
     }
+    // ReSharper disable once CppUseStructuredBinding
     const compiler_options options_ = parse_args(argc, argv);
     options.input_file = options_.input_file;
     if (options_.opt_level != default_opt_level) {
