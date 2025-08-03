@@ -32,19 +32,26 @@
 
 enum { LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_FATAL };
 
+std::string log_string_format(const char *fmt, ...);
+
 #define log_trace(...) log_log(LOG_TRACE, __FILE__, __LINE__, __VA_ARGS__)
 #define log_debug(...) log_log(LOG_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
 #define log_info(...) log_log(LOG_INFO, __FILE__, __LINE__, __VA_ARGS__)
 #define log_warn(...) log_log(LOG_WARN, __FILE__, __LINE__, __VA_ARGS__)
 #define log_error(...)                                                                                                 \
     do {                                                                                                               \
-        log_log(LOG_ERROR, __FILE__, __LINE__, __VA_ARGS__);                                                           \
-        throw std::runtime_error("log error");                                                                         \
+        std::string user_message = log_string_format(__VA_ARGS__);                                                     \
+        log_log(LOG_ERROR, __FILE__, __LINE__, "%s", user_message.c_str());                                            \
+        std::string exception_message = log_string_format("%s:%d: %s", __FILE__, __LINE__, user_message.c_str());      \
+        throw std::runtime_error(exception_message);                                                                   \
     } while (0)
+
 #define log_fatal(...)                                                                                                 \
     do {                                                                                                               \
-        log_log(LOG_FATAL, __FILE__, __LINE__, __VA_ARGS__);                                                           \
-        throw std::runtime_error("log fatal");                                                                         \
+        std::string user_message = log_string_format(__VA_ARGS__);                                                     \
+        log_log(LOG_FATAL, __FILE__, __LINE__, "%s", user_message.c_str());                                            \
+        std::string exception_message = log_string_format("%s:%d: %s", __FILE__, __LINE__, user_message.c_str());      \
+        throw std::runtime_error(exception_message);                                                                   \
     } while (0)
 
 const char *log_level_string(int level);
