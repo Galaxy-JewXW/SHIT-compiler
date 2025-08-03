@@ -18,6 +18,8 @@ void execute_O0_passes(std::shared_ptr<Mir::Module> &module) {
     apply<Pass::LocalValueNumbering, Pass::SimplifyControlFlow>(module);
     apply<Pass::DeadCodeEliminate>(module);
     apply<Pass::RemovePhi>(module);
+
+    module->update_id();
 }
 
 void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
@@ -32,4 +34,6 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
     apply<Pass::DeadCodeEliminate>(module);
     apply<Pass::Reassociate, Pass::LocalValueNumbering, Pass::SimplifyControlFlow>(module);
     apply<Pass::RemovePhi, Pass::BlockPositioning>(module);
+
+    module->update_id();
 }
