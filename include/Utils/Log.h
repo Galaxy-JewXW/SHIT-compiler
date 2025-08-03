@@ -40,16 +40,18 @@ std::string log_string_format(const char *fmt, ...);
 #define log_warn(...) log_log(LOG_WARN, __FILE__, __LINE__, __VA_ARGS__)
 #define log_error(...)                                                                                                 \
     do {                                                                                                               \
-        std::string error_message = log_string_format(__VA_ARGS__);                                                    \
-        log_log(LOG_ERROR, __FILE__, __LINE__, "%s", error_message.c_str());                                           \
-        throw std::runtime_error(error_message);                                                                       \
+        std::string user_message = log_string_format(__VA_ARGS__);                                                     \
+        log_log(LOG_ERROR, __FILE__, __LINE__, "%s", user_message.c_str());                                            \
+        std::string exception_message = log_string_format("%s:%d: %s", __FILE__, __LINE__, user_message.c_str());      \
+        throw std::runtime_error(exception_message);                                                                   \
     } while (0)
 
 #define log_fatal(...)                                                                                                 \
     do {                                                                                                               \
-        std::string fatal_message = log_string_format(__VA_ARGS__);                                                    \
-        log_log(LOG_FATAL, __FILE__, __LINE__, "%s", fatal_message.c_str());                                           \
-        throw std::runtime_error(fatal_message);                                                                       \
+        std::string user_message = log_string_format(__VA_ARGS__);                                                     \
+        log_log(LOG_FATAL, __FILE__, __LINE__, "%s", user_message.c_str());                                            \
+        std::string exception_message = log_string_format("%s:%d: %s", __FILE__, __LINE__, user_message.c_str());      \
+        throw std::runtime_error(exception_message);                                                                   \
     } while (0)
 
 const char *log_level_string(int level);
