@@ -8,55 +8,54 @@ on:
 
 # 定义所有作业
 jobs:
-  # --- 作业 1: 编译 ---
-  build:
-    name: Build with Clang 18 (Release)
-    runs-on: ubuntu-latest
-
-    steps:
-      # 步骤 1: 检出 master 分支的代码
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: master
-
-      # 步骤 2: 安装系统依赖
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wget gnupg software-properties-common
-
-      # 步骤 3: 安装 LLVM 18 官方包
-      - name: Install LLVM 18
-        run: |
-          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-          sudo add-apt-repository "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main"
-          sudo apt-get update
-          sudo apt-get install -y clang-18 clang++-18 libc++-18-dev libc++abi-18-dev
-          sudo ln -sf /usr/bin/clang-18 /usr/local/bin/clang
-          sudo ln -sf /usr/bin/clang++-18 /usr/local/bin/clang++
-
-      # 步骤 4: 验证编译器版本
-      - name: Check compiler versions
-        run: |
-          clang --version
-          clang++ --version
-
-      # 步骤 5: 配置 CMake
-      - name: Configure CMake (Release)
-        run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
-                -DCMAKE_C_COMPILER=/usr/local/bin/clang \
-                -DCMAKE_CXX_COMPILER=/usr/local/bin/clang++
-
-      # 步骤 6: 执行编译
-      - name: Build Project
-        run: cmake --build build --config Release -- -j8
+#  # --- 作业 1: 编译 ---
+#  build:
+#    name: Build with Clang 18 (Release)
+#    runs-on: ubuntu-latest
+#
+#    steps:
+#      # 步骤 1: 检出 master 分支的代码
+#      - name: Checkout repository
+#        uses: actions/checkout@v4
+#        with:
+#          ref: master
+#
+#      # 步骤 2: 安装系统依赖
+#      - name: Install system dependencies
+#        run: |
+#          sudo apt-get update
+#          sudo apt-get install -y wget gnupg software-properties-common
+#
+#      # 步骤 3: 安装 LLVM 18 官方包
+#      - name: Install LLVM 18
+#        run: |
+#          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+#          sudo add-apt-repository "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main"
+#          sudo apt-get update
+#          sudo apt-get install -y clang-18 clang++-18 libc++-18-dev libc++abi-18-dev
+#          sudo ln -sf /usr/bin/clang-18 /usr/local/bin/clang
+#          sudo ln -sf /usr/bin/clang++-18 /usr/local/bin/clang++
+#
+#      # 步骤 4: 验证编译器版本
+#      - name: Check compiler versions
+#        run: |
+#          clang --version
+#          clang++ --version
+#
+#      # 步骤 5: 配置 CMake
+#      - name: Configure CMake (Release)
+#        run: |
+#          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+#                -DCMAKE_C_COMPILER=/usr/local/bin/clang \
+#                -DCMAKE_CXX_COMPILER=/usr/local/bin/clang++
+#
+#      # 步骤 6: 执行编译
+#      - name: Build Project
+#        run: cmake --build build --config Release -- -j8
 
   # --- 作业 2: 同步到 GitLab ---
   sync-to-gitlab:
     name: Sync to GitLab
-    needs: build
     runs-on: ubuntu-latest
 
     steps:

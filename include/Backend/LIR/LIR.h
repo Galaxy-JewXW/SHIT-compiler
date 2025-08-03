@@ -346,7 +346,7 @@ class Backend::LIR::PrivilegedFunction : public Backend::LIR::Function {
 };
 
 namespace Backend::LIR {
-    extern inline const std::array<std::shared_ptr<PrivilegedFunction>, 12> privileged_functions = {
+    extern inline const std::array<std::shared_ptr<PrivilegedFunction>, 14> privileged_functions = {
         std::make_shared<PrivilegedFunction>("putf", std::vector<std::shared_ptr<Backend::Variable>>{std::make_shared<Backend::Variable>("%0", Backend::VariableType::STRING_PTR, VariableWide::LOCAL)}),
         std::make_shared<PrivilegedFunction>("getint", std::vector<std::shared_ptr<Backend::Variable>>{}),
         std::make_shared<PrivilegedFunction>("getch", std::vector<std::shared_ptr<Backend::Variable>>{}),
@@ -359,6 +359,8 @@ namespace Backend::LIR {
         std::make_shared<PrivilegedFunction>("putarray", std::vector<std::shared_ptr<Backend::Variable>>{std::make_shared<Backend::Variable>("%0", Backend::VariableType::INT32, VariableWide::LOCAL), std::make_shared<Backend::Variable>("%1", Backend::VariableType::INT32_PTR, VariableWide::LOCAL)}),
         std::make_shared<PrivilegedFunction>("putfarray", std::vector<std::shared_ptr<Backend::Variable>>{std::make_shared<Backend::Variable>("%0", Backend::VariableType::FLOAT, VariableWide::LOCAL), std::make_shared<Backend::Variable>("%1", Backend::VariableType::FLOAT_PTR, VariableWide::LOCAL)}),
         std::make_shared<PrivilegedFunction>("memset", std::vector<std::shared_ptr<Backend::Variable>>{std::make_shared<Backend::Variable>("%0", Backend::VariableType::INT32_PTR, VariableWide::LOCAL), std::make_shared<Backend::Variable>("%1", Backend::VariableType::INT32, VariableWide::LOCAL), std::make_shared<Backend::Variable>("%2", Backend::VariableType::INT32, VariableWide::LOCAL)}),
+        std::make_shared<PrivilegedFunction>("_sysy_starttime", std::vector<std::shared_ptr<Backend::Variable>>{std::make_shared<Backend::Variable>("%0", Backend::VariableType::INT32, VariableWide::LOCAL)}),
+        std::make_shared<PrivilegedFunction>("_sysy_stoptime", std::vector<std::shared_ptr<Backend::Variable>>{std::make_shared<Backend::Variable>("%0", Backend::VariableType::INT32, VariableWide::LOCAL)}),
     };
 }
 
