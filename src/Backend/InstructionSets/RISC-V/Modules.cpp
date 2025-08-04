@@ -204,6 +204,14 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
             instrs.push_back(std::make_shared<RISCV::Instructions::Mul>(rd, rs1, rs2));
             break;
         }
+        case Backend::LIR::InstructionType::MULH_SUP: {
+            std::shared_ptr<Backend::LIR::IntArithmetic> instr = std::static_pointer_cast<Backend::LIR::IntArithmetic>(instruction);
+            RISCV::Registers::ABI rs1 = register_allocator->get_register(instr->lhs);
+            RISCV::Registers::ABI rs2 = register_allocator->get_register(std::static_pointer_cast<Backend::Variable>(instr->rhs));
+            RISCV::Registers::ABI rd = register_allocator->get_register(instr->result);
+            instrs.push_back(std::make_shared<RISCV::Instructions::Mul_SUP>(rd, rs1, rs2));
+            break;
+        }
         case Backend::LIR::InstructionType::DIV: {
             std::shared_ptr<Backend::LIR::IntArithmetic> instr = std::static_pointer_cast<Backend::LIR::IntArithmetic>(instruction);
             RISCV::Registers::ABI rs1 = register_allocator->get_register(instr->lhs);

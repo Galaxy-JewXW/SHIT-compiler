@@ -335,9 +335,7 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
             } else if (lhs->operand_type == Backend::OperandType::CONSTANT && (int_operation_->op == Mir::IntBinary::Op::ADD || int_operation_->op == Mir::IntBinary::Op::MUL))
                 std::swap(lhs, rhs);
             else lhs = ensure_variable(lhs, lir_block);
-            if (int_operation_->op != Mir::IntBinary::Op::ADD && int_operation_->op != Mir::IntBinary::Op::SUB)
-                rhs = ensure_variable(rhs, lir_block);
-            else if (rhs->operand_type == Backend::OperandType::CONSTANT && !Backend::Utils::is_12bit(std::static_pointer_cast<Backend::IntValue>(rhs)->int32_value)) {
+            if (rhs->operand_type == Backend::OperandType::CONSTANT && !Backend::Utils::is_12bit(std::static_pointer_cast<Backend::IntValue>(rhs)->int32_value)) {
                 lir_block->instructions.push_back(std::make_shared<Backend::LIR::LoadIntImm>(result, std::static_pointer_cast<Backend::IntValue>(rhs)));
                 lir_block->instructions.push_back(std::make_shared<Backend::LIR::IntArithmetic>(Backend::Utils::llvm_to_lir(int_operation_->op), std::static_pointer_cast<Backend::Variable>(lhs), result, result));
                 break;
