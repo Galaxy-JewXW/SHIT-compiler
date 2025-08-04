@@ -41,21 +41,25 @@ private:
 };
 
 // 重排序函数内部的基本块，减少指令缓存未命中和分支预测开销
+template<typename T>
 class BlockPositioning final : public Transform {
 public:
     explicit BlockPositioning() : Transform("BlockPositioning") {}
 
 protected:
-    void transform(std::shared_ptr<Mir::Module> module) override;
-
-    void transform(const std::shared_ptr<Mir::Function> &) override;
+    void transform(const std::shared_ptr<Mir::Module> module) override {
+        static_assert(std::is_same_v<T, O0_Type> || std::is_same_v<T, O1_Type>);
+        if constexpr  (std::is_same_v<T, O0_Type>) {
+            do_reverse_postorder_placement(module);
+        } else if constexpr (std::is_same_v<T, O1_Type>) {
+            do_static_probability_placement(module);
+        }
+    }
 
 private:
-    void run_on_func(const std::shared_ptr<Mir::Function> &func) const;
+    static void do_reverse_postorder_placement(const std::shared_ptr<Mir::Module> &module);
 
-    std::shared_ptr<ControlFlowGraph> cfg_info{nullptr};
-
-    std::shared_ptr<BranchProbabilityAnalysis> branch_prob_info{nullptr};
+    static void do_static_probability_placement(const std::shared_ptr<Mir::Module> &module);
 };
 
 // 合并嵌套的分支，减少控制流复杂度
