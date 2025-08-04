@@ -32,6 +32,8 @@ class RISCV::Stack {
             if (variable->lifetime != Backend::VariableWide::FUNCTIONAL)
                 log_error("`%s` should not be stored in stack", variable->name.c_str());
             stack_size += variable->size();
+            if (Backend::Utils::type_to_size(variable->workload_type) == 8)
+                stack_size = align(8);
             stack_index[variable->name] = stack_size;
         }
 
