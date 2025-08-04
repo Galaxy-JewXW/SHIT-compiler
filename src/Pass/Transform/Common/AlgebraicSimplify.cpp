@@ -324,30 +324,34 @@ bool reduce_cmp(std::vector<std::shared_ptr<Instruction>> &instructions, const s
                 const std::shared_ptr<Block> &current_block) {
     const auto cmp{instructions[idx]->as<Compare>()};
 
-    if (cmp->get_lhs() == cmp->get_rhs()) {
-        int ans;
-        switch (cmp->op) {
-            case Compare::Op::EQ:
-            case Compare::Op::LE:
-            case Compare::Op::GE:
-                ans = 1;
-                break;
-            case Compare::Op::NE:
-            case Compare::Op::LT:
-            case Compare::Op::GT:
-                ans = 0;
-                break;
-            default:
-                return false;
-        }
-        cmp->replace_by_new_value(ConstInt::create(ans));
-        return true;
-    }
-
     int cnt{0};
     cnt += static_cast<int>(cmp->get_lhs()->is_constant());
     cnt += static_cast<int>(cmp->get_rhs()->is_constant());
-    if (cnt != 1) {
+    if (cnt == 2) {
+        return false;
+    }
+    if (cnt == 0) {
+        if (cmp->get_lhs() == cmp->get_rhs()) {
+            int ans = -1;
+            switch (cmp->op) {
+                case Compare::Op::EQ:
+                case Compare::Op::LE:
+                case Compare::Op::GE:
+                    ans = 1;
+                    break;
+                case Compare::Op::NE:
+                case Compare::Op::LT:
+                case Compare::Op::GT:
+                    ans = 0;
+                    break;
+                default:
+                    return false;
+            }
+            if (ans != -1) [[likely]] {
+                cmp->replace_by_new_value(ConstBool::create(ans));
+            }
+            return true;
+        }
         return false;
     }
 
