@@ -15,62 +15,94 @@ std::string get_hash(const std::shared_ptr<GetElementPtr> &instruction) {
     std::ostringstream oss;
     oss << "gep";
     for (const auto &operand: instruction->get_operands()) {
-        oss << " " << operand->get_name();
+        oss << " " << operand.get();
     }
     return oss.str();
 }
 
 std::string get_hash(const std::shared_ptr<Fcmp> &instruction) {
-    return "fcmp " + std::to_string(static_cast<int>(instruction->op)) + " " + instruction->get_lhs()->get_name() +
-           " " + instruction->get_rhs()->get_name();
+    std::ostringstream oss;
+    oss << "fcmp " << std::to_string(static_cast<int>(instruction->op))
+        << " " << instruction->get_lhs().get()
+        << " " << instruction->get_rhs().get();
+    return oss.str();
 }
 
 std::string get_hash(const std::shared_ptr<Icmp> &instruction) {
-    return "icmp " + std::to_string(static_cast<int>(instruction->op)) + " " + instruction->get_lhs()->get_name() +
-           " " + instruction->get_rhs()->get_name();
+    std::ostringstream oss;
+    oss << "icmp " << std::to_string(static_cast<int>(instruction->op))
+        << " " << instruction->get_lhs().get()
+        << " " << instruction->get_rhs().get();
+    return oss.str();
 }
 
 std::string get_hash(const std::shared_ptr<IntBinary> &instruction) {
-    auto lhs_hash = instruction->get_lhs()->get_name(), rhs_hash = instruction->get_rhs()->get_name();
-    if (instruction->is_commutative() && lhs_hash >= rhs_hash) {
-        std::swap(lhs_hash, rhs_hash);
+    auto lhs_ptr = static_cast<const void *>(instruction->get_lhs().get());
+    auto rhs_ptr = static_cast<const void*>(instruction->get_rhs().get());
+
+    if (instruction->is_commutative() && lhs_ptr > rhs_ptr) {
+        std::swap(lhs_ptr, rhs_ptr);
     }
-    return "intbinary " + std::to_string(static_cast<int>(instruction->op)) + " " + lhs_hash + " " + rhs_hash;
+
+    std::ostringstream oss;
+    oss << "intbinary " << std::to_string(static_cast<int>(instruction->op))
+        << " " << lhs_ptr
+        << " " << rhs_ptr;
+    return oss.str();
 }
 
 std::string get_hash(const std::shared_ptr<FloatBinary> &instruction) {
-    auto lhs_hash = instruction->get_lhs()->get_name(), rhs_hash = instruction->get_rhs()->get_name();
-    if (instruction->is_commutative() && lhs_hash >= rhs_hash) {
-        std::swap(lhs_hash, rhs_hash);
+    auto lhs_ptr = static_cast<const void *>(instruction->get_lhs().get());
+    auto rhs_ptr = static_cast<const void*>(instruction->get_rhs().get());
+
+    if (instruction->is_commutative() && lhs_ptr > rhs_ptr) {
+        std::swap(lhs_ptr, rhs_ptr);
     }
-    return "floatbinary " + std::to_string(static_cast<int>(instruction->op)) + " " + lhs_hash + " " + rhs_hash;
+
+    std::ostringstream oss;
+    oss << "floatbinary " << std::to_string(static_cast<int>(instruction->op))
+        << " " << lhs_ptr
+        << " " << rhs_ptr;
+    return oss.str();
 }
 
 std::string get_hash(const std::shared_ptr<FloatTernary> &instruction) {
-    const auto &x_hash = instruction->get_x()->get_name(), &y_hash = instruction->get_y()->get_name(),
-               &z_hash = instruction->get_z()->get_name();
-    return "floatternary " + std::to_string(static_cast<int>(instruction->floatternary_op())) + " " + x_hash + " " +
-           y_hash + " " + z_hash;
+    std::ostringstream oss;
+    oss << "floatternary " << std::to_string(static_cast<int>(instruction->floatternary_op()))
+        << " " << instruction->get_x().get()
+        << " " << instruction->get_y().get()
+        << " " << instruction->get_z().get();
+    return oss.str();
 }
 
 std::string get_hash(const std::shared_ptr<FNeg> &instruction) {
-    const auto &value_hash = instruction->get_value()->get_name();
-    return "fneg " + value_hash;
+    std::ostringstream oss;
+    oss << "fneg " << instruction->get_value().get();
+    return oss.str();
 }
 
 std::string get_hash(const std::shared_ptr<Zext> &instruction) {
-    return "zext " + instruction->get_value()->get_name() + " " + instruction->get_value()->get_type()->to_string() +
-           " " + instruction->get_type()->to_string();
+    std::ostringstream oss;
+    oss << "zext " << instruction->get_value().get()
+        << " " << instruction->get_value()->get_type()->to_string()
+        << " " << instruction->get_type()->to_string();
+    return oss.str();
 }
 
 std::string get_hash(const std::shared_ptr<Fptosi> &instruction) {
-    return "fptosi " + instruction->get_value()->get_name() + " " + instruction->get_value()->get_type()->to_string() +
-           " " + instruction->get_type()->to_string();
+    std::ostringstream oss;
+    oss << "fptosi " << instruction->get_value().get()
+        << " " << instruction->get_value()->get_type()->to_string()
+        << " " << instruction->get_type()->to_string();
+    return oss.str();
 }
 
 std::string get_hash(const std::shared_ptr<Sitofp> &instruction) {
-    return "sitofp " + instruction->get_value()->get_name() + " " + instruction->get_value()->get_type()->to_string() +
-           " " + instruction->get_type()->to_string();
+    std::ostringstream oss;
+    oss << "sitofp " << instruction->get_value().get()
+        << " " << instruction->get_value()->get_type()->to_string()
+        << " " << instruction->get_type()->to_string();
+    return oss.str();
 }
 
 std::string get_hash(const std::shared_ptr<Call> &instruction,
@@ -82,10 +114,12 @@ std::string get_hash(const std::shared_ptr<Call> &instruction,
     if (const auto &func_info = func_analysis->func_info(func);
         func_info.has_return && func_info.no_state && !func_info.io_read && !func_info.io_write) {
         std::ostringstream oss;
+        oss << "call " << func->get_name(); // 函数名本身是OK的
         for (const auto &operand: instruction->get_params()) {
-            oss << " " << operand->get_name() << ",";
+            // [FIX] 使用指针地址代替参数名字
+            oss << " " << static_cast<const void*>(operand.get()) << ",";
         }
-        return "call " + func->get_name() + " " + oss.str();
+        return oss.str();
     }
     return "";
 }
