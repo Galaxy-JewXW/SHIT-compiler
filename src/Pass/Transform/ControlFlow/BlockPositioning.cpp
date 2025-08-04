@@ -83,8 +83,8 @@ void static_probability_placement(const std::shared_ptr<Function> &func,
 }
 
 namespace Pass {
-template<typename T>
-void BlockPositioning<T>::do_reverse_postorder_placement(const std::shared_ptr<Module> &module) {
+template<int level>
+void BlockPositioning<level>::do_reverse_postorder_placement(const std::shared_ptr<Module> &module) {
     set_analysis_result_dirty<ControlFlowGraph>(module);
     const auto cfg_info = get_analysis_result<ControlFlowGraph>(module);
     for (const auto &func: module->get_functions()) {
@@ -92,8 +92,8 @@ void BlockPositioning<T>::do_reverse_postorder_placement(const std::shared_ptr<M
     }
 }
 
-template<typename T>
-void BlockPositioning<T>::do_static_probability_placement(const std::shared_ptr<Module> &module) {
+template<int level>
+void BlockPositioning<level>::do_static_probability_placement(const std::shared_ptr<Module> &module) {
     set_analysis_result_dirty<ControlFlowGraph>(module);
     const auto cfg_info = get_analysis_result<ControlFlowGraph>(module);
     const auto branch_prob_info = get_analysis_result<BranchProbabilityAnalysis>(module);
@@ -102,6 +102,6 @@ void BlockPositioning<T>::do_static_probability_placement(const std::shared_ptr<
     }
 }
 
-template class BlockPositioning<O0_Type>;
-template class BlockPositioning<O1_Type>;
+template class BlockPositioning<0>;
+template class BlockPositioning<1>;
 }

@@ -323,6 +323,27 @@ template<typename Compare>
 bool reduce_cmp(std::vector<std::shared_ptr<Instruction>> &instructions, const size_t &idx,
                 const std::shared_ptr<Block> &current_block) {
     const auto cmp{instructions[idx]->as<Compare>()};
+
+    if (cmp->get_lhs() == cmp->get_rhs()) {
+        int ans;
+        switch (cmp->op) {
+            case Compare::Op::EQ:
+            case Compare::Op::LE:
+            case Compare::Op::GE:
+                ans = 1;
+                break;
+            case Compare::Op::NE:
+            case Compare::Op::LT:
+            case Compare::Op::GT:
+                ans = 0;
+                break;
+            default:
+                return false;
+        }
+        cmp->replace_by_new_value(ConstInt::create(ans));
+        return true;
+    }
+
     int cnt{0};
     cnt += static_cast<int>(cmp->get_lhs()->is_constant());
     cnt += static_cast<int>(cmp->get_rhs()->is_constant());
@@ -330,15 +351,16 @@ bool reduce_cmp(std::vector<std::shared_ptr<Instruction>> &instructions, const s
         return false;
     }
 
-    using ConstantType = typename Trait<Compare>::ConstantType;
-    using Base = typename Trait<Compare>::Base;
+    // using ConstantType = typename Trait<Compare>::ConstantType;
+    // using Base = typename Trait<Compare>::Base;
 
+    // ReSharper disable once CppTooWideScopeInitStatement
     const auto &lhs{cmp->get_lhs()}, &rhs{cmp->get_rhs()};
     if (lhs->is_constant() || !rhs->is_constant()) {
         log_fatal("Should handle before");
     }
     const auto inst{lhs->template is<typename Trait<Compare>::Binary>()};
-    const Base constant_value{**rhs->template as<ConstantType>()};
+    // const Base constant_value{**rhs->template as<ConstantType>()};
     if (inst == nullptr) {
         if constexpr (std::is_same_v<Compare, Icmp>) {
             if (const auto zext = lhs->template is<Zext>()) {
@@ -1001,6 +1023,7 @@ bool handle_intbinary_icmp(const std::shared_ptr<Block> &block) {
     return changed;
 }
 
+[[maybe_unused]]
 bool handle_float_ternary(const std::shared_ptr<Function> &func) {
     bool changed{false};
     static constexpr double abs_ = 1e-6f;

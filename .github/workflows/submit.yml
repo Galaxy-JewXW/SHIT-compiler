@@ -3,8 +3,9 @@ name: Build and Sync
 # 触发器配置
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 17 * * *'
+  push:
+    branches:
+      - master
 
 # 定义所有作业
 jobs:
