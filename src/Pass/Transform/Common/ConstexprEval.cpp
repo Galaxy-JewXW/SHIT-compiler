@@ -5,6 +5,66 @@
 
 using namespace Mir;
 
+namespace {
+size_t size_of_type(const std::shared_ptr<Type::Type> &type) {
+    if (type->is_int32()) {
+        return sizeof(int);
+    }
+    if (type->is_float()) {
+        return sizeof(double);
+    }
+    if (type->is_array()) {
+        return size_of_type(type->as<Type::Array>()->get_atomic_type()) * type->as<Type::Array>()->get_flattened_size();
+    }
+    log_error("Invalid type %s", type->to_string().c_str());
+}
+
+class ModuleInterpreter {
+public:
+    explicit ModuleInterpreter(const std::shared_ptr<Module> &module, const std::shared_ptr<Pass::FunctionAnalysis> &func_analysis) :
+        module_{module}, func_analysis_{func_analysis} {}
+
+    [[nodiscard]] bool can_run() const;
+
+    void run();
+
+private:
+    const std::shared_ptr<Module> &module_;
+    const std::shared_ptr<Pass::FunctionAnalysis> func_analysis_;
+
+    static constexpr size_t max_size = 60000;
+
+    void load_global_variables(const std::shared_ptr<GlobalVariable> &gv);
+};
+
+bool ModuleInterpreter::can_run() const {
+    for (const auto &func: module_->get_functions()) {
+        if (func_analysis_->func_info(func).io_read)
+            return false;
+    }
+
+    size_t total_size = 0;
+    for (const auto &gv : module_->get_global_variables()) {
+        total_size += size_of_type(gv->get_type()->as<Type::Pointer>()->get_contain_type());
+    }
+
+    if (total_size >= max_size)
+        return false;
+
+    return true;
+}
+
+void ModuleInterpreter::load_global_variables(const std::shared_ptr<GlobalVariable> &gv) {
+
+}
+
+void ModuleInterpreter::run() {
+    for (const auto &gv: module_->get_global_variables()) {
+        load_global_variables(gv);
+    }
+}
+} // namespace
+
 namespace Pass {
 bool ConstexprFuncEval::is_constexpr_func(const std::shared_ptr<Function> &func) const {
     if (func->is_runtime_func()) {
@@ -103,6 +163,9 @@ void ConstexprFuncEval::transform(const std::shared_ptr<Module> module) {
         }
     } while (changed);
 
+    if (ModuleInterpreter module_interpreter{module, func_analysis}; module_interpreter.can_run()) {
+        module_interpreter.run();
+    }
     func_analysis = nullptr;
 }
 } // namespace Pass
