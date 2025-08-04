@@ -69,6 +69,8 @@ void RISCV::ReWrite::rewrite_parameters_i(const std::shared_ptr<Backend::LIR::Fu
                     const std::shared_ptr<Backend::Variable> &arg = call->arguments[j];
                     if (Backend::Utils::is_int(arg->workload_type)) {
                         sp_offset += Backend::Utils::type_to_size(arg->workload_type);
+                        if (Backend::Utils::type_to_size(arg->workload_type) == 8)
+                            sp_offset = (sp_offset + 8 - 1) & ~(8 - 1);
                         if (k < 8) {
                             // move arguments to a0-a7
                             const std::shared_ptr<Backend::Variable> &phyReg = lir_function->variables[RISCV::Registers::to_string(RISCV::Registers::ABI::A0 + k++)];
@@ -89,8 +91,7 @@ void RISCV::ReWrite::rewrite_parameters_i(const std::shared_ptr<Backend::LIR::Fu
                             call->arguments[j] = param_;
                             i++;
                         }
-                    } else
-                        sp_offset += 4;
+                    } else sp_offset += 4;
                 }
                 // move result of the call to a0
                 if (call->result && Backend::Utils::is_int(call->result->workload_type))
@@ -141,7 +142,8 @@ void RISCV::ReWrite::rewrite_parameters_f(const std::shared_ptr<Backend::LIR::Fu
                             call->arguments[j] = param_;
                             i++;
                         }
-                    }
+                    } else if (Backend::Utils::type_to_size(arg->workload_type) == 8)
+                        sp_offset = (sp_offset + 8 - 1) & ~(8 - 1);
                 }
                 // move result of the call to fa0
                 if (call->result && Backend::Utils::is_float(call->result->workload_type))
