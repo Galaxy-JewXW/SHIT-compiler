@@ -31,6 +31,7 @@ namespace Backend::LIR {
         ADD, FADD,
         SUB, FSUB,
         MUL, FMUL,
+        MULH_SUP,
         DIV, FDIV,
         MOD, FMOD,
         FNEG, FABS,
@@ -165,6 +166,7 @@ namespace Backend::Utils {
             case Backend::LIR::InstructionType::FMSUB: return "fmsub";
             case Backend::LIR::InstructionType::FNMADD: return "fnmadd";
             case Backend::LIR::InstructionType::FNMSUB: return "fnmsub";
+            case Backend::LIR::InstructionType::MULH_SUP: return "mulh.sup";
             default: return "";
         }
     }

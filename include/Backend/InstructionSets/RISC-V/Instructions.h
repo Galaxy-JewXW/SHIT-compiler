@@ -283,6 +283,12 @@ namespace RISCV::Instructions {
             [[nodiscard]] std::string to_string() const override;
     };
 
+    class Mul_SUP : public Rtype{
+    public:
+        Mul_SUP(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
+        [[nodiscard]] std::string to_string() const override;
+    };
+
     class FMul : public Rtype {
         public:
             FMul(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}

@@ -170,8 +170,18 @@ std::shared_ptr<Backend::Variable> ArithmeticOpt::readPlanRec(const std::shared_
             steps.push_back(
                     std::make_shared<Backend::LIR::LoadIntImm>(mulAssist, std::make_shared<Backend::IntValue>(0)));
         } else if (constFlag_l) {
-            steps.push_back(std::make_shared<Backend::LIR::IntArithmetic>(ty, r, std::make_shared<Backend::IntValue>(0),
-                                                                          mulAssist));
+            if (ty == Backend::LIR::InstructionType::SUB) {
+                auto zero_var = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("mulzero"),
+                                                                    src->workload_type, Backend::VariableWide::LOCAL);
+                block->parent_function.lock()->add_variable(zero_var);
+                steps.push_back(
+                        std::make_shared<Backend::LIR::LoadIntImm>(zero_var, std::make_shared<Backend::IntValue>(0)));
+                steps.push_back(std::make_shared<Backend::LIR::IntArithmetic>(ty, zero_var, r, mulAssist));
+
+            } else {
+                steps.push_back(std::make_shared<Backend::LIR::IntArithmetic>(
+                        ty, r, std::make_shared<Backend::IntValue>(0), mulAssist));
+            }
             block->parent_function.lock()->add_variable(r);
         } else if (constFlag_r) {
             steps.push_back(std::make_shared<Backend::LIR::IntArithmetic>(ty, l, std::make_shared<Backend::IntValue>(0),
@@ -186,7 +196,8 @@ std::shared_ptr<Backend::Variable> ArithmeticOpt::readPlanRec(const std::shared_
     return mulAssist;
 }
 
-void ArithmeticOpt::applyMulConst(const std::shared_ptr<Backend::LIR::Block> &block,
+void ArithmeticOpt::applyMulConst(
+        const std::shared_ptr<Backend::LIR::Block> &block,
         const std::shared_ptr<std::vector<std::shared_ptr<Backend::LIR::Instruction>>> &instructions,
         const std::shared_ptr<Backend::Variable> &ans, const std::shared_ptr<Backend::Variable> &src, int32_t C) {
     steps.clear();
@@ -239,7 +250,8 @@ int32_t DivRemOpt::numberOfLeadingZeros(int32_t i) {
 
 int32_t DivRemOpt::log2floor(int32_t x) { return 31 - DivRemOpt::numberOfLeadingZeros(x); }
 
-bool DivRemOpt::applyDivConst(const std::shared_ptr<Backend::LIR::Block> &block,
+bool DivRemOpt::applyDivConst(
+        const std::shared_ptr<Backend::LIR::Block> &block,
         const std::shared_ptr<std::vector<std::shared_ptr<Backend::LIR::Instruction>>> &instructions,
         const std::shared_ptr<Backend::Variable> &ans, const std::shared_ptr<Backend::Variable> &src, int32_t C) {
     bool isDivisorNeg = C < 0;
@@ -303,7 +315,7 @@ bool DivRemOpt::applyDivConst(const std::shared_ptr<Backend::LIR::Block> &block,
             instructions->push_back(
                     std::make_shared<Backend::LIR::LoadIntImm>(tmp, std::make_shared<Backend::IntValue>(high)));
             instructions->push_back(
-                    std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::MUL, src, tmp, op1));
+                    std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::MULH_SUP, src, tmp, op1));
             instructions->push_back(
                     std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::SHIFT_RIGHT, op1,
                                                                   std::make_shared<Backend::IntValue>(32 + sh), op2));
@@ -340,7 +352,7 @@ bool DivRemOpt::applyDivConst(const std::shared_ptr<Backend::LIR::Block> &block,
             instructions->push_back(
                     std::make_shared<Backend::LIR::LoadIntImm>(tmp, std::make_shared<Backend::IntValue>(high)));
             instructions->push_back(
-                    std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::MUL, src, tmp, op1));
+                    std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::MULH_SUP, src, tmp, op1));
             instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(
                     Backend::LIR::InstructionType::SHIFT_RIGHT, op1, std::make_shared<Backend::IntValue>(32), op2));
             instructions->push_back(
@@ -362,7 +374,8 @@ bool DivRemOpt::applyDivConst(const std::shared_ptr<Backend::LIR::Block> &block,
 }
 
 // TODO:再观察一下，需要测试
-void DivRemOpt::applyRemConst(const std::shared_ptr<Backend::LIR::Block> &block,
+void DivRemOpt::applyRemConst(
+        const std::shared_ptr<Backend::LIR::Block> &block,
         const std::shared_ptr<std::vector<std::shared_ptr<Backend::LIR::Instruction>>> &instructions,
         const std::shared_ptr<Backend::Variable> &ans, const std::shared_ptr<Backend::Variable> &src, int32_t C) {
 
@@ -422,12 +435,17 @@ void ConstOpt::optimize() {
                 if (auto arithmetic = std::dynamic_pointer_cast<Backend::LIR::IntArithmetic>(inst)) {
                     if (auto C = std::dynamic_pointer_cast<Backend::IntValue>(arithmetic->rhs)) {
                         if (arithmetic->type == Backend::LIR::InstructionType::MUL) {
-                            ArithmeticOpt::applyMulConst(block, newInsts, arithmetic->result, arithmetic->lhs, C->int32_value);
+                            ArithmeticOpt::applyMulConst(block, newInsts, arithmetic->result, arithmetic->lhs,
+                                                         C->int32_value);
                         } else if (arithmetic->type == Backend::LIR::InstructionType::DIV) {
-                            DivRemOpt::applyDivConst(block, newInsts, arithmetic->result, arithmetic->lhs, C->int32_value);
-                        } else if (arithmetic->type == Backend::LIR::InstructionType::MOD) {
-                            DivRemOpt::applyRemConst(block, newInsts, arithmetic->result, arithmetic->lhs, C->int32_value);
-                        } else {
+                            DivRemOpt::applyDivConst(block, newInsts, arithmetic->result, arithmetic->lhs,
+                                                     C->int32_value);
+                        }
+                        else if (arithmetic->type == Backend::LIR::InstructionType::MOD) {
+                            DivRemOpt::applyRemConst(block, newInsts, arithmetic->result, arithmetic->lhs,
+                                                     C->int32_value);
+                        }
+                        else {
                             newInsts->push_back(inst);
                         }
                     } else {
