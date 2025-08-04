@@ -75,7 +75,7 @@ void ArithmeticOpt::initialize() {
                                 std::make_shared<Action>(Action::Type::SHL, o1, std::make_shared<ConstantMulOp>(i));
                         tryAddOp(levelLdOperations, idShl, odShl);
                     }
-                    if ((idShl & (1L << 63)) != 0)
+                    if ((idShl & (1LL << 63)) != 0)
                         break;
                 }
             }
@@ -287,7 +287,7 @@ bool DivRemOpt::applyDivConst(
     } else {
         int32_t l = log2floor(divisor);
         int32_t sh = l;
-        int64_t temp = 1L;
+        int64_t temp = 1LL;
         int64_t low = (temp << (32 + l)) / divisor;
         int64_t high = ((temp << (32 + l)) + (temp << (l + 1))) / divisor;
         while (((low / 2) < (high / 2)) && sh > 0) {
@@ -295,7 +295,7 @@ bool DivRemOpt::applyDivConst(
             high /= 2;
             sh--;
         }
-        if (high < (1L << 31)) {
+        if (high < (1LL << 31)) {
             // %1 = mul %src, #high
             // %2 = srai %1, #(32+sh)
             // %3 = sraiw %src, #31
@@ -324,7 +324,7 @@ bool DivRemOpt::applyDivConst(
             instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::SUB,
                                                                                   op2, op3, newAns));
         } else {
-            high = high - (1L << 32);
+            high = high - (1LL << 32);
             // %1 = mul %src, #high
             // %2 = srai %1, #32
             // %3 = addw %2, %src
