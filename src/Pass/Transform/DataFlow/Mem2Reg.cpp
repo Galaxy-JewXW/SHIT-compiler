@@ -14,19 +14,19 @@ void Mem2Reg::init_mem2reg() {
     def_stack.clear();
 
     for (const auto &user: current_alloc->users()) {
-        const auto inst = user->is<Instruction>();
+        auto inst = std::dynamic_pointer_cast<Instruction>(user);
         if (inst == nullptr) {
             log_error("User of %s is not instruction: %s", current_alloc->to_string().c_str(),
                       user->to_string().c_str());
         }
-        if (inst->get_block()->is_deleted())
-            continue;
-
-        if (inst->get_op() == Operator::LOAD) {
-            use_instructions.insert(inst);
-        } else if (inst->get_op() == Operator::STORE) {
-            def_instructions.insert(inst);
-            def_blocks.insert(inst->get_block());
+        if (const auto load = std::dynamic_pointer_cast<Load>(inst); load && !load->get_block()->is_deleted()) {
+            use_instructions.insert(load);
+        }
+        if (const auto store = std::dynamic_pointer_cast<Store>(inst); store && !store->get_block()->is_deleted()) {
+            def_instructions.insert(store);
+            if (std::find(def_blocks.begin(), def_blocks.end(), store->get_block()) == def_blocks.end()) {
+                def_blocks.push_back(store->get_block());
+            }
         }
     }
 }
@@ -52,7 +52,7 @@ void Mem2Reg::insert_phi() {
             use_instructions.insert(phi);
             def_instructions.insert(phi);
             processed_blocks.insert(y);
-            if (def_blocks.find(y) == def_blocks.end()) {
+            if (std::find(def_blocks.begin(), def_blocks.end(), y) == def_blocks.end()) {
                 worklist.emplace_back(y);
             }
         }
@@ -65,30 +65,30 @@ void Mem2Reg::rename_variables(const std::shared_ptr<Block> &block) {
     for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
         if (auto instruction = *it; instruction == current_alloc) {
             it = block->get_instructions().erase(it);
-        } else if (instruction->get_op() == Operator::LOAD && use_instructions.count(instruction)) {
+        } else if (const auto load = std::dynamic_pointer_cast<Load>(instruction);
+                   load && use_instructions.count(load)) {
             std::shared_ptr<Value> new_value;
             if (!def_stack.empty()) {
                 new_value = def_stack.back();
             } else if (contain_type->is_int32()) {
                 new_value = ConstInt::create(0);
             } else if (contain_type->is_float()) {
-                new_value = ConstFloat::create(0.0);
+                new_value = ConstFloat::create(0.0f);
             } else {
                 log_error("Unsupported type: %s", contain_type->to_string().c_str());
             }
-            const auto load = instruction->as<Load>();
             load->replace_by_new_value(new_value);
-            load->clear_operands();
             it = block->get_instructions().erase(it);
-        } else if (instruction->get_op() == Operator::STORE && def_instructions.count(instruction)) {
-            const auto store = instruction->as<Store>();
+        } else if (const auto store = std::dynamic_pointer_cast<Store>(instruction);
+                   store && def_instructions.count(store)) {
             const auto stored_value = store->get_value();
             def_stack.emplace_back(stored_value);
             store->clear_operands();
             ++stack_depth;
             it = block->get_instructions().erase(it);
-        } else if (instruction->get_op() == Operator::PHI && def_instructions.count(instruction)) {
-            def_stack.emplace_back(instruction);
+        } else if (const auto phi = std::dynamic_pointer_cast<Phi>(instruction);
+                   phi && std::find(def_instructions.begin(), def_instructions.end(), phi) != def_instructions.end()) {
+            def_stack.emplace_back(phi);
             ++stack_depth;
             ++it;
         } else {
@@ -98,20 +98,19 @@ void Mem2Reg::rename_variables(const std::shared_ptr<Block> &block) {
     // 第二遍遍历：更新后继块的Phi操作数
     for (const auto &succ_block: cfg_info->graph(current_function).successors.at(block)) {
         for (const auto &inst: succ_block->get_instructions()) {
-            if (inst->get_op() == Operator::PHI && use_instructions.count(inst)) {
+            if (const auto phi = std::dynamic_pointer_cast<Phi>(inst);
+                phi && use_instructions.count(phi)) {
                 std::shared_ptr<Value> new_value;
                 if (!def_stack.empty()) {
                     new_value = def_stack.back();
                 } else if (contain_type->is_int32()) {
                     new_value = ConstInt::create(0);
                 } else if (contain_type->is_float()) {
-                    new_value = ConstFloat::create(0.0);
+                    new_value = ConstFloat::create(0.0f);
                 } else {
                     log_error("Unsupported type: %s", contain_type->to_string().c_str());
                 }
-                inst->as<Phi>()->set_optional_value(block, new_value);
-            } else {
-                break;
+                phi->set_optional_value(block, new_value);
             }
         }
     }
