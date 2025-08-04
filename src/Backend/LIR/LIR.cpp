@@ -250,8 +250,11 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
         case Mir::Operator::BITCAST: {
             std::shared_ptr<Mir::BitCast> bitcast = std::static_pointer_cast<Mir::BitCast>(llvm_instruction);
             std::shared_ptr<Backend::Variable> src = find_variable(bitcast->get_value()->get_name(), lir_block->parent_function.lock());
-            std::shared_ptr<Backend::Variable> dst = std::make_shared<Backend::Pointer>(bitcast->get_name(), src);
-            lir_block->parent_function.lock()->add_variable(dst);
+            if (src->var_type == Backend::Variable::Type::PTR) {
+                std::shared_ptr<Backend::Pointer> src_ = std::static_pointer_cast<Backend::Pointer>(src);
+                std::shared_ptr<Backend::Pointer> ptr_src = std::make_shared<Backend::Pointer>(bitcast->get_name(), src_->base, src_->offset);
+                lir_block->parent_function.lock()->add_variable(ptr_src);
+            } else lir_block->parent_function.lock()->add_variable(std::make_shared<Backend::Pointer>(bitcast->get_name(), src));
             break;
         }
         case Mir::Operator::JUMP: {
@@ -303,7 +306,7 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
                             lir_block->instructions.push_back(std::make_shared<Backend::LIR::LoadAddress>(ep->base, base));
                             param_ = base;
                         }
-                        if (std::static_pointer_cast<Backend::IntValue>(ep->offset)->int32_value) {
+                        if (ep->offset && std::static_pointer_cast<Backend::IntValue>(ep->offset)->int32_value) {
                             std::shared_ptr<Backend::Variable> base = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("addr"), Backend::Utils::to_pointer(ep->base->workload_type), VariableWide::LOCAL);
                             lir_block->parent_function.lock()->add_variable(base);
                             lir_block->instructions.push_back(std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::ADD, param_, ep->offset, base));
