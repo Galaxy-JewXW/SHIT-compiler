@@ -148,7 +148,7 @@ namespace RISCV::Instructions {
 
     std::string Mul::to_string() const {
         std::ostringstream oss;
-        oss << "mul " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);
+        oss << "mulw " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);
         return oss.str();
     }
 
@@ -160,7 +160,7 @@ namespace RISCV::Instructions {
 
     std::string Div::to_string() const {
         std::ostringstream oss;
-        oss << "div " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);
+        oss << "divw " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);
         return oss.str();
     }
 
@@ -172,7 +172,7 @@ namespace RISCV::Instructions {
 
     std::string Mod::to_string() const {
         std::ostringstream oss;
-        oss << "rem " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);
+        oss << "remw " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);
         return oss.str();
     }
 
