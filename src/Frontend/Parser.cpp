@@ -63,7 +63,7 @@ std::shared_ptr<AST::ConstDecl> Parser::parseConstDecl() {
 
 std::shared_ptr<AST::ConstDef> Parser::parseConstDef() {
     panic_on(Token::Type::IDENTIFIER);
-    const std::string ident = next(-1).content;
+    const auto tk = next(-1);
     std::vector<std::shared_ptr<AST::ConstExp>> constExps;
     if (match(Token::Type::LBRACKET)) {
         do {
@@ -73,7 +73,7 @@ std::shared_ptr<AST::ConstDef> Parser::parseConstDef() {
     }
     panic_on(Token::Type::ASSIGN);
     std::shared_ptr<AST::ConstInitVal> constInitVal = parseConstInitVal();
-    return std::make_shared<AST::ConstDef>(ident, constExps, constInitVal);
+    return std::make_shared<AST::ConstDef>(tk.content, constExps, constInitVal, tk.line);
 }
 
 std::shared_ptr<AST::ConstInitVal> Parser::parseConstInitVal() {
@@ -105,7 +105,7 @@ std::shared_ptr<AST::VarDecl> Parser::parseVarDecl() {
 
 std::shared_ptr<AST::VarDef> Parser::parseVarDef() {
     panic_on(Token::Type::IDENTIFIER);
-    const std::string ident = next(-1).content;
+    const auto tk = next(-1);
     std::vector<std::shared_ptr<AST::ConstExp>> constExps;
     if (match(Token::Type::LBRACKET)) {
         do {
@@ -117,7 +117,7 @@ std::shared_ptr<AST::VarDef> Parser::parseVarDef() {
     if (match(Token::Type::ASSIGN)) {
         initVal = parseInitVal();
     }
-    return std::make_shared<AST::VarDef>(ident, constExps, initVal);
+    return std::make_shared<AST::VarDef>(tk.content, constExps, initVal, tk.line);
 }
 
 std::shared_ptr<AST::InitVal> Parser::parseInitVal() {

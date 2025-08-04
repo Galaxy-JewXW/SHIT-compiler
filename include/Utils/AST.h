@@ -420,11 +420,12 @@ class ConstDef final : public Node {
     const std::string ident_;
     const std::vector<std::shared_ptr<ConstExp>> constExps_;
     const std::shared_ptr<ConstInitVal> constInitVal_;
+    const int lineno_;
 
 public:
     ConstDef(std::string ident, const std::vector<std::shared_ptr<ConstExp>> &constExps,
-             const std::shared_ptr<ConstInitVal> &constInitVal) :
-        ident_{std::move(ident)}, constExps_{constExps}, constInitVal_{constInitVal} {}
+             const std::shared_ptr<ConstInitVal> &constInitVal, int lineno) :
+        ident_{std::move(ident)}, constExps_{constExps}, constInitVal_{constInitVal}, lineno_{lineno} {}
 
     [[nodiscard]] std::string to_string() const override;
 
@@ -432,6 +433,7 @@ public:
     [[nodiscard]] const std::vector<std::shared_ptr<ConstExp>> &constExps() const { return constExps_; }
     [[nodiscard]] std::shared_ptr<ConstInitVal> constInitVal() const { return constInitVal_; }
     [[nodiscard]] bool is_exp() const { return constInitVal_->is_constExp(); }
+    [[nodiscard]] int lineno() const { return lineno_; }
 };
 
 // ConstDecl ->  'const' BType ConstDef { ',' ConstDef } ';'
@@ -477,11 +479,12 @@ class VarDef final : public Node {
     const std::string ident_;
     const std::vector<std::shared_ptr<ConstExp>> constExps_;
     const std::shared_ptr<InitVal> initVal_;
+    const int lineno_;
 
 public:
     VarDef(std::string ident, const std::vector<std::shared_ptr<ConstExp>> &constExps,
-           const std::shared_ptr<InitVal> &initVal) :
-        ident_{std::move(ident)}, constExps_{constExps}, initVal_{initVal} {}
+           const std::shared_ptr<InitVal> &initVal, int lineno) :
+        ident_{std::move(ident)}, constExps_{constExps}, initVal_{initVal}, lineno_{lineno} {}
 
     [[nodiscard]] std::string ident() const { return ident_; }
 
@@ -492,6 +495,8 @@ public:
     [[nodiscard]] std::string to_string() const override;
 
     [[nodiscard]] bool is_exp() const { return initVal_->is_exp(); }
+
+    [[nodiscard]] int lineno() const { return lineno_; }
 };
 
 // VarDecl -> BType VarDef { ',' VarDef } ';'

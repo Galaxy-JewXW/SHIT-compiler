@@ -8,7 +8,15 @@
 
 [[maybe_unused]]
 void execute_O0_passes(std::shared_ptr<Mir::Module> &module) {
-    apply<Pass::Mem2Reg, Pass::LocalValueNumbering, Pass::GepFolding>(module);
+    try {
+        apply<Pass::Mem2Reg>(module);
+    } catch (const std::invalid_argument &) {
+        apply<Pass::AlgebraicSimplify>(module);
+        apply<Pass::SimplifyControlFlow>(module);
+        module->update_id();
+        return;
+    }
+    apply<Pass::LocalValueNumbering, Pass::GepFolding>(module);
     apply<Pass::LocalValueNumbering, Pass::SimplifyControlFlow>(module);
     apply<Pass::GlobalVariableLocalize>(module);
     apply<Pass::GlobalArrayLocalize>(module);
