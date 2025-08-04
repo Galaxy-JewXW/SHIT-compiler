@@ -25,6 +25,8 @@ void execute_O0_passes(std::shared_ptr<Mir::Module> &module) {
     apply<Pass::AlgebraicSimplify>(module);
     apply<Pass::LocalValueNumbering, Pass::SimplifyControlFlow>(module);
     apply<Pass::DeadCodeEliminate>(module);
+    apply<Pass::ConstexprFuncEval>(module);
+    apply<Pass::DeadFuncEliminate>(module);
     apply<Pass::RemovePhi>(module);
 
     module->update_id();
