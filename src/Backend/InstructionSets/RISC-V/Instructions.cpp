@@ -170,6 +170,12 @@ namespace RISCV::Instructions {
         return oss.str();
     }
 
+    std::string Mul_SUP::to_string() const {
+        std::ostringstream oss;
+        oss << "mul " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);
+        return oss.str();
+    }
+
     std::string FMul::to_string() const {
         std::ostringstream oss;
         oss << "fmul.s " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);
