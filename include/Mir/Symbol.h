@@ -66,7 +66,7 @@ public:
 
     void insert_symbol(const std::string &name, const std::shared_ptr<Type::Type> &type,
                        const std::shared_ptr<Init::Init> &init_value, const std::shared_ptr<Value> &address,
-                       bool is_constant = false, bool is_modified = true);
+                       bool is_constant = false, bool is_modified = true, int lineno = -1);
 
     [[nodiscard]] std::shared_ptr<Symbol> lookup_in_current_scope(const std::string &name) const;
 

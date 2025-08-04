@@ -27,9 +27,9 @@ private:
     // 当前被处理的alloca指令，可能被提升为寄存器变量
     std::shared_ptr<Mir::Alloc> current_alloc;
     // 记录当前变量的所有定义指令（生成变量值的指令）
-    std::unordered_set<std::shared_ptr<Mir::Instruction>> def_instructions;
+    std::vector<std::shared_ptr<Mir::Instruction>> def_instructions;
     // 记录当前变量的所有使用指令（引用变量值的指令）
-    std::unordered_set<std::shared_ptr<Mir::Instruction>> use_instructions;
+    std::vector<std::shared_ptr<Mir::Instruction>> use_instructions;
     // 记录包含当前变量定义的基本块，用于计算Phi节点插入位置
     std::vector<std::shared_ptr<Mir::Block>> def_blocks;
     // 变量重命名时使用的定义栈，栈顶为当前作用域内有效的定义版本

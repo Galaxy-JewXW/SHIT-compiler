@@ -97,7 +97,7 @@ void Builder::visit_constDef(const Token::Type type, const std::shared_ptr<AST::
             std::static_pointer_cast<Init::Array>(init_value)->gen_store_inst(address, cur_block, dimensions);
         }
     }
-    table->insert_symbol(constDef->ident(), ir_type, init_value, address, true, false);
+    table->insert_symbol(constDef->ident(), ir_type, init_value, address, true, false, constDef->lineno());
 }
 
 void Builder::visit_varDecl(const std::shared_ptr<AST::VarDecl> &varDecl) const {
@@ -172,7 +172,7 @@ void Builder::visit_varDef(const Token::Type type, const std::shared_ptr<AST::Va
             std::static_pointer_cast<Init::Exp>(init_value)->gen_store_inst(address, cur_block);
         }
     }
-    table->insert_symbol(varDef->ident(), ir_type, init_value, address, false, is_global);
+    table->insert_symbol(varDef->ident(), ir_type, init_value, address, false, is_global, varDef->lineno());
 }
 
 void Builder::visit_funcDef(const std::shared_ptr<AST::FuncDef> &funcDef) {
