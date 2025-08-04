@@ -10,6 +10,12 @@ namespace RISCV::Instructions {
         return oss.str();
     }
 
+    std::string Subw::to_string() const {
+        std::ostringstream oss;
+        oss << "subw " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);
+        return oss.str();
+    }
+
     std::string FSub::to_string() const {
         std::ostringstream oss;
         oss << "fsub.s " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);
@@ -78,6 +84,12 @@ namespace RISCV::Instructions {
         return oss.str();
     }
 
+    std::string Addw::to_string() const {
+        std::ostringstream oss;
+        oss << "addw " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);
+        return oss.str();
+    }
+
     std::string FAdd::to_string() const {
         std::ostringstream oss;
         oss << "fadd.s " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);
@@ -99,6 +111,12 @@ namespace RISCV::Instructions {
     std::string AddImmediate::to_string() const {
         std::ostringstream oss;
         oss << "addi " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << imm;
+        return oss.str();
+    }
+
+    std::string AddImmediateW::to_string() const {
+        std::ostringstream oss;
+        oss << "addiw " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << imm;
         return oss.str();
     }
 

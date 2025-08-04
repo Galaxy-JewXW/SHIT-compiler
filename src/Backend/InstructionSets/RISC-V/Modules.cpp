@@ -170,12 +170,20 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
     switch (instruction->type) {
         case Backend::LIR::InstructionType::ADD: {
             std::shared_ptr<Backend::LIR::IntArithmetic> instr = std::static_pointer_cast<Backend::LIR::IntArithmetic>(instruction);
-            translate_iactions<RISCV::Instructions::AddImmediate, RISCV::Instructions::Add>(instr, instrs);
+            std::shared_ptr<Backend::Variable> result = instr->result;
+            if (Backend::Utils::type_to_size(result->workload_type) == 8)
+               translate_iactions<RISCV::Instructions::AddImmediate, RISCV::Instructions::Add>(instr, instrs);
+            else
+                translate_iactions<RISCV::Instructions::AddImmediateW, RISCV::Instructions::Addw>(instr, instrs);
             break;
         }
         case Backend::LIR::InstructionType::SUB: {
             std::shared_ptr<Backend::LIR::IntArithmetic> instr = std::static_pointer_cast<Backend::LIR::IntArithmetic>(instruction);
-            translate_iactions<RISCV::Instructions::SubImmediate, RISCV::Instructions::Sub>(instr, instrs);
+            std::shared_ptr<Backend::Variable> result = instr->result;
+            if (Backend::Utils::type_to_size(result->workload_type) == 8)
+               translate_iactions<RISCV::Instructions::SubImmediate, RISCV::Instructions::Sub>(instr, instrs);
+            else
+                translate_iactions<RISCV::Instructions::SubImmediateW, RISCV::Instructions::Subw>(instr, instrs);
             break;
         }
         case Backend::LIR::InstructionType::SHIFT_LEFT: {

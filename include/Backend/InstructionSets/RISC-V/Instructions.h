@@ -110,6 +110,12 @@ namespace RISCV::Instructions {
             [[nodiscard]] std::string to_string() const override;
     };
 
+    class Addw : public Rtype {
+        public:
+            Addw(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
     class FAdd : public Rtype {
         public:
             FAdd(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
@@ -139,14 +145,33 @@ namespace RISCV::Instructions {
             [[nodiscard]] std::string to_string() const override;
     };
 
+    class AddImmediateW : public AddImmediate {
+        public:
+            AddImmediateW(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, int32_t imm) : AddImmediate{rd, rs1, imm} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
     class SubImmediate : public AddImmediate {
         public:
             SubImmediate(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, int32_t imm) : AddImmediate{rd, rs1, -imm} {}
     };
 
+    class SubImmediateW : public AddImmediateW {
+        public:
+            SubImmediateW(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, int32_t imm) : AddImmediateW{rd, rs1, -imm} {}
+    };
+
+
     class Sub : public Rtype {
         public:
             Sub(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
+
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class Subw : public Rtype {
+        public:
+            Subw(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
 
             [[nodiscard]] std::string to_string() const override;
     };
