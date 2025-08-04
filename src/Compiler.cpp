@@ -31,6 +31,7 @@ int main(int argc, char *argv[]) {
     std::shared_ptr<Mir::Module> module = builder.visit(ast);
     Mir::Module::set_instance(module);
     emit_llvm(module, options._emit_options);
+    module->update_id();
 
     if (options.opt_level >= Optimize_level::O1) {
         execute_O1_passes(module);
