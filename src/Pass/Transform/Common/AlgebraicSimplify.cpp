@@ -349,51 +349,51 @@ bool reduce_cmp(std::vector<std::shared_ptr<Instruction>> &instructions, const s
             return false;
         }
     }
-    const auto t{inst->op};
-    if (t == Trait<Compare>::Binary::Op::ADD) {
-        const auto add_inst{inst->template as<typename Trait<Compare>::AddInst>()};
-        // (3 + a) > 6 -> a > 3
-        if (const auto &x{add_inst->get_lhs()}, &y{add_inst->get_rhs()}; x->is_constant()) {
-            const auto cx{**x->template as<ConstantType>()};
-            if (const auto ans{Pass::Utils::safe_cal(constant_value, cx, std::minus<>{})}) {
-                const auto new_cmp = Compare::create("cmp", cmp->op, y, ConstantType::create(ans.value()), nullptr);
-                replace_instruction(cmp, new_cmp, current_block, instructions, idx);
-                return true;
-            }
-        } else if (y->is_constant()) {
-            const auto cy{**y->template as<ConstantType>()};
-            if (const auto ans{Pass::Utils::safe_cal(constant_value, cy, std::minus<>{})}) {
-                const auto new_cmp = Compare::create("cmp", cmp->op, x, ConstantType::create(ans.value()), nullptr);
-                replace_instruction(cmp, new_cmp, current_block, instructions, idx);
-                return true;
-            }
-        }
-    } else if (t == Trait<Compare>::Binary::Op::SUB) {
-        const auto sub_inst{inst->template as<typename Trait<Compare>::SubInst>()};
-        // (a - 3) > 6 -> a > 9
-        // (3 - a) > 6 -> a < -3
-        if (const auto &x{sub_inst->get_lhs()}, &y{sub_inst->get_rhs()}; x->is_constant()) {
-            const auto cx{**x->template as<ConstantType>()};
-            if (const auto ans{Pass::Utils::safe_cal(cx, constant_value, std::minus<>{})}) {
-                const auto new_cmp = Compare::create("cmp", Compare::swap_op(cmp->op), y,
-                                                     ConstantType::create(ans.value()), nullptr);
-                replace_instruction(cmp, new_cmp, current_block, instructions, idx);
-                return true;
-            }
-        } else if (y->is_constant()) {
-            const auto cy{**y->template as<ConstantType>()};
-            if (const auto ans{Pass::Utils::safe_cal(constant_value, cy, std::plus<>{})}) {
-                const auto new_cmp = Compare::create("cmp", cmp->op, x, ConstantType::create(ans.value()), nullptr);
-                replace_instruction(cmp, new_cmp, current_block, instructions, idx);
-                return true;
-            }
-        }
-    } else if (t == Trait<Compare>::Binary::Op::MUL) {
-        return _reduce_cmp_with_mul<Compare>(cmp, instructions, idx, current_block);
-    } else if (t == Trait<Compare>::Binary::Op::DIV) {
-        return _reduce_cmp_with_div<Compare>(cmp, instructions, idx, current_block);
-    }
-    // TODO: mod处理：x % 2 == 1 -> x & 1 == 1
+    // const auto t{inst->op};
+    // if (t == Trait<Compare>::Binary::Op::ADD) {
+    //     const auto add_inst{inst->template as<typename Trait<Compare>::AddInst>()};
+    //     // (3 + a) > 6 -> a > 3
+    //     if (const auto &x{add_inst->get_lhs()}, &y{add_inst->get_rhs()}; x->is_constant()) {
+    //         const auto cx{**x->template as<ConstantType>()};
+    //         if (const auto ans{Pass::Utils::safe_cal(constant_value, cx, std::minus<>{})}) {
+    //             const auto new_cmp = Compare::create("cmp", cmp->op, y, ConstantType::create(ans.value()), nullptr);
+    //             replace_instruction(cmp, new_cmp, current_block, instructions, idx);
+    //             return true;
+    //         }
+    //     } else if (y->is_constant()) {
+    //         const auto cy{**y->template as<ConstantType>()};
+    //         if (const auto ans{Pass::Utils::safe_cal(constant_value, cy, std::minus<>{})}) {
+    //             const auto new_cmp = Compare::create("cmp", cmp->op, x, ConstantType::create(ans.value()), nullptr);
+    //             replace_instruction(cmp, new_cmp, current_block, instructions, idx);
+    //             return true;
+    //         }
+    //     }
+    // } else if (t == Trait<Compare>::Binary::Op::SUB) {
+    //     const auto sub_inst{inst->template as<typename Trait<Compare>::SubInst>()};
+    //     // (a - 3) > 6 -> a > 9
+    //     // (3 - a) > 6 -> a < -3
+    //     if (const auto &x{sub_inst->get_lhs()}, &y{sub_inst->get_rhs()}; x->is_constant()) {
+    //         const auto cx{**x->template as<ConstantType>()};
+    //         if (const auto ans{Pass::Utils::safe_cal(cx, constant_value, std::minus<>{})}) {
+    //             const auto new_cmp = Compare::create("cmp", Compare::swap_op(cmp->op), y,
+    //                                                  ConstantType::create(ans.value()), nullptr);
+    //             replace_instruction(cmp, new_cmp, current_block, instructions, idx);
+    //             return true;
+    //         }
+    //     } else if (y->is_constant()) {
+    //         const auto cy{**y->template as<ConstantType>()};
+    //         if (const auto ans{Pass::Utils::safe_cal(constant_value, cy, std::plus<>{})}) {
+    //             const auto new_cmp = Compare::create("cmp", cmp->op, x, ConstantType::create(ans.value()), nullptr);
+    //             replace_instruction(cmp, new_cmp, current_block, instructions, idx);
+    //             return true;
+    //         }
+    //     }
+    // } else if (t == Trait<Compare>::Binary::Op::MUL) {
+    //     return _reduce_cmp_with_mul<Compare>(cmp, instructions, idx, current_block);
+    // } else if (t == Trait<Compare>::Binary::Op::DIV) {
+    //     return _reduce_cmp_with_div<Compare>(cmp, instructions, idx, current_block);
+    // }
+    // // TODO: mod处理：x % 2 == 1 -> x & 1 == 1
     return false;
 }
 } // namespace
@@ -1150,8 +1150,8 @@ void AlgebraicSimplify::transform(const std::shared_ptr<Module> module) {
                 changed |= handle_intbinary_icmp(b);
             });
         });
-        std::for_each(module->get_functions().begin(), module->get_functions().end(),
-                      [&](const auto &func) { changed |= handle_float_ternary(func); });
+        // std::for_each(module->get_functions().begin(), module->get_functions().end(),
+        //               [&](const auto &func) { changed |= handle_float_ternary(func); });
         if (changed) [[likely]] {
             create<DeadInstEliminate>()->run_on(module);
         }
@@ -1170,7 +1170,7 @@ void AlgebraicSimplify::transform(const std::shared_ptr<Function> &func) {
                           [&](const auto &inst) { changed |= GlobalValueNumbering::fold_instruction(inst); });
             changed |= handle_intbinary_icmp(b);
         });
-        changed |= handle_float_ternary(func);
+        // changed |= handle_float_ternary(func);
         if (changed) [[likely]] {
             create<DeadInstEliminate>()->run_on(func);
         }
