@@ -14,26 +14,26 @@ void Mem2Reg::init_mem2reg() {
     def_stack.clear();
 
     for (const auto &user: current_alloc->users()) {
-        auto inst = std::dynamic_pointer_cast<Instruction>(user);
+        const auto inst = user->is<Instruction>();
         if (inst == nullptr) {
             log_error("User of %s is not instruction: %s", current_alloc->to_string().c_str(),
                       user->to_string().c_str());
         }
-        if (const auto load = std::dynamic_pointer_cast<Load>(inst); load && !load->get_block()->is_deleted()) {
-            use_instructions.emplace_back(load);
-        }
-        if (const auto store = std::dynamic_pointer_cast<Store>(inst); store && !store->get_block()->is_deleted()) {
-            def_instructions.emplace_back(store);
-            if (std::find(def_blocks.begin(), def_blocks.end(), store->get_block()) == def_blocks.end()) {
-                def_blocks.emplace_back(store->get_block());
-            }
+        if (inst->get_block()->is_deleted())
+            continue;
+
+        if (inst->get_op() == Operator::LOAD) {
+            use_instructions.insert(inst);
+        } else if (inst->get_op() == Operator::STORE) {
+            def_instructions.insert(inst);
+            def_blocks.insert(inst->get_block());
         }
     }
 }
 
 void Mem2Reg::insert_phi() {
     std::unordered_set<std::shared_ptr<Block>> processed_blocks; // 已处理的基本块
-    std::vector<std::shared_ptr<Block>> worklist = def_blocks;
+    std::vector worklist(def_blocks.begin(), def_blocks.end());
     while (!worklist.empty()) {
         const auto x = worklist.front();
         worklist.erase(worklist.begin());
@@ -49,10 +49,10 @@ void Mem2Reg::insert_phi() {
             const auto phi = Phi::create(Builder::gen_variable_name(), contain_type, nullptr, optional_map);
             phi->set_block(y, false);
             y->get_instructions().insert(y->get_instructions().begin(), phi);
-            use_instructions.emplace_back(phi);
-            def_instructions.emplace_back(phi);
+            use_instructions.insert(phi);
+            def_instructions.insert(phi);
             processed_blocks.insert(y);
-            if (std::find(def_blocks.begin(), def_blocks.end(), y) == def_blocks.end()) {
+            if (def_blocks.find(y) == def_blocks.end()) {
                 worklist.emplace_back(y);
             }
         }
@@ -65,32 +65,30 @@ void Mem2Reg::rename_variables(const std::shared_ptr<Block> &block) {
     for (auto it = block->get_instructions().begin(); it != block->get_instructions().end();) {
         if (auto instruction = *it; instruction == current_alloc) {
             it = block->get_instructions().erase(it);
-        } else if (const auto load = std::dynamic_pointer_cast<Load>(instruction);
-                   load &&
-                   std::find(use_instructions.begin(), use_instructions.end(), load) != use_instructions.end()) {
+        } else if (instruction->get_op() == Operator::LOAD && use_instructions.count(instruction)) {
             std::shared_ptr<Value> new_value;
             if (!def_stack.empty()) {
                 new_value = def_stack.back();
             } else if (contain_type->is_int32()) {
                 new_value = ConstInt::create(0);
             } else if (contain_type->is_float()) {
-                new_value = ConstFloat::create(0.0f);
+                new_value = ConstFloat::create(0.0);
             } else {
                 log_error("Unsupported type: %s", contain_type->to_string().c_str());
             }
+            const auto load = instruction->as<Load>();
             load->replace_by_new_value(new_value);
+            load->clear_operands();
             it = block->get_instructions().erase(it);
-        } else if (const auto store = std::dynamic_pointer_cast<Store>(instruction);
-                   store &&
-                   std::find(def_instructions.begin(), def_instructions.end(), store) != def_instructions.end()) {
+        } else if (instruction->get_op() == Operator::STORE && def_instructions.count(instruction)) {
+            const auto store = instruction->as<Store>();
             const auto stored_value = store->get_value();
             def_stack.emplace_back(stored_value);
             store->clear_operands();
             ++stack_depth;
             it = block->get_instructions().erase(it);
-        } else if (const auto phi = std::dynamic_pointer_cast<Phi>(instruction);
-                   phi && std::find(def_instructions.begin(), def_instructions.end(), phi) != def_instructions.end()) {
-            def_stack.emplace_back(phi);
+        } else if (instruction->get_op() == Operator::PHI && def_instructions.count(instruction)) {
+            def_stack.emplace_back(instruction);
             ++stack_depth;
             ++it;
         } else {
@@ -99,20 +97,22 @@ void Mem2Reg::rename_variables(const std::shared_ptr<Block> &block) {
     }
     // 第二遍遍历：更新后继块的Phi操作数
     for (const auto &succ_block: cfg_info->graph(current_function).successors.at(block)) {
-        const auto first_instruction = succ_block->get_instructions().front();
-        if (const auto phi = std::dynamic_pointer_cast<Phi>(first_instruction);
-            phi && std::find(use_instructions.begin(), use_instructions.end(), phi) != use_instructions.end()) {
-            std::shared_ptr<Value> new_value;
-            if (!def_stack.empty()) {
-                new_value = def_stack.back();
-            } else if (contain_type->is_int32()) {
-                new_value = ConstInt::create(0);
-            } else if (contain_type->is_float()) {
-                new_value = ConstFloat::create(0.0f);
+        for (const auto &inst: succ_block->get_instructions()) {
+            if (inst->get_op() == Operator::PHI && use_instructions.count(inst)) {
+                std::shared_ptr<Value> new_value;
+                if (!def_stack.empty()) {
+                    new_value = def_stack.back();
+                } else if (contain_type->is_int32()) {
+                    new_value = ConstInt::create(0);
+                } else if (contain_type->is_float()) {
+                    new_value = ConstFloat::create(0.0);
+                } else {
+                    log_error("Unsupported type: %s", contain_type->to_string().c_str());
+                }
+                inst->as<Phi>()->set_optional_value(block, new_value);
             } else {
-                log_error("Unsupported type: %s", contain_type->to_string().c_str());
+                break;
             }
-            phi->set_optional_value(block, new_value);
         }
     }
     // 递归处理支配子树

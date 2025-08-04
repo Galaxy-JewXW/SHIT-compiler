@@ -126,8 +126,10 @@ void Helper::build() {
         // log_debug("%s -> %s", phi->to_string().c_str(), phicopy_value->get_name().c_str());
         phicopy_variables.insert(phicopy_value);
         for (const auto &[pre, value]: phi->get_optional_values()) {
-            move_map.try_emplace(pre, std::vector<std::shared_ptr<Move>>{});
-            move_map[pre].push_back(Move::create(phi_map[phi], value, nullptr));
+            if (value != phi) [[likely]] {
+                move_map.try_emplace(pre, std::vector<std::shared_ptr<Move>>{});
+                move_map[pre].push_back(Move::create(phi_map[phi], value, nullptr));
+            }
         }
         phi->replace_by_new_value(phi_map[phi]);
     }

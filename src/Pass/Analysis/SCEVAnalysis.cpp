@@ -1,4 +1,9 @@
 #include "Pass/Analyses/SCEVAnalysis.h"
+
+int Pass::SCEVExpr::c;
+int Pass::SCEVExpr::k;
+int Pass::SCEVExpr::n;
+
 namespace Pass {
 
 void SCEVAnalysis::analyze(std::shared_ptr<const Mir::Module> module) {
@@ -259,4 +264,23 @@ int SCEVAnalysis::bin_coe(int n, int k) {
 
     return coe[n][k];
 }
+
+    bool SCEVExpr::not_negative() {
+        if (this->type == SCEVTYPE::Constant) return this->constant >= 0;
+        else {
+            for (const auto& operand: this->operands) {
+                if(!operand->not_negative()) return false;
+            }
+            return true;
+        }
+    }
+
+    int SCEVExpr::get_init() {
+        if (this->type == SCEVTYPE::Constant) return this->get_constant();
+        else return this->operands[0]->get_init();
+    }
+
+    int SCEVExpr::get_step() {
+        return calc(shared_from_this() , 1) - calc(shared_from_this(), 0);
+    }
 } // namespace Pass
