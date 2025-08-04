@@ -43,7 +43,7 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
     apply<Pass::DeadFuncEliminate, Pass::DeadFuncArgEliminate, Pass::DeadReturnEliminate>(module);
     apply<Pass::DeadCodeEliminate>(module);
     apply<Pass::Reassociate, Pass::LocalValueNumbering, Pass::SimplifyControlFlow>(module);
-    apply<Pass::RemovePhi, Pass::BlockPositioning<O1_Type>>(module);
+    apply<Pass::RemovePhi, Pass::BlockPositioning<1>>(module);
 
     module->update_id();
 }

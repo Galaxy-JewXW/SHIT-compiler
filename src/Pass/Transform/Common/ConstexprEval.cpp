@@ -105,17 +105,4 @@ void ConstexprFuncEval::transform(const std::shared_ptr<Module> module) {
 
     func_analysis = nullptr;
 }
-
-void ConstexprFuncEval::transform(const std::shared_ptr<Function> &func) {
-    func_analysis = get_analysis_result<FunctionAnalysis>(Module::instance());
-    bool changed{false};
-    do {
-        changed = run_on_func(func);
-        if (changed) {
-            create<DeadInstEliminate>()->run_on(func);
-        }
-    } while (changed);
-
-    func_analysis = nullptr;
-}
 } // namespace Pass

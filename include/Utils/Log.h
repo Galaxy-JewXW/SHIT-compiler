@@ -61,16 +61,4 @@ void log_set_level(int level);
 void log_set_quiet(bool enable);
 void log_log(int level, const char *file, int line, const char *fmt, ...);
 
-// const char * as a template parameter
-template<char... chars>
-using tstring = std::integer_sequence<char, chars...>;
-
-template<typename T, T... chars>
-constexpr tstring<chars...> operator""_tstr() {
-    return {};
-}
-
-using O0_Type = decltype("O0"_tstr);
-using O1_Type = decltype("O1"_tstr);
-
 #endif

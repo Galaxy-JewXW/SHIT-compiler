@@ -41,17 +41,17 @@ private:
 };
 
 // 重排序函数内部的基本块，减少指令缓存未命中和分支预测开销
-template<typename T>
+template<int level>
 class BlockPositioning final : public Transform {
 public:
     explicit BlockPositioning() : Transform("BlockPositioning") {}
 
 protected:
     void transform(const std::shared_ptr<Mir::Module> module) override {
-        static_assert(std::is_same_v<T, O0_Type> || std::is_same_v<T, O1_Type>);
-        if constexpr  (std::is_same_v<T, O0_Type>) {
+        static_assert(level == 0 || level == 1);
+        if constexpr (level == 0) {
             do_reverse_postorder_placement(module);
-        } else if constexpr (std::is_same_v<T, O1_Type>) {
+        } else {
             do_static_probability_placement(module);
         }
     }
