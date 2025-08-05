@@ -237,6 +237,28 @@ void RISCV::Opt::PeepholeAfterRA::optimize() {
         for (auto &block: function->blocks) {
             addSubZeroRemove(block);
         }
+        removeUselessJumps(function);
+    }
+}
+
+void RISCV::Opt::PeepholeAfterRA::removeUselessJumps(const std::shared_ptr<RISCV::Function> &function) {
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        for (size_t i = 0; i < function->blocks.size(); i++) {
+            std::shared_ptr<RISCV::Block> block = function->blocks[i];
+            if (block->instructions.size() == 1) {
+                if (!std::dynamic_pointer_cast<RISCV::Instructions::Jump>(block->instructions.front()))
+                    continue;
+                changed = true;
+                std::shared_ptr<RISCV::Instructions::Jump> jump = std::static_pointer_cast<RISCV::Instructions::Jump>(block->instructions.front());
+                std::shared_ptr<RISCV::Block> jump_to = jump->target_block;
+                for (size_t j = 0; j < function->blocks.size(); j++)
+                    for (size_t k = 0; k < function->blocks[j]->instructions.size(); k++)
+                        function->blocks[j]->instructions[k]->update_block(block, jump_to);
+                function->blocks.erase(function->blocks.begin() + i--);
+            }
+        }
     }
 }
 
