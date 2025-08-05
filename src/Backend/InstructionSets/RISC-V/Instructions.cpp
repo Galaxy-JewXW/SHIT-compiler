@@ -120,6 +120,30 @@ namespace RISCV::Instructions {
         return oss.str();
     }
 
+    std::string And::to_string() const {
+        std::ostringstream oss;
+        oss << "and " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);
+        return oss.str();
+    }
+
+    std::string Andw::to_string() const {
+        std::ostringstream oss;
+        oss << "andw " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << RISCV::Registers::to_string(rs2);
+        return oss.str();
+    }
+
+    std::string AndImmediate::to_string() const {
+        std::ostringstream oss;
+        oss << "andi " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << imm;
+        return oss.str();
+    }
+
+    std::string AndImmediateW::to_string() const {
+        std::ostringstream oss;
+        oss << "andiw " << RISCV::Registers::to_string(rd) << ", " << RISCV::Registers::to_string(rs1) << ", " << imm;
+        return oss.str();
+    }
+
     std::string LoadAddress::to_string() const {
         std::ostringstream oss;
         oss << "la " << RISCV::Registers::to_string(rd) << ", " << variable->label();

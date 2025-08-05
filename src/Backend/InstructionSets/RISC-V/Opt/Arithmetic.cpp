@@ -314,8 +314,8 @@ bool DivRemOpt::applyDivConst(
             block->parent_function.lock()->add_variable(tmp);
             instructions->push_back(
                     std::make_shared<Backend::LIR::LoadIntImm>(tmp, std::make_shared<Backend::IntValue>(high)));
-            instructions->push_back(
-                    std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::MULH_SUP, src, tmp, op1));
+            instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(
+                    Backend::LIR::InstructionType::MULH_SUP, src, tmp, op1));
             instructions->push_back(
                     std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::SHIFT_RIGHT, op1,
                                                                   std::make_shared<Backend::IntValue>(32 + sh), op2));
@@ -351,8 +351,8 @@ bool DivRemOpt::applyDivConst(
             block->parent_function.lock()->add_variable(tmp);
             instructions->push_back(
                     std::make_shared<Backend::LIR::LoadIntImm>(tmp, std::make_shared<Backend::IntValue>(high)));
-            instructions->push_back(
-                    std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::MULH_SUP, src, tmp, op1));
+            instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(
+                    Backend::LIR::InstructionType::MULH_SUP, src, tmp, op1));
             instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(
                     Backend::LIR::InstructionType::SHIFT_RIGHT, op1, std::make_shared<Backend::IntValue>(32), op2));
             instructions->push_back(
@@ -379,45 +379,70 @@ void DivRemOpt::applyRemConst(
         const std::shared_ptr<std::vector<std::shared_ptr<Backend::LIR::Instruction>>> &instructions,
         const std::shared_ptr<Backend::Variable> &ans, const std::shared_ptr<Backend::Variable> &src, int32_t C) {
 
-    int32_t temp = std::abs(C);
-    if (isPowerOf2(temp)) {
-        int32_t shift = log2floor(temp);
-        // t0 = src >> 31 (sraiw)
-        auto imm31 = std::make_shared<Backend::IntValue>(31);
-        auto reg = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("remAssist"), src->workload_type,
-                                                       Backend::VariableWide::LOCAL);
-        block->parent_function.lock()->add_variable(reg);
-        instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(
-                Backend::LIR::InstructionType::SHIFT_RIGHT, src, imm31, reg));
-        // reg = reg >> (32 - shift) (srli)
-        auto imm1 = std::make_shared<Backend::IntValue>(32 - shift);
-        instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(
-                Backend::LIR::InstructionType::SHIFT_RIGHT, reg, imm1, reg));
-        // reg = src + reg (add)
-        instructions->push_back(
-                std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::ADD, src, reg, reg));
-        // reg = reg >> shift (srli)
-        auto imm2 = std::make_shared<Backend::IntValue>(shift);
-        instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(
-                Backend::LIR::InstructionType::SHIFT_RIGHT, reg, imm2, reg));
-        // reg = reg << shift (slli)
-        instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::SHIFT_LEFT,
-                                                                              reg, imm2, reg));
-        // ans = src - reg (sub)
-        instructions->push_back(
-                std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::SUB, src, reg, ans));
-    } else {
+//    int32_t temp = std::abs(C);
+//    if (isPowerOf2(temp) && C > 0) {
+//        //        int32_t shift = log2floor(temp);
+//        //        // t0 = src >> 31 (sraiw)
+//        //        auto imm31 = std::make_shared<Backend::IntValue>(31);
+//        //        auto reg = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("remAssist"),
+//        //        src->workload_type,
+//        //                                                       Backend::VariableWide::LOCAL);
+//        //        block->parent_function.lock()->add_variable(reg);
+//        //        instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(
+//        //                Backend::LIR::InstructionType::SHIFT_RIGHT, src, imm31, reg));
+//        //        // reg = reg >> (32 - shift) (srli)
+//        //        auto imm1 = std::make_shared<Backend::IntValue>(32 - shift);
+//        //        instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(
+//        //                Backend::LIR::InstructionType::SHIFT_RIGHT, reg, imm1, reg));
+//        //        // reg = src + reg (add)
+//        //        instructions->push_back(
+//        //                std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::ADD, src, reg,
+//        //                reg));
+//        //        // reg = reg >> shift (srli)
+//        //        auto imm2 = std::make_shared<Backend::IntValue>(shift);
+//        //        instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(
+//        //                Backend::LIR::InstructionType::SHIFT_RIGHT, reg, imm2, reg));
+//        //        // reg = reg << shift (slli)
+//        //        instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::SHIFT_LEFT,
+//        //                                                                              reg, imm2, reg));
+//        //        // ans = src - reg (sub)
+//        //        instructions->push_back(
+//        //                std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::SUB, src, reg,
+//        //                ans));
+//        if (temp - 1 >= 2047) {
+//            auto reg = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("remAssist"), src->workload_type,
+//                                                           Backend::VariableWide::LOCAL);
+//            block->parent_function.lock()->add_variable(reg);
+//            instructions->push_back(
+//                    std::make_shared<Backend::LIR::LoadIntImm>(reg, std::make_shared<Backend::IntValue>(temp - 1)));
+//            instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(
+//                    Backend::LIR::InstructionType::BITWISE_AND, src, reg, ans));
+//        } else {
+//            instructions->push_back(
+//                    std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::BITWISE_AND, src,
+//                                                                  std::make_shared<Backend::IntValue>(temp - 1), ans));
+//        }
+//    } else {
+        //        auto q = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("remAssist"),
+        //        src->workload_type,
+        //                                                     Backend::VariableWide::LOCAL);
+        //        block->parent_function.lock()->add_variable(q);
+        //        applyDivConst(block, instructions, q, src, C);
+        //        auto mulTmp = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("remAssist"),
+        //        src->workload_type,
+        //                                                          Backend::VariableWide::LOCAL);
+        //        block->parent_function.lock()->add_variable(mulTmp);
+        //        ArithmeticOpt::applyMulConst(block, instructions, mulTmp, q, C);
+        //        instructions->push_back(
+        //                std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::SUB, src, mulTmp,
+        //                ans));
         auto q = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("remAssist"), src->workload_type,
                                                      Backend::VariableWide::LOCAL);
         block->parent_function.lock()->add_variable(q);
-        applyDivConst(block, instructions, q, src, C);
-        auto mulTmp = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("remAssist"), src->workload_type,
-                                                          Backend::VariableWide::LOCAL);
-        block->parent_function.lock()->add_variable(mulTmp);
-        ArithmeticOpt::applyMulConst(block, instructions, mulTmp, q, C);
+        instructions->push_back(std::make_shared<Backend::LIR::LoadIntImm>(q, std::make_shared<Backend::IntValue>(C)));
         instructions->push_back(
-                std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::SUB, src, mulTmp, ans));
-    }
+                std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::MOD, src, q, ans));
+//    }
 }
 
 ConstOpt::ConstOpt(const std::shared_ptr<Backend::LIR::Module> &module) { this->module = module; }
@@ -440,12 +465,10 @@ void ConstOpt::optimize() {
                         } else if (arithmetic->type == Backend::LIR::InstructionType::DIV) {
                             DivRemOpt::applyDivConst(block, newInsts, arithmetic->result, arithmetic->lhs,
                                                      C->int32_value);
-                        }
-                        else if (arithmetic->type == Backend::LIR::InstructionType::MOD) {
+                        } else if (arithmetic->type == Backend::LIR::InstructionType::MOD) {
                             DivRemOpt::applyRemConst(block, newInsts, arithmetic->result, arithmetic->lhs,
                                                      C->int32_value);
-                        }
-                        else {
+                        } else {
                             newInsts->push_back(inst);
                         }
                     } else {

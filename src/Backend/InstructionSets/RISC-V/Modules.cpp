@@ -177,6 +177,12 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
                 translate_iactions<RISCV::Instructions::AddImmediateW, RISCV::Instructions::Addw>(instr, instrs);
             break;
         }
+        case Backend::LIR::InstructionType::BITWISE_AND: {
+            std::shared_ptr<Backend::LIR::IntArithmetic> instr = std::static_pointer_cast<Backend::LIR::IntArithmetic>(instruction);
+            std::shared_ptr<Backend::Variable> result = instr->result;
+            translate_iactions<RISCV::Instructions::AndImmediate, RISCV::Instructions::And>(instr, instrs);
+            break;
+        }
         case Backend::LIR::InstructionType::SUB: {
             std::shared_ptr<Backend::LIR::IntArithmetic> instr = std::static_pointer_cast<Backend::LIR::IntArithmetic>(instruction);
             std::shared_ptr<Backend::Variable> result = instr->result;
