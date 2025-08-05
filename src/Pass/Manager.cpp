@@ -42,9 +42,10 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
         return;
     }
     apply<Pass::LocalValueNumbering, Pass::GepFolding>(module);
+    apply<Pass::DeadCodeEliminate>(module);
     apply<Pass::LocalValueNumbering, Pass::SimplifyControlFlow>(module);
     apply<Pass::Inlining, Pass::DeadFuncEliminate>(module);
-    apply<Pass::TailCallOptimize>(module);
+    // apply<Pass::TailCallOptimize>(module);
     apply<Pass::GlobalVariableLocalize>(module);
     apply<Pass::GlobalArrayLocalize>(module);
     apply<Pass::LoadEliminate>(module);
@@ -53,7 +54,7 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
     apply<Pass::LocalValueNumbering, Pass::SimplifyControlFlow>(module);
     apply<Pass::DeadCodeEliminate>(module);
     apply<Pass::ConstexprFuncEval<>>(module);
-    apply<Pass::DeadFuncEliminate, Pass::DeadFuncArgEliminate, Pass::DeadReturnEliminate>(module);
+    // apply<Pass::DeadFuncEliminate, Pass::DeadFuncArgEliminate, Pass::DeadReturnEliminate>(module);
     apply<Pass::ConstrainReduce>(module);
     apply<Pass::RemovePhi, Pass::BlockPositioning<1>>(module);
 
