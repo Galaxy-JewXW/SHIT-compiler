@@ -408,17 +408,17 @@ IntervalAnalysis::AnyIntervalSet IntervalAnalysis::rabai_function(const std::sha
         }
     }
 
-    std::cout << "=== Interval Analysis Results for Function: " << func->get_name() << " ===" << std::endl;
-    for (const auto &block: func->get_blocks()) {
-        std::cout << "\nBlock: " << block->get_name() << std::endl;
-        std::cout << "  In Context:" << std::endl;
-        const auto &in_ctx = in_ctxs[block];
-        std::cout << in_ctx.to_string() << std::endl;
-        std::cout << "  Out Context:" << std::endl;
-        const auto &out_ctx = out_ctxs[block];
-        std::cout << out_ctx.to_string() << std::endl;
-    }
-    std::cout << "=== End of Analysis ===\n" << std::endl;
+    // std::cout << "=== Interval Analysis Results for Function: " << func->get_name() << " ===" << std::endl;
+    // for (const auto &block: func->get_blocks()) {
+    //     std::cout << "\nBlock: " << block->get_name() << std::endl;
+    //     std::cout << "  In Context:" << std::endl;
+    //     const auto &in_ctx = in_ctxs[block];
+    //     std::cout << in_ctx.to_string() << std::endl;
+    //     std::cout << "  Out Context:" << std::endl;
+    //     const auto &out_ctx = out_ctxs[block];
+    //     std::cout << out_ctx.to_string() << std::endl;
+    // }
+    // std::cout << "=== End of Analysis ===\n" << std::endl;
 
     for (const auto &[b, ctx]: in_ctxs) {
         block_in_ctxs.insert({b.get(), ctx});
