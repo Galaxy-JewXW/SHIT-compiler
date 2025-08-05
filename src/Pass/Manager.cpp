@@ -54,7 +54,7 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
     apply<Pass::ConstexprFuncEval>(module);
     apply<Pass::DeadFuncEliminate, Pass::DeadFuncArgEliminate, Pass::DeadReturnEliminate>(module);
     // apply<Pass::ConstrainReduce>(module);
-    apply<Pass::RemovePhi, Pass::BlockPositioning<1>>(module);
+    apply<Pass::RemovePhi, Pass::BlockPositioning<0>>(module);
 
     module->update_id();
 }

@@ -1,5 +1,5 @@
-#include "Pass/Util.h"
 #include "Pass/Transforms/DataFlow.h"
+#include "Pass/Util.h"
 
 using namespace Mir;
 
@@ -11,7 +11,7 @@ private:
     const std::vector<std::shared_ptr<Phi>> &phis;
     std::unordered_map<std::shared_ptr<Phi>, std::shared_ptr<Value>> phi_map;
 
-    [[nodiscard]] static std::string make_name();
+    [[nodiscard]] static std::string make_name(const std::string &prefix);
 
     [[nodiscard]] bool is_critical_edge(const std::shared_ptr<Block> &prev, const std::shared_ptr<Block> &succ) const;
 
@@ -22,17 +22,16 @@ private:
 
 public:
     Helper(const std::shared_ptr<Block> &block, const Pass::ControlFlowGraph::Graph &cfg_info,
-           const std::vector<std::shared_ptr<Phi>> &phis) :
-        block{block}, cfg_info{cfg_info}, phis{phis} {}
+           const std::vector<std::shared_ptr<Phi>> &phis) : block{block}, cfg_info{cfg_info}, phis{phis} {}
 
     std::unordered_set<std::shared_ptr<Value>> phicopy_variables{};
 
     void build();
 };
 
-std::string Helper::make_name() {
+std::string Helper::make_name(const std::string &prefix) {
     static int id{0};
-    return "%temp_" + std::to_string(++id);
+    return prefix + std::to_string(++id);
 }
 
 bool Helper::is_critical_edge(const std::shared_ptr<Block> &prev, const std::shared_ptr<Block> &succ) const {
@@ -40,7 +39,7 @@ bool Helper::is_critical_edge(const std::shared_ptr<Block> &prev, const std::sha
 }
 
 std::shared_ptr<Block> Helper::split_critical_edge(const std::shared_ptr<Block> &prev, decltype(prev) succ) const {
-    const auto split_block = Block::create("split_block", block->get_function());
+    const auto split_block = Block::create(make_name("split_block_"), block->get_function());
     Jump::create(succ, split_block);
     prev->modify_successor(succ, split_block);
     for (const auto &inst: succ->get_instructions()) {
@@ -53,75 +52,59 @@ std::shared_ptr<Block> Helper::split_critical_edge(const std::shared_ptr<Block> 
     return split_block;
 }
 
-void Helper::insert_moves(const std::shared_ptr<Block> &prev, const std::vector<std::shared_ptr<Move>> &moves) const {
-    // 检查 prev -> block 是否为关键边，决定插入点
-    const std::shared_ptr<Block> insertion_block = is_critical_edge(prev, block)
-                                                       ? split_critical_edge(prev, block)
-                                                       : prev;
+void Helper::insert_moves(const std::shared_ptr<Block> &prev,
+                          const std::vector<std::shared_ptr<Move>> &moves) const {
+    const std::shared_ptr<Block> insertion_block =
+            is_critical_edge(prev, block) ? split_critical_edge(prev, block) : prev;
 
-    // 解决并行拷贝
-    std::unordered_set pending_moves(moves.begin(), moves.end());
-    std::vector<std::shared_ptr<Move>> ordered_moves;
-    ordered_moves.reserve(pending_moves.size());
+    std::vector<std::shared_ptr<Move>> final_moves;
+    std::unordered_set<std::shared_ptr<Value>> destinations;
+    std::unordered_map<std::shared_ptr<Value>, std::shared_ptr<Value>> saved_values;
 
-    while (!pending_moves.empty()) {
-        // 寻找可以安全执行的move（拓扑排序步骤）
-        // 一个move(dest, src)是安全的，如果它的源(src)不被任何其他待处理的move所覆盖（即src不是任何其他pendingMove的目标）
-        decltype(ordered_moves) ready_moves;
-        std::unordered_set<std::shared_ptr<Value>> pending_destinations;
-        for (const auto &move: pending_moves) {
-            pending_destinations.insert(move->get_to_value());
-        }
-        for (const auto &move: pending_moves) {
-            if (pending_destinations.find(move->get_from_value()) == pending_destinations.end()) {
-                ready_moves.push_back(move);
-            }
-        }
+    // 收集所有目标
+    for (const auto &move : moves) {
+        destinations.insert(move->get_to_value());
+    }
 
-        // 如果找到了一个或多个安全的move，将它们添加到结果中并从未决列表中移除
-        if (!ready_moves.empty()) {
-            for (const auto &move: ready_moves) {
-                ordered_moves.push_back(move);
-                pending_moves.erase(move);
-            }
-            continue;
-        }
-
-        // 如果没找到安全的move，说明存在循环依赖
-        // 从循环中任意选择一个move来打破它，例如 p = (dest, src)
-        const auto p{*pending_moves.begin()};
-        const auto dest{p->get_to_value()}, src{p->get_from_value()};
-        const auto temp{std::make_shared<Value>(make_name(), dest->get_type())};
-        // 保存目标(dest)的原始值到临时变量中
-        // 这是破环的关键：在dest被覆盖前保存它的值
-        ordered_moves.push_back(Move::create(temp, dest, nullptr));
-        // 用(dest, src)这条move来更新待处理列表
-        // 我们已经将dest的原始值保存到了temp中，现在可以安全地覆盖dest了。
-        // 我们将 (dest, src) 这条指令本身添加到结果列表中。
-        ordered_moves.push_back(Move::create(dest, src, nullptr));
-        pending_moves.erase(p);
-        // 更新依赖关系：
-        // 将所有依赖于dest原始值的move，改为依赖于temp
-        for (const auto &other_move: pending_moves) {
-            if (other_move->get_from_value() == dest) {
-                other_move->modify_operand(other_move->get_from_value(), temp);
-            }
+    // 保存所有需要被覆盖的源值
+    // 如果一个 move 的源(src) 也是其他 move 的目标(dest)，
+    // 那么这个 src 的值在后续会被覆盖，需要提前保存。
+    for (const auto &move : moves) {
+        // 如果源也是一个目标，并且我们还没有为它创建临时变量
+        if (auto src = move->get_from_value(); destinations.count(src) && !saved_values.count(src)) {
+            const auto temp = std::make_shared<Value>(make_name("%temp_"), src->get_type());
+            final_moves.push_back(Move::create(temp, src, nullptr)); // temp = src
+            saved_values[src] = temp;
         }
     }
 
-    for (const auto &move: ordered_moves) {
-        const auto terminator{insertion_block->get_instructions().back()};
+    // 使用保存好的值（如果存在）或原始值进行赋值
+    for (const auto &move : moves) {
+        auto dest = move->get_to_value();
+        if (auto src = move->get_from_value(); saved_values.count(src)) {
+            // 使用临时变量中的值
+            final_moves.push_back(Move::create(dest, saved_values[src], nullptr));
+        } else {
+            // 源是安全的，直接赋值
+            final_moves.push_back(Move::create(dest, src, nullptr));
+        }
+    }
+
+    // 将排序好的指令插入到块中
+    for (const auto &move : final_moves) {
+        const auto terminator = insertion_block->get_instructions().back();
         move->set_block(insertion_block);
         Pass::Utils::move_instruction_before(move, terminator);
     }
 }
+
 
 void Helper::build() {
     std::unordered_map<std::shared_ptr<Block>, std::vector<std::shared_ptr<Move>>> move_map;
 
     // 收集所有 move 操作，并按照前驱块分组
     for (const auto &phi: phis) {
-        const auto phicopy_value = std::make_shared<Value>(make_name(), phi->get_type());
+        const auto phicopy_value = std::make_shared<Value>(make_name("%temp_"), phi->get_type());
         phi_map[phi] = phicopy_value;
         // log_debug("%s -> %s", phi->to_string().c_str(), phicopy_value->get_name().c_str());
         phicopy_variables.insert(phicopy_value);
@@ -139,7 +122,7 @@ void Helper::build() {
         insert_moves(pre, moves);
     }
 }
-}
+} // namespace
 
 namespace Pass {
 void RemovePhi::run_on_func(const std::shared_ptr<Function> &func) {
@@ -172,4 +155,4 @@ void RemovePhi::transform(const std::shared_ptr<Module> module) {
     set_analysis_result_dirty<ControlFlowGraph>(module);
     cfg_info = nullptr;
 }
-}
+} // namespace Pass
