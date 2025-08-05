@@ -92,7 +92,7 @@ jobs:
           mkdir -p "$SYNC_DIR"
           
           echo "Syncing project files to temporary directory..."
-          cp -r src include CMakeLists.txt format.sh /tmp/gitlab-sync/
+          cp -r src include CMakeLists.txt format.sh readme.md /tmp/gitlab-sync/
           if [ -f .clang-format ]; then
             cp .clang-format /tmp/gitlab-sync/
           fi
