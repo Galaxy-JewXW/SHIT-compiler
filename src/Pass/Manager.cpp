@@ -48,7 +48,6 @@ void execute_O1_passes(std::shared_ptr<Mir::Module> &module) {
     apply<Pass::LoadEliminate>(module);
     apply<Pass::StoreEliminate>(module);
     apply<Pass::AlgebraicSimplify>(module);
-    // apply<Pass::SROA>(module);
     apply<Pass::LocalValueNumbering, Pass::SimplifyControlFlow>(module);
     apply<Pass::DeadCodeEliminate>(module);
     apply<Pass::ConstexprFuncEval>(module);
