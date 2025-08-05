@@ -380,32 +380,44 @@ void DivRemOpt::applyRemConst(
         const std::shared_ptr<Backend::Variable> &ans, const std::shared_ptr<Backend::Variable> &src, int32_t C) {
 
     int32_t temp = std::abs(C);
-    if (isPowerOf2(temp)) {
-        int32_t shift = log2floor(temp);
-        // t0 = src >> 31 (sraiw)
-        auto imm31 = std::make_shared<Backend::IntValue>(31);
+    if (isPowerOf2(temp) && C > 0) {
+//        int32_t shift = log2floor(temp);
+//        // t0 = src >> 31 (sraiw)
+//        auto imm31 = std::make_shared<Backend::IntValue>(31);
+//        auto reg = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("remAssist"), src->workload_type,
+//                                                       Backend::VariableWide::LOCAL);
+//        block->parent_function.lock()->add_variable(reg);
+//        instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(
+//                Backend::LIR::InstructionType::SHIFT_RIGHT, src, imm31, reg));
+//        // reg = reg >> (32 - shift) (srli)
+//        auto imm1 = std::make_shared<Backend::IntValue>(32 - shift);
+//        instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(
+//                Backend::LIR::InstructionType::SHIFT_RIGHT, reg, imm1, reg));
+//        // reg = src + reg (add)
+//        instructions->push_back(
+//                std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::ADD, src, reg, reg));
+//        // reg = reg >> shift (srli)
+//        auto imm2 = std::make_shared<Backend::IntValue>(shift);
+//        instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(
+//                Backend::LIR::InstructionType::SHIFT_RIGHT, reg, imm2, reg));
+//        // reg = reg << shift (slli)
+//        instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::SHIFT_LEFT,
+//                                                                              reg, imm2, reg));
+//        // ans = src - reg (sub)
+//        instructions->push_back(
+//                std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::SUB, src, reg, ans));
+       if(temp - 1 >= 2047) {
         auto reg = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("remAssist"), src->workload_type,
-                                                       Backend::VariableWide::LOCAL);
+                                                                  Backend::VariableWide::LOCAL);
         block->parent_function.lock()->add_variable(reg);
+        instructions->push_back(std::make_shared<Backend::LIR::LoadIntImm>(
+                reg, std::make_shared<Backend::IntValue>(temp - 1)));
         instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(
-                Backend::LIR::InstructionType::SHIFT_RIGHT, src, imm31, reg));
-        // reg = reg >> (32 - shift) (srli)
-        auto imm1 = std::make_shared<Backend::IntValue>(32 - shift);
-        instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(
-                Backend::LIR::InstructionType::SHIFT_RIGHT, reg, imm1, reg));
-        // reg = src + reg (add)
-        instructions->push_back(
-                std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::ADD, src, reg, reg));
-        // reg = reg >> shift (srli)
-        auto imm2 = std::make_shared<Backend::IntValue>(shift);
-        instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(
-                Backend::LIR::InstructionType::SHIFT_RIGHT, reg, imm2, reg));
-        // reg = reg << shift (slli)
-        instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::SHIFT_LEFT,
-                                                                              reg, imm2, reg));
-        // ans = src - reg (sub)
-        instructions->push_back(
-                std::make_shared<Backend::LIR::IntArithmetic>(Backend::LIR::InstructionType::SUB, src, reg, ans));
+                   Backend::LIR::InstructionType::BITWISE_AND, src, reg, ans));
+       } else {
+           instructions->push_back(std::make_shared<Backend::LIR::IntArithmetic>(
+                   Backend::LIR::InstructionType::BITWISE_AND, src, std::make_shared<Backend::IntValue>(temp - 1), ans));
+       }
     } else {
         auto q = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("remAssist"), src->workload_type,
                                                      Backend::VariableWide::LOCAL);

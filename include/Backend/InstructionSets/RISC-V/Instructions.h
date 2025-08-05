@@ -145,6 +145,30 @@ namespace RISCV::Instructions {
             [[nodiscard]] std::string to_string() const override;
     };
 
+    class And : public Rtype {
+    public:
+        And(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
+        [[nodiscard]] std::string to_string() const override;
+    };
+
+    class Andw : public Rtype {
+    public:
+        Andw(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2) : Rtype{rd, rs1, rs2} {}
+        [[nodiscard]] std::string to_string() const override;
+    };
+
+    class AndImmediate : public Itype {
+        public:
+            AndImmediate(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, int32_t imm) : Itype{rd, rs1, imm} {}
+            [[nodiscard]] std::string to_string() const override;
+    };
+
+    class AndImmediateW : public AndImmediate {
+    public:
+        AndImmediateW(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, int32_t imm) : AndImmediate{rd, rs1, imm} {}
+        [[nodiscard]] std::string to_string() const override;
+    };
+
     class AddImmediateW : public AddImmediate {
         public:
             AddImmediateW(const RISCV::Registers::ABI rd, const RISCV::Registers::ABI rs1, int32_t imm) : AddImmediate{rd, rs1, imm} {}
