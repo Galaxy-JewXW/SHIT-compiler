@@ -280,7 +280,7 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
             std::vector<std::shared_ptr<Backend::Variable>> function_params;
             const std::vector<std::shared_ptr<Mir::Value>> llvm_params = call->get_params();
             if (function_name == "llvm.memset.p0i8.i32") {
-                function_name = "memset";
+                function_name = "shit.memset";
                 std::shared_ptr<Backend::Pointer> param1 = std::static_pointer_cast<Backend::Pointer>(find_variable(llvm_params[0]->get_name(), lir_block->parent_function.lock()));
                 std::shared_ptr<Backend::Variable> base = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("addr"), Backend::Utils::to_pointer(param1->base->workload_type), VariableWide::LOCAL);
                 lir_block->parent_function.lock()->add_variable(base);
