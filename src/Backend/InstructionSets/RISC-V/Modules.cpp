@@ -180,10 +180,7 @@ std::vector<std::shared_ptr<RISCV::Instructions::Instruction>> RISCV::Function::
         case Backend::LIR::InstructionType::BITWISE_AND: {
             std::shared_ptr<Backend::LIR::IntArithmetic> instr = std::static_pointer_cast<Backend::LIR::IntArithmetic>(instruction);
             std::shared_ptr<Backend::Variable> result = instr->result;
-            if (Backend::Utils::type_to_size(result->workload_type) == 8)
-                translate_iactions<RISCV::Instructions::AndImmediate, RISCV::Instructions::And>(instr, instrs);
-            else
-                translate_iactions<RISCV::Instructions::AndImmediateW, RISCV::Instructions::Andw>(instr, instrs);
+            translate_iactions<RISCV::Instructions::AndImmediate, RISCV::Instructions::And>(instr, instrs);
             break;
         }
         case Backend::LIR::InstructionType::SUB: {
