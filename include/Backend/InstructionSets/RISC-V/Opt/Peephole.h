@@ -41,6 +41,7 @@ class RISCV::Opt::PeepholeAfterRA {
         std::shared_ptr<RISCV::Module> module;
         void optimize();
         void addSubZeroRemove(const std::shared_ptr<RISCV::Block> &block);
+        void removeUselessJumps(const std::shared_ptr<RISCV::Function> &function);
 };
 
 #endif

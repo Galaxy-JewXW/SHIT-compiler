@@ -23,14 +23,10 @@ namespace RISCV::Instructions {
             virtual ~Instruction() = default;
             explicit Instruction() = default;
             [[nodiscard]] virtual std::string to_string() const = 0;
+            virtual void update_block(const std::shared_ptr<RISCV::Block> &from, const std::shared_ptr<RISCV::Block> &to) {}
         protected:
-            static inline bool is_12bit(int32_t value) {
-                return value >= -2048 && value <= 2047;
-            }
-
-            static inline bool is_20bit(int32_t value) {
-                return value >= -1048576 && value <= 1048575;
-            }
+            static inline bool is_12bit(int32_t value) { return value >= -2048 && value <= 2047; }
+            static inline bool is_20bit(int32_t value) { return value >= -1048576 && value <= 1048575; }
     };
 
     class Utype : public Instruction {
@@ -354,42 +350,77 @@ namespace RISCV::Instructions {
             std::shared_ptr<RISCV::Block> target_block;
             Jump(const std::shared_ptr<RISCV::Block> &target_block) : target_block{target_block} {}
             [[nodiscard]] std::string to_string() const override;
+            virtual void update_block(const std::shared_ptr<RISCV::Block> &from, const std::shared_ptr<RISCV::Block> &to) {
+                if (target_block == from) {
+                    target_block = to;
+                }
+            }
     };
 
     class BranchOnEqual : public Btype {
         public:
             BranchOnEqual(const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, const std::shared_ptr<RISCV::Block> &target_block) : Btype{rs1, rs2, target_block} {}
             [[nodiscard]] std::string to_string() const override;
+            virtual void update_block(const std::shared_ptr<RISCV::Block> &from, const std::shared_ptr<RISCV::Block> &to) override {
+                if (target_block == from) {
+                    target_block = to;
+                }
+            }
     };
 
     class BranchOnNotEqual : public Btype {
         public:
             BranchOnNotEqual(const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, const std::shared_ptr<RISCV::Block> &target_block) : Btype{rs1, rs2, target_block} {}
             [[nodiscard]] std::string to_string() const override;
+            virtual void update_block(const std::shared_ptr<RISCV::Block> &from, const std::shared_ptr<RISCV::Block> &to) override {
+                if (target_block == from) {
+                    target_block = to;
+                }
+            }
     };
 
     class BranchOnLessThan : public Btype {
         public:
             BranchOnLessThan(const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, const std::shared_ptr<RISCV::Block> &target_block) : Btype{rs1, rs2, target_block} {}
             [[nodiscard]] std::string to_string() const override;
+            virtual void update_block(const std::shared_ptr<RISCV::Block> &from, const std::shared_ptr<RISCV::Block> &to) override {
+                if (target_block == from) {
+                    target_block = to;
+                }
+            }
     };
 
     class BranchOnLessThanOrEqual : public Btype {
         public:
             BranchOnLessThanOrEqual(const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, const std::shared_ptr<RISCV::Block> &target_block) : Btype{rs1, rs2, target_block} {}
             [[nodiscard]] std::string to_string() const override;
+            virtual void update_block(const std::shared_ptr<RISCV::Block> &from, const std::shared_ptr<RISCV::Block> &to) override {
+                if (target_block == from) {
+                    target_block = to;
+                }
+            }
     };
 
     class BranchOnGreaterThan : public Btype {
         public:
             BranchOnGreaterThan(const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, const std::shared_ptr<RISCV::Block> &target_block) : Btype{rs1, rs2, target_block} {}
             [[nodiscard]] std::string to_string() const override;
+            virtual void update_block(const std::shared_ptr<RISCV::Block> &from, const std::shared_ptr<RISCV::Block> &to) override {
+                if (target_block == from) {
+                    target_block = to;
+                }
+            }
     };
 
     class BranchOnGreaterThanOrEqual : public Btype {
         public:
             BranchOnGreaterThanOrEqual(const RISCV::Registers::ABI rs1, const RISCV::Registers::ABI rs2, const std::shared_ptr<RISCV::Block> &target_block) : Btype{rs1, rs2, target_block} {}
             [[nodiscard]] std::string to_string() const override;
+            virtual void update_block(const std::shared_ptr<RISCV::Block> &from, const std::shared_ptr<RISCV::Block> &to) override {
+                if (target_block == from) {
+                    target_block = to;
+                }
+            }
     };
 
     class AllocStack final : public StackInstruction {
