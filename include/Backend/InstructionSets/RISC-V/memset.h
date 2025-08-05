@@ -16,7 +16,7 @@
 namespace RISCV::ASM {
     inline static std::string memset_s = R"(
 # void *memset(void *, int, size_t)
-memset:
+shit.memset:
 	move t0, a0  # Preserve return value
 
 	# Defer to byte-oriented fill for small sizes
