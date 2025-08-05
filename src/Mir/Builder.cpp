@@ -97,7 +97,7 @@ void Builder::visit_constDef(const Token::Type type, const std::shared_ptr<AST::
             std::static_pointer_cast<Init::Array>(init_value)->gen_store_inst(address, cur_block, dimensions);
         }
     }
-    table->insert_symbol(constDef->ident(), ir_type, init_value, address, true, false, constDef->lineno());
+    table->insert_symbol(constDef->ident(), ir_type, init_value, address, true, false, false, constDef->lineno());
 }
 
 void Builder::visit_varDecl(const std::shared_ptr<AST::VarDecl> &varDecl) const {
@@ -172,7 +172,7 @@ void Builder::visit_varDef(const Token::Type type, const std::shared_ptr<AST::Va
             std::static_pointer_cast<Init::Exp>(init_value)->gen_store_inst(address, cur_block);
         }
     }
-    table->insert_symbol(varDef->ident(), ir_type, init_value, address, false, is_global, varDef->lineno());
+    table->insert_symbol(varDef->ident(), ir_type, init_value, address, false, is_global, false, varDef->lineno());
 }
 
 void Builder::visit_funcDef(const std::shared_ptr<AST::FuncDef> &funcDef) {
@@ -223,7 +223,7 @@ void Builder::visit_funcDef(const std::shared_ptr<AST::FuncDef> &funcDef) {
         auto &[ident, ir_type] = arguments[i];
         const auto addr = Alloc::create(gen_variable_name(), ir_type, cur_block);
         Store::create(addr, func->get_arguments()[i], cur_block);
-        table->insert_symbol(ident, ir_type, nullptr, addr, false, true);
+        table->insert_symbol(ident, ir_type, nullptr, addr, false, true, true);
     }
     visit_block(funcDef->block());
     table->pop_scope();
