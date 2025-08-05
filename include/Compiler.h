@@ -52,7 +52,7 @@ void emit_output(const std::string &filename, const T &content) {
     std::ostream *out = &std::cout;
     std::ofstream file_stream;
     if (!filename.empty()) {
-        file_stream.open(filename);
+        file_stream.open(filename, std::ios::out | std::ios::trunc);
         if (!file_stream) {
             log_error("Failed to open file: %s", filename.c_str());
         }
