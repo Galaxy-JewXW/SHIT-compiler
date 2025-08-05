@@ -23,7 +23,7 @@ bool is_back_edge(const std::vector<std::shared_ptr<Pass::Loop>> &loops, const s
     return false;
 }
 
-constexpr long max_depth = 128l;
+constexpr long max_depth = 100ll;
 
 class Constraint {
 public:
