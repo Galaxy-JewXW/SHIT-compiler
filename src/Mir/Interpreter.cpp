@@ -4,6 +4,23 @@
 
 using namespace Mir;
 
+namespace {
+size_t size_of_type(const std::shared_ptr<Type::Type> &type) {
+    if (type->is_int32()) {
+        return sizeof(int);
+    }
+    if (type->is_float()) {
+        return sizeof(double);
+    }
+    if (type->is_array()) {
+        return size_of_type(type->as<Type::Array>()->get_atomic_type()) * type->as<Type::Array>()->get_flattened_size();
+    }
+    log_error("Invalid type %s", type->to_string().c_str());
+}
+}
+
+size_t Interpreter::counter_limit = 20000;
+
 void Interpreter::abort() { throw std::runtime_error("Interpreter abort"); }
 
 eval_t Interpreter::get_runtime_value(Value *const value) const {
@@ -22,6 +39,101 @@ void Interpreter::interpret_instruction(const std::shared_ptr<Instruction> &inst
     }
     ++counter;
     instruction->do_interpret(this);
+}
+
+void Interpreter::interpret_module_mode(const std::shared_ptr<Function> &main_func) {
+    if (!module_mode)
+        return;
+
+    frame = std::make_shared<Frame>();
+    frame->prev_block = nullptr;
+    frame->current_block = main_func->get_blocks().front();
+    while (frame->current_block != nullptr) {
+        const auto original_block = frame->current_block;
+        const auto &instructions = original_block->get_instructions();
+        for (size_t i{0}; i < instructions.size(); ++i) {
+            if (const auto &instruction = instructions[i]; instruction->get_op() == Operator::PHI) {
+                interpret_instruction(instruction->as<Phi>());
+                if (i + 1 < instructions.size() && instructions[i + 1]->get_op() == Operator::PHI) {
+                    continue;
+                }
+                for (const auto &[phi, eval_value]: frame->phi_cache) {
+                    frame->value_map[phi] = eval_value;
+                }
+                frame->phi_cache.clear();
+            } else if (instruction->get_op() == Operator::ALLOC) {
+                interpret_instruction(instruction->as<Alloc>());
+                if (i + 2 < instructions.size()
+                    && instructions[i + 1]->get_op() == Operator::BITCAST
+                    && instructions[i + 2]->get_op() == Operator::CALL) {
+                    i = i + 2;
+                    continue;
+                }
+            } else {
+                interpret_instruction(instruction);
+            }
+            // 如果当前块已改变，终止处理后续指令
+            if (frame->current_block != original_block) {
+                break;
+            }
+        }
+    }
+}
+
+void Alloc::do_interpret(Interpreter *interpreter) {
+    if (!interpreter->is_module_mode())
+        abort();
+
+    const auto array_ty = get_type()->as<Type::Pointer>()->get_contain_type()->as<Type::Array>();
+    const auto size = size_of_type(array_ty);
+    const auto base = array_ty->get_atomic_type()->is_float() ? sizeof(double) : sizeof(int);
+    const auto ad = interpreter->frame->memory.allocate(size, base);
+    interpreter->frame->memory.zero_fill(ad, size);
+    interpreter->frame->value_map[this] = static_cast<int>(ad);
+}
+
+void Load::do_interpret(Interpreter *interpreter) {
+    if (!interpreter->is_module_mode())
+        abort();
+
+    const auto base = get_type()->is_float() ? sizeof(double) : sizeof(int);
+    const auto addr = interpreter->get_runtime_value(get_addr()).get<int>();
+    const auto ad = static_cast<size_t>(addr);
+    if (base == sizeof(int)) {
+        interpreter->frame->value_map[this] = interpreter->frame->memory.read<int>(ad);
+    } else {
+        interpreter->frame->value_map[this] = interpreter->frame->memory.read<double>(ad);
+    }
+}
+
+void Store::do_interpret(Interpreter *interpreter) {
+    if (!interpreter->is_module_mode())
+        abort();
+
+    const auto base = get_value()->get_type()->is_float() ? sizeof(double) : sizeof(int);
+    const auto addr = static_cast<size_t>(interpreter->get_runtime_value(get_addr()).get<int>());
+    const auto _value = interpreter->get_runtime_value(get_value());
+    if (base == sizeof(int)) {
+        interpreter->frame->memory.write(addr, _value.get<int>());
+    } else {
+        interpreter->frame->memory.write(addr, _value.get<double>());
+    }
+}
+
+void GetElementPtr::do_interpret(Interpreter *interpreter) {
+    if (!interpreter->is_module_mode())
+        abort();
+
+    const auto base_addr = static_cast<size_t>(interpreter->get_runtime_value(get_addr()).get<int>());
+    const auto index = static_cast<size_t>(interpreter->get_runtime_value(get_index()).get<int>());
+    const auto element_ty = get_type()->as<Type::Pointer>()->get_contain_type();
+    const auto element_size = size_of_type(element_ty);
+    if (element_size == 0) {
+        abort();
+    }
+
+    const size_t new_address = base_addr + index * element_size;
+    interpreter->frame->value_map[this] = static_cast<int>(new_address);
 }
 
 void Interpreter::interpret_function(const std::shared_ptr<Function> &func, const std::vector<eval_t> &real_args) {
@@ -155,6 +267,27 @@ void Switch::do_interpret(Interpreter *const interpreter) {
 }
 
 void Call::do_interpret(Interpreter *const interpreter) {
+    if (interpreter->is_module_mode()) {
+        const auto called_func = get_function()->as<Function>();
+        const auto &name = called_func->get_name();
+        if (name.find("sysy") != std::string::npos) {
+            interpreter->frame->kept.push_back(create(called_func, {get_operands()[1]}, nullptr));
+            return;
+        }
+        if (name == "putint") {
+            const auto call = create("putint.l", called_func,
+                {ConstInt::create(interpreter->get_runtime_value(get_operands()[1]).get<int>())}, nullptr);
+            interpreter->frame->kept.push_back(call);
+        } else if (name == "putch") {
+            const auto call = create("putch.l", called_func,
+                            {ConstInt::create(interpreter->get_runtime_value(get_operands()[1]).get<int>())}, nullptr);
+            interpreter->frame->kept.push_back(call);
+        } else {
+            abort();
+        }
+        return;
+    }
+
     std::vector<eval_t> real_args;
     real_args.reserve(this->get_params().size());
     for (size_t i{0}; i < this->get_params().size(); ++i) {

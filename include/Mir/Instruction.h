@@ -96,6 +96,8 @@ public:
     [[nodiscard]] std::string to_string() const override;
 
     [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
+
+    void do_interpret(Interpreter *interpreter) override;
 };
 
 class Load final : public Instruction {
@@ -119,6 +121,8 @@ public:
     [[nodiscard]] std::string to_string() const override;
 
     [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
+
+    void do_interpret(Interpreter *interpreter) override;
 };
 
 class Store final : public Instruction {
@@ -149,6 +153,8 @@ public:
     [[nodiscard]] std::string to_string() const override;
 
     [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
+
+    void do_interpret(Interpreter *interpreter) override;
 };
 
 class GetElementPtr final : public Instruction {
@@ -180,6 +186,8 @@ public:
     [[nodiscard]] std::string to_string() const override;
 
     [[nodiscard]] std::shared_ptr<Instruction> clone(FunctionCloneHelper &helper) override;
+
+    void do_interpret(Interpreter *interpreter) override;
 
 private:
     static std::shared_ptr<Type::Type> calc_type_(const std::shared_ptr<Value> &addr,

@@ -1,6 +1,7 @@
 #ifndef INTERPRETER_H
 #define INTERPRETER_H
 
+#include <cstring>
 #include <unordered_map>
 #include <utility>
 
@@ -8,6 +9,7 @@
 #include "Structure.h"
 
 namespace Mir {
+class Alloc;
 struct Interpreter {
     struct Key {
         std::string func_name;
@@ -60,6 +62,50 @@ struct Interpreter {
         }
     };
 
+    class Memory {
+    public:
+        std::vector<std::byte> storage;
+        size_t next_alloc_ptr = 0;
+
+        size_t allocate(const size_t size, const size_t alignment) {
+            if (const size_t remainder = next_alloc_ptr % alignment; remainder != 0) {
+                next_alloc_ptr += alignment - remainder;
+            }
+            const size_t addr = next_alloc_ptr;
+            next_alloc_ptr += size;
+            if (storage.size() < next_alloc_ptr) {
+                storage.resize(next_alloc_ptr);
+            }
+            return addr;
+        }
+
+        template<typename T>
+        void write(const size_t addr, T value) {
+            if (addr + sizeof(T) > storage.size()) {
+                throw std::out_of_range("Memory write operation is out of bounds.");
+            }
+            std::memcpy(&storage[addr], &value, sizeof(T));
+        }
+
+        void zero_fill(const size_t addr, const size_t size) {
+            if (addr + size > storage.size()) {
+                throw std::out_of_range("Memory zero_fill operation is out of bounds.");
+            }
+            std::memset(&storage[addr], 0, size);
+        }
+
+        template<typename T>
+        T read(const size_t addr) const {
+            if (addr + sizeof(T) > storage.size()) {
+                throw std::out_of_range("Memory read operation is out of bounds.");
+            }
+
+            T result;
+            std::memcpy(&result, &storage[addr], sizeof(T));
+            return result;
+        }
+    };
+
     struct Frame {
         // 函数解释执行的返回值
         eval_t ret_value{0};
@@ -68,13 +114,18 @@ struct Interpreter {
         // 上一个基本块
         std::shared_ptr<Block> prev_block{nullptr};
         std::unordered_map<const Value *, eval_t> value_map{}, phi_cache{};
+
+        // valid if in main_mode
+        Memory memory;
+        std::vector<std::shared_ptr<Instruction>> kept;
     };
 
     std::shared_ptr<Frame> frame{nullptr};
 
     std::weak_ptr<Cache> cache;
 
-    explicit Interpreter(const std::shared_ptr<Cache> &cache) : cache(cache) {}
+    explicit Interpreter(const std::shared_ptr<Cache> &cache, const bool module_mode = false) :
+        cache(cache), module_mode(module_mode) {}
 
     [[nodiscard]]
     eval_t get_runtime_value(Value *value) const;
@@ -86,14 +137,20 @@ struct Interpreter {
 
     static void abort();
 
+    void interpret_module_mode(const std::shared_ptr<Function> &main_func);
+
     void interpret_function(const std::shared_ptr<Function> &func, const std::vector<eval_t> &real_args);
 
     void interpret_instruction(const std::shared_ptr<Instruction> &instruction);
 
+    [[nodiscard]] bool is_module_mode() const { return module_mode; }
+
 private:
-    static constexpr size_t counter_limit{20000};
+    static size_t counter_limit;
     // 程序计数器
     size_t counter{0};
+
+    bool module_mode;
 };
 } // namespace Mir
 

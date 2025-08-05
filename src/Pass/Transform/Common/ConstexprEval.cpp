@@ -1,4 +1,5 @@
 #include "Mir/Eval.h"
+#include "Pass/Transforms/Array.h"
 #include "Pass/Transforms/Common.h"
 #include "Pass/Transforms/DCE.h"
 #include "Pass/Transforms/DataFlow.h"
@@ -26,15 +27,11 @@ public:
 
     [[nodiscard]] bool can_run() const;
 
-    void run();
+    void run() const;
 
 private:
     const std::shared_ptr<Module> &module_;
     const std::shared_ptr<Pass::FunctionAnalysis> func_analysis_;
-
-    static constexpr size_t max_size = 60000;
-
-    void load_global_variables(const std::shared_ptr<GlobalVariable> &gv);
 };
 
 bool ModuleInterpreter::can_run() const {
@@ -43,30 +40,58 @@ bool ModuleInterpreter::can_run() const {
             return false;
     }
 
-    size_t total_size = 0;
-    for (const auto &gv : module_->get_global_variables()) {
-        total_size += size_of_type(gv->get_type()->as<Type::Pointer>()->get_contain_type());
+    if (module_->get_functions().size() > 1)
+        return false;
+
+    if (!module_->get_global_variables().empty())
+        return false;
+
+    const auto main_func = module_->get_main_function();
+    size_t alloc_size = 0;
+    for (const auto &block : main_func->get_blocks()) {
+        for (const auto &inst : block->get_instructions()) {
+            if (inst->get_op() == Operator::ALLOC) {
+                const auto alloc = inst->as<Alloc>();
+                alloc_size += size_of_type(alloc->get_type()->as<Type::Pointer>()->get_contain_type());
+            }
+        }
     }
 
-    if (total_size >= max_size)
+    if (alloc_size >= 100000)
         return false;
 
     return true;
 }
 
-void ModuleInterpreter::load_global_variables(const std::shared_ptr<GlobalVariable> &gv) {
-
-}
-
-void ModuleInterpreter::run() {
-    for (const auto &gv: module_->get_global_variables()) {
-        load_global_variables(gv);
+void ModuleInterpreter::run() const {
+    const auto main_func = module_->get_main_function();
+    if (!can_run()) {
+        return;
     }
+
+    const auto cache{std::make_shared<Interpreter::Cache>()};
+    const auto interpreter{std::make_unique<Interpreter>(cache, true)};
+    try {
+        interpreter->interpret_module_mode(main_func);
+    } catch (const std::exception &e) {
+        log_error("%s", e.what());
+    }
+
+    const auto block = Block::create("only", nullptr);
+    for (const auto &inst : interpreter->frame->kept) {
+        inst->set_block(block);
+    }
+
+    main_func->get_blocks().clear();
+    block->set_function(main_func);
+    const auto ret = interpreter->frame->ret_value;
+    Ret::create(ConstInt::create(ret.get<int>()), block);
 }
 } // namespace
 
 namespace Pass {
-bool ConstexprFuncEval::is_constexpr_func(const std::shared_ptr<Function> &func) const {
+template<bool module_mode>
+bool ConstexprFuncEval<module_mode>::is_constexpr_func(const std::shared_ptr<Function> &func) const {
     if (func->is_runtime_func()) {
         return false;
     }
@@ -86,7 +111,8 @@ bool ConstexprFuncEval::is_constexpr_func(const std::shared_ptr<Function> &func)
     return true;
 }
 
-bool ConstexprFuncEval::run_on_func(const std::shared_ptr<Function> &func) const {
+template<bool module_mode>
+bool ConstexprFuncEval<module_mode>::run_on_func(const std::shared_ptr<Function> &func) const {
     bool changed = false;
     const auto cache{std::make_shared<Interpreter::Cache>()};
     for (const auto &block: func->get_blocks()) {
@@ -150,7 +176,8 @@ bool ConstexprFuncEval::run_on_func(const std::shared_ptr<Function> &func) const
     return changed;
 }
 
-void ConstexprFuncEval::transform(const std::shared_ptr<Module> module) {
+template<bool module_mode>
+void ConstexprFuncEval<module_mode>::transform(const std::shared_ptr<Module> module) {
     func_analysis = get_analysis_result<FunctionAnalysis>(module);
     bool changed{false};
 
@@ -163,9 +190,17 @@ void ConstexprFuncEval::transform(const std::shared_ptr<Module> module) {
         }
     } while (changed);
 
-    if (ModuleInterpreter module_interpreter{module, func_analysis}; module_interpreter.can_run()) {
-        module_interpreter.run();
+    if constexpr (module_mode) {
+        func_analysis = get_analysis_result<FunctionAnalysis>(module);
+        if (const ModuleInterpreter module_interpreter{module, func_analysis}; module_interpreter.can_run()) {
+            create<GepFolding>()->run_on(module);
+            log_debug("\n%s", module->to_string().c_str());
+            module_interpreter.run();
+        }
     }
     func_analysis = nullptr;
 }
+
+template class ConstexprFuncEval<true>;
+template class ConstexprFuncEval<false>;
 } // namespace Pass
