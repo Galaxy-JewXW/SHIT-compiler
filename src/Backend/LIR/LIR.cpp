@@ -340,12 +340,18 @@ void Backend::LIR::Module::load_instruction(const std::shared_ptr<Mir::Instructi
             else lhs = ensure_variable(lhs, lir_block);
             if (rhs->operand_type == Backend::OperandType::CONSTANT) {
                 if ((int_operation_->op == Mir::IntBinary::Op::ADD || int_operation_->op == Mir::IntBinary::Op::SUB) && !Backend::Utils::is_12bit(std::static_pointer_cast<Backend::IntValue>(rhs)->int32_value)) {
-                    lir_block->instructions.push_back(std::make_shared<Backend::LIR::LoadIntImm>(result, std::static_pointer_cast<Backend::IntValue>(rhs)));
-                    lir_block->instructions.push_back(std::make_shared<Backend::LIR::IntArithmetic>(Backend::Utils::llvm_to_lir(int_operation_->op), std::static_pointer_cast<Backend::Variable>(lhs), result, result));
+                    auto tmp = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("intAssist"), result->workload_type,
+                                                                   Backend::VariableWide::LOCAL);
+                    lir_block->parent_function.lock()->add_variable(tmp);
+                    lir_block->instructions.push_back(std::make_shared<Backend::LIR::LoadIntImm>(tmp, std::static_pointer_cast<Backend::IntValue>(rhs)));
+                    lir_block->instructions.push_back(std::make_shared<Backend::LIR::IntArithmetic>(Backend::Utils::llvm_to_lir(int_operation_->op), std::static_pointer_cast<Backend::Variable>(lhs), tmp, result));
                     break;
                 } else if ((int_operation_->op == Mir::IntBinary::Op::MUL || int_operation_->op == Mir::IntBinary::Op::DIV || int_operation_->op == Mir::IntBinary::Op::MOD) && std::static_pointer_cast<Backend::IntValue>(rhs)->int32_value <= 0) {
-                    lir_block->instructions.push_back(std::make_shared<Backend::LIR::LoadIntImm>(result, std::static_pointer_cast<Backend::IntValue>(rhs)));
-                    lir_block->instructions.push_back(std::make_shared<Backend::LIR::IntArithmetic>(Backend::Utils::llvm_to_lir(int_operation_->op), std::static_pointer_cast<Backend::Variable>(lhs), result, result));
+                    auto tmp = std::make_shared<Backend::Variable>(Backend::Utils::unique_name("intAssist"), result->workload_type,
+                                                                   Backend::VariableWide::LOCAL);
+                    lir_block->parent_function.lock()->add_variable(tmp);
+                    lir_block->instructions.push_back(std::make_shared<Backend::LIR::LoadIntImm>(tmp, std::static_pointer_cast<Backend::IntValue>(rhs)));
+                    lir_block->instructions.push_back(std::make_shared<Backend::LIR::IntArithmetic>(Backend::Utils::llvm_to_lir(int_operation_->op), std::static_pointer_cast<Backend::Variable>(lhs), tmp, result));
                     break;
                 }
             }
