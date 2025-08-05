@@ -28,6 +28,7 @@ protected:
 };
 
 // 执行在编译期内能识别出来的constexpr函数
+template<bool module_mode = false>
 class ConstexprFuncEval final : public Transform {
 public:
     explicit ConstexprFuncEval() : Transform("ConstexprFuncEval") {}
@@ -41,8 +42,6 @@ private:
     [[nodiscard]] bool is_constexpr_func(const std::shared_ptr<Mir::Function> &func) const;
 
     [[nodiscard]] bool run_on_func(const std::shared_ptr<Mir::Function> &func) const;
-
-    void run_on_main_func(const std::shared_ptr<Mir::Module> &module);
 };
 } // namespace Pass
 

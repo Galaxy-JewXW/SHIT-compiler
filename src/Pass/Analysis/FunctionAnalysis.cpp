@@ -93,8 +93,6 @@ void FunctionAnalysis::build_func_attribute(const FunctionPtr &func) {
                         io_read = true;
                     } else if (name.find("put") != std::string::npos) {
                         io_write = true;
-                    } else if (name.find("time") != std::string::npos) {
-                        io_read = true;
                     }
                     // memset只在栈内存分配时被使用，暂不认为会带来全局内存读写or产生副作用
                 }
