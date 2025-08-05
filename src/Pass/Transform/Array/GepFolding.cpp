@@ -65,7 +65,12 @@ void try_fold_gep(const std::shared_ptr<GetElementPtr> &gep) {
     offsets.push_back(offset);
     if (const auto new_gep = GetElementPtr::create("gep", chain.front()->get_addr(), offsets, current_block);
         new_gep != gep->get_addr()) {
-        const auto new_inst = new_gep->as<GetElementPtr>();
+        auto new_inst = new_gep->as<GetElementPtr>();
+        while (*new_inst->get_type() != *gep->get_type()) {
+            auto new_offsets = offsets;
+            new_offsets.insert(new_offsets.begin(), ConstInt::create(0));
+            new_inst = GetElementPtr::create("gep", chain.front()->get_addr(), new_offsets, current_block);
+        }
         Pass::Utils::move_instruction_before(new_inst, gep);
         gep->replace_by_new_value(new_inst);
     }

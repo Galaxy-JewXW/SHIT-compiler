@@ -24,6 +24,9 @@ bool Inlining::can_inline(const std::shared_ptr<Function> &func) const {
     if (func->is_runtime_func()) [[unlikely]] {
         return false;
     }
+    if (func->get_arguments().size() >= 20) [[unlikely]] {
+        return false;
+    }
     const auto &call_graph{func_info->call_graph_func(func)};
     const auto &reverse_call_graph{func_info->call_graph_reverse_func(func)};
     const auto &info{func_info->func_info(func)};

@@ -1,6 +1,7 @@
 #include "Pass/Analyses/BranchProbabilityAnalysis.h"
 
 #include "Pass/Analyses/ControlFlowGraph.h"
+#include "Pass/Analyses/DominanceGraph.h"
 #include "Pass/Analyses/IntervalAnalysis.h"
 #include "Pass/Analyses/LoopAnalysis.h"
 #include "Pass/Transforms/Common.h"
@@ -23,10 +24,11 @@ public:
                           const Pass::ControlFlowGraph::Graph &cfg_graph,
                           const std::shared_ptr<Pass::LoopAnalysis> &loop_info,
                           const std::shared_ptr<Pass::IntervalAnalysis> &interval_info,
+                          const Pass::DominanceGraph::Graph &dom_graph,
                           std::unordered_map<Edge, double, Edge::Hash> &edge_probability,
                           std::unordered_map<const Block *, double> &block_probability) :
         current_function(current_function), cfg_graph(cfg_graph),
-        loop_info(loop_info), interval_info(interval_info),
+        loop_info(loop_info), interval_info(interval_info), dom_graph(dom_graph),
         edge_probability(edge_probability), block_probability(block_probability) {}
 
 private:
@@ -34,6 +36,7 @@ private:
     const Pass::ControlFlowGraph::Graph &cfg_graph;
     const std::shared_ptr<Pass::LoopAnalysis> &loop_info;
     const std::shared_ptr<Pass::IntervalAnalysis> &interval_info;
+    const Pass::DominanceGraph::Graph &dom_graph;
     std::unordered_map<Edge, double, Edge::Hash> &edge_probability;
     std::unordered_map<const Block *, double> &block_probability;
 
@@ -63,12 +66,23 @@ void BranchProbabilityImpl::calc_branch(const Branch *const branch) const {
         const auto loop = loop_node->get_loop();
         if (const auto &exitings = loop->get_exitings();
             std::find(exitings.begin(), exitings.end(), current_block) != loop->get_exits().end()) {
-            if (is_exiting_loop(true_block, loop)) {
+            const bool flag1 = is_exiting_loop(false_block, loop), flag2 = is_exiting_loop(true_block, loop);
+            if (flag1 && flag2) {
+                if (dom_graph.dominated_blocks.at(true_block).size() > dom_graph.dominated_blocks.at(false_block).size()) {
+                    MAKE_EDGE(current_block, true_block).weight = 25;
+                    MAKE_EDGE(current_block, false_block).weight = 7;
+                } else {
+                    MAKE_EDGE(current_block, true_block).weight = 7;
+                    MAKE_EDGE(current_block, false_block).weight = 25;
+                }
+                return;
+            }
+            if (flag1) {
                 MAKE_EDGE(current_block, true_block).weight = BACKEDGE_TAKEN_WEIGHT;
                 MAKE_EDGE(current_block, false_block).weight = BACKEDGE_NOTTAKEN_WEIGHT;
                 return;
             }
-            if (is_exiting_loop(false_block, loop)) {
+            if (flag2) {
                 MAKE_EDGE(current_block, true_block).weight = BACKEDGE_NOTTAKEN_WEIGHT;
                 MAKE_EDGE(current_block, false_block).weight = BACKEDGE_TAKEN_WEIGHT;
                 return;
@@ -78,7 +92,6 @@ void BranchProbabilityImpl::calc_branch(const Branch *const branch) const {
     const auto cond{branch->get_cond()};
     if (const auto icmp{cond->is<Icmp>()}) {
         if (icmp->get_rhs()->is_constant()) {
-            const auto ctx = interval_info->ctx_after(icmp, branch->get_block());
             if (const auto rhs{**icmp->get_rhs()->as<ConstInt>()}; rhs == 0) {
                 switch (icmp->icmp_op()) {
                     case Icmp::Op::EQ:
@@ -113,32 +126,6 @@ void BranchProbabilityImpl::calc_branch(const Branch *const branch) const {
                     default:
                         break;
                 }
-            } else if (const auto interval = std::get<Pass::IntervalAnalysis::IntervalSet<int>>(
-                        ctx.get(icmp->get_lhs()));
-                interval != Pass::IntervalAnalysis::IntervalSet<int>::make_any()) {
-                const auto p = interval.get_proportions(rhs);
-                auto true_value = static_cast<int>((BRANCH_TAKEN_WEIGHT + BRANCH_NOTTAKEN_WEIGHT) * p.first);
-                auto false_value = static_cast<int>((BRANCH_TAKEN_WEIGHT + BRANCH_NOTTAKEN_WEIGHT) * p.second);
-                if (true_value == 0)
-                    true_value = BRANCH_NOTTAKEN_WEIGHT;
-                if (false_value == 0)
-                    false_value = BRANCH_NOTTAKEN_WEIGHT;
-                switch (icmp->icmp_op()) {
-                    case Icmp::Op::LT:
-                    case Icmp::Op::LE: {
-                        MAKE_EDGE(current_block, true_block).weight = true_value;
-                        MAKE_EDGE(current_block, false_block).weight = false_value;
-                        return;
-                    }
-                    case Icmp::Op::GT:
-                    case Icmp::Op::GE: {
-                        MAKE_EDGE(current_block, true_block).weight = false_value;
-                        MAKE_EDGE(current_block, false_block).weight = true_value;
-                        return;
-                    }
-                    default:
-                        break;
-                }
             }
         }
     } else if (const auto fcmp{cond->is<Fcmp>()}) {
@@ -152,16 +139,18 @@ void BranchProbabilityImpl::calc_branch(const Branch *const branch) const {
             return;
         }
     }
-    if (true_block->get_instructions().size() >= false_block->get_instructions().size()) {
-        MAKE_EDGE(current_block, true_block).weight = 17;
-        MAKE_EDGE(current_block, false_block).weight = 15;
+    if (dom_graph.dominated_blocks.at(true_block).size() > dom_graph.dominated_blocks.at(false_block).size()) {
+        MAKE_EDGE(current_block, true_block).weight = 20;
+        MAKE_EDGE(current_block, false_block).weight = 12;
     } else {
-        MAKE_EDGE(current_block, true_block).weight = 15;
-        MAKE_EDGE(current_block, false_block).weight = 17;
+        MAKE_EDGE(current_block, true_block).weight = 12;
+        MAKE_EDGE(current_block, false_block).weight = 20;
     }
 }
 
 void BranchProbabilityImpl::impl() const {
+    // current_function->update_id();
+    // log_debug("\n%s", current_function->to_string().c_str());
     // 初始化权重
     for (const auto &_blk: current_function->get_blocks()) {
         const auto block = _blk.get();
@@ -174,6 +163,7 @@ void BranchProbabilityImpl::impl() const {
                 break;
             }
             case Operator::BRANCH: {
+                // log_debug("%s", terminator->to_string().c_str());
                 calc_branch(terminator->as<Branch>().get());
                 break;
             }
@@ -256,13 +246,13 @@ void BranchProbabilityAnalysis::analyze(const std::shared_ptr<const Module> modu
     create<StandardizeBinary>()->run_on(std::const_pointer_cast<Module>(module));
     // module->update_id();
     // log_debug("%s", module->to_string().c_str());
-    const auto interval_info = get_analysis_result<IntervalAnalysis>(module);
     const auto cfg_info = get_analysis_result<ControlFlowGraph>(module);
+    const auto dom_info = get_analysis_result<DominanceGraph>(module);
     const auto loop_info = get_analysis_result<LoopAnalysis>(module);
     // module->update_id();
     // log_debug("%s", module->to_string().c_str());
     for (const auto &func: module->get_functions()) {
-        BranchProbabilityImpl impl{func, cfg_info->graph(func), loop_info, interval_info,
+        BranchProbabilityImpl impl{func, cfg_info->graph(func), loop_info, nullptr, dom_info->graph(func),
                                    edge_probabilities[func.get()], block_probabilities[func.get()]};
         impl.impl();
     }
