@@ -91,7 +91,7 @@ compiler_options parse_args(const int argc, char *argv[]) {
                 options.opt_level = Optimize_level::O0;
                 i++;
             } else if (arg == "-O1") {
-                options.opt_level = Optimize_level::O0;
+                options.opt_level = Optimize_level::O1;
                 i++;
             } else if (arg == "-O2") {
                 options.opt_level = Optimize_level::O2;

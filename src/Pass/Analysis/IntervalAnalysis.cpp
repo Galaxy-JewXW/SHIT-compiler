@@ -1,3 +1,4 @@
+#include <array>
 #include <queue>
 
 #include "Pass/Analyses/IntervalAnalysis.h"
@@ -82,7 +83,7 @@ void evaluate(const std::shared_ptr<Instruction> &inst, Context &ctx, const Summ
         case Operator::FLOATTERNARY: {
             const auto &floatternary{inst->as<FloatTernary>()};
             const auto x1{ctx.get(floatternary->get_x())}, x2{ctx.get(floatternary->get_y())},
-                       x3{ctx.get(floatternary->get_z())};
+                    x3{ctx.get(floatternary->get_z())};
             result_interval = std::visit(
                     [&](const auto &a, const auto &b, const auto &c) {
                         const auto x{IntervalSetDouble(a)}, y{IntervalSetDouble(b)}, z{IntervalSetDouble(c)};
@@ -191,17 +192,16 @@ IntervalAnalysis::AnyIntervalSet IntervalAnalysis::rabai_function(const std::sha
     std::queue<std::shared_ptr<Block>> worklist;
     std::unordered_set<std::shared_ptr<Block>> worklist_set;
 
-    const auto is_back_edge = [&loops](const std::shared_ptr<Block> &b, decltype(b) pred) -> bool {
+    const auto is_back_edge = [&loops](const std::shared_ptr<Block> &b, const std::shared_ptr<Block> &pred) -> bool {
         for (const auto &loop: loops) {
             if (loop->get_header() != b) {
                 continue;
             }
             if (const auto &latchs{loop->get_latch_blocks()};
-                std::find_if(latchs.begin(), latchs.end(), [&pred](const auto &latch) { return latch == pred; }) ==
+                std::find_if(latchs.begin(), latchs.end(), [&pred](const auto &latch) { return latch == pred; }) !=
                 latchs.end()) {
-                continue;
+                return true;
             }
-            return true;
         }
         return false;
     };
@@ -214,101 +214,43 @@ IntervalAnalysis::AnyIntervalSet IntervalAnalysis::rabai_function(const std::sha
         if (!(!icmp->get_lhs()->is_constant() && icmp->get_rhs()->is_constant())) {
             return;
         }
-        auto lhs{std::get<IntervalSetInt>(ctx.get(icmp->get_lhs()))};
+        const auto lhs_var = icmp->get_lhs();
+        const auto lhs_interval_any = ctx.get(lhs_var);
+        if (!std::holds_alternative<IntervalSet<int>>(lhs_interval_any)) {
+            return;
+        }
+        auto lhs{std::get<IntervalSet<int>>(lhs_interval_any)};
         const auto rhs{**icmp->get_rhs()->as<ConstInt>()};
-        const auto interval = [&]() -> IntervalSetInt {
+        const auto interval = [&]() -> IntervalSet<int> {
             switch (icmp->op) {
-                case Icmp::Op::EQ: {
-                    if (is_true_branch) {
-                        return IntervalSetInt{rhs};
-                    }
-                    return IntervalSetInt{numeric_limits_v<int>::neg_infinity, rhs - 1}.union_with(
-                            IntervalSetInt{rhs + 1, numeric_limits_v<int>::infinity});
-                }
-                case Icmp::Op::NE: {
-                    if (is_true_branch) {
-                        return IntervalSetInt{numeric_limits_v<int>::neg_infinity, rhs - 1}.union_with(
-                                IntervalSetInt{rhs + 1, numeric_limits_v<int>::infinity});
-                    }
-                    return IntervalSetInt{rhs};
-                }
-                case Icmp::Op::LT: {
-                    if (is_true_branch) {
-                        return IntervalSetInt{numeric_limits_v<int>::neg_infinity, rhs - 1};
-                    }
-                    return IntervalSetInt{rhs, numeric_limits_v<int>::infinity};
-                }
-                case Icmp::Op::LE: {
-                    if (is_true_branch) {
-                        return IntervalSetInt{numeric_limits_v<int>::neg_infinity, rhs};
-                    }
-                    return IntervalSetInt{rhs + 1, numeric_limits_v<int>::infinity};
-                }
-                case Icmp::Op::GT: {
-                    if (is_true_branch) {
-                        return IntervalSetInt{rhs + 1, numeric_limits_v<int>::infinity};
-                    }
-                    return IntervalSetInt{numeric_limits_v<int>::neg_infinity, rhs};
-                }
-                case Icmp::Op::GE: {
-                    if (is_true_branch) {
-                        return IntervalSetInt{rhs, numeric_limits_v<int>::infinity};
-                    }
-                    return IntervalSetInt{numeric_limits_v<int>::neg_infinity, rhs - 1};
-                }
+                case Icmp::Op::EQ:
+                    return is_true_branch ? IntervalSet{rhs}
+                                          : IntervalSet{numeric_limits_v<int>::neg_infinity, rhs - 1}.union_with(
+                                                    IntervalSet{rhs + 1, numeric_limits_v<int>::infinity});
+                case Icmp::Op::NE:
+                    return !is_true_branch ? IntervalSet{rhs}
+                                           : IntervalSet{numeric_limits_v<int>::neg_infinity, rhs - 1}.union_with(
+                                                     IntervalSet{rhs + 1, numeric_limits_v<int>::infinity});
+                case Icmp::Op::LT:
+                    return is_true_branch ? IntervalSet{numeric_limits_v<int>::neg_infinity, rhs - 1}
+                                          : IntervalSet{rhs, numeric_limits_v<int>::infinity};
+                case Icmp::Op::LE:
+                    return is_true_branch ? IntervalSet{numeric_limits_v<int>::neg_infinity, rhs}
+                                          : IntervalSet{rhs + 1, numeric_limits_v<int>::infinity};
+                case Icmp::Op::GT:
+                    return is_true_branch ? IntervalSet{rhs + 1, numeric_limits_v<int>::infinity}
+                                          : IntervalSet{numeric_limits_v<int>::neg_infinity, rhs};
+                case Icmp::Op::GE:
+                    return is_true_branch ? IntervalSet{rhs, numeric_limits_v<int>::infinity}
+                                          : IntervalSet{numeric_limits_v<int>::neg_infinity, rhs - 1};
+                default:
+                    log_error("Unsupported ICMP operator for refinement");
             }
-            log_error("Should not reach here");
         }();
-        lhs = lhs.intersect_with(interval);
-        ctx.insert(icmp->get_lhs(), lhs);
+        lhs.intersect_with(interval);
+        ctx.insert(lhs_var, lhs);
     };
 
-    const auto propagate = [&](const std::shared_ptr<Block> &pred, decltype(pred) succ, const Context &pred_out_ctx) {
-        const auto old_in_succ{in_ctxs[succ]};
-        auto new_in_succ = old_in_succ;
-        new_in_succ = new_in_succ.union_with(pred_out_ctx);
-
-        bool changed{false};
-        for (const auto &inst: succ->get_instructions()) {
-            if (inst->get_op() != Operator::PHI)
-                break;
-            const auto phi{inst->as<Phi>()};
-            if (phi->get_optional_values().count(pred) == 0)
-                continue;
-            const auto incoming_value{phi->get_optional_values().at(pred)};
-            const auto incoming_interval = pred_out_ctx.get(incoming_value);
-            const auto old_phi_interval = new_in_succ.get(phi);
-            AnyIntervalSet new_phi_interval = std::visit(
-                    [&](const auto &old_v) -> AnyIntervalSet {
-                        return std::visit(
-                                [&](const auto &incoming_v) -> AnyIntervalSet {
-                                    if constexpr (std::is_same_v<decltype(old_v), decltype(incoming_v)>) {
-                                        if (is_back_edge(succ, pred)) {
-                                            auto old_copy = old_v;
-                                            return old_copy.widen(incoming_v);
-                                        }
-                                        auto old_copy = old_v;
-                                        return old_copy.union_with(incoming_v);
-                                    } else {
-                                        log_error("Type mismatch in PHI node! old: %s, incoming: %s",
-                                                  old_v.to_string().c_str(), incoming_v.to_string().c_str());
-                                    }
-                                }, incoming_interval);
-                    }, old_phi_interval);
-            if (new_phi_interval != old_phi_interval) {
-                new_in_succ.insert(phi, new_phi_interval);
-                changed = true;
-            }
-        }
-
-        if (changed || worklist_set.find(succ) == worklist_set.end()) {
-            in_ctxs[succ] = new_in_succ;
-            worklist.push(succ);
-            worklist_set.insert(succ);
-        }
-    };
-
-    // 初始化参数的范围
     const auto &entry{func->get_blocks().front()};
     Context arg_ctx;
     for (const auto &arg: func->get_arguments()) {
@@ -316,93 +258,167 @@ IntervalAnalysis::AnyIntervalSet IntervalAnalysis::rabai_function(const std::sha
     }
     in_ctxs[entry] = std::move(arg_ctx);
     worklist.push(func->get_blocks().front());
+    worklist_set.insert(func->get_blocks().front());
 
     while (!worklist.empty()) {
         const auto current_block{worklist.front()};
         worklist.pop();
-        out_ctxs[current_block] = in_ctxs[current_block];
+        worklist_set.erase(current_block);
+
+        // 1. 计算当前块的 Out 上下文
+        auto &current_out_ctx = out_ctxs[current_block];
+        current_out_ctx = in_ctxs[current_block];
         for (const auto &inst: current_block->get_instructions()) {
-            evaluate(inst, out_ctxs[current_block], summary_manager);
+            if (inst->is<Terminator>() || inst->get_op() == Operator::PHI)
+                continue;
+            evaluate(inst, current_out_ctx, summary_manager);
         }
-        switch (const auto terminator{current_block->get_instructions().back()};
-            terminator->get_op()) {
+
+        // 2. 将结果传播到所有后继
+        switch (const auto terminator{current_block->get_instructions().back()}; terminator->get_op()) {
+            case Operator::JUMP: {
+                const auto jump = terminator->as<Jump>();
+                const auto &succ = jump->get_target_block();
+
+                auto &succ_in_ctx = in_ctxs[succ];
+                Context old_succ_in_ctx = succ_in_ctx;
+
+                // 2a. 合并前驱上下文
+                succ_in_ctx.union_with(current_out_ctx);
+
+                // 2b. 单独处理Phi节点，使用未精化的值
+                for (const auto &inst: succ->get_instructions()) {
+                    if (auto phi = inst->is<Phi>()) {
+                        if (phi->get_optional_values().count(current_block)) {
+                            const auto &incoming_value = phi->get_optional_values().at(current_block);
+                            const auto incoming_interval = current_out_ctx.get(incoming_value);
+                            auto old_phi_interval = old_succ_in_ctx.get(phi);
+
+                            AnyIntervalSet new_phi_interval = std::visit(
+                                    [&](auto &old_v, const auto &incoming_v) -> AnyIntervalSet {
+                                        if constexpr (std::is_same_v<std::decay_t<decltype(old_v)>,
+                                                                     std::decay_t<decltype(incoming_v)>>) {
+                                            if (is_back_edge(succ, current_block)) {
+                                                old_v.widen(incoming_v);
+                                            } else {
+                                                old_v.union_with(incoming_v);
+                                            }
+                                            return old_v;
+                                        }
+                                        log_error("Type mismatch for PHI node in JUMP handler.");
+                                    },
+                                    old_phi_interval, incoming_interval);
+                            succ_in_ctx.insert(phi, new_phi_interval);
+                        }
+                    } else {
+                        break;
+                    }
+                }
+
+                // 2c. JUMP无条件，无需精化。检查变化并加入worklist
+                if (succ_in_ctx != old_succ_in_ctx) {
+                    worklist.push(succ);
+                    if (worklist_set.find(succ) == worklist_set.end()) {
+                        worklist_set.insert(succ);
+                    }
+                }
+                break;
+            }
             case Operator::BRANCH: {
                 const auto branch = terminator->as<Branch>();
-                const auto &true_block{branch->get_true_block()}, &false_block{branch->get_false_block()};
                 const auto &cond{branch->get_cond()};
-                auto true_context{out_ctxs[current_block]}, false_context{out_ctxs[current_block]};
-                refine_context(cond, true, true_context);
-                refine_context(cond, false, false_context);
-                propagate(current_block, true_block, true_context);
-                propagate(current_block, false_block, false_context);
+                std::array<std::shared_ptr<Block>, 2> successors{branch->get_true_block(), branch->get_false_block()};
+
+                for (size_t i = 0; i < successors.size(); ++i) {
+                    bool is_true_path = (i == 0);
+                    const auto &succ = successors[i];
+
+                    auto &succ_in_ctx = in_ctxs[succ];
+                    Context old_succ_in_ctx = succ_in_ctx;
+
+                    // 2a. 合并前驱上下文
+                    succ_in_ctx.union_with(current_out_ctx);
+
+                    // 2b. 单独处理Phi节点
+                    for (const auto &inst: succ->get_instructions()) {
+                        if (auto phi = inst->is<Phi>()) {
+                            if (phi->get_optional_values().count(current_block)) {
+                                const auto &incoming_value = phi->get_optional_values().at(current_block);
+                                const auto incoming_interval = current_out_ctx.get(incoming_value);
+
+                                auto old_phi_interval = old_succ_in_ctx.get(phi);
+                                AnyIntervalSet new_phi_interval = std::visit(
+                                        [&](auto &old_v, const auto &incoming_v) -> AnyIntervalSet {
+                                            if constexpr (std::is_same_v<std::decay_t<decltype(old_v)>,
+                                                                         std::decay_t<decltype(incoming_v)>>) {
+                                                if (is_back_edge(succ, current_block)) {
+                                                    old_v.widen(incoming_v);
+                                                } else {
+                                                    old_v.union_with(incoming_v);
+                                                }
+                                                return old_v;
+                                            }
+                                            log_error("Type mismatch for PHI node in BRANCH handler.");
+                                        },
+                                        old_phi_interval, incoming_interval);
+                                succ_in_ctx.insert(phi, new_phi_interval);
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                    // 2c. 在合并和phi更新完成后，进行精化
+                    refine_context(cond, is_true_path, succ_in_ctx);
+                    // 2d. 检查变化
+                    if (succ_in_ctx != old_succ_in_ctx) {
+                        worklist.push(succ);
+                        if (worklist_set.find(succ) == worklist_set.end()) {
+                            worklist_set.insert(succ);
+                        }
+                    }
+                }
                 break;
             }
             case Operator::SWITCH: {
-                const auto switch_{terminator->as<Switch>()};
-                // 处理所有case分支
-                for (const auto &[value, block]: switch_->cases()) {
-                    auto case_context{out_ctxs[current_block]};
-                    auto interval = std::get<IntervalSetInt>(case_context.get(switch_->get_base()));
-                    interval = interval.intersect_with(IntervalSetInt{**value->as<ConstInt>()});
-                    case_context.insert(switch_->get_base(), interval);
-                    propagate(current_block, block, case_context);
-                }
-                // 处理default分支
-                auto default_context{out_ctxs[current_block]};
-                auto interval = std::get<IntervalSetInt>(default_context.get(switch_->get_base()));
-                for (const auto &[value, block]: switch_->cases()) {
-                    interval = interval.difference(IntervalSetInt{**value->as<ConstInt>()});
-                }
-                default_context.insert(switch_->get_base(), interval);
-                propagate(current_block, switch_->get_default_block(), default_context);
-                break;
-            }
-            case Operator::JUMP: {
-                const auto jump = terminator->as<Jump>();
-                propagate(current_block, jump->get_target_block(), out_ctxs[current_block]);
-                break;
+                log_error("Not supported");
             }
             case Operator::RET: {
                 const auto ret = terminator->as<Ret>();
                 if (func->get_return_type()->is_void())
                     break;
 
-                AnyIntervalSet interval_set;
-                if (const auto inst = ret->get_value()->is<Instruction>()) {
-                    interval_set = out_ctxs[current_block].get(inst);
-                } else if (const auto constant = ret->get_value()->is<Const>()) {
-                    interval_set = std::visit([](const auto x) -> AnyIntervalSet {
-                        return IntervalSet<std::decay_t<decltype(x)>>{x};
-                    }, constant->get_constant_value());
+                AnyIntervalSet interval_set = current_out_ctx.get(ret->get_value());
+                if (ret_ctxs.find(ret) == ret_ctxs.end()) {
+                    ret_ctxs[ret] = interval_set;
                 } else {
-                    // set to all
-                    if (func->get_return_type()->is_int32()) {
-                        interval_set = IntervalSetInt::make_any();
-                    } else if (func->get_return_type()->is_float()) {
-                        interval_set = IntervalSetDouble::make_any();
-                    } else {
-                        log_error("Invalid type");
-                    }
+                    std::visit(
+                            [&](auto &old_set, const auto &new_set) {
+                                if constexpr (std::is_same_v<std::decay_t<decltype(old_set)>,
+                                                             std::decay_t<decltype(new_set)>>) {
+                                    old_set.union_with(new_set);
+                                }
+                            },
+                            ret_ctxs[ret], interval_set);
                 }
-                ret_ctxs[ret] = interval_set;
                 break;
             }
             default:
+                // 对于其他没有后继的终结符(如Unreachable)，什么都不做
                 break;
         }
     }
 
-    // std::cout << "=== Interval Analysis Results for Function: " << func->get_name() << " ===" << std::endl;
-    // for (const auto &block: func->get_blocks()) {
-    //     std::cout << "\nBlock: " << block->get_name() << std::endl;
-    //     std::cout << "  In Context:" << std::endl;
-    //     const auto &in_ctx = in_ctxs[block];
-    //     std::cout << in_ctx.to_string() << std::endl;
-    //     std::cout << "  Out Context:" << std::endl;
-    //     const auto &out_ctx = out_ctxs[block];
-    //     std::cout << out_ctx.to_string() << std::endl;
-    // }
-    // std::cout << "=== End of Analysis ===\n" << std::endl;
+    std::cout << "=== Interval Analysis Results for Function: " << func->get_name() << " ===" << std::endl;
+    for (const auto &block: func->get_blocks()) {
+        std::cout << "\nBlock: " << block->get_name() << std::endl;
+        std::cout << "  In Context:" << std::endl;
+        const auto &in_ctx = in_ctxs[block];
+        std::cout << in_ctx.to_string() << std::endl;
+        std::cout << "  Out Context:" << std::endl;
+        const auto &out_ctx = out_ctxs[block];
+        std::cout << out_ctx.to_string() << std::endl;
+    }
+    std::cout << "=== End of Analysis ===\n" << std::endl;
 
     for (const auto &[b, ctx]: in_ctxs) {
         block_in_ctxs.insert({b.get(), ctx});
@@ -411,14 +427,14 @@ IntervalAnalysis::AnyIntervalSet IntervalAnalysis::rabai_function(const std::sha
     if (func->get_return_type()->is_int32()) {
         IntervalSet<int> return_intervals;
         for (const auto &[ret, interval]: ret_ctxs) {
-            return_intervals = return_intervals.union_with(std::get<decltype(return_intervals)>(interval));
+            return_intervals.union_with(std::get<decltype(return_intervals)>(interval));
         }
         return return_intervals;
     }
     if (func->get_return_type()->is_float()) {
         IntervalSet<double> return_intervals;
         for (const auto &[ret, interval]: ret_ctxs) {
-            return_intervals = return_intervals.union_with(std::get<decltype(return_intervals)>(interval));
+            return_intervals.union_with(std::get<decltype(return_intervals)>(interval));
         }
         return return_intervals;
     }
