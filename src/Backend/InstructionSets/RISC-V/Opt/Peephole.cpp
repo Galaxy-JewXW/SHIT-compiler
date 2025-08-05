@@ -260,6 +260,15 @@ void RISCV::Opt::PeepholeAfterRA::removeUselessJumps(const std::shared_ptr<RISCV
             }
         }
     }
+    for (size_t i = 1; i < function->blocks.size() - 1; i++) {
+        std::shared_ptr<RISCV::Block> block = function->blocks[i];
+        if (!std::dynamic_pointer_cast<RISCV::Instructions::Jump>(block->instructions.back()))
+            continue;
+        std::shared_ptr<RISCV::Instructions::Jump> jump = std::static_pointer_cast<RISCV::Instructions::Jump>(block->instructions.back());
+        std::shared_ptr<RISCV::Block> jump_to = jump->target_block;
+        if (jump_to == function->blocks[i + 1])
+            block->instructions.pop_back();
+    }
 }
 
 void RISCV::Opt::PeepholeAfterRA::addSubZeroRemove(const std::shared_ptr<RISCV::Block> &block) {
